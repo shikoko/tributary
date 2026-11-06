@@ -1,10 +1,13 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 export interface MenuItem {
   label: string;
+  icon?: ReactNode;
   onSelect: () => void;
   disabled?: boolean;
   danger?: boolean;
+  /** Draw a divider above this item. */
+  separated?: boolean;
 }
 
 interface Props {
@@ -53,18 +56,21 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
         }}
       >
         {items.map((item) => (
-          <button
-            key={item.label}
-            className={`menu-item${item.danger ? " danger" : ""}`}
-            role="menuitem"
-            disabled={item.disabled}
-            onClick={() => {
-              onClose();
-              item.onSelect();
-            }}
-          >
-            {item.label}
-          </button>
+          <div key={item.label}>
+            {item.separated && <div className="menu-separator" role="separator" />}
+            <button
+              className={`menu-item${item.danger ? " danger" : ""}`}
+              role="menuitem"
+              disabled={item.disabled}
+              onClick={() => {
+                onClose();
+                item.onSelect();
+              }}
+            >
+              <span className="menu-icon">{item.icon}</span>
+              {item.label}
+            </button>
+          </div>
         ))}
       </div>
     </div>

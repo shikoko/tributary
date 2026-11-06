@@ -4,7 +4,7 @@ import { laneColor, withAlpha } from "../lib/colors";
 import { dateInZone, fullDate, plural, shortId, utcOffset } from "../lib/format";
 import { copyText } from "../lib/clipboard";
 import { Avatar } from "./Avatar";
-import { CheckIcon, CloseIcon, CopyIcon } from "./Icons";
+import { CheckIcon, CloseIcon, CopyIcon, ResetIcon } from "./Icons";
 import { RefPills } from "./RefPills";
 
 /** Very large commits only list their first files, to keep the panel responsive. */
@@ -117,6 +117,7 @@ export function CommitDetailsPanel(props: Props) {
         {resetLabel && (
           <div className="details-actions">
             <button className="danger-outline-button" onClick={onReset}>
+              <ResetIcon size={14} />
               {resetLabel}
             </button>
           </div>

@@ -958,7 +958,9 @@ button:disabled {
 }
 
 .menu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   padding: 7px 10px;
   border: none;
@@ -975,6 +977,27 @@ button:disabled {
 
 .menu-item.danger {
   color: #ff8a96;
+}
+
+.menu-icon {
+  display: inline-flex;
+  width: 16px;
+  color: var(--text-muted);
+  flex: none;
+}
+
+.menu-item.danger .menu-icon {
+  color: inherit;
+}
+
+.menu-item:disabled .menu-icon {
+  color: var(--text-faint);
+}
+
+.menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-strong);
 }
 
 .menu-item:disabled {
@@ -1083,6 +1106,9 @@ button:disabled {
 }
 
 .danger-outline-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   height: 28px;
   padding: 0 10px;
   border: 1px solid rgba(255, 92, 108, 0.45);

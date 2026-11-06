@@ -13,7 +13,7 @@ import { copyText } from "./lib/clipboard";
 import { CommitDetailsPanel } from "./components/CommitDetails";
 import { CommitList } from "./components/CommitList";
 import { ContextMenu, type MenuItem } from "./components/ContextMenu";
-import { CloseIcon } from "./components/Icons";
+import { CloseIcon, CopyIcon, ResetIcon } from "./components/Icons";
 import { ResetDialog } from "./components/ResetDialog";
 import { Toolbar } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
@@ -201,13 +201,15 @@ export default function App() {
 
   const branchLabel = snapshot.headBranch ?? "HEAD";
   const menuItems = (commit: CommitRow): MenuItem[] => [
+    { label: "Copy SHA", icon: <CopyIcon />, onSelect: () => copyText(commit.id) },
     {
       label: `Hard reset ${branchLabel} to this commit…`,
+      icon: <ResetIcon />,
       danger: true,
+      separated: true,
       disabled: !canResetTo(snapshot, commit),
       onSelect: () => setResetTarget(commit),
     },
-    { label: "Copy SHA", onSelect: () => copyText(commit.id) },
   ];
 
   return (
