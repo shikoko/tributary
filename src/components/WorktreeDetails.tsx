@@ -24,7 +24,7 @@ export function WorktreeDetailsPanel({ status, headBranch, onClose }: Props) {
       <div className="details-scroll">
         <h2 className="details-summary">Uncommitted changes</h2>
         <p className="details-body">
-          {headBranch ? `On branch ${headBranch}.` : "HEAD is detached."} Press Refresh to pick up new changes.
+          {headBranch ? `On branch ${headBranch}.` : "HEAD is detached."} Changes made in other apps show up when you come back to this window.
         </p>
         <FileSection title="Staged" files={status.staged} empty="Nothing staged." />
         <FileSection title="Unstaged" files={status.unstaged} empty="No unstaged changes." />

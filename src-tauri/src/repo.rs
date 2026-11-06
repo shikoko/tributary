@@ -22,6 +22,8 @@ pub struct RepoSnapshot {
     /// The repository's working directory (or git directory for bare repositories).
     pub path: String,
     pub name: String,
+    /// `true` for a repository without a working tree.
+    pub bare: bool,
     /// The checked out branch, or `None` when HEAD is detached or unborn.
     pub head_branch: Option<String>,
     pub head_commit: Option<String>,
@@ -250,7 +252,11 @@ pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnaps
             walked.push(stash);
         }
     }
-    let worktree = if include_status { worktree_status(&repo) } else { None };
+    let worktree = if include_status {
+        worktree_status(&repo)
+    } else {
+        None
+    };
     if worktree.is_some() {
         walked.push(Walked {
             id: ObjectId::null(repo.object_hash()),
@@ -298,6 +304,7 @@ pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnaps
     Ok(RepoSnapshot {
         path: location.display().to_string(),
         name,
+        bare: repo.workdir().is_none(),
         head_branch,
         head_commit: head_commit.map(|id| id.to_string()),
         commits,

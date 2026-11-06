@@ -48,6 +48,8 @@ export interface CommitRow {
 export interface RepoSnapshot {
   path: string;
   name: string;
+  /** True for a repository without a working tree. */
+  bare: boolean;
   headBranch: string | null;
   headCommit: string | null;
   /** Commits, plus rows for uncommitted changes and stashes. */
@@ -101,6 +103,11 @@ export const PAGE_SIZE = 10_000;
  */
 export function openRepository(path: string, limit = PAGE_SIZE, includeStatus = true): Promise<RepoSnapshot> {
   return invoke<RepoSnapshot>("open_repository", { path, limit, includeStatus });
+}
+
+/** `git reset --hard <id>` on the checked-out branch. Runs the installed git. */
+export function resetHard(path: string, id: string): Promise<void> {
+  return invoke<void>("reset_hard", { path, id });
 }
 
 export function commitDetails(path: string, id: string): Promise<CommitDetails> {

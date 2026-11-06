@@ -1,16 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
-import { openRepository, PAGE_SIZE, WORKTREE_ID, type CommitDetails, type RepoSnapshot } from "./api";
+import {
+  openRepository,
+  PAGE_SIZE,
+  type CommitDetails,
+  type CommitRow,
+  type RepoSnapshot,
+} from "./api";
 import { forgetRepo, loadRecent, rememberRepo } from "./lib/recent";
+import { copyText } from "./lib/clipboard";
 import { CommitDetailsPanel } from "./components/CommitDetails";
 import { CommitList } from "./components/CommitList";
+import { ContextMenu, type MenuItem } from "./components/ContextMenu";
 import { CloseIcon } from "./components/Icons";
+import { ResetDialog } from "./components/ResetDialog";
 import { Toolbar } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
 import { WorktreeDetailsPanel } from "./components/WorktreeDetails";
 
 type Busy = { kind: "open"; path: string } | { kind: "refresh" } | { kind: "more" } | null;
+
+/** Don't refresh on window focus more often than this, in milliseconds. */
+const FOCUS_REFRESH_INTERVAL = 2000;
 
 function setWindowTitle(title: string) {
   document.title = title;
@@ -19,67 +31,87 @@ function setWindowTitle(title: string) {
     .catch(() => {});
 }
 
+/** Whether the checked-out branch can be hard reset to `commit`. */
+function canResetTo(snapshot: RepoSnapshot, commit: CommitRow): boolean {
+  if (snapshot.bare || commit.kind !== "commit") return false;
+  // Resetting to the current commit only makes sense when there are changes to discard.
+  return commit.id !== snapshot.headCommit || snapshot.worktree !== null;
+}
+
 export default function App() {
   const [snapshot, setSnapshot] = useState<RepoSnapshot | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
   const [recent, setRecent] = useState(loadRecent);
+  const [menu, setMenu] = useState<{ commit: CommitRow; x: number; y: number } | null>(null);
+  const [resetTarget, setResetTarget] = useState<CommitRow | null>(null);
   const detailsCache = useRef(new Map<string, CommitDetails>());
   /** Increases with every load, so answers to older loads can be ignored. */
   const loadCount = useRef(0);
+  const lastLoad = useRef(0);
+  /** True while something is loading or the folder picker is open; focus refreshes wait. */
+  const blockFocusRefresh = useRef(false);
 
   const load = useCallback(async (path: string, mode: "open" | "refresh" | "more", limit = PAGE_SIZE) => {
     const request = ++loadCount.current;
+    blockFocusRefresh.current = true;
     setBusy(mode === "open" ? { kind: "open", path } : { kind: mode });
     setError(null);
+    const current = () => request === loadCount.current;
     const fallback = (next: RepoSnapshot) => {
       const loaded = (id: string | null) => (id && next.commits.some((c) => c.id === id) ? id : null);
       return loaded(next.headCommit) ?? next.commits[0]?.id ?? null;
     };
-
-    // The graph first, without uncommitted changes…
-    try {
-      const next = await openRepository(path, limit, false);
-      if (request !== loadCount.current) return;
-      if (mode === "open") detailsCache.current = new Map();
+    const show = (next: RepoSnapshot) => {
       setSnapshot(next);
-      setSelectedId((current) => {
-        if (mode === "open" || !current) return fallback(next);
-        // The uncommitted changes row comes back with the second load.
-        if (current === WORKTREE_ID) return current;
-        return next.commits.some((c) => c.id === current) ? current : fallback(next);
-      });
-      setRecent(rememberRepo(next.path, next.name));
-      setWindowTitle(`${next.name} — Tributary`);
-    } catch (e) {
-      if (request === loadCount.current) setError(String(e));
-      return;
-    } finally {
-      if (request === loadCount.current) setBusy(null);
-    }
+      setSelectedId((selected) =>
+        mode !== "open" && selected && next.commits.some((c) => c.id === selected) ? selected : fallback(next),
+      );
+    };
 
-    // …then again with them, which can take longer in big working trees.
     try {
-      const next = await openRepository(path, limit, true);
-      if (request !== loadCount.current) return;
-      if (next.worktree) {
-        setSnapshot(next);
+      if (mode === "open") {
+        // When opening, show the graph first: reading uncommitted changes can take a
+        // while in big working trees, so they follow in a second load.
+        const next = await openRepository(path, limit, false);
+        if (!current()) return;
+        detailsCache.current = new Map();
+        show(next);
+        setRecent(rememberRepo(next.path, next.name));
+        setWindowTitle(`${next.name} — Tributary`);
+        setBusy(null);
+        const full = await openRepository(path, limit, true).catch(() => null);
+        if (current() && full?.worktree) setSnapshot(full);
       } else {
-        setSelectedId((current) => (current === WORKTREE_ID ? fallback(next) : current));
+        // The graph is already on screen, so load everything at once to avoid flicker.
+        const next = await openRepository(path, limit, true);
+        if (!current()) return;
+        show(next);
       }
-    } catch {
-      // The graph is already shown; uncommitted changes just won't appear.
+    } catch (e) {
+      if (current()) setError(String(e));
+    } finally {
+      if (current()) {
+        setBusy(null);
+        blockFocusRefresh.current = false;
+        lastLoad.current = Date.now();
+      }
     }
   }, []);
 
   const pick = useCallback(async () => {
+    blockFocusRefresh.current = true;
     try {
       const path = await open({ directory: true, multiple: false, title: "Open a git repository" });
-      if (typeof path === "string") await load(path, "open");
+      if (typeof path === "string") {
+        await load(path, "open");
+        return;
+      }
     } catch (e) {
       setError(String(e));
     }
+    blockFocusRefresh.current = false;
   }, [load]);
 
   const refresh = useCallback(() => {
@@ -87,9 +119,12 @@ export default function App() {
   }, [snapshot, load]);
 
   const close = useCallback(() => {
+    loadCount.current++;
     setSnapshot(null);
     setSelectedId(null);
     setError(null);
+    setBusy(null);
+    blockFocusRefresh.current = false;
     setWindowTitle("Tributary");
   }, []);
 
@@ -111,6 +146,39 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [pick, refresh]);
 
+  // Pick up changes made elsewhere (a commit in the terminal, an edit in the editor)
+  // when coming back to the window.
+  const onWindowFocus = useRef(() => {});
+  onWindowFocus.current = () => {
+    if (!snapshot || resetTarget || blockFocusRefresh.current) return;
+    if (Date.now() - lastLoad.current < FOCUS_REFRESH_INTERVAL) return;
+    refresh();
+  };
+  useEffect(() => {
+    const onFocus = () => onWindowFocus.current();
+    const stopQuietly = (stop: () => void) => {
+      try {
+        stop();
+      } catch {
+        // Already gone.
+      }
+    };
+    // The DOM event covers most cases; the window event also catches the app being
+    // activated while the web page itself already had focus.
+    window.addEventListener("focus", onFocus);
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    getCurrentWindow()
+      .onFocusChanged(({ payload: focused }) => focused && onFocus())
+      .then((stop) => (disposed ? stopQuietly(stop) : (unlisten = stop)))
+      .catch(() => {});
+    return () => {
+      disposed = true;
+      window.removeEventListener("focus", onFocus);
+      if (unlisten) stopQuietly(unlisten);
+    };
+  }, []);
+
   const indexById = useMemo(
     () => new Map((snapshot?.commits ?? []).map((commit, index) => [commit.id, index])),
     [snapshot],
@@ -130,6 +198,17 @@ export default function App() {
       />
     );
   }
+
+  const branchLabel = snapshot.headBranch ?? "HEAD";
+  const menuItems = (commit: CommitRow): MenuItem[] => [
+    {
+      label: `Hard reset ${branchLabel} to this commit…`,
+      danger: true,
+      disabled: !canResetTo(snapshot, commit),
+      onSelect: () => setResetTarget(commit),
+    },
+    { label: "Copy SHA", onSelect: () => copyText(commit.id) },
+  ];
 
   return (
     <div className="app">
@@ -154,6 +233,7 @@ export default function App() {
           snapshot={snapshot}
           selectedId={selectedId}
           onSelect={setSelectedId}
+          onContextMenu={(commit, x, y) => commit.kind === "commit" && setMenu({ commit, x, y })}
           onLoadMore={() => load(snapshot.path, "more", snapshot.commits.length + PAGE_SIZE)}
           loadingMore={busy?.kind === "more"}
         />
@@ -172,9 +252,27 @@ export default function App() {
             hasCommit={(id) => indexById.has(id)}
             onSelect={setSelectedId}
             onClose={() => setSelectedId(null)}
+            resetLabel={canResetTo(snapshot, selected) ? `Hard reset ${branchLabel} to this commit…` : undefined}
+            onReset={() => setResetTarget(selected)}
           />
         )}
       </main>
+
+      {menu && (
+        <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.commit)} onClose={() => setMenu(null)} />
+      )}
+      {resetTarget && (
+        <ResetDialog
+          snapshot={snapshot}
+          target={resetTarget}
+          onCancel={() => setResetTarget(null)}
+          onDone={() => {
+            setResetTarget(null);
+            setSelectedId(resetTarget.id);
+            refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

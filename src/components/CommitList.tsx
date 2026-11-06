@@ -35,11 +35,13 @@ interface Props {
   snapshot: RepoSnapshot;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /** Right-click on a row, at window coordinates (x, y). */
+  onContextMenu: (commit: CommitRow, x: number, y: number) => void;
   onLoadMore: () => void;
   loadingMore: boolean;
 }
 
-export function CommitList({ snapshot, selectedId, onSelect, onLoadMore, loadingMore }: Props) {
+export function CommitList({ snapshot, selectedId, onSelect, onContextMenu, onLoadMore, loadingMore }: Props) {
   const { commits, headCommit } = snapshot;
   const scroller = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -169,6 +171,7 @@ export function CommitList({ snapshot, selectedId, onSelect, onLoadMore, loading
         compact={compact}
         selected={index === selectedIndex}
         onSelect={onSelect}
+        onContextMenu={onContextMenu}
       />,
     );
   }
@@ -231,9 +234,11 @@ interface RowProps {
   compact: boolean;
   selected: boolean;
   onSelect: (id: string) => void;
+  onContextMenu: (commit: CommitRow, x: number, y: number) => void;
 }
 
-function Row({ commit, top, columns, refsWidth, graphWidth, changes, compact, selected, onSelect }: RowProps) {
+function Row(props: RowProps) {
+  const { commit, top, columns, refsWidth, graphWidth, changes, compact, selected, onSelect, onContextMenu } = props;
   const color = laneColor(commit.graph.column);
   // A line from the label to the commit's node in the graph.
   const connectorStart = refsWidth - REFS_PADDING;
@@ -248,7 +253,12 @@ function Row({ commit, top, columns, refsWidth, graphWidth, changes, compact, se
         gridTemplateColumns: columns,
         boxShadow: selected ? `inset 3px 0 0 ${color}` : undefined,
       }}
-      onMouseDown={() => onSelect(commit.id)}
+      onMouseDown={(event) => event.button === 0 && onSelect(commit.id)}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onSelect(commit.id);
+        onContextMenu(commit, event.clientX, event.clientY);
+      }}
       role="option"
       aria-selected={selected}
     >

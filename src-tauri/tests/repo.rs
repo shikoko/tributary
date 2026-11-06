@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use tributary_lib::actions;
 use tributary_lib::repo::{self, FileChange, FileStatus, RefKind, RowKind};
 
 struct TempRepo {
@@ -309,4 +310,38 @@ fn stash_details_include_untracked_files() {
             ("new.txt", FileStatus::Untracked)
         ]
     );
+}
+
+#[test]
+fn hard_reset_moves_the_branch_and_discards_changes() {
+    let mut repo = TempRepo::new("reset");
+    let first = repo.commit("a.txt", "First");
+    repo.commit("a.txt", "Second");
+    repo.commit("b.txt", "Third");
+    std::fs::write(repo.path().join("a.txt"), "uncommitted").unwrap();
+    std::fs::write(repo.path().join("untracked.txt"), "keep me").unwrap();
+
+    actions::reset_hard(repo.path(), &first).unwrap();
+
+    assert_eq!(repo.git(&["rev-parse", "HEAD"]), first);
+    assert_eq!(repo.git(&["branch", "--show-current"]), "main");
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("a.txt")).unwrap(),
+        "First"
+    );
+    assert!(!repo.path().join("b.txt").exists());
+    assert!(
+        repo.path().join("untracked.txt").exists(),
+        "untracked files are kept"
+    );
+}
+
+#[test]
+fn hard_reset_only_accepts_commit_ids() {
+    let mut repo = TempRepo::new("reset-invalid");
+    repo.commit("a.txt", "First");
+    assert!(actions::reset_hard(repo.path(), "--hard").is_err());
+    assert!(actions::reset_hard(repo.path(), "HEAD~1").is_err());
+    let missing = "0123456789012345678901234567890123456789";
+    assert!(actions::reset_hard(repo.path(), missing).is_err());
 }

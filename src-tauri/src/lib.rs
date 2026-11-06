@@ -1,3 +1,4 @@
+pub mod actions;
 pub mod graph;
 pub mod repo;
 
@@ -30,11 +31,24 @@ async fn commit_details(path: String, id: String) -> Result<repo::CommitDetails,
         .map_err(|e| e.to_string())?
 }
 
+/// Hard reset the checked-out branch to a commit.
+#[tauri::command]
+async fn reset_hard(path: String, id: String) -> Result<(), String> {
+    let path = PathBuf::from(path);
+    tauri::async_runtime::spawn_blocking(move || actions::reset_hard(&path, &id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![open_repository, commit_details])
+        .invoke_handler(tauri::generate_handler![
+            open_repository,
+            commit_details,
+            reset_hard
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

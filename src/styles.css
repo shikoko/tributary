@@ -937,3 +937,160 @@ button:disabled {
   color: #ffb3bb;
   overflow-wrap: anywhere;
 }
+
+/* Right-click menu */
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+
+.context-menu {
+  position: fixed;
+  min-width: 220px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  outline: none;
+}
+
+.menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.menu-item:hover:not(:disabled) {
+  background: #2d3341;
+}
+
+.menu-item.danger {
+  color: #ff8a96;
+}
+
+.menu-item:disabled {
+  color: var(--text-faint);
+}
+
+/* Confirmation dialog */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(8, 9, 12, 0.6);
+}
+
+.dialog {
+  width: min(480px, 100%);
+  padding: 20px 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg-panel);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.dialog h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.dialog p {
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dialog code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #8fd8ff;
+}
+
+.commit-ref {
+  color: var(--text);
+}
+
+.dialog-consequences {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+}
+
+.dialog-consequences li + li {
+  margin-top: 6px;
+}
+
+.dialog-consequences .danger {
+  color: #ffb3bb;
+}
+
+.dialog .error-banner {
+  margin-top: 14px;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.secondary-button,
+.danger-button,
+.danger-outline-button {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.secondary-button {
+  border: 1px solid var(--border-strong);
+  background: var(--bg-raised);
+}
+
+.danger-button {
+  border: none;
+  background: #e5484d;
+  color: #fff;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: #f05a5f;
+}
+
+.secondary-button:disabled,
+.danger-button:disabled {
+  opacity: 0.6;
+}
+
+.details-actions {
+  margin-top: 16px;
+}
+
+.danger-outline-button {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 92, 108, 0.45);
+  background: transparent;
+  color: #ff8a96;
+  font-weight: 500;
+}
+
+.danger-outline-button:hover {
+  background: rgba(255, 92, 108, 0.1);
+}

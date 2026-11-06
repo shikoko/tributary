@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { commitDetails, type CommitDetails, type CommitRow, type FileChange, type Person } from "../api";
 import { laneColor, withAlpha } from "../lib/colors";
 import { dateInZone, fullDate, plural, shortId, utcOffset } from "../lib/format";
+import { copyText } from "../lib/clipboard";
 import { Avatar } from "./Avatar";
 import { CheckIcon, CloseIcon, CopyIcon } from "./Icons";
 import { RefPills } from "./RefPills";
@@ -17,11 +18,15 @@ interface Props {
   hasCommit: (id: string) => boolean;
   onSelect: (id: string) => void;
   onClose: () => void;
+  /** Label of the hard reset button; no button when undefined. */
+  resetLabel?: string;
+  onReset: () => void;
 }
 
 type Loaded = { id: string; details?: CommitDetails; error?: string };
 
-export function CommitDetailsPanel({ repoPath, commit, cache, hasCommit, onSelect, onClose }: Props) {
+export function CommitDetailsPanel(props: Props) {
+  const { repoPath, commit, cache, hasCommit, onSelect, onClose, resetLabel, onReset } = props;
   const [loaded, setLoaded] = useState<Loaded>({ id: commit.id, details: cache.get(commit.id) });
 
   useEffect(() => {
@@ -109,6 +114,14 @@ export function CommitDetailsPanel({ repoPath, commit, cache, hasCommit, onSelec
           </dd>
         </dl>
 
+        {resetLabel && (
+          <div className="details-actions">
+            <button className="danger-outline-button" onClick={onReset}>
+              {resetLabel}
+            </button>
+          </div>
+        )}
+
         <section className="files">
           <h3>
             {details ? plural(details.files.length, "changed file") : "Changed files"}
@@ -188,17 +201,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   }, [copied]);
 
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      // Older webviews: fall back to a temporary text field.
-      const field = document.createElement("textarea");
-      field.value = text;
-      document.body.appendChild(field);
-      field.select();
-      document.execCommand("copy");
-      field.remove();
-    }
+    await copyText(text);
     setCopied(true);
   };
 

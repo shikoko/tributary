@@ -4,15 +4,17 @@ A fast, cross-platform git history graph viewer for macOS and Windows.
 
 ![Tributary showing the commit graph of a repository, with the details of a merge commit on the right](docs/screenshot.png)
 
-Open a repository and Tributary draws its history as a colourful commit graph, with branches and tags labelled. Click a commit to see its details. It only reads the repository and never changes it.
+Open a repository and Tributary draws its history as a colourful commit graph, with branches and tags labelled. Click a commit to see its details. It never changes the repository unless you ask it to reset a branch.
 
 ## Features
 
 - **Commit graph:** each lane has its own colour, merges are drawn as rounded connecting lines, and local branches, remote branches and tags are labelled.
-- **Uncommitted changes and stashes:** a row at the top shows your uncommitted changes, and clicking it lists the staged and unstaged files. Each stash appears as a small box joined to the commit it was made from. Press Refresh to pick up new changes.
+- **Uncommitted changes and stashes:** a row at the top shows your uncommitted changes, and clicking it lists the staged and unstaged files. Each stash appears as a small box joined to the commit it was made from.
+- **Always up to date:** changes made in a terminal or editor show up as soon as you switch back to Tributary.
 - **Commit details:** the full message, author and committer, parents (click one to jump to it) and the list of changed files.
+- **Hard reset:** right-click a commit (or use the button in its details) to hard reset the checked-out branch to it. A confirmation shows exactly what will be lost first.
 - **Large repositories:** the 10,000 most recent commits load at once, and a button at the end of the list loads more. Only the visible rows are drawn, so scrolling stays smooth.
-- **No git install needed:** history is read directly with [gitoxide](https://github.com/GitoxideLabs/gitoxide).
+- **No git install needed to browse:** history is read directly with [gitoxide](https://github.com/GitoxideLabs/gitoxide). Hard reset runs your installed git, so it behaves exactly like `git reset --hard`.
 - **Recent repositories:** the welcome screen lists the repositories you opened before.
 
 ### Keyboard shortcuts
