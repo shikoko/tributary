@@ -35,7 +35,7 @@ export function Toolbar({ snapshot, refreshing, onRefresh, onPick, onClose }: Pr
           </span>
         ) : null}
         <span className="commit-count">
-          {plural(snapshot.commits.length, "commit")}
+          {plural(snapshot.commits.filter((c) => c.kind === "commit").length, "commit")}
           {snapshot.truncated ? "+" : ""}
         </span>
       </div>

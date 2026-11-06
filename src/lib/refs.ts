@@ -4,7 +4,7 @@ import type { RefLabel } from "../api";
 export interface RefPill {
   key: string;
   name: string;
-  kind: "head" | "branch" | "tag";
+  kind: "head" | "branch" | "tag" | "stash";
   /** True when a local branch with this name exists. */
   local: boolean;
   /** Remotes (like "origin") that have this branch at the same commit. */
@@ -16,6 +16,7 @@ export function refPills(refs: RefLabel[]): RefPill[] {
   const heads: RefPill[] = [];
   const branches: RefPill[] = [];
   const tags: RefPill[] = [];
+  const stashes: RefPill[] = [];
   const localByName = new Map<string, RefPill>();
 
   for (const ref of refs) {
@@ -34,6 +35,8 @@ export function refPills(refs: RefLabel[]): RefPill[] {
       branches.push(pill);
     } else if (ref.kind === "tag") {
       tags.push({ key: `t:${ref.name}`, name: ref.name, kind: "tag", local: false, remotes: [], current: false });
+    } else if (ref.kind === "stash") {
+      stashes.push({ key: `s:${ref.name}`, name: ref.name, kind: "stash", local: true, remotes: [], current: false });
     }
   }
 
@@ -57,12 +60,13 @@ export function refPills(refs: RefLabel[]): RefPill[] {
     }
   }
 
-  return [...heads, ...branches, ...tags];
+  return [...heads, ...branches, ...tags, ...stashes];
 }
 
 export function describePill(pill: RefPill): string {
   if (pill.kind === "head") return "Detached HEAD";
   if (pill.kind === "tag") return `Tag ${pill.name}`;
+  if (pill.kind === "stash") return `Stash ${pill.name}`;
   const where = [pill.local ? "local" : null, ...pill.remotes].filter(Boolean).join(", ");
   return `${pill.current ? "Checked out branch" : "Branch"} ${pill.name} (${where})`;
 }

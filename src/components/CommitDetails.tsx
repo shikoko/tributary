@@ -66,7 +66,7 @@ export function CommitDetailsPanel({ repoPath, commit, cache, hasCommit, onSelec
   return (
     <aside className="details" aria-label="Commit details">
       <header className="details-header">
-        <span className="details-label">Commit</span>
+        <span className="details-label">{commit.kind === "stash" ? "Stash" : "Commit"}</span>
         <CopyButton text={commit.id} label={shortId(commit.id)} />
         <span className="spacer" />
         <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close details">
@@ -158,9 +158,11 @@ const STATUS: Record<FileChange["status"], { letter: string; color: string; labe
   deleted: { letter: "D", color: "#ff5c6c", label: "Deleted" },
   renamed: { letter: "R", color: "#1fb5ff", label: "Renamed" },
   copied: { letter: "C", color: "#a77bff", label: "Copied" },
+  untracked: { letter: "?", color: "#19d7b4", label: "Untracked" },
+  conflicted: { letter: "!", color: "#ff5c6c", label: "Conflicted" },
 };
 
-function FileLine({ file }: { file: FileChange }) {
+export function FileLine({ file }: { file: FileChange }) {
   const status = STATUS[file.status];
   const slash = file.path.lastIndexOf("/");
   const name = file.path.slice(slash + 1);

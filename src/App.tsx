@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
-import { openRepository, PAGE_SIZE, type CommitDetails, type RepoSnapshot } from "./api";
+import { openRepository, PAGE_SIZE, WORKTREE_ID, type CommitDetails, type RepoSnapshot } from "./api";
 import { forgetRepo, loadRecent, rememberRepo } from "./lib/recent";
 import { CommitDetailsPanel } from "./components/CommitDetails";
 import { CommitList } from "./components/CommitList";
 import { CloseIcon } from "./components/Icons";
 import { Toolbar } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
+import { WorktreeDetailsPanel } from "./components/WorktreeDetails";
 
 type Busy = { kind: "open"; path: string } | { kind: "refresh" } | { kind: "more" } | null;
 
@@ -25,26 +26,50 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [recent, setRecent] = useState(loadRecent);
   const detailsCache = useRef(new Map<string, CommitDetails>());
+  /** Increases with every load, so answers to older loads can be ignored. */
+  const loadCount = useRef(0);
 
   const load = useCallback(async (path: string, mode: "open" | "refresh" | "more", limit = PAGE_SIZE) => {
+    const request = ++loadCount.current;
     setBusy(mode === "open" ? { kind: "open", path } : { kind: mode });
     setError(null);
+    const fallback = (next: RepoSnapshot) => {
+      const loaded = (id: string | null) => (id && next.commits.some((c) => c.id === id) ? id : null);
+      return loaded(next.headCommit) ?? next.commits[0]?.id ?? null;
+    };
+
+    // The graph first, without uncommitted changes…
     try {
-      const next = await openRepository(path, limit);
+      const next = await openRepository(path, limit, false);
+      if (request !== loadCount.current) return;
       if (mode === "open") detailsCache.current = new Map();
-      const loaded = (id: string | null | undefined) => (id && next.commits.some((c) => c.id === id) ? id : null);
       setSnapshot(next);
-      setSelectedId((current) =>
-        mode !== "open" && loaded(current)
-          ? current
-          : (loaded(next.headCommit) ?? next.commits[0]?.id ?? null),
-      );
+      setSelectedId((current) => {
+        if (mode === "open" || !current) return fallback(next);
+        // The uncommitted changes row comes back with the second load.
+        if (current === WORKTREE_ID) return current;
+        return next.commits.some((c) => c.id === current) ? current : fallback(next);
+      });
       setRecent(rememberRepo(next.path, next.name));
       setWindowTitle(`${next.name} — Tributary`);
     } catch (e) {
-      setError(String(e));
+      if (request === loadCount.current) setError(String(e));
+      return;
     } finally {
-      setBusy(null);
+      if (request === loadCount.current) setBusy(null);
+    }
+
+    // …then again with them, which can take longer in big working trees.
+    try {
+      const next = await openRepository(path, limit, true);
+      if (request !== loadCount.current) return;
+      if (next.worktree) {
+        setSnapshot(next);
+      } else {
+        setSelectedId((current) => (current === WORKTREE_ID ? fallback(next) : current));
+      }
+    } catch {
+      // The graph is already shown; uncommitted changes just won't appear.
     }
   }, []);
 
@@ -132,7 +157,14 @@ export default function App() {
           onLoadMore={() => load(snapshot.path, "more", snapshot.commits.length + PAGE_SIZE)}
           loadingMore={busy?.kind === "more"}
         />
-        {selected && (
+        {selected?.kind === "worktree" && snapshot.worktree && (
+          <WorktreeDetailsPanel
+            status={snapshot.worktree}
+            headBranch={snapshot.headBranch}
+            onClose={() => setSelectedId(null)}
+          />
+        )}
+        {selected && selected.kind !== "worktree" && (
           <CommitDetailsPanel
             repoPath={snapshot.path}
             commit={selected}

@@ -1,17 +1,17 @@
 //! Reading history, refs and per-commit details from a repository with gix.
 
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::path::Path;
 
+use gix::ObjectId;
 use gix::bstr::ByteSlice;
 use gix::object::tree::diff::ChangeDetached;
 use gix::revision::walk::Sorting;
 use gix::traverse::commit::simple::CommitTimeOrder;
-use gix::ObjectId;
 use serde::Serialize;
 
-use crate::graph::{self, GraphRow};
+use crate::graph::{self, GraphRow, Node};
 
 /// Upper bound for a single load, to keep the UI responsive on huge repositories.
 pub const MAX_LIMIT: usize = 200_000;
@@ -25,7 +25,10 @@ pub struct RepoSnapshot {
     /// The checked out branch, or `None` when HEAD is detached or unborn.
     pub head_branch: Option<String>,
     pub head_commit: Option<String>,
+    /// Commits, plus a row for uncommitted changes and one for each stash.
     pub commits: Vec<CommitRow>,
+    /// Uncommitted changes, or `None` when the working tree is clean (or there is none).
+    pub worktree: Option<WorktreeStatus>,
     /// The number of graph columns needed to draw every row.
     pub lane_count: u16,
     /// `true` when there are more commits than were loaded.
@@ -35,7 +38,9 @@ pub struct RepoSnapshot {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitRow {
+    /// The commit id, or [`WORKTREE_ID`] for the uncommitted changes row.
     pub id: String,
+    pub kind: RowKind,
     pub summary: String,
     pub author_name: String,
     pub author_email: String,
@@ -44,6 +49,28 @@ pub struct CommitRow {
     pub parents: Vec<String>,
     pub refs: Vec<RefLabel>,
     pub graph: GraphRow,
+}
+
+/// The id of the row that stands for uncommitted changes.
+pub const WORKTREE_ID: &str = "worktree";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RowKind {
+    Commit,
+    /// A stash entry, drawn on top of the commit it was made from.
+    Stash,
+    /// Uncommitted changes in the working tree, drawn on top of `HEAD`.
+    Worktree,
+}
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorktreeStatus {
+    /// Changes in the index, compared to `HEAD`.
+    pub staged: Vec<FileChange>,
+    /// Changes in the working tree, compared to the index, and untracked files.
+    pub unstaged: Vec<FileChange>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -63,6 +90,8 @@ pub enum RefKind {
     Branch,
     Remote,
     Tag,
+    /// A stash entry, like `stash@{0}`.
+    Stash,
 }
 
 #[derive(Debug, Serialize)]
@@ -106,6 +135,10 @@ pub enum FileStatus {
     Deleted,
     Renamed,
     Copied,
+    /// A new file git doesn't track yet.
+    Untracked,
+    /// A file with merge conflicts.
+    Conflicted,
 }
 
 type Error = String;
@@ -118,8 +151,10 @@ fn open(path: &Path) -> Result<gix::Repository, Error> {
     Ok(repo)
 }
 
-/// Load up to `limit` of the most recent commits reachable from any branch, tag or HEAD.
-pub fn load(path: &Path, limit: usize) -> Result<RepoSnapshot, Error> {
+/// Load up to `limit` of the most recent commits reachable from any branch, tag or HEAD,
+/// plus stashes. With `include_status`, uncommitted changes are read too; that can take a
+/// while in large working trees, so the app first loads without them.
+pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnapshot, Error> {
     let repo = open(path)?;
     let limit = limit.clamp(1, MAX_LIMIT);
 
@@ -129,11 +164,13 @@ pub fn load(path: &Path, limit: usize) -> Result<RepoSnapshot, Error> {
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| location.display().to_string());
 
-    let head_branch = repo
-        .head_name()
-        .ok()
-        .flatten()
-        .and_then(|name| name.as_bstr().to_str().ok()?.strip_prefix("refs/heads/").map(str::to_owned));
+    let head_branch = repo.head_name().ok().flatten().and_then(|name| {
+        name.as_bstr()
+            .to_str()
+            .ok()?
+            .strip_prefix("refs/heads/")
+            .map(str::to_owned)
+    });
     let head_commit = repo.head_id().ok().map(|id| id.detach());
 
     let mut refs = collect_refs(&repo, head_branch.as_deref());
@@ -189,6 +226,7 @@ pub fn load(path: &Path, limit: usize) -> Result<RepoSnapshot, Error> {
             };
             walked.push(Walked {
                 id: info.id,
+                kind: RowKind::Commit,
                 parents: info.parent_ids.iter().copied().collect(),
                 commit_time: info.commit_time.unwrap_or(time),
                 summary,
@@ -199,16 +237,54 @@ pub fn load(path: &Path, limit: usize) -> Result<RepoSnapshot, Error> {
         }
     }
 
+    // Stashes and uncommitted changes are drawn as extra rows on top of the commit
+    // they belong to, as long as that commit is loaded.
+    let loaded: HashSet<ObjectId> = walked.iter().map(|c| c.id).collect();
+    for (index, stash) in stashes(&repo) {
+        if loaded.contains(&stash.parents[0]) {
+            refs.entry(stash.id).or_default().push(RefLabel {
+                name: format!("stash@{{{index}}}"),
+                kind: RefKind::Stash,
+                current: false,
+            });
+            walked.push(stash);
+        }
+    }
+    let worktree = if include_status { worktree_status(&repo) } else { None };
+    if worktree.is_some() {
+        walked.push(Walked {
+            id: ObjectId::null(repo.object_hash()),
+            kind: RowKind::Worktree,
+            parents: head_commit.into_iter().collect(),
+            // Newer than everything else, so it ends up in the first row.
+            commit_time: i64::MAX,
+            summary: String::new(),
+            author_name: String::new(),
+            author_email: String::new(),
+            time: now(),
+        });
+    }
+
     let walked = topo_sort(walked);
-    let pairs: Vec<(ObjectId, Vec<ObjectId>)> =
-        walked.iter().map(|c| (c.id, c.parents.clone())).collect();
-    let layout = graph::layout(&pairs);
+    let nodes: Vec<Node<ObjectId>> = walked
+        .iter()
+        .map(|c| Node {
+            id: c.id,
+            parents: c.parents.clone(),
+            dashed: c.kind != RowKind::Commit,
+        })
+        .collect();
+    let layout = graph::layout(&nodes);
 
     let commits = walked
         .into_iter()
         .zip(layout.rows)
         .map(|(c, graph)| CommitRow {
-            id: c.id.to_string(),
+            id: match c.kind {
+                RowKind::Worktree => WORKTREE_ID.to_owned(),
+                _ => c.id.to_string(),
+            },
+            kind: c.kind,
             refs: refs.remove(&c.id).unwrap_or_default(),
             parents: c.parents.iter().map(ToString::to_string).collect(),
             summary: c.summary,
@@ -225,6 +301,7 @@ pub fn load(path: &Path, limit: usize) -> Result<RepoSnapshot, Error> {
         head_branch,
         head_commit: head_commit.map(|id| id.to_string()),
         commits,
+        worktree,
         lane_count: layout.width,
         truncated,
     })
@@ -232,6 +309,7 @@ pub fn load(path: &Path, limit: usize) -> Result<RepoSnapshot, Error> {
 
 struct Walked {
     id: ObjectId,
+    kind: RowKind,
     parents: Vec<ObjectId>,
     commit_time: i64,
     summary: String,
@@ -240,8 +318,162 @@ struct Walked {
     time: i64,
 }
 
+fn now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// The stash entries with their number, newest (`stash@{0}`) first. Each one only
+/// keeps its first parent, the commit it was made from; the extra commits git uses
+/// to store the index and untracked files are left out of the graph.
+fn stashes(repo: &gix::Repository) -> Vec<(usize, Walked)> {
+    let Ok(reference) = repo.find_reference("refs/stash") else {
+        return Vec::new();
+    };
+    let mut log = reference.log_iter();
+    let Ok(Some(lines)) = log.all() else {
+        return Vec::new();
+    };
+    let ids: Vec<ObjectId> = lines.flatten().map(|line| line.new_oid()).collect();
+
+    ids.into_iter()
+        .rev()
+        .enumerate()
+        .filter_map(|(index, id)| {
+            let commit = repo.find_commit(id).ok()?;
+            let base = commit.parent_ids().next()?.detach();
+            let author = commit.author().ok()?;
+            let summary = commit
+                .message()
+                .map(|m| m.summary().to_str_lossy().into_owned())
+                .unwrap_or_default();
+            Some((
+                index,
+                Walked {
+                    id,
+                    kind: RowKind::Stash,
+                    parents: vec![base],
+                    commit_time: commit
+                        .time()
+                        .map(|t| t.seconds)
+                        .unwrap_or_else(|_| author.seconds()),
+                    summary,
+                    author_name: author.name.to_str_lossy().trim().to_owned(),
+                    author_email: author.email.to_str_lossy().trim().to_owned(),
+                    time: author.seconds(),
+                },
+            ))
+        })
+        .collect()
+}
+
+/// Staged and unstaged changes, like `git status`. `None` for a clean working
+/// tree, a bare repository, or when the status can't be read.
+fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> {
+    use gix::diff::index::ChangeRef;
+    use gix::status::index_worktree::iter::Summary;
+
+    repo.workdir()?;
+    let iter = repo
+        .status(gix::progress::Discard)
+        .ok()?
+        .untracked_files(gix::status::UntrackedFiles::Collapsed)
+        .index_worktree_submodules(None)
+        .into_iter(Vec::<gix::bstr::BString>::new())
+        .ok()?;
+
+    let mut status = WorktreeStatus::default();
+    let lossy = |path: &gix::bstr::BStr| path.to_str_lossy().into_owned();
+    for item in iter.flatten() {
+        match item {
+            gix::status::Item::TreeIndex(change) => {
+                let (path, old_path, file_status) = match &change {
+                    ChangeRef::Addition { location, .. } => {
+                        (lossy(location.as_ref()), None, FileStatus::Added)
+                    }
+                    ChangeRef::Deletion { location, .. } => {
+                        (lossy(location.as_ref()), None, FileStatus::Deleted)
+                    }
+                    ChangeRef::Modification { location, .. } => {
+                        (lossy(location.as_ref()), None, FileStatus::Modified)
+                    }
+                    ChangeRef::Rewrite {
+                        source_location,
+                        location,
+                        copy,
+                        ..
+                    } => (
+                        lossy(location.as_ref()),
+                        Some(lossy(source_location.as_ref())),
+                        if *copy {
+                            FileStatus::Copied
+                        } else {
+                            FileStatus::Renamed
+                        },
+                    ),
+                };
+                status.staged.push(FileChange {
+                    path,
+                    old_path,
+                    status: file_status,
+                });
+            }
+            gix::status::Item::IndexWorktree(item) => {
+                let Some(summary) = item.summary() else {
+                    continue;
+                };
+                let file_status = match summary {
+                    Summary::Added => FileStatus::Untracked,
+                    Summary::Removed => FileStatus::Deleted,
+                    Summary::Modified | Summary::TypeChange => FileStatus::Modified,
+                    Summary::Renamed => FileStatus::Renamed,
+                    Summary::Copied => FileStatus::Copied,
+                    Summary::IntentToAdd => FileStatus::Added,
+                    Summary::Conflict => FileStatus::Conflicted,
+                };
+                let mut path = lossy(item.rela_path());
+                let old_path = match &item {
+                    gix::status::index_worktree::Item::Rewrite { source, .. } => {
+                        Some(lossy(source.rela_path()))
+                    }
+                    _ => None,
+                };
+                if let gix::status::index_worktree::Item::DirectoryContents { entry, .. } = &item {
+                    // A whole untracked folder, shown collapsed like `git status` does.
+                    if entry.disk_kind.is_some_and(|kind| kind.is_dir()) {
+                        path.push('/');
+                    }
+                }
+                // Conflicts can be reported once per side of the merge; list each file once.
+                if file_status == FileStatus::Conflicted
+                    && status.unstaged.iter().any(|f| f.path == path)
+                {
+                    continue;
+                }
+                status.unstaged.push(FileChange {
+                    path,
+                    old_path,
+                    status: file_status,
+                });
+            }
+        }
+    }
+
+    if status.staged.is_empty() && status.unstaged.is_empty() {
+        return None;
+    }
+    status.staged.sort_by(|a, b| a.path.cmp(&b.path));
+    status.unstaged.sort_by(|a, b| a.path.cmp(&b.path));
+    Some(status)
+}
+
 /// Group local branches, remote branches and tags by the commit they point to.
-fn collect_refs(repo: &gix::Repository, head_branch: Option<&str>) -> HashMap<ObjectId, Vec<RefLabel>> {
+fn collect_refs(
+    repo: &gix::Repository,
+    head_branch: Option<&str>,
+) -> HashMap<ObjectId, Vec<RefLabel>> {
     let mut out: HashMap<ObjectId, Vec<RefLabel>> = HashMap::new();
     let Ok(platform) = repo.references() else {
         return out;
@@ -288,7 +520,8 @@ fn collect_refs(repo: &gix::Repository, head_branch: Option<&str>) -> HashMap<Ob
 /// commits first (like `git log --date-order`). The walk is already in commit-time
 /// order; this only fixes up history with skewed clocks.
 fn topo_sort(commits: Vec<Walked>) -> Vec<Walked> {
-    let index: HashMap<ObjectId, usize> = commits.iter().enumerate().map(|(i, c)| (c.id, i)).collect();
+    let index: HashMap<ObjectId, usize> =
+        commits.iter().enumerate().map(|(i, c)| (c.id, i)).collect();
     let mut children = vec![0usize; commits.len()];
     for commit in &commits {
         for parent in &commit.parents {
@@ -350,7 +583,8 @@ fn topo_sort(commits: Vec<Walked>) -> Vec<Walked> {
 /// Full message, people and changed files for one commit.
 pub fn details(path: &Path, id: &str) -> Result<CommitDetails, Error> {
     let repo = open(path)?;
-    let id = ObjectId::from_hex(id.as_bytes()).map_err(|e| format!("Invalid commit id {id}: {e}"))?;
+    let id =
+        ObjectId::from_hex(id.as_bytes()).map_err(|e| format!("Invalid commit id {id}: {e}"))?;
     let commit = repo
         .find_commit(id)
         .map_err(|e| format!("Could not find commit {id}: {e}"))?;
@@ -363,7 +597,10 @@ pub fn details(path: &Path, id: &str) -> Result<CommitDetails, Error> {
                 .map(|body| body.to_str_lossy().trim().to_owned())
                 .unwrap_or_default(),
         ),
-        Err(_) => (commit.message_raw_sloppy().to_str_lossy().trim().to_owned(), String::new()),
+        Err(_) => (
+            commit.message_raw_sloppy().to_str_lossy().trim().to_owned(),
+            String::new(),
+        ),
     };
 
     let person = |signature: gix::Result<gix::actor::SignatureRef<'_>>| match signature {
@@ -407,6 +644,10 @@ pub fn details(path: &Path, id: &str) -> Result<CommitDetails, Error> {
         .filter(|change| !change.entry_mode().is_tree())
         .map(file_change)
         .collect();
+    // `git stash --include-untracked` keeps untracked files in a third parent.
+    if let Some(untracked) = stash_untracked_files(&repo, &parents) {
+        files.extend(untracked);
+    }
     files.sort_by(|a, b| a.path.cmp(&b.path));
 
     Ok(CommitDetails {
@@ -418,6 +659,29 @@ pub fn details(path: &Path, id: &str) -> Result<CommitDetails, Error> {
         parents: parents.iter().map(ToString::to_string).collect(),
         files,
     })
+}
+
+/// The untracked files saved in a stash, if `parents` are those of a stash made
+/// with `--include-untracked`.
+fn stash_untracked_files(repo: &gix::Repository, parents: &[ObjectId]) -> Option<Vec<FileChange>> {
+    let untracked = repo.find_commit(*parents.get(2)?).ok()?;
+    let message = untracked.message_raw_sloppy();
+    if untracked.parent_ids().next().is_some() || !message.starts_with(b"untracked files on ") {
+        return None;
+    }
+    let tree = untracked.tree().ok()?;
+    let changes = repo.diff_tree_to_tree(None, &tree, None).ok()?;
+    Some(
+        changes
+            .iter()
+            .filter(|change| !change.entry_mode().is_tree())
+            .map(|change| FileChange {
+                path: change.location().to_str_lossy().into_owned(),
+                old_path: None,
+                status: FileStatus::Untracked,
+            })
+            .collect(),
+    )
 }
 
 fn file_change(change: &ChangeDetached) -> FileChange {
@@ -439,11 +703,17 @@ fn file_change(change: &ChangeDetached) -> FileChange {
             status: FileStatus::Modified,
         },
         ChangeDetached::Rewrite {
-            source_location, copy, ..
+            source_location,
+            copy,
+            ..
         } => FileChange {
             path,
             old_path: Some(source_location.to_str_lossy().into_owned()),
-            status: if *copy { FileStatus::Copied } else { FileStatus::Renamed },
+            status: if *copy {
+                FileStatus::Copied
+            } else {
+                FileStatus::Renamed
+            },
         },
     }
 }

@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use tributary_lib::repo::{self, FileStatus, RefKind};
+use tributary_lib::repo::{self, FileChange, FileStatus, RefKind, RowKind};
 
 struct TempRepo {
     dir: PathBuf,
@@ -13,7 +13,8 @@ struct TempRepo {
 
 impl TempRepo {
     fn new(name: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("tributary-test-{}-{name}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("tributary-test-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         // An empty global config keeps the developer's own settings (signing, hooks, …) out of the tests.
@@ -83,13 +84,28 @@ fn reads_branches_merges_and_tags() {
     repo.git(&["checkout", "--quiet", "main"]);
     let fix = repo.commit("readme.md", "Fix readme");
     repo.clock += 60;
-    repo.git(&["merge", "--quiet", "--no-ff", "feature", "-m", "Merge feature\n\nWith a body."]);
+    repo.git(&[
+        "merge",
+        "--quiet",
+        "--no-ff",
+        "feature",
+        "-m",
+        "Merge feature\n\nWith a body.",
+    ]);
     let merge = repo.git(&["rev-parse", "HEAD"]);
     repo.git(&["tag", "-a", "v1.0", "-m", "Release 1.0"]);
 
-    let snapshot = repo::load(repo.path(), 100).unwrap();
+    let snapshot = repo::load(repo.path(), 100, true).unwrap();
     let ids: Vec<&str> = snapshot.commits.iter().map(|c| c.id.as_str()).collect();
-    assert_eq!(ids, vec![merge.as_str(), fix.as_str(), feature.as_str(), root.as_str()]);
+    assert_eq!(
+        ids,
+        vec![
+            merge.as_str(),
+            fix.as_str(),
+            feature.as_str(),
+            root.as_str()
+        ]
+    );
     assert_eq!(snapshot.head_branch.as_deref(), Some("main"));
     assert_eq!(snapshot.head_commit.as_deref(), Some(merge.as_str()));
     assert_eq!(snapshot.lane_count, 2);
@@ -104,7 +120,13 @@ fn reads_branches_merges_and_tags() {
         .iter()
         .map(|r| (r.name.as_str(), r.kind, r.current))
         .collect();
-    assert_eq!(labels, vec![("main", RefKind::Branch, true), ("v1.0", RefKind::Tag, false)]);
+    assert_eq!(
+        labels,
+        vec![
+            ("main", RefKind::Branch, true),
+            ("v1.0", RefKind::Tag, false)
+        ]
+    );
     assert_eq!(snapshot.commits[2].refs[0].name, "feature");
     assert!(!snapshot.commits[2].refs[0].current);
     assert_eq!(snapshot.commits[2].graph.column, 1);
@@ -113,11 +135,19 @@ fn reads_branches_merges_and_tags() {
     assert_eq!(details.summary, "Merge feature");
     assert_eq!(details.body, "With a body.");
     assert_eq!(details.committer.email, "committer@example.com");
-    let files: Vec<(&str, FileStatus)> = details.files.iter().map(|f| (f.path.as_str(), f.status)).collect();
+    let files: Vec<(&str, FileStatus)> = details
+        .files
+        .iter()
+        .map(|f| (f.path.as_str(), f.status))
+        .collect();
     assert_eq!(files, vec![("feature.txt", FileStatus::Added)]);
 
     let details = repo::details(repo.path(), &fix).unwrap();
-    let files: Vec<(&str, FileStatus)> = details.files.iter().map(|f| (f.path.as_str(), f.status)).collect();
+    let files: Vec<(&str, FileStatus)> = details
+        .files
+        .iter()
+        .map(|f| (f.path.as_str(), f.status))
+        .collect();
     assert_eq!(files, vec![("readme.md", FileStatus::Modified)]);
 }
 
@@ -132,9 +162,13 @@ fn children_come_before_parents_even_with_skewed_clocks() {
     repo.git_at(&["commit", "--quiet", "-m", "Third"], repo.clock - 86_400);
     let child = repo.git(&["rev-parse", "HEAD"]);
 
-    let snapshot = repo::load(repo.path(), 100).unwrap();
+    let snapshot = repo::load(repo.path(), 100, true).unwrap();
     let child_row = snapshot.commits.iter().position(|c| c.id == child).unwrap();
-    let parent_row = snapshot.commits.iter().position(|c| c.id == parent).unwrap();
+    let parent_row = snapshot
+        .commits
+        .iter()
+        .position(|c| c.id == parent)
+        .unwrap();
     assert!(child_row < parent_row);
 }
 
@@ -144,7 +178,7 @@ fn respects_the_commit_limit() {
     for i in 0..5 {
         repo.commit("file.txt", &format!("Commit {i}"));
     }
-    let snapshot = repo::load(repo.path(), 3).unwrap();
+    let snapshot = repo::load(repo.path(), 3, true).unwrap();
     assert_eq!(snapshot.commits.len(), 3);
     assert!(snapshot.truncated);
     assert_eq!(snapshot.commits[0].summary, "Commit 4");
@@ -158,7 +192,7 @@ fn opens_from_a_subdirectory_and_handles_detached_head() {
     repo.git(&["checkout", "--quiet", "--detach", &first]);
     std::fs::create_dir_all(repo.path().join("nested/dir")).unwrap();
 
-    let snapshot = repo::load(&repo.path().join("nested/dir"), 100).unwrap();
+    let snapshot = repo::load(&repo.path().join("nested/dir"), 100, true).unwrap();
     assert_eq!(snapshot.head_branch, None);
     let head_row = snapshot.commits.iter().find(|c| c.id == first).unwrap();
     assert!(head_row.refs.iter().any(|r| r.kind == RefKind::Head));
@@ -166,9 +200,113 @@ fn opens_from_a_subdirectory_and_handles_detached_head() {
 
 #[test]
 fn reports_folders_that_are_not_repositories() {
-    let dir = std::env::temp_dir().join(format!("tributary-test-{}-not-a-repo", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("tributary-test-{}-not-a-repo", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let error = repo::load(&dir, 100).unwrap_err();
+    let error = repo::load(&dir, 100, true).unwrap_err();
     assert!(error.contains("is not a git repository"), "{error}");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+fn files(changes: &[FileChange]) -> Vec<(&str, FileStatus)> {
+    changes
+        .iter()
+        .map(|f| (f.path.as_str(), f.status))
+        .collect()
+}
+
+#[test]
+fn shows_uncommitted_changes_and_stashes() {
+    let mut repo = TempRepo::new("worktree");
+    let first = repo.commit("a.txt", "First");
+    let second = repo.commit("b.txt", "Second");
+    // A stash made on top of the second commit…
+    std::fs::write(repo.path().join("a.txt"), "stashed change").unwrap();
+    repo.clock += 60;
+    repo.git(&["stash", "push", "--quiet", "-m", "Half-done idea"]);
+    // …then another commit, with uncommitted changes on top of it.
+    let third = repo.commit("c.txt", "Third");
+    std::fs::write(repo.path().join("b.txt"), "modified").unwrap();
+    std::fs::write(repo.path().join("d.txt"), "staged").unwrap();
+    repo.git(&["add", "d.txt"]);
+    std::fs::write(repo.path().join("e.txt"), "untracked").unwrap();
+
+    let snapshot = repo::load(repo.path(), 100, true).unwrap();
+    let kinds: Vec<RowKind> = snapshot.commits.iter().map(|c| c.kind).collect();
+    assert_eq!(
+        kinds,
+        vec![
+            RowKind::Worktree,
+            RowKind::Commit,
+            RowKind::Stash,
+            RowKind::Commit,
+            RowKind::Commit
+        ]
+    );
+
+    let worktree = &snapshot.commits[0];
+    assert_eq!(worktree.id, repo::WORKTREE_ID);
+    assert_eq!(worktree.parents, vec![third.clone()]);
+    assert!(worktree.graph.lines.iter().all(|line| line.dashed));
+    let status = snapshot.worktree.as_ref().unwrap();
+    assert_eq!(files(&status.staged), vec![("d.txt", FileStatus::Added)]);
+    assert_eq!(
+        files(&status.unstaged),
+        vec![
+            ("b.txt", FileStatus::Modified),
+            ("e.txt", FileStatus::Untracked)
+        ]
+    );
+
+    assert_eq!(snapshot.commits[1].id, third);
+    let stash = &snapshot.commits[2];
+    assert_eq!(stash.summary, "On main: Half-done idea");
+    assert_eq!(
+        stash.parents,
+        vec![second.clone()],
+        "only the commit the stash was made from"
+    );
+    assert_eq!(stash.refs.len(), 1);
+    assert_eq!(
+        (stash.refs[0].name.as_str(), stash.refs[0].kind),
+        ("stash@{0}", RefKind::Stash)
+    );
+    assert!(stash.graph.lines.iter().any(|line| line.dashed));
+    assert_eq!(snapshot.commits[3].id, second);
+    assert_eq!(snapshot.commits[4].id, first);
+
+    let details = repo::details(repo.path(), &stash.id).unwrap();
+    assert_eq!(files(&details.files), vec![("a.txt", FileStatus::Modified)]);
+}
+
+#[test]
+fn stash_details_include_untracked_files() {
+    let mut repo = TempRepo::new("stash-untracked");
+    repo.commit("a.txt", "First");
+    std::fs::write(repo.path().join("a.txt"), "changed").unwrap();
+    std::fs::write(repo.path().join("new.txt"), "new").unwrap();
+    repo.git(&[
+        "stash",
+        "push",
+        "--quiet",
+        "--include-untracked",
+        "-m",
+        "With a new file",
+    ]);
+
+    let snapshot = repo::load(repo.path(), 100, true).unwrap();
+    assert!(snapshot.worktree.is_none(), "the stash took every change");
+    let stash = snapshot
+        .commits
+        .iter()
+        .find(|c| c.kind == RowKind::Stash)
+        .unwrap();
+    let details = repo::details(repo.path(), &stash.id).unwrap();
+    assert_eq!(
+        files(&details.files),
+        vec![
+            ("a.txt", FileStatus::Modified),
+            ("new.txt", FileStatus::Untracked)
+        ]
+    );
 }

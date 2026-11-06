@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { PAGE_SIZE, type CommitRow, type RepoSnapshot } from "../api";
+import { countChanges, type ChangeCounts as Counts } from "../lib/changes";
 import { laneColor } from "../lib/colors";
 import { fullDate, relativeTime, shortId } from "../lib/format";
 import { Avatar } from "./Avatar";
+import { ChangeCounts } from "./ChangeCounts";
 import { laneX, paintGraph, type GraphMetrics } from "./graphPainter";
 import { RefPills } from "./RefPills";
 
@@ -45,6 +47,10 @@ export function CommitList({ snapshot, selectedId, onSelect, onLoadMore, loading
   const [viewport, setViewport] = useState({ width: 0, height: 0, scrollbar: 0 });
 
   const indexById = useMemo(() => new Map(commits.map((commit, index) => [commit.id, index])), [commits]);
+  const changeCounts = useMemo(
+    () => (snapshot.worktree ? countChanges(snapshot.worktree) : undefined),
+    [snapshot.worktree],
+  );
   const selectedIndex = selectedId ? (indexById.get(selectedId) ?? -1) : -1;
 
   const compact = viewport.width > 0 && viewport.width < COMPACT_WIDTH;
@@ -159,6 +165,7 @@ export function CommitList({ snapshot, selectedId, onSelect, onLoadMore, loading
         columns={columns}
         refsWidth={refsWidth}
         graphWidth={graphWidth}
+        changes={commit.kind === "worktree" ? changeCounts : undefined}
         compact={compact}
         selected={index === selectedIndex}
         onSelect={onSelect}
@@ -219,12 +226,14 @@ interface RowProps {
   columns: string;
   refsWidth: number;
   graphWidth: number;
+  /** For the uncommitted changes row: how many files changed. */
+  changes?: Counts;
   compact: boolean;
   selected: boolean;
   onSelect: (id: string) => void;
 }
 
-function Row({ commit, top, columns, refsWidth, graphWidth, compact, selected, onSelect }: RowProps) {
+function Row({ commit, top, columns, refsWidth, graphWidth, changes, compact, selected, onSelect }: RowProps) {
   const color = laneColor(commit.graph.column);
   // A line from the label to the commit's node in the graph.
   const connectorStart = refsWidth - REFS_PADDING;
@@ -253,19 +262,36 @@ function Row({ commit, top, columns, refsWidth, graphWidth, compact, selected, o
         />
       )}
       <div />
-      <div className="cell description">
-        <span className={`summary${commit.parents.length > 1 ? " merge" : ""}`} title={commit.summary}>
-          {commit.summary || "(no message)"}
-        </span>
-      </div>
-      <div className="cell author" title={`${commit.authorName} <${commit.authorEmail}>`}>
-        <Avatar name={commit.authorName} email={commit.authorEmail} size={22} />
-        {!compact && <span className="author-name">{commit.authorName}</span>}
-      </div>
-      <div className="cell date" title={fullDate(commit.time)}>
-        {relativeTime(commit.time)}
-      </div>
-      {!compact && <div className="cell sha">{shortId(commit.id)}</div>}
+      {commit.kind === "worktree" ? (
+        <>
+          <div className="cell description">
+            <span className="summary wip">Uncommitted changes</span>
+            {changes && <ChangeCounts counts={changes} />}
+          </div>
+          <div />
+          <div />
+          {!compact && <div />}
+        </>
+      ) : (
+        <>
+          <div className="cell description">
+            <span
+              className={`summary${commit.kind === "stash" ? " stash" : commit.parents.length > 1 ? " merge" : ""}`}
+              title={commit.summary}
+            >
+              {commit.summary || "(no message)"}
+            </span>
+          </div>
+          <div className="cell author" title={`${commit.authorName} <${commit.authorEmail}>`}>
+            <Avatar name={commit.authorName} email={commit.authorEmail} size={22} />
+            {!compact && <span className="author-name">{commit.authorName}</span>}
+          </div>
+          <div className="cell date" title={fullDate(commit.time)}>
+            {relativeTime(commit.time)}
+          </div>
+          {!compact && <div className="cell sha">{shortId(commit.id)}</div>}
+        </>
+      )}
     </div>
   );
 }

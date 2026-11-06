@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { RefLabel } from "../api";
 import { withAlpha } from "../lib/colors";
 import { describePill, refPills, type RefPill } from "../lib/refs";
-import { CheckIcon, CloudIcon, CommitIcon, LaptopIcon, TagIcon } from "./Icons";
+import { CheckIcon, CloudIcon, CommitIcon, LaptopIcon, StashIcon, TagIcon } from "./Icons";
 
 interface Props {
   refs: RefLabel[];
@@ -35,7 +35,7 @@ export function RefPills({ refs, color, limit }: Props) {
 function Pill({ pill, color }: { pill: RefPill; color: string }) {
   const style = pill.current
     ? { background: color, borderColor: color, color: "#0d0f13" }
-    : pill.kind === "tag"
+    : pill.kind === "tag" || pill.kind === "stash"
       ? { background: withAlpha(color, 0.08), borderColor: withAlpha(color, 0.45) }
       : { background: withAlpha(color, 0.2), borderColor: withAlpha(color, 0.65) };
 
@@ -44,6 +44,7 @@ function Pill({ pill, color }: { pill: RefPill; color: string }) {
       {pill.current && <CheckIcon size={12} strokeWidth={2.2} />}
       {pill.kind === "tag" && <TagIcon size={12} />}
       {pill.kind === "head" && <CommitIcon size={12} />}
+      {pill.kind === "stash" && <StashIcon size={12} />}
       <span className="ref-name">{pill.name}</span>
       {pill.kind === "branch" && (
         <span className="ref-where">

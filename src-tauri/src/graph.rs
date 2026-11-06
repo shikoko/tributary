@@ -9,7 +9,8 @@
 //! * [`LineKind::Bottom`] – a line leaves this row's node towards a parent's lane.
 //!
 //! Lanes never move sideways once created, so a lane's colour can simply be
-//! derived from its column on the frontend.
+//! derived from its column on the frontend. Lanes that start at a node which
+//! isn't a real commit (uncommitted changes, stashes) are drawn dashed.
 
 use serde::ser::{Serialize, SerializeTuple, Serializer};
 
@@ -20,30 +21,36 @@ pub enum LineKind {
     Bottom = 2,
 }
 
-/// One segment within a row. Serialized compactly as `[kind, from, to]`.
+/// One segment within a row. Serialized compactly as `[kind, from, to]`, with a
+/// trailing `1` when the line is dashed: `[kind, from, to, 1]`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Line {
     pub kind: LineKind,
     pub from: u16,
     pub to: u16,
+    pub dashed: bool,
 }
 
 impl Line {
-    fn new(kind: LineKind, from: usize, to: usize) -> Self {
+    fn new(kind: LineKind, from: usize, to: usize, dashed: bool) -> Self {
         Line {
             kind,
             from: from as u16,
             to: to as u16,
+            dashed,
         }
     }
 }
 
 impl Serialize for Line {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut t = serializer.serialize_tuple(3)?;
+        let mut t = serializer.serialize_tuple(if self.dashed { 4 } else { 3 })?;
         t.serialize_element(&(self.kind as u8))?;
         t.serialize_element(&self.from)?;
         t.serialize_element(&self.to)?;
+        if self.dashed {
+            t.serialize_element(&1u8)?;
+        }
         t.end()
     }
 }
@@ -62,24 +69,41 @@ pub struct Layout {
     pub width: u16,
 }
 
-/// Compute the lane layout for `commits`, given as `(id, parent ids)` pairs in
-/// topological order, newest first. Parents that are not part of `commits`
-/// (for example because the history was truncated) keep their lane open until
-/// the last row.
-pub fn layout<Id: PartialEq + Clone>(commits: &[(Id, Vec<Id>)]) -> Layout {
-    // Each lane holds the id of the commit it is waiting for.
-    let mut lanes: Vec<Option<Id>> = Vec::new();
-    let mut rows = Vec::with_capacity(commits.len());
-    let mut width = 0usize;
+/// A row to lay out.
+#[derive(Debug, Clone)]
+pub struct Node<Id> {
+    pub id: Id,
+    pub parents: Vec<Id>,
+    /// Not a real commit (uncommitted changes or a stash): lines leaving it are dashed.
+    pub dashed: bool,
+}
 
-    for (id, parents) in commits {
+#[derive(Clone)]
+struct Lane<Id> {
+    /// The commit this lane is waiting for.
+    expect: Id,
+    dashed: bool,
+}
+
+/// Compute the lane layout for `nodes`, in topological order, newest first.
+/// Parents that are not part of `nodes` (for example because the history was
+/// truncated) keep their lane open until the last row.
+pub fn layout<Id: PartialEq + Clone>(nodes: &[Node<Id>]) -> Layout {
+    let mut lanes: Vec<Option<Lane<Id>>> = Vec::new();
+    let mut rows = Vec::with_capacity(nodes.len());
+    let mut width = 0usize;
+    let waits_for =
+        |lane: &Option<Lane<Id>>, id: &Id| lane.as_ref().is_some_and(|lane| &lane.expect == id);
+
+    for node in nodes {
+        let id = &node.id;
         let mut lines = Vec::new();
 
         // Lanes that end in this commit: the commit's children point at it.
         let incoming: Vec<usize> = lanes
             .iter()
             .enumerate()
-            .filter(|(_, lane)| lane.as_ref() == Some(id))
+            .filter(|(_, lane)| waits_for(lane, id))
             .map(|(column, _)| column)
             .collect();
 
@@ -89,12 +113,16 @@ pub fn layout<Id: PartialEq + Clone>(commits: &[(Id, Vec<Id>)]) -> Layout {
             None => take_free_lane(&mut lanes),
         };
         for (lane_column, lane) in lanes.iter().enumerate() {
-            match lane {
-                Some(expected) if expected == id => {
-                    lines.push(Line::new(LineKind::Top, lane_column, column))
-                }
-                Some(_) => lines.push(Line::new(LineKind::Pass, lane_column, lane_column)),
-                None => {}
+            let Some(lane) = lane else { continue };
+            if &lane.expect == id {
+                lines.push(Line::new(LineKind::Top, lane_column, column, lane.dashed));
+            } else {
+                lines.push(Line::new(
+                    LineKind::Pass,
+                    lane_column,
+                    lane_column,
+                    lane.dashed,
+                ));
             }
         }
         for &other in incoming.iter().skip(1) {
@@ -102,26 +130,32 @@ pub fn layout<Id: PartialEq + Clone>(commits: &[(Id, Vec<Id>)]) -> Layout {
         }
 
         // Lower half of the row: lines from the node to each parent's lane.
-        match parents.split_first() {
+        match node.parents.split_first() {
             None => lanes[column] = None,
             Some((first, rest)) => {
-                lanes[column] = Some(first.clone());
-                lines.push(Line::new(LineKind::Bottom, column, column));
+                lanes[column] = Some(Lane {
+                    expect: first.clone(),
+                    dashed: node.dashed,
+                });
+                lines.push(Line::new(LineKind::Bottom, column, column, node.dashed));
 
                 for (i, parent) in rest.iter().enumerate() {
                     // Ignore duplicate parents, they would only draw the same line twice.
                     if parent == first || rest[..i].contains(parent) {
                         continue;
                     }
-                    let target = match lanes.iter().position(|lane| lane.as_ref() == Some(parent)) {
+                    let target = match lanes.iter().position(|lane| waits_for(lane, parent)) {
                         Some(existing) => existing,
                         None => {
                             let free = take_free_lane(&mut lanes);
-                            lanes[free] = Some(parent.clone());
+                            lanes[free] = Some(Lane {
+                                expect: parent.clone(),
+                                dashed: node.dashed,
+                            });
                             free
                         }
                     };
-                    lines.push(Line::new(LineKind::Bottom, column, target));
+                    lines.push(Line::new(LineKind::Bottom, column, target, node.dashed));
                 }
             }
         }
@@ -144,7 +178,7 @@ pub fn layout<Id: PartialEq + Clone>(commits: &[(Id, Vec<Id>)]) -> Layout {
 }
 
 /// Return the leftmost unused lane, adding a new one if every lane is in use.
-fn take_free_lane<Id>(lanes: &mut Vec<Option<Id>>) -> usize {
+fn take_free_lane<T>(lanes: &mut Vec<Option<T>>) -> usize {
     match lanes.iter().position(Option::is_none) {
         Some(free) => free,
         None => {
@@ -160,11 +194,31 @@ mod tests {
     use LineKind::*;
 
     fn line(kind: LineKind, from: u16, to: u16) -> Line {
-        Line { kind, from, to }
+        Line {
+            kind,
+            from,
+            to,
+            dashed: false,
+        }
     }
 
-    fn commits(spec: &[(&'static str, &[&'static str])]) -> Vec<(&'static str, Vec<&'static str>)> {
-        spec.iter().map(|(id, parents)| (*id, parents.to_vec())).collect()
+    fn dashed(kind: LineKind, from: u16, to: u16) -> Line {
+        Line {
+            kind,
+            from,
+            to,
+            dashed: true,
+        }
+    }
+
+    fn commits(spec: &[(&'static str, &[&'static str])]) -> Vec<Node<&'static str>> {
+        spec.iter()
+            .map(|(id, parents)| Node {
+                id: *id,
+                parents: parents.to_vec(),
+                dashed: false,
+            })
+            .collect()
     }
 
     #[test]
@@ -172,7 +226,10 @@ mod tests {
         let result = layout(&commits(&[("c", &["b"]), ("b", &["a"]), ("a", &[])]));
         assert_eq!(result.width, 1);
         assert_eq!(result.rows[0].lines, vec![line(Bottom, 0, 0)]);
-        assert_eq!(result.rows[1].lines, vec![line(Top, 0, 0), line(Bottom, 0, 0)]);
+        assert_eq!(
+            result.rows[1].lines,
+            vec![line(Top, 0, 0), line(Bottom, 0, 0)]
+        );
         assert_eq!(result.rows[2].lines, vec![line(Top, 0, 0)]);
         assert!(result.rows.iter().all(|row| row.column == 0));
     }
@@ -189,7 +246,10 @@ mod tests {
         assert_eq!(result.width, 2);
         let columns: Vec<u16> = result.rows.iter().map(|row| row.column).collect();
         assert_eq!(columns, vec![0, 0, 1, 0]);
-        assert_eq!(result.rows[0].lines, vec![line(Bottom, 0, 0), line(Bottom, 0, 1)]);
+        assert_eq!(
+            result.rows[0].lines,
+            vec![line(Bottom, 0, 0), line(Bottom, 0, 1)]
+        );
         assert_eq!(
             result.rows[1].lines,
             vec![line(Top, 0, 0), line(Pass, 1, 1), line(Bottom, 0, 0)]
@@ -206,7 +266,10 @@ mod tests {
         let result = layout(&commits(&[("x", &["a"]), ("y", &["a"]), ("a", &[])]));
         let columns: Vec<u16> = result.rows.iter().map(|row| row.column).collect();
         assert_eq!(columns, vec![0, 1, 0]);
-        assert_eq!(result.rows[1].lines, vec![line(Pass, 0, 0), line(Bottom, 1, 1)]);
+        assert_eq!(
+            result.rows[1].lines,
+            vec![line(Pass, 0, 0), line(Bottom, 1, 1)]
+        );
         assert_eq!(result.rows[2].lines, vec![line(Top, 0, 0), line(Top, 1, 0)]);
     }
 
@@ -229,12 +292,40 @@ mod tests {
     fn missing_parents_keep_their_lane_open() {
         let result = layout(&commits(&[("b", &["a"]), ("x", &["gone"]), ("a", &[])]));
         assert_eq!(result.rows[2].column, 0);
-        assert_eq!(result.rows[2].lines, vec![line(Top, 0, 0), line(Pass, 1, 1)]);
+        assert_eq!(
+            result.rows[2].lines,
+            vec![line(Top, 0, 0), line(Pass, 1, 1)]
+        );
+    }
+
+    #[test]
+    fn lines_from_virtual_rows_are_dashed_until_they_reach_their_parent() {
+        // A stash "s" made on "b", drawn above "c" which sits between them.
+        let mut nodes = commits(&[("s", &["b"]), ("c", &["b"]), ("b", &["a"]), ("a", &[])]);
+        nodes[0].dashed = true;
+        let result = layout(&nodes);
+        assert_eq!(result.rows[0].lines, vec![dashed(Bottom, 0, 0)]);
+        assert_eq!(
+            result.rows[1].lines,
+            vec![dashed(Pass, 0, 0), line(Bottom, 1, 1)]
+        );
+        assert_eq!(
+            result.rows[2].lines,
+            vec![dashed(Top, 0, 0), line(Top, 1, 0), line(Bottom, 0, 0)]
+        );
+        // Below the stash's parent the lane is an ordinary, solid one again.
+        assert_eq!(result.rows[3].lines, vec![line(Top, 0, 0)]);
     }
 
     #[test]
     fn lines_serialize_compactly() {
-        let json = serde_json::to_string(&line(Bottom, 3, 5)).unwrap();
-        assert_eq!(json, "[2,3,5]");
+        assert_eq!(
+            serde_json::to_string(&line(Bottom, 3, 5)).unwrap(),
+            "[2,3,5]"
+        );
+        assert_eq!(
+            serde_json::to_string(&dashed(Pass, 1, 1)).unwrap(),
+            "[0,1,1,1]"
+        );
     }
 }

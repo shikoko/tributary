@@ -9,6 +9,7 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 ## Features
 
 - **Commit graph:** each lane has its own colour, merges are drawn as rounded connecting lines, and local branches, remote branches and tags are labelled.
+- **Uncommitted changes and stashes:** a row at the top shows your uncommitted changes, and clicking it lists the staged and unstaged files. Each stash appears as a small box joined to the commit it was made from. Press Refresh to pick up new changes.
 - **Commit details:** the full message, author and committer, parents (click one to jump to it) and the list of changed files.
 - **Large repositories:** the 10,000 most recent commits load at once, and a button at the end of the list loads more. Only the visible rows are drawn, so scrolling stays smooth.
 - **No git install needed:** history is read directly with [gitoxide](https://github.com/GitoxideLabs/gitoxide).

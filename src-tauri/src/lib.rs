@@ -6,11 +6,17 @@ use std::path::PathBuf;
 /// How many commits to load when the frontend doesn't ask for a specific amount.
 const DEFAULT_LIMIT: usize = 10_000;
 
-/// Load a repository's history and graph layout.
+/// Load a repository's history and graph layout, and optionally its uncommitted changes.
 #[tauri::command]
-async fn open_repository(path: String, limit: Option<usize>) -> Result<repo::RepoSnapshot, String> {
+async fn open_repository(
+    path: String,
+    limit: Option<usize>,
+    include_status: Option<bool>,
+) -> Result<repo::RepoSnapshot, String> {
     let path = PathBuf::from(path);
-    tauri::async_runtime::spawn_blocking(move || repo::load(&path, limit.unwrap_or(DEFAULT_LIMIT)))
+    let limit = limit.unwrap_or(DEFAULT_LIMIT);
+    let include_status = include_status.unwrap_or(true);
+    tauri::async_runtime::spawn_blocking(move || repo::load(&path, limit, include_status))
         .await
         .map_err(|e| e.to_string())?
 }

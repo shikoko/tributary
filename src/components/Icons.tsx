@@ -69,6 +69,13 @@ export const TagIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const StashIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="3" width="12" height="3.5" rx="1" />
+    <path d="M3 6.5v5A1.5 1.5 0 0 0 4.5 13h7a1.5 1.5 0 0 0 1.5-1.5v-5M6.5 9h3" />
+  </Icon>
+);
+
 export const CheckIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M3 8.5l3 3 7-7" />

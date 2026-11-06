@@ -19,6 +19,7 @@ export interface PaintOptions extends GraphMetrics {
 const LINE_WIDTH = 2;
 const NODE_RADIUS = 6.5;
 const MERGE_RADIUS = 4;
+const DASH = [4, 4];
 
 export function laneX(column: number, metrics: GraphMetrics): number {
   return metrics.padding + column * metrics.laneWidth + metrics.laneWidth / 2;
@@ -50,8 +51,10 @@ export function paintGraph(
     const middle = top + rowHeight / 2;
     const bottom = top + rowHeight;
 
-    for (const [kind, from, to] of commits[row].graph.lines) {
+    for (const [kind, from, to, dashed] of commits[row].graph.lines) {
       ctx.strokeStyle = laneColor(kind === 2 ? to : from);
+      // Lines from stashes and uncommitted changes are dashed: they aren't history yet.
+      ctx.setLineDash(dashed ? DASH : []);
       ctx.beginPath();
       if (kind === 0) {
         ctx.moveTo(x(from), top);
@@ -78,32 +81,64 @@ export function paintGraph(
       ctx.stroke();
     }
   }
+  ctx.setLineDash([]);
 
   for (let row = first; row < last; row++) {
     const commit = commits[row];
     const cx = x(commit.graph.column);
     const cy = (row - first) * rowHeight + rowHeight / 2;
     const color = laneColor(commit.graph.column);
-    const isMerge = commit.parents.length > 1;
-    const background = commit.id === options.selectedId ? options.selectedBackground : options.background;
+    const selected = commit.id === options.selectedId;
+    const background = selected ? options.selectedBackground : options.background;
 
-    if (commit.id === options.headId || commit.id === options.selectedId) {
+    if (selected || commit.id === options.headId) {
       // A ring around the checked-out or selected commit.
       ctx.beginPath();
       ctx.arc(cx, cy, NODE_RADIUS + 3.5, 0, Math.PI * 2);
       ctx.fillStyle = background;
       ctx.fill();
       ctx.lineWidth = 2;
-      ctx.strokeStyle = commit.id === options.selectedId ? "#ffffff" : color;
+      ctx.strokeStyle = selected ? "#ffffff" : color;
       ctx.stroke();
     }
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, isMerge ? MERGE_RADIUS : NODE_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
     ctx.lineWidth = 2;
-    ctx.strokeStyle = background;
-    ctx.stroke();
+    if (commit.kind === "worktree") {
+      // Uncommitted changes: a hollow, dashed circle.
+      ctx.beginPath();
+      ctx.arc(cx, cy, NODE_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = background;
+      ctx.fill();
+      ctx.setLineDash([3, 2.5]);
+      ctx.strokeStyle = color;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (commit.kind === "stash") {
+      // A stash: a small square box.
+      roundedSquare(ctx, cx, cy, NODE_RADIUS - 0.5, 3);
+      ctx.fillStyle = background;
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.arc(cx, cy, commit.parents.length > 1 ? MERGE_RADIUS : NODE_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = background;
+      ctx.stroke();
+    }
   }
+}
+
+/** A square path centred on (cx, cy), `half` wide on each side, with rounded corners. */
+function roundedSquare(ctx: CanvasRenderingContext2D, cx: number, cy: number, half: number, radius: number) {
+  const [left, right, top, bottom] = [cx - half, cx + half, cy - half, cy + half];
+  ctx.beginPath();
+  ctx.moveTo(left + radius, top);
+  ctx.arcTo(right, top, right, bottom, radius);
+  ctx.arcTo(right, bottom, left, bottom, radius);
+  ctx.arcTo(left, bottom, left, top, radius);
+  ctx.arcTo(left, top, right, top, radius);
+  ctx.closePath();
 }

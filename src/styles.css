@@ -535,6 +535,44 @@ button:disabled {
   color: var(--text-muted);
 }
 
+.summary.stash,
+.summary.wip {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.change-counts {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 10px;
+  flex: none;
+}
+
+.change-count {
+  padding: 0 6px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.change-count.added {
+  color: #36e07c;
+  background: rgba(54, 224, 124, 0.13);
+}
+
+.change-count.modified {
+  color: #ffad1f;
+  background: rgba(255, 173, 31, 0.13);
+}
+
+.change-count.deleted,
+.change-count.conflicted {
+  color: #ff5c6c;
+  background: rgba(255, 92, 108, 0.13);
+}
+
 .author {
   display: flex;
   align-items: center;
@@ -811,6 +849,11 @@ button:disabled {
 
 .sha-link:disabled {
   color: var(--text-muted);
+}
+
+.files + .files {
+  border-top: none;
+  padding-top: 4px;
 }
 
 .files {
