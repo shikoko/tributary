@@ -440,7 +440,7 @@ button:disabled {
   overflow: hidden;
 }
 
-.list-header .graph-heading {
+.list-header .refs-heading {
   padding-left: 14px;
 }
 
@@ -491,7 +491,33 @@ button:disabled {
 .description {
   display: flex;
   align-items: center;
-  gap: 8px;
+}
+
+/* Branch and tag column: the label sits at the right edge, joined to the node by a line. */
+.refs-cell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 8px;
+}
+
+.refs-cell .ref-pills {
+  max-width: 100%;
+}
+
+.refs-cell .ref-pill:not(.more) {
+  flex: 0 1 auto;
+  max-width: none;
+}
+
+.ref-connector {
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  opacity: 0.85;
+  pointer-events: none;
 }
 
 .summary {
