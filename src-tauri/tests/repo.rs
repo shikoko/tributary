@@ -2585,10 +2585,24 @@ fn checks_changed_files_for_size_and_locking() {
     std::fs::write(repo.path().join("art.psd"), vec![1u8; 3000]).unwrap();
     std::fs::write(repo.path().join("hero.uasset"), vec![1u8; 100]).unwrap();
     std::fs::write(repo.path().join("small.txt"), "small").unwrap();
-    let files: Vec<String> = ["big.wav", "art.psd", "hero.uasset", "small.txt", "gone/"]
-        .iter()
-        .map(|f| (*f).to_owned())
-        .collect();
+    // A new folder is one entry in the status: the files in it are looked at.
+    std::fs::create_dir_all(repo.path().join("Cinematics/Intro")).unwrap();
+    std::fs::write(
+        repo.path().join("Cinematics/Intro/intro.mp4"),
+        vec![1u8; 4000],
+    )
+    .unwrap();
+    let files: Vec<String> = [
+        "big.wav",
+        "art.psd",
+        "hero.uasset",
+        "small.txt",
+        "gone/",
+        "Cinematics/",
+    ]
+    .iter()
+    .map(|f| (*f).to_owned())
+    .collect();
     let checks = actions::file_checks(repo.path(), &files, 1000).unwrap();
     // art.psd is big too, but it goes to Git LFS.
     let large: Vec<_> = checks
@@ -2596,7 +2610,10 @@ fn checks_changed_files_for_size_and_locking() {
         .iter()
         .map(|f| (f.path.as_str(), f.size))
         .collect();
-    assert_eq!(large, vec![("big.wav", 3000)]);
+    assert_eq!(
+        large,
+        vec![("big.wav", 3000), ("Cinematics/Intro/intro.mp4", 4000)]
+    );
     assert_eq!(checks.lockable, vec!["hero.uasset"]);
     assert!(checks.uses_lfs);
 }

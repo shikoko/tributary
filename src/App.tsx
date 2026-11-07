@@ -1851,7 +1851,7 @@ export default function App() {
       }
       items.push(
         {
-          label: "Stash this file…",
+          label: folder ? "Stash this folder…" : "Stash this file…",
           icon: <StashIcon />,
           separated: true,
           disabled: !canChange,

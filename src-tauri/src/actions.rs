@@ -1849,9 +1849,23 @@ pub fn file_checks(path: &Path, files: &[String], threshold: u64) -> Result<File
         return Ok(FileChecks::default());
     };
     let uses_lfs = crate::locks::uses_lfs(&workdir);
+    let git = Git::find(workdir.clone())?;
+    // A new folder is listed as one entry: look at the new files inside it.
+    let folders: Vec<&str> = files
+        .iter()
+        .map(String::as_str)
+        .filter(|file| file.ends_with('/') && !file.starts_with('-'))
+        .collect();
+    let mut inside = String::new();
+    for batch in in_batches(&folders) {
+        let mut args = vec!["ls-files", "--others", "--exclude-standard", "-z", "--"];
+        args.extend(batch);
+        inside.push_str(&git.run_with_env(&args, &LITERAL).unwrap_or_default());
+    }
     let files: Vec<&str> = files
         .iter()
         .map(String::as_str)
+        .chain(inside.split('\0').take(5000))
         .filter(|file| !file.is_empty() && !file.ends_with('/') && !file.starts_with('-'))
         .collect();
     if files.is_empty() {
@@ -1860,7 +1874,6 @@ pub fn file_checks(path: &Path, files: &[String], threshold: u64) -> Result<File
             ..FileChecks::default()
         });
     }
-    let git = Git::find(workdir.clone())?;
     let mut in_lfs = std::collections::HashSet::new();
     let mut lockable = Vec::new();
     for batch in in_batches(&files) {

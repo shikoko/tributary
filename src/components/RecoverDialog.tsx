@@ -100,9 +100,12 @@ export function RecoverDialog({ repoPath, isLoaded, truncated, onCancel, onShow,
                 <div className="recover-main">
                   <div className="recover-top">
                     <span className="recover-action">{action}</span>
-                    <span className="recover-detail" title={entry.message}>
-                      {detail}
-                    </span>
+                    {/* A commit's entry repeats its summary, which is shown below. */}
+                    {detail !== entry.summary && (
+                      <span className="recover-detail" title={entry.message}>
+                        {detail}
+                      </span>
+                    )}
                     <span className="recover-when">{relativeTime(entry.time)}</span>
                   </div>
                   <div className="recover-commit">
