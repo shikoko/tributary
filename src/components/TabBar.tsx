@@ -24,7 +24,7 @@ export function TabBar({ tabs, activePath, onSelect, onClose, onNew, menuBar }: 
   return (
     <div className="tab-bar" data-tauri-drag-region>
       <span className="tab-logo" data-tauri-drag-region>
-        <Logo size={18} outline="#121419" />
+        <Logo size={18} />
       </span>
       {menuBar}
       <div className="tabs" role="tablist">

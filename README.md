@@ -129,7 +129,17 @@ The integration tests create small repositories with the `git` command, so git n
 | `src/components/CommitDetails.tsx` | The details panel |
 | `src/styles.css` | The dark theme |
 
-The app icons are generated from `src-tauri/icons/app-icon.svg`. After changing it, run `npm run tauri icon src-tauri/icons/app-icon.svg` and delete the `android` and `ios` folders it creates.
+The app icons are generated from `src-tauri/icons/app-icon.svg`. Tauri's own SVG renderer shows the background's gradient in visible bands, so render the SVG with Chrome first, then generate the icons from that PNG (on macOS):
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --hide-scrollbars --window-size=1024,1024 --default-background-color=00000000 --screenshot="$TMPDIR/app-icon.png" "file://$PWD/src-tauri/icons/app-icon.svg"
+```
+
+```bash
+npm run tauri icon "$TMPDIR/app-icon.png" && rm -rf src-tauri/icons/android src-tauri/icons/ios
+```
+
+The in-app logo (`Logo` in `src/components/Icons.tsx`) is the same drawing without the tile; change both together.
 
 ## License
 

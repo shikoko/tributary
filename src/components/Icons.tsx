@@ -1,4 +1,4 @@
-import type { SVGProps } from "react";
+import { useId, type SVGProps } from "react";
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
@@ -332,20 +332,39 @@ export const MenuIcon = (p: IconProps) => (
   </Icon>
 );
 
-export function Logo({ size = 32, outline = "#14161b" }: { size?: number; outline?: string }) {
+/**
+ * Tributary's logo: the app icon's drawing (src-tauri/icons/app-icon.svg) without the tile,
+ * in the same 1024 coordinates. The lines stop short of every dot, so the gaps show
+ * whatever the logo sits on.
+ */
+export function Logo({ size = 32 }: { size?: number }) {
+  const mask = `logo-gaps-${useId().replace(/:/g, "")}`;
+  // Thicker lines when small, so they don't fade to less than a pixel.
+  const line = size < 32 ? 40 : 26;
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
-      <g fill="none" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M48 10V20a9 9 0 0 1-9 9H32" stroke="#8ce04a" />
-        <path d="M32 16V37a9 9 0 0 1-9 9H16" stroke="#ff4f9a" />
-        <path d="M16 10V54" stroke="#1fb5ff" />
+    <svg width={size} height={size} viewBox="172 197 680 680" aria-hidden="true">
+      <defs>
+        <mask id={mask} maskUnits="userSpaceOnUse" x="172" y="197" width="680" height="680">
+          <rect x="172" y="197" width="680" height="680" fill="#fff" />
+          <circle cx="322" cy="370" r="58" />
+          <circle cx="702" cy="315" r="58" />
+          <circle cx="512" cy="270" r="78" />
+          <circle cx="512" cy="560" r="48" />
+          <circle cx="512" cy="760" r="48" />
+        </mask>
+      </defs>
+      <g mask={`url(#${mask})`} fill="none" strokeWidth={line} strokeLinecap="round">
+        <path d="M322 370V627A133 133 0 0 0 455 760H512" stroke="#ff4f9a" />
+        <path d="M702 315V427A133 133 0 0 1 569 560H512" stroke="#ffad1f" />
+        <path d="M512 270V862" stroke="#1fb5ff" />
       </g>
-      <g stroke={outline} strokeWidth="3">
-        <circle cx="48" cy="10" r="6" fill="#8ce04a" />
-        <circle cx="32" cy="16" r="6" fill="#ff4f9a" />
-        <circle cx="16" cy="10" r="6" fill="#1fb5ff" />
-        <circle cx="16" cy="54" r="6" fill="#1fb5ff" />
-      </g>
+      <circle cx="322" cy="370" r="48" fill="#ff4f9a" />
+      <circle cx="702" cy="315" r="48" fill="#ffad1f" />
+      <circle cx="512" cy="560" r="38" fill="#1fb5ff" />
+      <circle cx="512" cy="760" r="38" fill="#1fb5ff" />
+      {/* The checked-out commit, ringed in white as in the graph. */}
+      <circle cx="512" cy="270" r="44" fill="#1fb5ff" />
+      <circle cx="512" cy="270" r="61" fill="none" stroke="#fff" strokeWidth="14" />
     </svg>
   );
 }
