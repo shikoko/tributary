@@ -13,12 +13,14 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 - **Stage and commit:** click the uncommitted changes row to stage or unstage files and write a commit message. You can also amend the last commit. The summary shows its length (amber past 50 characters, red past 72), **Recent messages** reuses one of yours, and **Add co-author** credits someone from the history with a `Co-authored-by:` line.
 - **Per file:** right-click a changed file to discard its changes (with **Undo**; Tributary keeps them for 30 days), stash just that file, or for a new file, ignore it, every file like it, or its folder (added to `.gitignore`, with **Undo**).
 - **Big files and Git LFS:** the changes panel warns about big files (10 MB by default, set in Settings) that aren't stored with Git LFS, with a **Track \*.ext with LFS** button that sets up LFS and moves staged files into it. Committing a big file outside LFS asks first. **Clean Up Git LFS Files…** (Repository menu, or Settings, which shows the space they take) deletes local copies that aren't needed any more.
+- **Git LFS files that weren't downloaded:** when files stored with Git LFS are still the small pointer files that stand in for them (after a clone without them, say), a bar says how many and offers **Download them**, with progress. It also says when Git LFS isn't installed (**Get Git LFS**) or git isn't set up to use it (**Set up Git LFS**). Files left out of a sparse checkout don't count.
 - **Stashes:** stash all your changes or just the files you pick from the uncommitted changes row, and apply, pop or drop a stash by right-clicking it. When uncommitted changes stop a pull or checkout, **Stash changes and retry** stashes them, tries again, and puts them back.
 - **Always up to date:** changes made in a terminal or editor show up as soon as you switch back to Tributary.
 - **Commit details:** the full message, author, committer and co-authors, parents (click one to jump to it) and the list of changed files. Links, issue numbers like `#12` and commit ids in the message can be clicked.
 - **Search:** find commits by message, author, branch, tag or SHA. Matches are highlighted and you can jump between them.
 - **Branches:** right-click a commit to check out a branch on it, check out a remote branch (which creates a local branch that tracks it), check out the commit itself, or create a new branch there. Double-click a branch label to check it out, or right-click it to rename or delete it, locally or on the remote.
 - **Branch sidebar:** every branch, remote branch, tag and stash, with a filter. Names that share a prefix, like `feature/…`, are grouped into folders, and you can pin the ones you use most to the top. Each branch shows how many commits it is ahead of (↑) and behind (↓) its upstream. Click one to jump to its commit; double-click a branch to check it out.
+- **Worktrees:** work on two branches at once, each in its own folder. Right-click a branch and choose **Open in a new worktree…** (or a commit, to start a new branch there, or use the Repository menu), and it opens in a new tab. The sidebar's **Worktrees** section lists them: click one to see its commit, double-click to open it, or right-click to show it in Finder or Explorer, copy its path or remove it (Tributary asks before throwing away uncommitted changes). A branch that's checked out in another worktree offers to open that one instead.
 - **Hide or solo branches:** the eye next to a branch in the sidebar hides it (and the commits only it has) from the graph. Right-click a branch and choose **Show only…** to see just that branch and the checked-out one. Tributary remembers this for each repository; **Show all** brings everything back.
 - **Merge and rebase:** drag a branch label (from the graph or the sidebar) onto another commit or branch, then choose **Merge**, **Merge with a merge commit** (never a fast-forward), **Squash** (all its changes staged as one commit, with a message listing what was squashed) or **Rebase**. You can also right-click a branch or commit. Both act on the checked-out branch. If git stops because of conflicts, a bar at the top shows how many files conflict, with **Continue** (or **Commit merge**), **Skip commit** and **Abort**. The commit message is filled in for you.
 - **Keep mine or take theirs:** files that can't be merged, like game assets, are resolved by picking a whole version. The uncommitted changes panel lists conflicted files with **Mine** and **Theirs** buttons (named after the branches when you hover), and the conflict bar has **Keep all mine** and **Take all theirs**. If one side deleted the file, picking it deletes the file. During a rebase, "mine" is still your branch (git calls it "theirs" then). **Undo** puts the conflicts back.
@@ -42,14 +44,16 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 - **Force push:** from the menu next to Push, after a confirmation. It uses `--force-with-lease`, so it stops if someone else pushed in the meantime.
 - **Hard reset:** right-click a commit (or use the button in its details) to hard reset the checked-out branch to it. A confirmation shows exactly what will be lost first.
 - **Large repositories:** the 10,000 most recent commits load at once, and a button at the end of the list loads more. Only the visible rows are drawn, so scrolling stays smooth.
-- **On GitHub, GitLab and Bitbucket:** right-click a commit, branch or tag to open it on the website, or a branch to create a pull (or merge) request. On GitHub, branches with an open pull request show its number, with a dot for its checks (green passed, red failed, amber running); click it to open the pull request.
+- **On GitHub, GitLab and Bitbucket:** right-click a commit, branch or tag to open it on the website, or a branch to create a pull (or merge) request. On GitHub, branches with an open pull request show its number, with a dot for its checks (green passed, red failed, amber running); click it to open the pull request. For private repositories, sign in to GitHub in Settings with a personal access token (or in the browser, with Git Credential Manager): Tributary checks it with GitHub and hands it to git's own credential helper, so pushing uses it too. Tributary doesn't store it itself.
 - **Status bar:** the checked-out branch and how it compares to its upstream, when the repository was last fetched (click to fetch), and the repository's folder (click to show it in Finder or Explorer).
 - **Activity log:** every git command Tributary runs, with what git printed, how long it took and whether it worked. Open it from the status bar or with <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd>.
+- **Reporting a problem:** **Copy Diagnostics…** in the Help menu shows Tributary's version, your system, which git and Git LFS it uses, how the open repository is set up and the last git commands that failed there, so you can read it before you copy it into a report. Passwords and tokens in remote addresses are left out.
+- **Keyboard and accessibility:** menus, tabs and the sidebar work with the arrow keys, dialogs keep the keyboard inside them and give it back when they close, every button has a name for screen readers, and animations stop when your system asks for reduced motion.
 - **No git install needed to browse:** history is read directly with [gitoxide](https://github.com/GitoxideLabs/gitoxide). Actions that change the repository (cloning, committing, stashing, branches, tags, merge, rebase, cherry-pick, revert, fetch, pull, push, reset) run your installed git, so they behave exactly like the command line and use the credentials you already set up for it.
-- **Open, clone or create:** open a repository, clone one from its address (with progress and **Cancel**), create a new one in a folder, or drop a folder onto the window. The welcome screen lists recent repositories with the branch you were on; pin the ones you use most, or type to find one.
+- **Open, clone or create:** open a repository, clone one from its address (with progress and **Cancel**), create a new one in a folder, or drop a folder onto the window. For big repositories, the clone dialog can leave Git LFS files to download later, check out only some folders (the contents of the rest aren't downloaded), or download only recent history. The welcome screen lists recent repositories with the branch you were on; pin the ones you use most, or type to find one.
 - **Tabs:** open several repositories at once, each in its own tab. Tributary reopens your tabs when it starts, and each tab remembers the selected commit, where you scrolled to and your unfinished commit message. The **+** button opens a new tab with the start screen: open, clone or create a repository, or pick a recent one.
 - **Menu bar:** File, View, Repository and Help menus with every command and its shortcut: in the macOS menu bar, and next to the tabs on Windows. On Windows the tab bar is the title bar, with the minimize, maximize and close buttons at its right.
-- **Settings:** <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>,</kbd> opens every setting in one place: background fetching and notifications, updates, how the commit list looks, and the open repository's protected branches.
+- **Settings:** <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>,</kbd> opens every setting in one place: background fetching and notifications, your GitHub sign-in, updates, how the commit list looks, and the open repository's protected branches.
 - **Automatic updates:** Tributary checks its GitHub releases now and then, and an **Update** button appears in the tab bar when there's a new version. It shows what changed, then downloads, installs and restarts. Updates are signed, and installed only when the signature matches. (When the GitHub repository is private, it signs in with the GitHub account git already uses on your computer.)
 - **Profile pictures (optional):** turn on **Profile pictures** in the View menu to show authors' Gravatar or GitHub pictures instead of initials. It is off by default, because it sends a hash of each author's email address to Gravatar (or the GitHub username, for GitHub `noreply` addresses).
 - **Your layout:** drag the edges of the sidebar, the details panel and the Branch / Tag and Graph columns (double-click to reset). Right-click the column headings to show or hide Author, Date and SHA, and to show exact dates or commit dates instead of "3 hours ago". The View menu has compact rows and zoom. All of it is remembered. On macOS the toolbar sits in the title bar, next to the window buttons.
@@ -76,6 +80,10 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 | <kbd>Alt</kbd> + click a branch label | Highlight the branch's history |
 | <kbd>Esc</kbd> | Stop highlighting, then clear the selection, then close the details panel |
 | <kbd>?</kbd> | Show the keyboard shortcuts |
+| <kbd>F10</kbd> (Windows and Linux) | Open the menu bar; <kbd>←</kbd> <kbd>→</kbd> move between its menus |
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Home</kbd> <kbd>End</kbd>, or a letter | Move through a menu; <kbd>Enter</kbd> picks, <kbd>Esc</kbd> closes |
+| <kbd>←</kbd> <kbd>→</kbd> on a tab | Move between tabs; <kbd>Enter</kbd> switches, <kbd>Delete</kbd> closes |
+| <kbd>↑</kbd> <kbd>↓</kbd> in the sidebar | Move between branches, tags and stashes; <kbd>←</kbd> <kbd>→</kbd> fold and unfold folders |
 
 ## Download
 
@@ -122,6 +130,20 @@ npm install
 npm run tauri dev
 ```
 
+### Try it in a browser
+
+The interface runs in an ordinary browser too, against real repositories, with the app's own Rust code answering it (`tools/preview`). That's quicker for working on the interface, and it's how the screenshots are made:
+
+```bash
+npm run preview:build
+```
+
+```bash
+npm run preview:demo
+```
+
+That builds demo repositories with made-up people and history and serves the app on <http://127.0.0.1:4173>; choose **Open repository** and paste a path it printed. `npm run preview` does the same for your own repositories. See [tools/preview](tools/preview/README.md).
+
 ### Build installers for your platform
 
 ```bash
@@ -142,25 +164,37 @@ The integration tests create small repositories with the `git` command, so git n
 npm test
 ```
 
+A smoke test clicks through the main parts of the app in Chromium, on fresh demo repositories (it needs Playwright, see [tools/preview](tools/preview/README.md)):
+
+```bash
+npm run preview:smoke
+```
+
 The tests don't run on GitHub Actions, so run them before you build.
 
 ### Project layout
 
 | Path | What it does |
 | --- | --- |
-| `src-tauri/src/repo.rs` | Reads commits, branches, tags and changed files with gix |
+| `src-tauri/src/repo/` | Reads commits, branches, tags, changed files, the reflog and worktrees with gix |
 | `src-tauri/src/graph.rs` | Gives each commit a lane and works out the lines to draw in each row |
-| `src-tauri/src/lib.rs` | The commands the frontend calls |
-| `src-tauri/src/links.rs` | Turns remote addresses into web pages (GitHub, GitLab, …) |
-| `src-tauri/src/actions.rs` | Runs git for everything that changes the repository, with progress and cancel |
-| `src-tauri/src/lfs.rs` | Follows Git LFS's progress log during a push, pull, fetch or clone |
+| `src-tauri/src/actions/` | Runs git for everything that changes the repository, one module per area (branches, history, stashes, conflicts, Git LFS, worktrees, backups, …) |
+| `src-tauri/src/git/` | Runs the user's git: progress and cancel, Git LFS progress, the activity log, credentials |
+| `src-tauri/src/commands.rs` | The commands the frontend calls |
+| `src-tauri/src/error.rs` | The error every command can return |
+| `src-tauri/src/github/` | Open pull requests and their checks; signing in |
 | `src-tauri/src/locks.rs` | Lists Git LFS file locks, telling yours from everyone else's |
+| `src-tauri/src/diagnostics.rs` | What **Copy Diagnostics** shows |
+| `src-tauri/src/links.rs` | Turns remote addresses into web pages (GitHub, GitLab, …) |
 | `src-tauri/src/updates.rs` | Finds, downloads and installs new versions from the GitHub releases |
-| `src-tauri/src/github.rs` | Open pull requests and their checks, for the branch labels |
-| `src/components/CommitList.tsx` | The commit list, which only renders the rows on screen |
-| `src/components/graphPainter.ts` | Draws the graph for the visible rows on a canvas |
-| `src/components/CommitDetails.tsx` | The details panel |
+| `src-tauri/tests/` | Integration tests, one file per area, on throwaway repositories |
+| `src-tauri/examples/headless.rs` | The app's commands without a window, for the browser preview |
+| `src/App.tsx` | Holds the open repository's state and puts the pieces together |
+| `src/app/` | The app's hooks (preferences, shortcuts, background fetch, Git LFS health, …), its menus, command palette and dialogs |
+| `src/components/` | The interface: the commit list (only the rows on screen are rendered), the graph painter, the details panel, the dialogs, … |
+| `src/lib/` | Logic without an interface (search, selection, undo, paths, diagnostics, …), with its tests |
 | `src/styles.css` | The dark theme |
+| `tools/preview/` | The browser preview, demo repositories and the smoke test |
 
 The app icons are generated from `src-tauri/icons/app-icon.svg`. Tauri's own SVG renderer shows the background's gradient in visible bands, so render the SVG with Chrome first, then generate the icons from that PNG (on macOS):
 

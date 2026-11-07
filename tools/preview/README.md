@@ -37,8 +37,9 @@ npm run preview:smoke
 
 Builds fresh demo repositories and clicks through the main parts of the app in Chromium:
 opening a repository, selecting and searching commits, checking out a branch (and
-stashing changes in the way), undo, fetching, tabs, Git LFS locks, the big-file warning
-and pull request badges. Add `-- --screenshots <folder>` to keep a screenshot of each
+stashing changes in the way), undo, fetching, tabs, Git LFS locks, the big-file warning,
+pull request badges, cloning without Git LFS files and downloading them, worktrees,
+keyboard menus, GitHub sign-in (faked) and diagnostics. Add `-- --screenshots <folder>` to keep a screenshot of each
 step. It needs Playwright with Chromium:
 
 ```bash
@@ -48,8 +49,9 @@ npm install --no-save playwright && npx playwright install chromium
 ## Scripting the fakes
 
 A test can set `window.__PREVIEW__` before the page loads (Playwright's `addInitScript`):
-`pick` is what the file picker returns, `pullRequests` replaces GitHub's answer, and
-`update` offers an update. Afterwards, `opened` and `notified` list the links opened and
+`pick` is what the file picker returns, `pullRequests` replaces GitHub's answer,
+`update` offers an update, and `github` (like `{ account: null }`) stands in for the GitHub
+sign-in, so git's real credential helper isn't touched. Afterwards, `opened` and `notified` list the links opened and
 the notifications sent.
 
 ## Safety

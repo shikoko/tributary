@@ -23,6 +23,10 @@ const SHORTCUTS: [string, string][] = [
   ["Right-click the column headings", "Choose columns and how dates are shown"],
   ["Esc", "Stop highlighting, clear the selection, close the details panel"],
   ["?", "This list"],
+  ...(isMac ? [] : ([["F10", "Open the menu bar (← → move between its menus)"]] as [string, string][])),
+  ["↑ ↓ Home End, or a letter", "Move through a menu (Enter picks, Esc closes)"],
+  ["← → on a tab", "Move between tabs (Enter switches, Delete closes)"],
+  ["↑ ↓ in the sidebar", "Move between its entries (← → fold and unfold folders)"],
 ];
 
 export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
