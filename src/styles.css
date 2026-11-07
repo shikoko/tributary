@@ -3906,3 +3906,75 @@ textarea.text-input {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Pull request badges on branch labels and in the sidebar */
+
+.pr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  flex: none;
+}
+
+.pr-badge:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--text);
+}
+
+.ref-pill.current .pr-badge {
+  background: rgba(13, 15, 19, 0.22);
+  color: #0d0f13;
+}
+
+.pr-badge.draft {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.pr-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.pr-badge.success .pr-dot {
+  background: #36e07c;
+}
+
+.pr-badge.failure .pr-dot {
+  background: #ff5c6c;
+}
+
+.pr-badge.pending .pr-dot {
+  background: #ffad1f;
+}
+
+.sidebar-item .pr-badge {
+  margin-left: auto;
+}
+
+.sidebar-item .pr-badge + .sidebar-counts {
+  margin-left: 4px;
+}
+
+/* A tab whose background fetch found new commits */
+
+.tab-news {
+  width: 7px;
+  height: 7px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(31, 181, 255, 0.7);
+  flex: none;
+}

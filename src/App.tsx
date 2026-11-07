@@ -8,6 +8,7 @@ import {
   activityLog,
   cancelAction,
   commitDetails,
+  commitsBetween,
   fileChecks,
   fileHistory,
   fullRefName,
@@ -16,6 +17,7 @@ import {
   onProgress,
   openRepository,
   PAGE_SIZE,
+  remoteState,
   runAction,
   runActionFor,
   WORKTREE_ID,
@@ -33,7 +35,8 @@ import {
 import { involvesUntrackedFiles, isLocalChangesError } from "./lib/errors";
 import { ancestors, countMissing } from "./lib/graph";
 import { useLfsLocks } from "./lib/locks";
-import { describeNews, findNews, remoteTips } from "./lib/news";
+import { makeLookup, PullRequestsContext, usePullRequests } from "./lib/pullRequests";
+import { describeNews, findNews, remoteTips, watchedFor, type News } from "./lib/news";
 import { notifySystem } from "./lib/notify";
 import { useUpdates } from "./lib/updates";
 import { baseName, folderOf, joinPath, relativeTo } from "./lib/paths";
@@ -308,6 +311,9 @@ export default function App() {
       : null;
 
   const lfs = useLfsLocks(snapshot?.path ?? null);
+  const onGitHub = Boolean(snapshot?.webRemotes.some((remote) => remote.host === "github"));
+  const prs = usePullRequests(snapshot?.path ?? null, onGitHub);
+  const prLookup = useMemo(() => makeLookup(prs.list, openInBrowser), [prs.list]);
   const searchInput = useRef<HTMLInputElement>(null);
   const detailsCache = useRef(new Map<string, CommitDetails>());
   /** Commit messages being written, by repository. */
@@ -600,6 +606,8 @@ export default function App() {
       // Locks change when you lock or unlock, and may have changed on the server.
       if (action.kind === "lockFiles" || action.kind === "unlockFiles") lfs.refresh(true);
       else if (kind && kind !== "other") lfs.refresh();
+      // A push can open the way for a pull request, and a fetch can bring new ones.
+      if (kind && kind !== "other") prs.refresh(true);
       if (failure === "Cancelled.") {
         setToast({ text: "Cancelled" });
         return false;
@@ -624,7 +632,7 @@ export default function App() {
       return true;
     },
     // undoFor only reads its arguments.
-    [snapshot, load, protectedHead, lfs.refresh],
+    [snapshot, load, protectedHead, lfs.refresh, prs.refresh],
   );
 
   /** A dialog finished its action: reload and show what happened, with an optional undo. */
@@ -853,8 +861,8 @@ export default function App() {
   const hiddenCount = soloing ? visibility.solo.length : visibility.hidden.length;
 
   // The latest state, for keyboard shortcuts, timers and window events that outlive a render.
-  const latest = useRef({ snapshot, dialog, running, refresh, autoFetch, tabs, focus, selection, refreshLocks: lfs.refresh });
-  latest.current = { snapshot, dialog, running, refresh, autoFetch, tabs, focus, selection, refreshLocks: lfs.refresh };
+  const latest = useRef({ snapshot, dialog, running, refresh, autoFetch, tabs, focus, selection, refreshLocks: lfs.refresh, refreshPrs: prs.refresh, notices: newCommitNotices, switchTab: (_path: string) => {} });
+  latest.current = { snapshot, dialog, running, refresh, autoFetch, tabs, focus, selection, refreshLocks: lfs.refresh, refreshPrs: prs.refresh, notices: newCommitNotices, switchTab };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -980,6 +988,7 @@ export default function App() {
       if (Date.now() - lastLoad.current < FOCUS_REFRESH_INTERVAL) return;
       refresh();
       latest.current.refreshLocks();
+      latest.current.refreshPrs();
     };
     const stopQuietly = (stop: () => void) => {
       try {
@@ -1024,6 +1033,7 @@ export default function App() {
         pendingNews.current = { path: repoPath, before, known };
         if (!latest.current.dialog && !latest.current.running) latest.current.refresh();
         latest.current.refreshLocks();
+        latest.current.refreshPrs();
       } catch {
         // Usually missing credentials or no network. Fetching by hand shows the reason;
         // don't try again in the background until then.
@@ -1038,6 +1048,69 @@ export default function App() {
       clearInterval(timer);
     };
   }, [repoPath, canFetch, autoFetch, fetchMinutes, fetchWhileHidden]);
+
+  // The other tabs are fetched in the background too. Tabs with new commits get a dot.
+  const [tabNews, setTabNews] = useState<Record<string, string>>({});
+  const tabFailures = useRef(new Map<string, number>());
+  useEffect(() => {
+    if (!autoFetch) return;
+    let stopped = false;
+    const announce = (tab: Tab, news: News[]) => {
+      setTabNews((current) => ({ ...current, [tab.path]: news.map(describeNews).join("\n") }));
+      const { notices, switchTab } = latest.current;
+      if (notices === "off") return;
+      setToast({
+        text: `${tab.name}: ${describeNews(news[0])}`,
+        icon: <BellIcon size={14} />,
+        action: { label: "Open", onClick: () => switchTab(tab.path) },
+      });
+      if (notices === "system" && !document.hasFocus()) {
+        for (const item of news) notifySystem(tab.name, describeNews(item));
+      }
+    };
+    const fetchOthers = async () => {
+      for (const tab of latest.current.tabs) {
+        if (stopped || (document.hidden && !fetchWhileHidden)) return;
+        if (tab.path === latest.current.snapshot?.path) continue;
+        // Missing credentials or no network: leave it alone for half an hour.
+        const failed = tabFailures.current.get(tab.path);
+        if (failed && Date.now() - failed < 30 * 60 * 1000) continue;
+        try {
+          const before = await remoteState(tab.path);
+          if (before.remotes.length === 0) continue;
+          await runAction(tab.path, { kind: "fetch", background: true });
+          const after = await remoteState(tab.path);
+          const news: News[] = [];
+          for (const branch of watchedFor(after.upstream, after.remotes)) {
+            const old = before.tips[branch];
+            const tip = after.tips[branch];
+            if (!old || !tip || old === tip) continue;
+            const { count, authors } = await commitsBetween(tab.path, old, tip);
+            if (count > 0) news.push({ branch, tip, count, authors });
+          }
+          tabFailures.current.delete(tab.path);
+          if (news.length > 0 && !stopped) {
+            news.sort((a, b) => Number(b.branch === after.upstream) - Number(a.branch === after.upstream));
+            announce(tab, news);
+          }
+        } catch {
+          tabFailures.current.set(tab.path, Date.now());
+        }
+      }
+    };
+    // A little after the open tab's own fetch.
+    const first = setTimeout(fetchOthers, FIRST_AUTO_FETCH_DELAY + 15_000);
+    const timer = setInterval(fetchOthers, Math.max(1, fetchMinutes) * 60 * 1000);
+    return () => {
+      stopped = true;
+      clearTimeout(first);
+      clearInterval(timer);
+    };
+  }, [autoFetch, fetchMinutes, fetchWhileHidden]);
+  // Opening a tab reads its news.
+  useEffect(() => {
+    if (repoPath) setTabNews((current) => (repoPath in current ? Object.fromEntries(Object.entries(current).filter(([path]) => path !== repoPath)) : current));
+  }, [repoPath]);
 
   // After a background fetch: tell you about new commits on your branch's upstream or on main.
   const pendingNews = useRef<{ path: string; before: Map<string, string>; known: Set<string> } | null>(null);
@@ -1534,7 +1607,9 @@ export default function App() {
   );
 
   const withProfilePictures = (children: React.ReactNode) => (
-    <ProfilePictures.Provider value={profilePictures}>{children}</ProfilePictures.Provider>
+    <ProfilePictures.Provider value={profilePictures}>
+      <PullRequestsContext.Provider value={prs.list.length > 0 ? prLookup : null}>{children}</PullRequestsContext.Provider>
+    </ProfilePictures.Provider>
   );
   const dropOverlay = droppingFolder && (
     <div className="drop-overlay">
@@ -1567,6 +1642,7 @@ export default function App() {
             onNew={newTab}
             menuBar={menuBar}
             extra={updatePill}
+            news={tabNews}
           />
         )}
         {tabs.length === 0 && isMac && <div className="window-drag-strip" data-tauri-drag-region />}
@@ -1924,6 +2000,7 @@ export default function App() {
         onNew={newTab}
         menuBar={menuBar}
         extra={updatePill}
+        news={tabNews}
       />
       <Toolbar
         snapshot={snapshot}

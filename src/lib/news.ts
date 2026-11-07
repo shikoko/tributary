@@ -27,9 +27,13 @@ export function remoteTips(snapshot: RepoSnapshot): Map<string, string> {
 
 /** The remote branches to tell you about: the checked-out branch's upstream, and main (or the like) on each remote. */
 export function watchedBranches(snapshot: RepoSnapshot): string[] {
+  return watchedFor(snapshot.upstream?.name ?? null, snapshot.remotes);
+}
+
+export function watchedFor(upstream: string | null, remotes: string[]): string[] {
   const watched = new Set<string>();
-  if (snapshot.upstream) watched.add(snapshot.upstream.name);
-  for (const remote of snapshot.remotes) {
+  if (upstream) watched.add(upstream);
+  for (const remote of remotes) {
     for (const name of LONG_LIVED) watched.add(`${remote}/${name}`);
   }
   return [...watched];

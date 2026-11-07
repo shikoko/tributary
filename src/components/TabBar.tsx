@@ -22,13 +22,15 @@ interface Props {
   menuBar?: ReactNode;
   /** Shown at the right, like "Update available". */
   extra?: ReactNode;
+  /** Tabs whose background fetch found new commits: what arrived, by path. */
+  news?: Record<string, string>;
 }
 
 /**
  * One tab per open repository. It's also the title bar: the empty space drags the window,
  * and on Windows the minimize, maximize and close buttons are at its right.
  */
-export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseStart, onNew, menuBar, extra }: Props) {
+export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseStart, onNew, menuBar, extra, news }: Props) {
   return (
     <div className={`tab-bar${isWindows ? " with-window-controls" : ""}`} data-tauri-drag-region>
       <span className="tab-logo" data-tauri-drag-region>
@@ -41,8 +43,8 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
             key={tab.path}
             role="tab"
             aria-selected={tab.path === activePath}
-            className={`tab${tab.path === activePath ? " active" : ""}`}
-            title={`${tab.path}${index < 9 ? `  (${modKey}${index + 1})` : ""}`}
+            className={`tab${tab.path === activePath ? " active" : ""}${news?.[tab.path] ? " has-news" : ""}`}
+            title={`${tab.path}${index < 9 ? `  (${modKey}${index + 1})` : ""}${news?.[tab.path] ? `\n${news[tab.path]}` : ""}`}
             onMouseDown={(event) => {
               if (event.button === 0) onSelect(tab.path);
             }}
@@ -52,6 +54,7 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
             }}
           >
             <span className="tab-name">{tab.name}</span>
+            {news?.[tab.path] && <span className="tab-news" aria-label="New commits" />}
             <button
               className="tab-close"
               onMouseDown={(event) => event.stopPropagation()}

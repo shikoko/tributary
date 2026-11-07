@@ -1,4 +1,6 @@
-import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
+import { useContext, useMemo, useState, type MouseEvent, type ReactNode } from "react";
+import { PullRequestsContext } from "../lib/pullRequests";
+import { PullRequestBadge } from "./RefPills";
 import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Visibility } from "../api";
 import { lockTitle } from "./CommitDetails";
 import { pressLabel } from "../lib/drag";
@@ -93,6 +95,7 @@ export function Sidebar(props: Props) {
   const { commits, hiddenRefs, visibility, pins, selectedId, width, onSelect, onActivate, onContextMenu } = props;
   const { onFocus, onToggleVisible, aheadBehind } = props;
   const [filter, setFilter] = useState("");
+  const pullRequests = useContext(PullRequestsContext);
   const [collapsed, setCollapsed] = useStoredState<Record<string, boolean>>("sidebar.collapsed", { tags: true });
   const lists = useMemo(() => {
     const lists = collectRefs(commits);
@@ -126,6 +129,12 @@ export function Sidebar(props: Props) {
     const fullName = fullRefName(entry);
     const soloed = soloing && fullName !== null && visibility.solo.includes(fullName);
     const canHide = fullName !== null && !entry.current;
+    const pr =
+      entry.kind === "branch"
+        ? pullRequests?.find(entry.name, true, [], entry.upstream)
+        : entry.kind === "remote"
+          ? pullRequests?.find(entry.name, false, [])
+          : undefined;
     return (
       <li key={key}>
         <div
@@ -153,6 +162,7 @@ export function Sidebar(props: Props) {
               <LockIcon size={11} />
             </span>
           )}
+          {pr && <PullRequestBadge pr={pr} onOpen={pullRequests!.open} />}
           {counts && (counts.ahead > 0 || counts.behind > 0) && (
             <span
               className="sidebar-counts"

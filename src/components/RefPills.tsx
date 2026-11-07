@@ -1,4 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { PullRequest } from "../api";
+import { describeChecks, PullRequestsContext } from "../lib/pullRequests";
 import type { RefLabel } from "../api";
 import { withAlpha } from "../lib/colors";
 import { pressLabel } from "../lib/drag";
@@ -64,6 +66,8 @@ interface PillProps {
 
 function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }: PillProps) {
   const revision = revisionOf(pill);
+  const pullRequests = useContext(PullRequestsContext);
+  const pr = pill.kind === "branch" ? pullRequests?.find(pill.name, pill.local, pill.remotes) : undefined;
   const style: React.CSSProperties = pill.current
     ? // --pill-glow: the glow it gets in the commit list.
       ({ background: color, borderColor: color, color: "#0d0f13", "--pill-glow": withAlpha(color, 0.5) } as React.CSSProperties)
@@ -108,6 +112,26 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
           {pill.remotes.length > 0 && <CloudIcon size={12} />}
         </span>
       )}
+      {pr && <PullRequestBadge pr={pr} onOpen={pullRequests!.open} />}
+    </span>
+  );
+}
+
+/** "#12" with a dot for its checks; click to open the pull request. */
+export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (url: string) => void }) {
+  return (
+    <span
+      className={`pr-badge${pr.checks ? ` ${pr.checks}` : ""}${pr.draft ? " draft" : ""}`}
+      title={`${describeChecks(pr)}\nClick to open it`}
+      role="link"
+      onPointerDown={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen(pr.url);
+      }}
+    >
+      {pr.checks && <span className="pr-dot" />}#{pr.number}
     </span>
   );
 }
