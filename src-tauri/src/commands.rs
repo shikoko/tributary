@@ -8,7 +8,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::actions::{self, Action, Outcome};
 use crate::error::{Error, Result};
-use crate::{git, github, locks, repo, updates};
+use crate::{diagnostics, git, github, locks, repo, updates};
 
 /// How many commits to load when the frontend doesn't ask for a specific amount.
 const DEFAULT_LIMIT: usize = 10_000;
@@ -63,16 +63,19 @@ pub async fn run_action(app: AppHandle, path: String, action: Action) -> Result<
 }
 
 /// Clone `url` into a new folder `name` inside `parent`, reporting progress as
-/// `action-progress` events. Returns the new repository's folder.
+/// `action-progress` events. Returns the new repository's folder. `options` can make the
+/// clone smaller: without Git LFS files, only some folders, or only recent history.
 #[tauri::command]
 pub async fn clone_repository(
     app: AppHandle,
     url: String,
     parent: String,
     name: String,
+    options: Option<actions::CloneOptions>,
 ) -> Result<String> {
+    let options = options.unwrap_or_default();
     blocking(move || {
-        actions::clone_repository(&url, &PathBuf::from(parent), &name, &|progress| {
+        actions::clone_repository(&url, &PathBuf::from(parent), &name, &options, &|progress| {
             let _ = app.emit("action-progress", progress);
         })
         .map(|path| path.display().to_string())
@@ -126,6 +129,12 @@ pub async fn file_checks(
     blocking(move || actions::file_checks(&PathBuf::from(path), &files, threshold)).await
 }
 
+/// Whether Git LFS works in the repository: installed, set up, files downloaded.
+#[tauri::command]
+pub async fn lfs_health(path: String) -> Result<Option<actions::LfsHealth>> {
+    blocking(move || actions::lfs_health(&PathBuf::from(path))).await
+}
+
 /// How much space the local copies of Git LFS files take.
 #[tauri::command]
 pub async fn lfs_storage(path: String) -> Result<Option<actions::LfsStorage>> {
@@ -167,6 +176,18 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<updates::UpdateIn
 #[tauri::command]
 pub async fn install_update(app: AppHandle) -> Result<()> {
     updates::install(&app).await
+}
+
+/// Versions, the platform, and how the repository at `path` (if any) is set up, for
+/// reporting a problem.
+#[tauri::command]
+pub async fn diagnostics(path: Option<String>) -> Result<diagnostics::Diagnostics> {
+    blocking(move || {
+        Ok(diagnostics::diagnostics(
+            path.as_deref().map(std::path::Path::new),
+        ))
+    })
+    .await
 }
 
 /// Stop the fetch, pull, push or clone that is running.

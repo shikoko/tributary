@@ -26,8 +26,6 @@ pub(crate) struct Git {
 }
 
 impl Git {
-    /// Apps started from the macOS Finder don't get the shell's `PATH`, so common
-    /// install locations are tried as well.
     /// The git program that runs.
     pub(crate) fn executable(&self) -> &Path {
         &self.executable
@@ -47,6 +45,8 @@ impl Git {
         }
     }
 
+    /// The user's git, to run in `workdir`. Apps started from the macOS Finder don't get
+    /// the shell's `PATH`, so common install locations are tried as well.
     pub(crate) fn find(workdir: PathBuf) -> Result<Self, Error> {
         let candidates = [
             "git",

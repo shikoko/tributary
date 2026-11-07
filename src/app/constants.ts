@@ -3,8 +3,8 @@ import type { RemoteAction } from "../components/Toolbar";
 
 /** What's loading. */
 export type Busy = { kind: "open"; path: string } | { kind: "refresh" } | { kind: "more" } | null;
-/** What's running: a fetch, pull or push (with a progress bar), or anything else. */
-export type Running = RemoteAction | "other" | null;
+/** A fetch, pull or push, downloading Git LFS files (all with a progress bar), or anything else. */
+export type Running = RemoteAction | "download" | "other" | null;
 /** What's highlighted: a branch's (or commit's) history, an author's commits, or the commits that changed a file or folder. */
 export type Focus =
   | { kind: "history"; name: string; commitId: string }
@@ -37,4 +37,9 @@ export const RETRYABLE = new Set<Action["kind"]>([
   "revertMany",
   "interactiveRebase",
 ]);
-export const RUNNING_LABELS: Record<RemoteAction, string> = { fetch: "Fetching", pull: "Pulling", push: "Pushing" };
+export const RUNNING_LABELS: Record<Exclude<Running, "other" | null>, string> = {
+  fetch: "Fetching",
+  pull: "Pulling",
+  push: "Pushing",
+  download: "Downloading Git LFS files",
+};

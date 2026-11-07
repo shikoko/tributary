@@ -281,6 +281,8 @@ export type Action =
   | { kind: "ignorePaths"; patterns: string[] }
   | { kind: "unignorePaths"; patterns: string[] }
   | { kind: "pruneLfs" }
+  | { kind: "downloadLfsFiles" }
+  | { kind: "setUpLfs" }
   | { kind: "unlockFiles"; locks: { id: string; path: string }[]; force?: boolean };
 
 export type StepAction = "pick" | "reword" | "squash" | "fixup" | "drop";
@@ -345,9 +347,19 @@ export function runActionFor(path: string, action: Action): Promise<Outcome> {
   return invoke<Outcome>("run_action", { path, action });
 }
 
+/** Ways to make a clone of a big repository smaller and quicker. */
+export interface CloneOptions {
+  /** Leave files stored with Git LFS as pointer files, to download later. */
+  skipLfs?: boolean;
+  /** Only check out these folders; the contents of other files aren't downloaded. */
+  folders?: string[];
+  /** Only download this many of the latest commits. */
+  depth?: number | null;
+}
+
 /** Clone `url` into a new folder `name` inside `parent`; resolves to the new folder. */
-export function cloneRepository(url: string, parent: string, name: string): Promise<string> {
-  return invoke<string>("clone_repository", { url, parent, name });
+export function cloneRepository(url: string, parent: string, name: string, options: CloneOptions = {}): Promise<string> {
+  return invoke<string>("clone_repository", { url, parent, name, options });
 }
 
 /** Create a repository in an existing folder. */
@@ -513,6 +525,47 @@ export interface LfsStorage {
 /** Null when the repository doesn't use Git LFS. */
 export function lfsStorage(path: string): Promise<LfsStorage | null> {
   return invoke<LfsStorage | null>("lfs_storage", { path });
+}
+
+/** What's wrong with Git LFS in a repository that uses it, if anything. */
+export interface LfsHealth {
+  /** Git LFS isn't installed: its files are pointer files, and locking doesn't work. */
+  notInstalled: boolean;
+  /** Installed, but git doesn't use it (`git lfs install` was never run). */
+  notSetUp: boolean;
+  /** Files whose contents weren't downloaded: they're still small pointer files. */
+  pointers: number;
+  /** A few of those. */
+  examples: string[];
+}
+
+/** Null when the repository doesn't use Git LFS. */
+export function lfsHealth(path: string): Promise<LfsHealth | null> {
+  return invoke<LfsHealth | null>("lfs_health", { path });
+}
+
+/** For reporting a problem: versions, the platform, and how the repository is set up. */
+export interface Diagnostics {
+  version: string;
+  platform: string;
+  git: string;
+  gitPath: string | null;
+  gitLfs: string | null;
+  repository: {
+    path: string;
+    head: string;
+    remotes: string[];
+    shallow: boolean;
+    sparse: boolean;
+    partial: boolean;
+    operation: string | null;
+    lfs: LfsHealth | null;
+    error: string | null;
+  } | null;
+}
+
+export function diagnostics(path: string | null): Promise<Diagnostics> {
+  return invoke<Diagnostics>("diagnostics", { path });
 }
 
 /** An open pull request on GitHub. */

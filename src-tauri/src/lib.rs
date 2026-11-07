@@ -3,6 +3,7 @@
 
 pub mod actions;
 mod commands;
+pub mod diagnostics;
 pub mod error;
 pub mod git;
 pub mod github;
@@ -42,6 +43,8 @@ pub fn run() {
             commands::file_history,
             commands::file_checks,
             commands::lfs_storage,
+            commands::lfs_health,
+            commands::diagnostics,
             commands::pull_requests,
             commands::reflog,
             commands::remote_state,

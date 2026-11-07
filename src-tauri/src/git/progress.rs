@@ -126,6 +126,16 @@ impl Git {
         args: &[&str],
         on_progress: &dyn Fn(Progress),
     ) -> Result<ProgressOutput, Error> {
+        self.run_progress_with_env(args, &[], on_progress)
+    }
+
+    /// [`Git::run_progress`], with extra environment variables.
+    pub(crate) fn run_progress_with_env(
+        &self,
+        args: &[&str],
+        env: &[(&str, &str)],
+        on_progress: &dyn Fn(Progress),
+    ) -> Result<ProgressOutput, Error> {
         use std::sync::mpsc::{RecvTimeoutError, channel};
         use std::time::Duration;
 
@@ -152,6 +162,7 @@ impl Git {
             .env("GIT_MERGE_AUTOEDIT", "no")
             .env("GIT_LFS_PROGRESS", &lfs_log)
             .env("GIT_LFS_FORCE_PROGRESS", "1")
+            .envs(env.iter().copied())
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

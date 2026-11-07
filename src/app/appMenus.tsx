@@ -5,6 +5,8 @@ import {
   BroomIcon,
   CloneIcon,
   CloseIcon,
+  CopyIcon,
+  DownloadIcon,
   ExternalLinkIcon,
   FetchIcon,
   FileHistoryIcon,
@@ -29,7 +31,7 @@ import { isMac } from "../lib/platform";
 import { newPullRequestUrl, openInBrowser, siteName, webRemote } from "../lib/weblinks";
 import { splitRemoteBranch, type OpenDialog } from "../menus";
 import type { AppCommand, MenuEntry } from "./appCommand";
-import type { RemoteAction } from "../components/Toolbar";
+import type { Running } from "./constants";
 import type { Preferences } from "./usePreferences";
 
 /** One menu of the menu bar. */
@@ -53,6 +55,8 @@ export interface MenuBarContext {
   /** Whether the repository uses Git LFS locking, and Git LFS at all. */
   usesLocks: boolean;
   usesLfs: boolean;
+  /** Files stored with Git LFS that weren't downloaded. */
+  lfsPointers: number;
   do: {
     open: () => void;
     clone: () => void;
@@ -68,12 +72,13 @@ export interface MenuBarContext {
     highlightMine: () => void;
     resetLayout: () => void;
     refresh: () => void;
-    act: (action: Action, kind?: RemoteAction) => void;
+    act: (action: Action, kind?: Exclude<Running, null>) => void;
     dialog: (dialog: OpenDialog) => void;
     select: (id: string) => void;
     history: (directory: boolean) => void;
     lockFiles: () => void;
     reveal: () => void;
+    diagnostics: () => void;
   };
 }
 
@@ -91,11 +96,12 @@ export function startCommands(ctx: MenuBarContext): AppCommand[] {
   ];
 }
 
-/** The command palette and the list of keyboard shortcuts. */
+/** The command palette, the list of keyboard shortcuts, and diagnostics for bug reports. */
 export function helpCommandsFor(ctx: MenuBarContext): AppCommand[] {
   return [
     { id: "palette", label: "Command Palette", icon: <SearchIcon />, keys: "CmdOrCtrl+K", run: ctx.do.palette },
     { id: "shortcuts", label: "Keyboard Shortcuts", icon: <KeyboardIcon />, run: ctx.do.shortcuts },
+    { id: "diagnostics", label: "Copy Diagnostics…", icon: <CopyIcon />, run: ctx.do.diagnostics },
   ];
 }
 
@@ -190,6 +196,9 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           ...(ctx.usesLocks ? [{ id: "lock-files", label: "Lock Files…", icon: <LockIcon />, enabled: canChange, run: run.lockFiles }] : []),
           ...(ctx.usesLocks || ctx.usesLfs
             ? [{ id: "prune-lfs", label: "Clean Up Git LFS Files…", icon: <BroomIcon />, enabled: canChange, run: () => run.dialog({ kind: "pruneLfs" }) }]
+            : []),
+          ...(ctx.lfsPointers > 0
+            ? [{ id: "download-lfs", label: "Download Git LFS Files", icon: <DownloadIcon />, enabled: canChange, run: () => run.act({ kind: "downloadLfsFiles" }, "download") }]
             : []),
           { id: "recover", label: "Recover Commits…", icon: <RecoverIcon />, run: () => run.dialog({ kind: "recover" }) },
           "-",

@@ -22,7 +22,7 @@ use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use tributary_lib::actions::{self, Action};
 use tributary_lib::error::{Error, Result};
-use tributary_lib::{git, github, locks, repo};
+use tributary_lib::{diagnostics, git, github, locks, repo};
 
 /// How many commits to load when a request doesn't say.
 const DEFAULT_LIMIT: usize = 10_000;
@@ -110,7 +110,8 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             let url: String = arg(args, "url")?;
             let parent: PathBuf = arg(args, "parent")?;
             let name: String = arg(args, "name")?;
-            let folder = actions::clone_repository(&url, &parent, &name, &progress)?;
+            let options = optional(args, "options")?.unwrap_or_default();
+            let folder = actions::clone_repository(&url, &parent, &name, &options, &progress)?;
             to_json(folder.display().to_string())
         }
         "init_repository" => to_json(actions::init_repository(&path()?)?),
@@ -131,6 +132,7 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             to_json(actions::file_checks(&path()?, &files, threshold)?)
         }
         "lfs_storage" => to_json(actions::lfs_storage_of(&path()?)?),
+        "lfs_health" => to_json(actions::lfs_health(&path()?)?),
         "pull_requests" => {
             let path = path()?;
             to_json(tauri::async_runtime::block_on(github::pull_requests(
@@ -146,6 +148,10 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             let from: String = arg(args, "from")?;
             let to: String = arg(args, "to")?;
             to_json(repo::commits_between(&path()?, &from, &to)?)
+        }
+        "diagnostics" => {
+            let path: Option<PathBuf> = optional(args, "path")?;
+            to_json(diagnostics::diagnostics(path.as_deref()))
         }
         "cancel_action" => to_json(git::cancel()),
         "activity_log" => to_json(git::activity()),

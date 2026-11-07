@@ -159,6 +159,42 @@ try {
     await page.locator(".pr-badge").first().waitFor({ timeout: 10_000 });
   });
 
+  if (demos.assets) {
+    await step("clones a repository without its Git LFS files", async () => {
+      await page.evaluate((pick) => Object.assign(window.__PREVIEW__, { pick }), folder);
+      await page.getByRole("button", { name: "New tab" }).click();
+      await page.getByRole("button", { name: "Clone…" }).click();
+      await page.getByPlaceholder(/github\.com/).fill(demos.assets);
+      await page.getByRole("button", { name: "Choose…" }).click();
+      await page.getByRole("button", { name: /Options for big repositories/ }).click();
+      await page.getByLabel("Download Git LFS files later").check();
+      await page.getByRole("button", { name: "Clone", exact: true }).click();
+      await row("Add the main theme").waitFor({ timeout: 20_000 });
+      const banner = page.locator(".notice-banner");
+      await banner.waitFor({ timeout: 10_000 });
+      const text = await banner.innerText();
+      expect(/3 files stored with Git LFS haven't been downloaded/.test(text), `banner "${text}"`);
+    });
+
+    await step("downloads the Git LFS files", async () => {
+      await page.getByRole("button", { name: "Download them" }).click();
+      const text = await toast();
+      expect(text.includes("Downloaded 3 files"), `toast "${text}"`);
+      await page.locator(".notice-banner").waitFor({ state: "detached", timeout: 10_000 });
+      await dismissToast();
+    });
+  }
+
+  await step("shows diagnostics to copy", async () => {
+    await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Copy Diagnostics" }).click();
+    const text = page.locator(".diagnostics-text");
+    await text.filter({ hasText: "Repository:" }).waitFor({ timeout: 10_000 });
+    const shown = await text.innerText();
+    expect(shown.includes("Tributary") && shown.includes("Git:"), `diagnostics "${shown.slice(0, 80)}"`);
+    await page.locator(".dialog").getByRole("button", { name: "Close", exact: true }).click();
+  });
+
   await step("had no errors on the page", async () => {
     expect(errors.length === 0, errors.join("; "));
   });

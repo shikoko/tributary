@@ -5,6 +5,7 @@
 //   studio     a game: lockable assets (Git LFS locking, served by lfs-locks.mjs), big
 //              files that aren't in LFS, a commit lost to a reset, and a branch per
 //              pull request
+//   assets     a remote whose files are stored with Git LFS, to clone (with Git LFS installed)
 //
 //   node tools/preview/demo.mjs [folder]           build them (default: in the system's temp)
 //   node tools/preview/demo.mjs --serve [folder]   and run the preview on them (npm run preview:demo)
@@ -254,6 +255,42 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   return folder;
 }
 
+/** Whether Git LFS is installed. */
+function hasGitLfs() {
+  try {
+    execFileSync("git", ["lfs", "version"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A remote whose artwork and audio are stored with Git LFS, to try cloning without
+ * them (and downloading them afterwards). Needs Git LFS: without it, there's none.
+ */
+export function buildAssets(root, configFile) {
+  if (!hasGitLfs()) return null;
+  const origin = remote(root, "assets", configFile);
+  const folder = join(root, "remotes", "assets-work");
+  setUp(folder, configFile);
+  const repo = repository(folder, { configFile, start: now() - days(3) });
+  const { run, binary } = repo;
+  run(["lfs", "install", "--local"]);
+  run(["lfs", "track", "*.psd", "*.wav"]);
+  binary("Concept/hero.psd", 320_000);
+  binary("Concept/village.psd", 280_000);
+  repo.write("README.md", "Artwork and audio for Feast of the Forgotten.\n", { append: false });
+  run(["add", "-A"]);
+  run(["commit", "-q", "-m", "Add the first concept art"], { who: "rosa" });
+  binary("Audio/theme.wav", 450_000);
+  run(["add", "-A"]);
+  run(["commit", "-q", "-m", "Add the main theme"], { who: "theo", hours: 5 });
+  run(["remote", "add", "origin", origin]);
+  run(["push", "-q", "origin", "main"]);
+  return origin;
+}
+
 /** The pull requests the studio's branches would have on GitHub, for the preview's fakes. */
 export const STUDIO_PULL_REQUESTS = [
   { number: 12, title: "Barber v2: new hair and apron", url: "https://github.com/example/feast/pull/12", remote: "origin", branch: "art/barber-v2", draft: false, author: "rosa-bell", checks: "success" },
@@ -265,7 +302,12 @@ export function buildDemos(root = join(tmpdir(), "tributary-demo"), options = {}
   mkdirSync(root, { recursive: true });
   const configFile = join(root, "empty.gitconfig");
   writeFileSync(configFile, "");
-  return { root, notebook: buildNotebook(root, configFile), studio: buildStudio(root, configFile, options) };
+  return {
+    root,
+    notebook: buildNotebook(root, configFile),
+    studio: buildStudio(root, configFile, options),
+    assets: buildAssets(root, configFile),
+  };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -278,10 +320,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const locks = await startLockServer();
     const demos = buildDemos(folder ? resolve(folder) : undefined, { lockServer: locks.url });
     console.log(`Demo repositories (paste one into "Open repository"):\n  ${demos.notebook}\n  ${demos.studio}`);
+    if (demos.assets) console.log(`A remote with Git LFS files, to clone:\n  ${demos.assets}`);
     await startPreview({ env: DEMO_IDENTITY });
   } else {
     const demos = buildDemos(folder ? resolve(folder) : undefined);
     console.log(`Demo repositories:\n  ${demos.notebook}\n  ${demos.studio}`);
+    if (demos.assets) console.log(`A remote with Git LFS files, to clone:\n  ${demos.assets}`);
     console.log("The studio's locks come from `node tools/preview/lfs-locks.mjs`.");
   }
 }

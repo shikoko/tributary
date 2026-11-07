@@ -3,7 +3,7 @@
 mod common;
 
 use common::{TempRepo, remote_turn, run, with_identity};
-use tributary_lib::actions::Action;
+use tributary_lib::actions::{Action, CloneOptions};
 use tributary_lib::error::Error;
 use tributary_lib::{actions, git, repo};
 
@@ -198,24 +198,61 @@ fn clones_and_creates_repositories() {
     source.commit("a.txt", "First");
     let parent = TempRepo::empty("clone-parent");
 
-    let cloned = actions::clone_repository(source.url(), parent.path(), "copy", &|_| {}).unwrap();
+    let cloned = actions::clone_repository(
+        source.url(),
+        parent.path(),
+        "copy",
+        &CloneOptions::default(),
+        &|_| {},
+    )
+    .unwrap();
     assert_eq!(cloned, parent.path().join("copy"));
     let snapshot = repo::load(&cloned, 100, false).unwrap();
     assert_eq!(snapshot.commits.len(), 1);
     assert_eq!(snapshot.remotes, vec!["origin"]);
 
-    let again = actions::clone_repository(source.url(), parent.path(), "copy", &|_| {});
+    let again = actions::clone_repository(
+        source.url(),
+        parent.path(),
+        "copy",
+        &CloneOptions::default(),
+        &|_| {},
+    );
     assert!(again.unwrap_err().to_string().contains("already exists"));
-    let missing = actions::clone_repository("/no/such/repo.git", parent.path(), "broken", &|_| {});
+    let missing = actions::clone_repository(
+        "/no/such/repo.git",
+        parent.path(),
+        "broken",
+        &CloneOptions::default(),
+        &|_| {},
+    );
     assert!(missing.is_err());
     assert!(
         !parent.path().join("broken").exists(),
         "a failed clone leaves nothing behind"
     );
     for name in ["", "a/b", ".."] {
-        assert!(actions::clone_repository(source.url(), parent.path(), name, &|_| {}).is_err());
+        assert!(
+            actions::clone_repository(
+                source.url(),
+                parent.path(),
+                name,
+                &CloneOptions::default(),
+                &|_| {}
+            )
+            .is_err()
+        );
     }
-    assert!(actions::clone_repository("--upload-pack=x", parent.path(), "x", &|_| {}).is_err());
+    assert!(
+        actions::clone_repository(
+            "--upload-pack=x",
+            parent.path(),
+            "x",
+            &CloneOptions::default(),
+            &|_| {}
+        )
+        .is_err()
+    );
 
     let fresh = parent.path().join("fresh");
     std::fs::create_dir(&fresh).unwrap();
@@ -286,4 +323,56 @@ fn logs_the_git_commands_it_runs() {
     assert_eq!(mine[0].args, vec!["add", "--all"]);
     assert!(mine[0].success);
     assert!(!mine[0].background);
+}
+
+#[test]
+fn clones_only_recent_history_or_some_folders() {
+    let _turn = remote_turn();
+    let mut source = TempRepo::new("partial-source");
+    std::fs::create_dir_all(source.path().join("art")).unwrap();
+    std::fs::create_dir_all(source.path().join("code")).unwrap();
+    source.commit("art/hero.txt", "Draw the hero");
+    source.commit("code/main.txt", "Write the main loop");
+    source.commit("readme.txt", "Explain it all");
+    // Shallow and partial clones need a URL: a plain path makes a local copy instead.
+    let url = format!("file://{}", source.url());
+    let parent = TempRepo::empty("partial-parent");
+
+    let recent = CloneOptions {
+        depth: Some(1),
+        ..CloneOptions::default()
+    };
+    let shallow =
+        actions::clone_repository(&url, parent.path(), "recent", &recent, &|_| {}).unwrap();
+    let snapshot = repo::load(&shallow, 100, true).unwrap();
+    assert_eq!(snapshot.commits.len(), 1, "only the latest commit");
+    assert!(shallow.join("art/hero.txt").exists());
+
+    let some = CloneOptions {
+        folders: vec!["code/".into(), " code ".into()],
+        ..CloneOptions::default()
+    };
+    let sparse = actions::clone_repository(&url, parent.path(), "code", &some, &|_| {}).unwrap();
+    assert!(sparse.join("code/main.txt").exists());
+    assert!(
+        sparse.join("readme.txt").exists(),
+        "files at the top come along"
+    );
+    assert!(
+        !sparse.join("art/hero.txt").exists(),
+        "other folders stay out"
+    );
+    assert_eq!(repo::load(&sparse, 100, true).unwrap().commits.len(), 3);
+
+    let outside = CloneOptions {
+        folders: vec!["../elsewhere".into()],
+        ..CloneOptions::default()
+    };
+    assert!(actions::clone_repository(&url, parent.path(), "bad", &outside, &|_| {}).is_err());
+    let nothing = CloneOptions {
+        depth: Some(0),
+        ..CloneOptions::default()
+    };
+    assert!(actions::clone_repository(&url, parent.path(), "none", &nothing, &|_| {}).is_err());
+    assert!(!parent.path().join("bad").exists() && !parent.path().join("none").exists());
 }

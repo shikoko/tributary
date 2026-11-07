@@ -13,6 +13,7 @@ mod conflicts;
 mod files;
 mod history;
 mod lfs;
+mod lfs_health;
 mod prune;
 mod remote;
 mod stash;
@@ -28,9 +29,10 @@ use crate::error::{Error, Result};
 use crate::git::{Git, Progress};
 
 pub use backups::{BACKUP_DAYS, Backup, BackupEvent, backups};
-pub use clone::{clone_repository, init_repository};
+pub use clone::{CloneOptions, clone_repository, init_repository};
 pub use files::{FileHistory, file_history};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
+pub use lfs_health::{LfsHealth, lfs_health};
 pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
 };
@@ -190,6 +192,10 @@ pub enum Action {
     UnignorePaths { patterns: Vec<String> },
     /// Delete local copies of Git LFS files that aren't needed any more (`git lfs prune`).
     PruneLfs,
+    /// Download the files stored with Git LFS that are still pointer files (`git lfs pull`).
+    DownloadLfsFiles,
+    /// Set git up to use Git LFS (`git lfs install`), then download its files.
+    SetUpLfs,
     /// Release Git LFS locks, by id (the file may not exist here). `force` releases
     /// someone else's lock.
     UnlockFiles {
@@ -430,6 +436,8 @@ fn perform(
         Action::IgnorePaths { patterns } => changes::ignore_paths(&git, patterns),
         Action::UnignorePaths { patterns } => changes::unignore_paths(&git, patterns),
         Action::PruneLfs => lfs::prune_lfs(&git),
+        Action::DownloadLfsFiles => lfs_health::download_lfs_files(&git, on_progress),
+        Action::SetUpLfs => lfs_health::set_up_lfs(&git, on_progress),
         Action::UnlockFiles { locks, force } => lfs::unlock_files(&git, locks, force),
     }
 }

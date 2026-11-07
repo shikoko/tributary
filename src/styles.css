@@ -1274,6 +1274,56 @@ body:not(.resizing) .commit-list:not(.graph-growing) .list-header {
   overflow-wrap: anywhere;
 }
 
+.clone-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.clone-options legend {
+  padding: 0 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dialog .clone-options .hint {
+  margin: -4px 0 2px;
+}
+
+/* Lined up with the checkbox's label. */
+.dialog .clone-options .checkbox-hint {
+  margin-left: 24px;
+}
+
+.clone-options-toggle {
+  align-self: flex-start;
+}
+
+.diagnostics-text {
+  max-height: 46vh;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 .dialog code {
   font-family: var(--mono);
   font-size: 12px;
@@ -2106,6 +2156,45 @@ body.resizing * {
 
 .view-banner strong {
   color: var(--text);
+}
+
+/* Something to fix in the repository's setup, like Git LFS files that weren't downloaded. */
+.notice-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 12px 0;
+  padding: 7px 8px 7px 12px;
+  border: 1px solid rgba(240, 180, 76, 0.35);
+  border-radius: 8px;
+  background: rgba(240, 180, 76, 0.08);
+  color: #f3d29b;
+  flex: none;
+}
+
+.notice-banner > svg {
+  flex: none;
+  color: #f0b44c;
+}
+
+.notice-banner span {
+  flex: 1;
+  min-width: 0;
+}
+
+.notice-action {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid rgba(240, 180, 76, 0.5);
+  border-radius: 5px;
+  background: rgba(240, 180, 76, 0.14);
+  color: #ffe2ad;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.notice-action:hover:not(:disabled) {
+  background: rgba(240, 180, 76, 0.24);
 }
 
 /* Commit list extras */

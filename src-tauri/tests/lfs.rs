@@ -8,7 +8,7 @@ mod common;
 use std::process::Command;
 
 use common::{TempRepo, lfs_installed, remote_turn, run, with_identity};
-use tributary_lib::actions::{Action, LockRef};
+use tributary_lib::actions::{Action, CloneOptions, LockRef};
 use tributary_lib::{actions, locks};
 
 /// Git LFS uploads its files before git's own push, and says nothing about it unless it's
@@ -429,4 +429,56 @@ fn measures_and_prunes_local_git_lfs_files() {
     let mut plain = TempRepo::new("lfs-prune-plain");
     plain.commit("a.txt", "First");
     assert!(actions::lfs_storage_of(plain.path()).unwrap().is_none());
+}
+
+/// A clone without its Git LFS files has pointer files where they should be; downloading
+/// them puts the real files there.
+#[test]
+fn finds_and_downloads_git_lfs_files_left_as_pointers() {
+    if !lfs_installed() {
+        eprintln!("Git LFS isn't installed: skipped");
+        return;
+    }
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("pointers-remote.git");
+    let alice = TempRepo::new("pointers-alice");
+    alice.git(&["lfs", "install", "--local"]);
+    alice.git(&["lfs", "track", "*.bin"]);
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    std::fs::write(alice.path().join("one.bin"), vec![1u8; 40_000]).unwrap();
+    std::fs::write(alice.path().join("two.bin"), vec![2u8; 40_000]).unwrap();
+    alice.git(&["add", ".gitattributes", "one.bin", "two.bin"]);
+    alice.git(&["commit", "--quiet", "-m", "Add two files"]);
+    alice.git(&["push", "--quiet", "origin", "main"]);
+    assert_eq!(
+        actions::lfs_health(alice.path()).unwrap().unwrap().pointers,
+        0
+    );
+
+    let parent = TempRepo::empty("pointers-parent");
+    let options = CloneOptions {
+        skip_lfs: true,
+        ..CloneOptions::default()
+    };
+    let clone =
+        actions::clone_repository(remote.url(), parent.path(), "copy", &options, &|_| {}).unwrap();
+    let health = actions::lfs_health(&clone).unwrap().unwrap();
+    assert_eq!(health.pointers, 2);
+    assert_eq!(health.examples, vec!["one.bin", "two.bin"]);
+    assert!(std::fs::metadata(clone.join("one.bin")).unwrap().len() < 1000);
+
+    let message = actions::run(&clone, Action::DownloadLfsFiles).unwrap();
+    assert_eq!(message, "Downloaded 2 files");
+    assert_eq!(
+        std::fs::read(clone.join("one.bin")).unwrap(),
+        vec![1u8; 40_000]
+    );
+    assert_eq!(actions::lfs_health(&clone).unwrap().unwrap().pointers, 0);
+    let again = actions::run(&clone, Action::DownloadLfsFiles).unwrap();
+    assert_eq!(again, "Every file stored with Git LFS is already here");
+
+    // A repository without Git LFS has nothing to report.
+    let mut plain = TempRepo::new("pointers-plain");
+    plain.commit("a.txt", "First");
+    assert!(actions::lfs_health(plain.path()).unwrap().is_none());
 }

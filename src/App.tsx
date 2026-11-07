@@ -69,6 +69,7 @@ import { useKeyboardShortcuts } from "./app/useKeyboardShortcuts";
 import { appMenus, helpCommandsFor, settingsCommand, startCommands, type MenuBarContext } from "./app/appMenus";
 import { fileMenuItems, lockMenuItems, type FileMenuContext } from "./app/fileMenus";
 import { RepositoryDialogs } from "./app/Dialogs";
+import { needsAttention, useLfsHealth } from "./app/useLfsHealth";
 import { columnMenuItems, detailsActionsFor, pushMenuItems } from "./app/listMenus";
 import { paletteCommands } from "./app/paletteCommands";
 import { useNativeMenu } from "./app/useNativeMenu";
@@ -103,6 +104,8 @@ import { TabBar, type Tab } from "./components/TabBar";
 import { Toast, type ToastMessage } from "./components/Toast";
 import { Toolbar, type RemoteAction } from "./components/Toolbar";
 import { ViewBanner } from "./components/ViewBanner";
+import { LfsHealthBanner } from "./components/LfsHealthBanner";
+import { DiagnosticsDialog } from "./components/DiagnosticsDialog";
 import { Welcome } from "./components/Welcome";
 import { conflictSides, EMPTY_DRAFT, WorktreeDetailsPanel, type CommitDraft } from "./components/WorktreeDetails";
 
@@ -142,6 +145,7 @@ export default function App() {
   const { autoLock } = preferences;
   const updates = useUpdates(autoUpdate);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
   useEffect(() => {
@@ -175,6 +179,13 @@ export default function App() {
       : null;
 
   const lfs = useLfsLocks(snapshot?.path ?? null);
+  // Git LFS files that weren't downloaded, or Git LFS missing: say so until it's fixed,
+  // or dismissed (it comes back if the problem changes).
+  const lfsStatus = useLfsHealth(snapshot);
+  const lfsSignature = lfsStatus.health
+    ? `${lfsStatus.health.notInstalled}/${lfsStatus.health.notSetUp}/${lfsStatus.health.pointers}`
+    : "";
+  const [lfsNoticeDismissed, setLfsNoticeDismissed] = useRepoSetting<string>("lfsNoticeDismissed", snapshot?.path ?? null, "");
   const onGitHub = Boolean(snapshot?.webRemotes.some((remote) => remote.host === "github"));
   const prs = usePullRequests(snapshot?.path ?? null, onGitHub);
   const prLookup = useMemo(() => makeLookup(prs.list, openInBrowser), [prs.list]);
@@ -779,6 +790,7 @@ export default function App() {
     highlightingMine,
     usesLocks: Boolean(lfs.locks),
     usesLfs: Boolean(checks?.usesLfs),
+    lfsPointers: lfsStatus.health?.pointers ?? 0,
     do: {
       open: pick,
       clone: () => setDialog({ kind: "clone" }),
@@ -800,6 +812,7 @@ export default function App() {
       history: pickHistory,
       lockFiles: pickFilesToLock,
       reveal,
+      diagnostics: () => setDiagnosticsOpen(true),
     },
   };
   const menus = appMenus(menuBarContext);
@@ -828,6 +841,17 @@ export default function App() {
         },
       })}
       onClose={() => setSettingsOpen(false)}
+    />
+  );
+  const diagnosticsDialog = diagnosticsOpen && (
+    <DiagnosticsDialog
+      repoPath={snapshot?.path ?? null}
+      extra={{ Zoom: `${Math.round(zoom * 100)}%`, Webview: navigator.userAgent }}
+      onCopied={() => {
+        setDiagnosticsOpen(false);
+        setToast({ text: "Copied the diagnostics" });
+      }}
+      onClose={() => setDiagnosticsOpen(false)}
     />
   );
   const updateDialog = updateOpen && updates.available && <UpdateDialog update={updates.available} onClose={() => setUpdateOpen(false)} />;
@@ -898,6 +922,7 @@ export default function App() {
         )}
         {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
         {settingsDialog}
+        {diagnosticsDialog}
         {updateDialog}
         {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
         {dropOverlay}
@@ -1037,7 +1062,7 @@ export default function App() {
       <Toolbar
         snapshot={snapshot}
         refreshing={busy !== null}
-        running={running === "other" ? null : running}
+        running={running === "other" || running === "download" ? null : running}
         ahead={ahead}
         behind={behind}
         search={{
@@ -1087,6 +1112,16 @@ export default function App() {
             <CloseIcon size={14} />
           </button>
         </div>
+      )}
+      {needsAttention(lfsStatus.health) && lfsNoticeDismissed !== lfsSignature && (
+        <LfsHealthBanner
+          health={lfsStatus.health}
+          busy={running !== null}
+          onDownload={() => act({ kind: "downloadLfsFiles" }, "download")}
+          onSetUp={() => act({ kind: "setUpLfs" }, "download")}
+          onGetLfs={() => openInBrowser("https://git-lfs.com")}
+          onDismiss={() => setLfsNoticeDismissed(lfsSignature)}
+        />
       )}
       {(focus || snapshot.firstParent || soloing) && (
         <ViewBanner
@@ -1252,6 +1287,7 @@ export default function App() {
       {paletteOpen && <CommandPalette commands={commands()} onClose={() => setPaletteOpen(false)} />}
       {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
       {settingsDialog}
+      {diagnosticsDialog}
       {updateDialog}
       {cloneDialog}
       <RepositoryDialogs
