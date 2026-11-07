@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions for the main window: core APIs (including the menu bar), window title and dragging, page zoom, the folder picker, and opening web links or showing a folder in Finder or Explorer.",
+  "description": "Permissions for the main window: core APIs (including the menu bar), window title, dragging and (on Windows, where Tributary draws its own title bar) minimizing, maximizing and closing, page zoom, the folder picker, system notifications, and opening web links or showing a folder in Finder or Explorer.",
   "windows": [
     "main"
   ],
@@ -12,6 +12,11 @@
     "core:window:allow-internal-toggle-maximize",
     "core:webview:allow-set-webview-zoom",
     "dialog:allow-open",
-    "opener:default"
+    "opener:default",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "core:window:allow-is-maximized",
+    "notification:default"
   ]
 }

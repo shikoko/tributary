@@ -31,6 +31,8 @@ jobs:
             rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
             bundles: |
               src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+              src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
+              src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
           - name: Windows
             os: windows-latest
             target: x86_64-pc-windows-msvc
@@ -38,6 +40,7 @@ jobs:
             bundles: |
               src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
               src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe.sig
 
     steps:
       - uses: actions/checkout@v7
@@ -58,8 +61,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # A release's version comes from its tag (v0.2.0 → 0.2.0). With the signing key
+      # secret set, the installers are signed for automatic updates too.
       - name: Build installers
-        run: npm run tauri build -- --target ${{ matrix.target }}
+        shell: bash
+        env:
+          RELEASE: ${{ inputs.release }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          config=$(node -e '
+            const config = {};
+            const version = (process.env.RELEASE || "").replace(/^v/, "");
+            if (version) {
+              if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
+                console.error(`"${process.env.RELEASE}" is not a version like v0.2.0`);
+                process.exit(1);
+              }
+              config.version = version;
+            }
+            if (process.env.TAURI_SIGNING_PRIVATE_KEY) config.bundle = { createUpdaterArtifacts: true };
+            console.log(JSON.stringify(config));
+          ')
+          npm run tauri build -- --target ${{ matrix.target }} --config "$config"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -75,6 +99,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v8
         with:
           path: installers
@@ -91,3 +117,18 @@ jobs:
           --draft
           --generate-notes
           --title "Tributary $TAG"
+
+      # latest.json tells Tributary about the new version once the draft is published.
+      - name: Add the update manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release }}
+        run: |
+          # The draft, with each file's API address (which works for a private repository).
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" \
+            --jq "[.[] | select(.tag_name == \"$TAG\")][0] | {body, assets: [.assets[] | {name, apiUrl: .url}]}" \
+            > release.json
+          node .github/scripts/latest-json.mjs "${TAG#v}" release.json installers latest.json
+          if [ -f latest.json ]; then
+            gh release upload "$TAG" latest.json --repo "$GITHUB_REPOSITORY"
+          fi

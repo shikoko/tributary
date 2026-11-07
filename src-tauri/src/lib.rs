@@ -4,6 +4,7 @@ pub mod lfs;
 pub mod links;
 pub mod locks;
 pub mod repo;
+pub mod updates;
 
 use std::path::PathBuf;
 
@@ -134,6 +135,19 @@ async fn file_history(path: String, file: String) -> Result<actions::FileHistory
         .map_err(|e| e.to_string())?
 }
 
+/// A newer version of Tributary, if there is one.
+#[tauri::command]
+async fn check_for_update(app: AppHandle) -> Result<Option<updates::UpdateInfo>, String> {
+    updates::check(&app).await
+}
+
+/// Install the update found by `check_for_update` and restart. Reports the download as
+/// `update-progress` events.
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Result<(), String> {
+    updates::install(&app).await
+}
+
 /// Stop the fetch, pull, push or clone that is running.
 #[tauri::command]
 fn cancel_action() -> bool {
@@ -152,6 +166,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::Pending::default())
         .setup(|app| {
             let handle = app.handle().clone();
             actions::on_activity(move |entry| {
@@ -170,6 +187,8 @@ pub fn run() {
             lost_commits,
             lfs_locks,
             file_history,
+            check_for_update,
+            install_update,
             cancel_action,
             activity_log
         ])

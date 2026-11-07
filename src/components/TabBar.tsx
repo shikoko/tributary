@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { CloseIcon, Logo, PlusIcon } from "./Icons";
-import { modKey } from "../lib/platform";
+import { isWindows, modKey } from "../lib/platform";
+import { WindowControls } from "./WindowControls";
 
 export interface Tab {
   path: string;
@@ -19,12 +20,17 @@ interface Props {
   onNew: () => void;
   /** The File, View, … menus, on systems without a menu bar of their own. */
   menuBar?: ReactNode;
+  /** Shown at the right, like "Update available". */
+  extra?: ReactNode;
 }
 
-/** One tab per open repository. The empty space drags the window (macOS title bar). */
-export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseStart, onNew, menuBar }: Props) {
+/**
+ * One tab per open repository. It's also the title bar: the empty space drags the window,
+ * and on Windows the minimize, maximize and close buttons are at its right.
+ */
+export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseStart, onNew, menuBar, extra }: Props) {
   return (
-    <div className="tab-bar" data-tauri-drag-region>
+    <div className={`tab-bar${isWindows ? " with-window-controls" : ""}`} data-tauri-drag-region>
       <span className="tab-logo" data-tauri-drag-region>
         <Logo size={18} />
       </span>
@@ -70,6 +76,8 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
         </button>
       </div>
       <div className="tab-bar-fill" data-tauri-drag-region />
+      {extra}
+      {isWindows && <WindowControls />}
     </div>
   );
 }

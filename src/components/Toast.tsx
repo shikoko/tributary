@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { CheckIcon } from "./Icons";
 
 export interface ToastMessage {
   text: string;
   /** An optional button, like "Undo". */
   action?: { label: string; onClick: () => void };
+  /** Instead of the check mark, like a bell for news. */
+  icon?: ReactNode;
 }
 
 /** A short confirmation at the bottom of the window that goes away by itself. */
@@ -26,7 +28,7 @@ export function Toast({ toast, onDone }: { toast: ToastMessage; onDone: () => vo
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <CheckIcon size={14} />
+      {toast.icon ?? <CheckIcon size={14} />}
       <span>{toast.text}</span>
       {toast.action && (
         <button

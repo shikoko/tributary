@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -30,6 +31,9 @@ import {
 import { involvesUntrackedFiles, isLocalChangesError } from "./lib/errors";
 import { ancestors, countMissing } from "./lib/graph";
 import { useLfsLocks } from "./lib/locks";
+import { describeNews, findNews, remoteTips } from "./lib/news";
+import { notifySystem } from "./lib/notify";
+import { useUpdates } from "./lib/updates";
 import { baseName, folderOf, joinPath, relativeTo } from "./lib/paths";
 import { copyText } from "./lib/clipboard";
 import { setNativeMenu, type NativeMenu } from "./lib/nativeMenu";
@@ -66,6 +70,7 @@ import { ContextMenu, type MenuItem } from "./components/ContextMenu";
 import { ForcePushDialog } from "./components/ForcePushDialog";
 import {
   ActivityIcon,
+  BellIcon,
   BranchIcon,
   BroomIcon,
   CheckIcon,
@@ -76,12 +81,14 @@ import {
   CloudIcon,
   ColumnsIcon,
   CopyIcon,
+  DownloadIcon,
   ExternalLinkIcon,
   EyeIcon,
   EyeOffIcon,
   FetchIcon,
   FileHistoryIcon,
   FolderIcon,
+  GearIcon,
   HistoryIcon,
   KeyboardIcon,
   LockIcon,
@@ -111,6 +118,8 @@ import { OperationBar } from "./components/OperationBar";
 import { ProgressStrip } from "./components/ProgressStrip";
 import { PruneDialog } from "./components/PruneDialog";
 import { RestoreDialog } from "./components/RestoreDialog";
+import { NameList, SettingsDialog, type SettingsSection } from "./components/SettingsDialog";
+import { UpdateDialog } from "./components/UpdateDialog";
 import { DEFAULT_PROTECTED, ProtectedActionDialog } from "./components/Safety";
 import { DeleteBranchDialog, DeleteRemoteBranchDialog } from "./components/DeleteBranchDialogs";
 import { RenameBranchDialog } from "./components/RenameBranchDialog";
@@ -137,8 +146,8 @@ type Focus =
 
 /** Don't refresh on window focus more often than this, in milliseconds. */
 const FOCUS_REFRESH_INTERVAL = 2000;
-/** How often to fetch in the background. */
-const AUTO_FETCH_INTERVAL = 5 * 60 * 1000;
+/** How often to fetch in the background, in minutes, to choose from. */
+const FETCH_MINUTES = [1, 2, 5, 10, 15, 30];
 /** The first background fetch after opening a repository. */
 const FIRST_AUTO_FETCH_DELAY = 5000;
 /** Fetches, pulls and pushes that finish faster than this don't show a progress bar. */
@@ -251,6 +260,19 @@ export default function App() {
   const [profilePictures, setProfilePictures] = useStoredState("avatars.pictures", false);
   const [previews, setPreviews] = useStoredState("previews", true);
   const [activityOpen, setActivityOpen] = useStoredState("activity.open", false);
+  const [fetchMinutes, setFetchMinutes] = useStoredState("fetch.minutes", 5);
+  /** New commits found by a background fetch: not mentioned, a message in the window, or a system notification too. */
+  const [newCommitNotices, setNewCommitNotices] = useStoredState<"off" | "app" | "system">("notify.newCommits", "app");
+  const [autoUpdate, setAutoUpdate] = useStoredState("updates.auto", true);
+  const updates = useUpdates(autoUpdate);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    getVersion()
+      .then(setVersion)
+      .catch(() => {});
+  }, []);
   // Remembered for each repository.
   const [visibility, setVisibility] = useRepoSetting<Visibility>("visibility", snapshot?.path ?? null, NO_VISIBILITY);
   const [pins, setPins] = useRepoSetting<string[]>("pins", snapshot?.path ?? null, []);
@@ -829,6 +851,9 @@ export default function App() {
       if (mod && key === "k") {
         event.preventDefault();
         setPaletteOpen((open) => !open);
+      } else if (mod && key === ",") {
+        event.preventDefault();
+        setSettingsOpen(true);
       } else if (mod && key === "o" && !event.shiftKey) {
         event.preventDefault();
         pick();
@@ -968,15 +993,21 @@ export default function App() {
   // Fetch in the background every few minutes, so the pull and push counts stay current.
   const repoPath = snapshot?.path ?? null;
   const canFetch = Boolean(snapshot && !snapshot.bare && snapshot.remotes.length > 0);
+  // With system notifications, keep fetching while the window is minimized, so news still arrives.
+  const fetchWhileHidden = newCommitNotices === "system";
   useEffect(() => {
     if (!repoPath || !canFetch || !autoFetch) return;
     let stopped = false;
     const fetchNow = async () => {
       const { snapshot, dialog, running } = latest.current;
-      if (stopped || !snapshot || snapshot.path !== repoPath || dialog || running || document.hidden) return;
+      if (stopped || !snapshot || snapshot.path !== repoPath || dialog || running) return;
+      if (document.hidden && !fetchWhileHidden) return;
+      const before = remoteTips(snapshot);
+      const known = new Set(snapshot.commits.map((commit) => commit.id));
       try {
         await runAction(repoPath, { kind: "fetch", background: true });
         if (stopped) return;
+        pendingNews.current = { path: repoPath, before, known };
         if (!latest.current.dialog && !latest.current.running) latest.current.refresh();
         latest.current.refreshLocks();
       } catch {
@@ -986,13 +1017,40 @@ export default function App() {
       }
     };
     const first = setTimeout(fetchNow, FIRST_AUTO_FETCH_DELAY);
-    const timer = setInterval(fetchNow, AUTO_FETCH_INTERVAL);
+    const timer = setInterval(fetchNow, Math.max(1, fetchMinutes) * 60 * 1000);
     return () => {
       stopped = true;
       clearTimeout(first);
       clearInterval(timer);
     };
-  }, [repoPath, canFetch, autoFetch]);
+  }, [repoPath, canFetch, autoFetch, fetchMinutes, fetchWhileHidden]);
+
+  // After a background fetch: tell you about new commits on your branch's upstream or on main.
+  const pendingNews = useRef<{ path: string; before: Map<string, string>; known: Set<string> } | null>(null);
+  useEffect(() => {
+    const pending = pendingNews.current;
+    if (!snapshot || !pending || pending.path !== snapshot.path) return;
+    pendingNews.current = null;
+    if (newCommitNotices === "off") return;
+    const news = findNews(pending.before, pending.known, snapshot);
+    if (news.length === 0) return;
+    // Your own branch's news first.
+    news.sort((a, b) => Number(b.branch === snapshot.upstream?.name) - Number(a.branch === snapshot.upstream?.name));
+    const top = news[0];
+    const pullable = top.branch === snapshot.upstream?.name && !snapshot.operation;
+    setToast({
+      text: describeNews(top) + (news.length > 1 ? `, and more on ${news.length - 1} other ${news.length === 2 ? "branch" : "branches"}` : ""),
+      icon: <BellIcon size={14} />,
+      action: pullable
+        ? { label: "Pull", onClick: () => act({ kind: "pull" }, "pull") }
+        : { label: "Show", onClick: () => select(top.tip) },
+    });
+    if (newCommitNotices === "system" && !document.hasFocus()) {
+      for (const item of news) notifySystem(snapshot.name, describeNews(item));
+    }
+    // Only the snapshot matters: the rest is read as it is when the snapshot arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshot]);
 
   // The "only this branch" setting changed: reload.
   const firstParentLoaded = snapshot?.firstParent;
@@ -1058,6 +1116,7 @@ export default function App() {
     { id: "clone", label: "Clone Repository…", icon: <CloneIcon />, run: () => setDialog({ kind: "clone" }) },
     { id: "init", label: "New Repository…", icon: <NewRepoIcon />, run: createRepository },
   ];
+  const settingsCommand: AppCommand = { id: "settings", label: "Settings…", icon: <GearIcon />, keys: "CmdOrCtrl+,", run: () => setSettingsOpen(true) };
   const helpCommands: AppCommand[] = [
     { id: "palette", label: "Command Palette", icon: <SearchIcon />, keys: "CmdOrCtrl+K", run: () => setPaletteOpen(true) },
     { id: "shortcuts", label: "Keyboard Shortcuts", icon: <KeyboardIcon />, run: () => setShortcutsOpen(true) },
@@ -1070,7 +1129,7 @@ export default function App() {
   const settingCommands: AppCommand[] = [
     { id: "previews", label: "Previews on Hover", checked: previews, run: () => setPreviews(!previews) },
     { id: "pictures", label: "Profile Pictures (Gravatar, GitHub)", checked: profilePictures, run: () => setProfilePictures(!profilePictures) },
-    { id: "auto-fetch", label: "Fetch Every 5 Minutes", checked: autoFetch, run: () => setAutoFetch(!autoFetch) },
+    { id: "auto-fetch", label: `Fetch Every ${fetchMinutes === 1 ? "Minute" : `${fetchMinutes} Minutes`}`, checked: autoFetch, run: () => setAutoFetch(!autoFetch) },
     { id: "reopen", label: "Reopen Tabs on Launch", checked: reopenTabs, run: () => setReopenTabs(!reopenTabs) },
   ];
 
@@ -1078,7 +1137,7 @@ export default function App() {
   const appMenus = (): { label: string; entries: MenuEntry[] }[] => {
     if (!snapshot) {
       return [
-        { label: "File", entries: fileCommands },
+        { label: "File", entries: [...fileCommands, ...(isMac ? [] : ["-" as const, settingsCommand])] },
         { label: "View", entries: [...settingCommands, "-", ...zoomCommands] },
         { label: "Help", entries: helpCommands },
       ];
@@ -1096,6 +1155,7 @@ export default function App() {
           ...fileCommands,
           "-",
           { id: "close-tab", label: "Close Tab", keys: "CmdOrCtrl+W", icon: <CloseIcon />, run: () => closeTab(snapshot.path) },
+          ...(isMac ? [] : ["-" as const, settingsCommand]),
         ],
       },
       {
@@ -1197,8 +1257,9 @@ export default function App() {
   commandRuns.current = new Map(
     menus.flatMap((m) => m.entries).flatMap((entry) => (entry === "-" ? [] : [[entry.id, entry.run] as const])),
   );
+  commandRuns.current.set("settings", settingsCommand.run);
   const nativeMenus: NativeMenu[] = [
-    { label: "Tributary", items: [{ system: "About" }, { system: "Separator" }, { system: "Services" }, { system: "Separator" }, { system: "Hide" }, { system: "HideOthers" }, { system: "ShowAll" }, { system: "Separator" }, { system: "Quit" }] },
+    { label: "Tributary", items: [{ system: "About" }, { system: "Separator" }, { id: "settings", label: "Settings…", accelerator: "CmdOrCtrl+," }, { system: "Separator" }, { system: "Services" }, { system: "Separator" }, { system: "Hide" }, { system: "HideOthers" }, { system: "ShowAll" }, { system: "Separator" }, { system: "Quit" }] },
     ...menus.flatMap((m, index): NativeMenu[] => {
       const items: NativeMenu["items"] = [];
       let separated = false;
@@ -1227,6 +1288,157 @@ export default function App() {
 
   const menuBar = isMac ? undefined : (
     <MenuBar menus={menus.map((m): AppMenu => ({ label: m.label, items: menuItems(m.entries) }))} onOpen={(m, anchor) => menuUnder(anchor, m.items, 280)} />
+  );
+
+  /** Everything in the Settings window. */
+  const settingsSections = (): SettingsSection[] => {
+    const sections: SettingsSection[] = [
+      {
+        title: "General",
+        rows: [
+          { kind: "toggle", label: "Reopen tabs on launch", value: reopenTabs, set: setReopenTabs },
+          {
+            kind: "toggle",
+            label: "Check for updates automatically",
+            hint: "New versions come from Tributary's GitHub releases.",
+            value: autoUpdate,
+            set: setAutoUpdate,
+          },
+          {
+            kind: "custom",
+            label: version ? `Version ${version}` : "Version",
+            hint: updates.status ?? undefined,
+            content: updates.available ? (
+              <button className="outline-button" onClick={() => setUpdateOpen(true)}>
+                <DownloadIcon size={14} />
+                <span className="button-label">Install {updates.available.version}</span>
+              </button>
+            ) : (
+              <button className="outline-button" onClick={updates.check} disabled={updates.checking}>
+                <span className="button-label">{updates.checking ? "Checking…" : "Check now"}</span>
+              </button>
+            ),
+          },
+        ],
+      },
+      {
+        title: "Fetching",
+        rows: [
+          {
+            kind: "toggle",
+            label: "Fetch in the background",
+            hint: "Keeps the pull and push counts current.",
+            value: autoFetch,
+            set: setAutoFetch,
+          },
+          {
+            kind: "select",
+            label: "How often",
+            value: String(fetchMinutes),
+            options: FETCH_MINUTES.map((minutes) => ({ value: String(minutes), label: minutes === 1 ? "Every minute" : `Every ${minutes} minutes` })),
+            set: (value) => setFetchMinutes(Number(value)),
+            disabled: !autoFetch,
+          },
+          {
+            kind: "select",
+            label: "New commits",
+            hint: "When a background fetch finds new commits on main, or on the branch yours tracks.",
+            value: newCommitNotices,
+            options: [
+              { value: "off", label: "Don't tell me" },
+              { value: "app", label: "Show a message in Tributary" },
+              { value: "system", label: "Also notify me when Tributary is in the background" },
+            ],
+            set: (value) => setNewCommitNotices(value as "off" | "app" | "system"),
+            disabled: !autoFetch,
+          },
+        ],
+      },
+      {
+        title: "Commit list",
+        rows: [
+          { kind: "toggle", label: "Compact rows", value: dense, set: setDense },
+          { kind: "toggle", label: "Day separators", value: daySeparators, set: setDaySeparators },
+          { kind: "toggle", label: "Previews on hover", hint: "A commit's details when you rest the pointer on it.", value: previews, set: setPreviews },
+          {
+            kind: "toggle",
+            label: "Profile pictures",
+            hint: "From Gravatar and GitHub, looked up by email address.",
+            value: profilePictures,
+            set: setProfilePictures,
+          },
+          {
+            kind: "custom",
+            label: "Columns",
+            content: (
+              <span className="settings-checks">
+                {(["author", "date", "sha"] as const).map((column) => (
+                  <label key={column} className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={columnOptions[column]}
+                      onChange={() => setColumnOptions({ ...columnOptions, [column]: !columnOptions[column] })}
+                    />
+                    {column === "sha" ? "SHA" : column[0].toUpperCase() + column.slice(1)}
+                  </label>
+                ))}
+              </span>
+            ),
+          },
+          {
+            kind: "select",
+            label: "Dates",
+            value: columnOptions.dateFormat,
+            options: [
+              { value: "relative", label: "Relative (“3 hours ago”)" },
+              { value: "exact", label: "Exact dates and times" },
+            ],
+            set: (value) => setColumnOptions({ ...columnOptions, dateFormat: value as ColumnOptions["dateFormat"] }),
+            disabled: !columnOptions.date,
+          },
+          {
+            kind: "select",
+            label: "Which date",
+            value: columnOptions.dateKind,
+            options: [
+              { value: "authored", label: "When it was written" },
+              { value: "committed", label: "When it was committed" },
+            ],
+            set: (value) => setColumnOptions({ ...columnOptions, dateKind: value as ColumnOptions["dateKind"] }),
+            disabled: !columnOptions.date,
+          },
+          {
+            kind: "select",
+            label: "Zoom",
+            value: String(zoom),
+            options: ZOOM_LEVELS.map((level) => ({ value: String(level), label: `${Math.round(level * 100)}%` })),
+            set: (value) => setZoom(Number(value)),
+          },
+        ],
+      },
+    ];
+    if (snapshot) {
+      sections.push({
+        title: `This repository: ${snapshot.name}`,
+        rows: [
+          {
+            kind: "custom",
+            label: "Protected branches",
+            hint: "Can't be deleted; rebasing, hard resetting or force pushing them needs their name typed.",
+            content: <NameList names={protectedBranches} onChange={setProtectedBranches} placeholder="Add a branch" />,
+          },
+        ],
+      });
+    }
+    return sections;
+  };
+  const settingsDialog = settingsOpen && <SettingsDialog sections={settingsSections()} onClose={() => setSettingsOpen(false)} />;
+  const updateDialog = updateOpen && updates.available && <UpdateDialog update={updates.available} onClose={() => setUpdateOpen(false)} />;
+  const updatePill = updates.available && (
+    <button className="update-pill" onClick={() => setUpdateOpen(true)} title={`Tributary ${updates.available.version} is available`}>
+      <DownloadIcon size={13} />
+      Update
+    </button>
   );
 
   const withProfilePictures = (children: React.ReactNode) => (
@@ -1262,6 +1474,7 @@ export default function App() {
             onCloseStart={closeStartTab}
             onNew={newTab}
             menuBar={menuBar}
+            extra={updatePill}
           />
         )}
         {tabs.length === 0 && isMac && <div className="window-drag-strip" data-tauri-drag-region />}
@@ -1279,11 +1492,13 @@ export default function App() {
         {cloneDialog}
         {paletteOpen && (
           <CommandPalette
-            commands={[...fileCommands, ...helpCommands].map((c) => ({ id: c.id, label: c.label, icon: c.icon, shortcut: c.keys && shortcutLabel(c.keys), run: c.run }))}
+            commands={[...fileCommands, settingsCommand, ...helpCommands].map((c) => ({ id: c.id, label: c.label, icon: c.icon, shortcut: c.keys && shortcutLabel(c.keys), run: c.run }))}
             onClose={() => setPaletteOpen(false)}
           />
         )}
         {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
+        {settingsDialog}
+        {updateDialog}
         {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
         {dropOverlay}
         {toast && <Toast toast={toast} onDone={hideToast} />}
@@ -1520,6 +1735,7 @@ export default function App() {
       const name = fullRefName(ref);
       if (name) add({ id: `show:${name}`, label: `Show ${ref.name}`, icon: <EyeIcon />, group: "View", run: () => setHidden([name], false) });
     }
+    add({ id: "settings", label: "Settings…", icon: <GearIcon />, shortcut: shortcutLabel("CmdOrCtrl+,"), run: () => setSettingsOpen(true) });
     if (focus) add({ id: "unfocus", label: "Stop highlighting", icon: <EyeIcon />, group: "View", run: () => setFocus(null) });
     add({ id: "activity", label: activityOpen ? "Hide activity" : "Show activity", icon: <ActivityIcon />, group: "View", run: () => setActivityOpen(!activityOpen) });
     add({ id: "mine", label: "Highlight my commits", icon: <UserIcon />, group: "View", run: highlightMine }, Boolean(user));
@@ -1567,6 +1783,7 @@ export default function App() {
         onCloseStart={closeStartTab}
         onNew={newTab}
         menuBar={menuBar}
+        extra={updatePill}
       />
       <Toolbar
         snapshot={snapshot}
@@ -1830,6 +2047,8 @@ export default function App() {
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
       {paletteOpen && <CommandPalette commands={commands()} onClose={() => setPaletteOpen(false)} />}
       {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
+      {settingsDialog}
+      {updateDialog}
       {cloneDialog}
       {dialog?.kind === "reset" && (
         <ResetDialog
