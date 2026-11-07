@@ -2,6 +2,9 @@ const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const shortDate = new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric" });
 const longDate = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
+const relativeShort = new Intl.RelativeTimeFormat(undefined, { numeric: "auto", style: "short" });
+const dayInYear = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+
 const MINUTE = 60;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -15,6 +18,21 @@ export function relativeTime(seconds: number, now = Date.now() / 1000): string {
   if (abs < DAY) return relative.format(Math.round(diff / HOUR), "hour");
   if (abs < 7 * DAY) return relative.format(Math.round(diff / DAY), "day");
   return shortDate.format(new Date(seconds * 1000));
+}
+
+/**
+ * Like {@link relativeTime}, but shorter, for the commit list: "5 min. ago", "21 hr. ago",
+ * "yesterday", then "Oct 31" this year and "Oct 31, 2025" before.
+ */
+export function compactTime(seconds: number, now = Date.now() / 1000): string {
+  const diff = seconds - now;
+  const abs = Math.abs(diff);
+  if (abs < MINUTE) return "just now";
+  if (abs < HOUR) return relativeShort.format(Math.round(diff / MINUTE), "minute");
+  if (abs < DAY) return relativeShort.format(Math.round(diff / HOUR), "hour");
+  if (abs < 7 * DAY) return relativeShort.format(Math.round(diff / DAY), "day");
+  const date = new Date(seconds * 1000);
+  return date.getFullYear() === new Date(now * 1000).getFullYear() ? dayInYear.format(date) : shortDate.format(date);
 }
 
 const longDateUtc = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });

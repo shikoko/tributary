@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RefLabel } from "../api";
 import { withAlpha } from "../lib/colors";
 import { pressLabel } from "../lib/drag";
@@ -101,12 +101,57 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
       {pill.kind === "tag" && <TagIcon size={12} />}
       {pill.kind === "head" && <CommitIcon size={12} />}
       {pill.kind === "stash" && <StashIcon size={12} />}
-      <span className="ref-name">{pill.name}</span>
+      <RefName name={pill.name} />
       {pill.kind === "branch" && (
         <span className="ref-where">
           {pill.local && <LaptopIcon size={12} />}
           {pill.remotes.length > 0 && <CloudIcon size={12} />}
         </span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * A label's name. When there isn't room for all of it, the folders go first: the end of the
+ * name is what tells branches apart, so "feat/barbershop-appointments" shows as
+ * "…/barbershop-appointments" (and only then loses its end), not "feat/barb…".
+ */
+function RefName({ name }: { name: string }) {
+  const slash = name.lastIndexOf("/");
+  const element = useRef<HTMLSpanElement>(null);
+  const [short, setShort] = useState(false);
+  const [measured, setMeasured] = useState(0);
+  // Shown in full, does it fit? Checked before the label is painted.
+  useLayoutEffect(() => {
+    const span = element.current;
+    if (span && !short && span.scrollWidth > span.clientWidth + 1) setShort(true);
+  }, [short, measured, name]);
+  // When the space around the label changes (a column or panel is resized), try the whole
+  // name again.
+  useEffect(() => {
+    const area = element.current?.closest(".refs-cell, .details-refs, .preview-refs");
+    if (!area) return;
+    let width = area.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (area.clientWidth === width) return;
+      width = area.clientWidth;
+      setShort(false);
+      setMeasured((count) => count + 1);
+    });
+    observer.observe(area);
+    return () => observer.disconnect();
+  }, []);
+  if (slash <= 0 || slash === name.length - 1) return <span className="ref-name">{name}</span>;
+  return (
+    <span ref={element} className="ref-name">
+      {short ? (
+        <>
+          <span className="ref-name-folder">…/</span>
+          {name.slice(slash + 1)}
+        </>
+      ) : (
+        name
       )}
     </span>
   );

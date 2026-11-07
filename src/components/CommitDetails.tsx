@@ -8,6 +8,7 @@ import { Avatar } from "./Avatar";
 import { CheckIcon, CloseIcon, CopyIcon } from "./Icons";
 import { MessageText } from "./MessageText";
 import { RefPills } from "./RefPills";
+import { reflowBody } from "../lib/message";
 
 /** Very large commits only list their first files, to keep the panel responsive. */
 const MAX_FILES = 1000;
@@ -101,9 +102,19 @@ export function CommitDetailsPanel(props: Props) {
           />
         </h2>
         {details?.body && (
-          <p className="details-body">
-            <MessageText text={details.body} remote={remote} resolveCommit={resolveCommit} onSelectCommit={onSelect} />
-          </p>
+          <div className="details-body">
+            {reflowBody(details.body).map((block, index) => {
+              const text = <MessageText text={block.text} remote={remote} resolveCommit={resolveCommit} onSelectCommit={onSelect} />;
+              if (block.kind === "code") return <pre key={index} className="body-code">{text}</pre>;
+              if (block.kind === "paragraph") return <p key={index} className="body-paragraph">{text}</p>;
+              return (
+                <div key={index} className="body-item" style={{ paddingLeft: block.depth * 16 }}>
+                  <span className="body-marker">{block.marker}</span>
+                  <span>{text}</span>
+                </div>
+              );
+            })}
+          </div>
         )}
 
         {commit.refs.length > 0 && (

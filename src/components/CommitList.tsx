@@ -4,7 +4,7 @@ import { countChanges, type ChangeCounts as Counts } from "../lib/changes";
 import { laneColor } from "../lib/colors";
 import { slotsFor, type Slot } from "../lib/days";
 import { onLabelDrop } from "../lib/drag";
-import { fullDate, relativeTime, shortId } from "../lib/format";
+import { compactTime, fullDate, shortId } from "../lib/format";
 import type { RefPill } from "../lib/refs";
 import { Avatar } from "./Avatar";
 import { ChangeCounts } from "./ChangeCounts";
@@ -19,7 +19,7 @@ const LANE_WIDTH = 20;
 const GRAPH_PADDING = 10;
 /** Default width of the branch and tag column, left of the graph. */
 const REFS_WIDTH = 180;
-const NARROW_REFS_WIDTH = 120;
+const NARROW_REFS_WIDTH = 140;
 const MIN_REFS_WIDTH = 80;
 const MAX_REFS_WIDTH = 400;
 /** Space between a label and the right edge of the branch and tag column. */
@@ -156,17 +156,52 @@ export function CommitList(props: Props) {
   const narrow = viewport.width > 0 && viewport.width < NARROW_WIDTH;
   const refsWidth = columnWidths.refs ?? (narrow ? NARROW_REFS_WIDTH : REFS_WIDTH);
   const authorWidth = show.author ? (narrow ? 44 : 180) : 0;
-  const dateWidth = show.date ? (show.dateFormat === "exact" ? (narrow ? 132 : 164) : narrow ? 104 : 128) : 0;
+  const dateWidth = show.date ? (show.dateFormat === "exact" ? (narrow ? 132 : 164) : 116) : 0;
   const shaWidth = show.sha && !narrow ? 80 : 0;
-  // Wide enough for every lane, but leave room for the commit message in narrow windows,
-  // unless a width was chosen by dragging.
+  const first = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN);
+  const last = Math.min(slots.length, Math.ceil((scrollTop + viewport.height) / rowHeight) + OVERSCAN);
+
+  // The lanes the rows on screen use. A lane's line can pass through a row without a commit
+  // on it, so the lines count too. (Rows rendered off screen don't count: a lane coming into
+  // view widens the graph in the same frame.)
+  const firstOnScreen = Math.floor(scrollTop / rowHeight);
+  const lastOnScreen = Math.min(slots.length, Math.ceil((scrollTop + viewport.height) / rowHeight));
+  const lanesInView = useMemo(() => {
+    let lanes = 1;
+    for (let slot = firstOnScreen; slot < lastOnScreen; slot++) {
+      const row = slots[slot];
+      const commit = commits[typeof row === "number" ? row : row.before];
+      if (!commit) continue;
+      lanes = Math.max(lanes, commit.graph.column + 1);
+      for (const [, from, to] of commit.graph.lines) lanes = Math.max(lanes, from + 1, to + 1);
+    }
+    return lanes;
+  }, [commits, slots, firstOnScreen, lastOnScreen]);
+  // The graph widens at once, so no lane is ever cut off, and narrows again once scrolling
+  // has settled, so the message column doesn't jump about while you scroll.
+  const [settledLanes, setSettledLanes] = useState(lanesInView);
+  useEffect(() => {
+    if (lanesInView === settledLanes) return;
+    const timer = setTimeout(() => setSettledLanes(lanesInView), lanesInView > settledLanes ? 0 : 700);
+    return () => clearTimeout(timer);
+  }, [lanesInView, settledLanes]);
+  const lanes = Math.max(lanesInView, settledLanes);
+
+  // Wide enough for the lanes in view (not every lane in the history), leaving room for the
+  // commit message in narrow windows, unless a width was chosen by dragging.
   const graphWidth =
     columnWidths.graph ??
     Math.min(
       MAX_GRAPH_WIDTH,
-      Math.max(MIN_GRAPH_WIDTH, GRAPH_PADDING * 2 + snapshot.laneCount * LANE_WIDTH),
+      Math.max(MIN_GRAPH_WIDTH, GRAPH_PADDING * 2 + lanes * LANE_WIDTH),
       Math.max(MIN_GRAPH_WIDTH, viewport.width - refsWidth - authorWidth - dateWidth - shaWidth - MIN_MESSAGE_WIDTH),
     );
+  // Widening happens at once (easing it would let new lanes run over the messages for a moment).
+  const shownGraphWidth = useRef(graphWidth);
+  const graphGrowing = graphWidth > shownGraphWidth.current;
+  useEffect(() => {
+    shownGraphWidth.current = graphWidth;
+  }, [graphWidth]);
   const columns = [`${refsWidth}px`, `${graphWidth}px`, "minmax(0, 1fr)", authorWidth, dateWidth, shaWidth]
     .filter((width) => width !== 0)
     .map((width) => (typeof width === "number" ? `${width}px` : width))
@@ -201,9 +236,6 @@ export function CommitList(props: Props) {
       }),
     [indexById, commits],
   );
-
-  const first = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN);
-  const last = Math.min(slots.length, Math.ceil((scrollTop + viewport.height) / rowHeight) + OVERSCAN);
 
   // Draw the graph for the rendered rows.
   useLayoutEffect(() => {
@@ -375,7 +407,7 @@ export function CommitList(props: Props) {
   }
 
   return (
-    <section className={`commit-list${dense ? " dense" : ""}`} aria-label="Commits">
+    <section className={`commit-list${dense ? " dense" : ""}${graphGrowing ? " graph-growing" : ""}`} aria-label="Commits">
       <div
         className="list-header"
         style={{ gridTemplateColumns: columns, paddingRight: viewport.scrollbar }}
@@ -571,7 +603,7 @@ function Row(props: RowProps) {
           )}
           {visible.date && (
             <div className="cell date" title={dateTitle}>
-              {options.dateFormat === "exact" ? fullDate(time) : relativeTime(time)}
+              {options.dateFormat === "exact" ? fullDate(time) : compactTime(time)}
             </div>
           )}
           {visible.sha && <div className="cell sha">{shortId(commit.id)}</div>}
