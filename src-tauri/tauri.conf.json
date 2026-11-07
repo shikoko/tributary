@@ -18,11 +18,18 @@
         "minWidth": 900,
         "minHeight": 560,
         "theme": "Dark",
-        "backgroundColor": "#14161b"
+        "backgroundColor": "#14161b",
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 14,
+          "y": 18
+        },
+        "dragDropEnabled": false
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'",
+      "csp": "default-src 'self'; img-src 'self' data: https://www.gravatar.com https://avatars.githubusercontent.com https://github.com; style-src 'self' 'unsafe-inline'",
       "devCsp": null
     }
   },

@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use tributary_lib::actions::{self, Action};
-use tributary_lib::repo::{self, FileChange, FileStatus, RefKind, RowKind};
+use tributary_lib::repo::{
+    self, FileChange, FileStatus, LoadOptions, OperationKind, RefKind, RowKind,
+};
 
 struct TempRepo {
     dir: PathBuf,
@@ -241,6 +243,7 @@ fn files(changes: &[FileChange]) -> Vec<(&str, FileStatus)> {
 
 #[test]
 fn shows_uncommitted_changes_and_stashes() {
+    let _turn = remote_turn();
     let mut repo = TempRepo::new("worktree");
     let first = repo.commit("a.txt", "First");
     let second = repo.commit("b.txt", "Second");
@@ -337,6 +340,14 @@ fn stash_details_include_untracked_files() {
 
 fn run(repo: &TempRepo, action: Action) -> Result<String, String> {
     actions::run(repo.path(), action)
+}
+
+/// Fetches, pulls and pushes can be cancelled all at once, so the tests that run them
+/// take turns: cancelling in one test must not stop another test's push.
+static REMOTE_TESTS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn remote_turn() -> std::sync::MutexGuard<'static, ()> {
+    REMOTE_TESTS.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 #[test]
@@ -451,6 +462,7 @@ fn rejects_bad_branch_names() {
 
 #[test]
 fn pushes_fetches_and_pulls() {
+    let _turn = remote_turn();
     let remote = TempRepo::bare("remote.git");
     let mut alice = TempRepo::new("alice");
     alice.git(&["remote", "add", "origin", remote.url()]);
@@ -502,6 +514,7 @@ fn pushes_fetches_and_pulls() {
 
 #[test]
 fn force_push_replaces_the_remote_branch() {
+    let _turn = remote_turn();
     let remote = TempRepo::bare("force-remote.git");
     let mut alice = TempRepo::new("force-alice");
     alice.git(&["remote", "add", "origin", remote.url()]);
@@ -526,6 +539,7 @@ fn force_push_replaces_the_remote_branch() {
 
 #[test]
 fn checks_out_remote_branches_as_tracking_branches() {
+    let _turn = remote_turn();
     let remote = TempRepo::bare("tracking-remote.git");
     let mut alice = TempRepo::new("tracking-alice");
     alice.git(&["remote", "add", "origin", remote.url()]);
@@ -554,6 +568,7 @@ fn checks_out_remote_branches_as_tracking_branches() {
 
 #[test]
 fn pull_and_push_need_a_branch() {
+    let _turn = remote_turn();
     let mut repo = TempRepo::new("detached-actions");
     let id = repo.commit("a.txt", "First");
     repo.git(&["switch", "--quiet", "--detach", &id]);
@@ -890,6 +905,7 @@ fn deletes_and_renames_branches() {
 
 #[test]
 fn deletes_remote_branches_and_fetches_in_the_background() {
+    let _turn = remote_turn();
     let remote = TempRepo::bare("delete-remote.git");
     let mut alice = TempRepo::new("delete-alice");
     alice.git(&["remote", "add", "origin", remote.url()]);
@@ -936,4 +952,325 @@ fn deletes_remote_branches_and_fetches_in_the_background() {
         )
         .is_err()
     );
+}
+
+/// Commits made by git itself (merges, rebases, …) need a name to commit under.
+fn with_identity(repo: &TempRepo) {
+    repo.git(&["config", "user.name", "Test Committer"]);
+    repo.git(&["config", "user.email", "committer@example.com"]);
+}
+
+fn head(repo: &TempRepo) -> String {
+    repo.git(&["rev-parse", "HEAD"])
+}
+
+fn parents(repo: &TempRepo, rev: &str) -> usize {
+    repo.git(&["rev-list", "--parents", "-n", "1", rev])
+        .split_whitespace()
+        .count()
+        - 1
+}
+
+#[test]
+fn merges_branches() {
+    let mut repo = TempRepo::new("merge-action");
+    with_identity(&repo);
+    repo.commit("a.txt", "base");
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+    repo.commit("b.txt", "feature work");
+    repo.git(&["switch", "--quiet", "main"]);
+    repo.commit("c.txt", "main work");
+
+    let message = run(
+        &repo,
+        Action::Merge {
+            target: "feature".into(),
+        },
+    )
+    .unwrap();
+    assert_eq!(message, "Merged feature into main");
+    assert_eq!(parents(&repo, "HEAD"), 2);
+    assert!(repo.path().join("b.txt").exists());
+    assert!(
+        run(
+            &repo,
+            Action::Merge {
+                target: "--abort".into()
+            }
+        )
+        .is_err()
+    );
+    assert!(
+        run(
+            &repo,
+            Action::Merge {
+                target: "missing".into()
+            }
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn stops_a_merge_on_conflicts_then_continues_or_aborts() {
+    let mut repo = TempRepo::new("merge-conflict");
+    with_identity(&repo);
+    repo.commit("a.txt", "base");
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+    repo.commit("a.txt", "feature");
+    repo.git(&["switch", "--quiet", "main"]);
+    let before = repo.commit("a.txt", "main");
+
+    let error = run(
+        &repo,
+        Action::Merge {
+            target: "feature".into(),
+        },
+    )
+    .unwrap_err();
+    assert!(error.contains("CONFLICT"), "{error}");
+    let snapshot = repo::load(repo.path(), 100, true).unwrap();
+    let operation = snapshot.operation.unwrap();
+    assert_eq!(operation.kind, OperationKind::Merge);
+    assert!(
+        operation
+            .message
+            .unwrap()
+            .starts_with("Merge branch 'feature'")
+    );
+    let unstaged = snapshot.worktree.unwrap().unstaged;
+    assert_eq!(files(&unstaged), vec![("a.txt", FileStatus::Conflicted)]);
+
+    // Resolve, stage, and finish the merge.
+    std::fs::write(repo.path().join("a.txt"), "resolved").unwrap();
+    run(
+        &repo,
+        Action::Stage {
+            paths: vec!["a.txt".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        run(&repo, Action::ContinueOperation).unwrap(),
+        "Finished the merge"
+    );
+    assert_eq!(parents(&repo, "HEAD"), 2);
+    assert!(
+        repo::load(repo.path(), 100, false)
+            .unwrap()
+            .operation
+            .is_none()
+    );
+
+    // The same conflict again, but abort this time.
+    repo.git(&["reset", "--quiet", "--hard", &before]);
+    run(
+        &repo,
+        Action::Merge {
+            target: "feature".into(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(
+        run(&repo, Action::AbortOperation).unwrap(),
+        "Aborted the merge"
+    );
+    assert_eq!(head(&repo), before);
+    assert!(
+        repo::load(repo.path(), 100, false)
+            .unwrap()
+            .operation
+            .is_none()
+    );
+    assert!(
+        run(&repo, Action::AbortOperation).is_err(),
+        "nothing left to abort"
+    );
+}
+
+#[test]
+fn rebases_and_handles_conflicts() {
+    let mut repo = TempRepo::new("rebase");
+    with_identity(&repo);
+    repo.commit("a.txt", "base");
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+    repo.commit("b.txt", "feature work");
+    repo.git(&["switch", "--quiet", "main"]);
+    let main = repo.commit("c.txt", "main work");
+    repo.git(&["switch", "--quiet", "feature"]);
+
+    assert_eq!(
+        run(
+            &repo,
+            Action::Rebase {
+                onto: "main".into()
+            }
+        )
+        .unwrap(),
+        "Rebased feature onto main"
+    );
+    assert_eq!(repo.git(&["rev-parse", "HEAD~1"]), main);
+
+    // A conflicting commit: abort puts everything back, skip leaves the commit out.
+    repo.commit("c.txt", "feature changes c too");
+    repo.git(&["switch", "--quiet", "main"]);
+    let main = repo.commit("c.txt", "main changes c");
+    repo.git(&["switch", "--quiet", "feature"]);
+    let before = head(&repo);
+    run(
+        &repo,
+        Action::Rebase {
+            onto: "main".into(),
+        },
+    )
+    .unwrap_err();
+    let snapshot = repo::load(repo.path(), 100, false).unwrap();
+    let operation = snapshot.operation.unwrap();
+    assert_eq!(operation.kind, OperationKind::Rebase);
+    assert_eq!(operation.branch.as_deref(), Some("feature"));
+    run(&repo, Action::AbortOperation).unwrap();
+    assert_eq!(head(&repo), before);
+
+    run(
+        &repo,
+        Action::Rebase {
+            onto: "main".into(),
+        },
+    )
+    .unwrap_err();
+    run(&repo, Action::SkipCommit).unwrap();
+    assert!(
+        repo::load(repo.path(), 100, false)
+            .unwrap()
+            .operation
+            .is_none()
+    );
+    assert_eq!(
+        repo.git(&["rev-parse", "HEAD~1"]),
+        main,
+        "the other commit was kept"
+    );
+}
+
+#[test]
+fn cherry_picks_and_reverts() {
+    let mut repo = TempRepo::new("pick-revert");
+    with_identity(&repo);
+    repo.commit("a.txt", "base");
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+    let picked = repo.commit("b.txt", "Add b");
+    repo.git(&["switch", "--quiet", "main"]);
+
+    let message = run(&repo, Action::CherryPick { id: picked.clone() }).unwrap();
+    assert_eq!(message, format!("Cherry-picked {} onto main", &picked[..7]));
+    assert_eq!(repo.git(&["log", "-1", "--format=%s"]), "Add b");
+    assert!(repo.path().join("b.txt").exists());
+
+    let added = head(&repo);
+    run(&repo, Action::Revert { id: added }).unwrap();
+    assert!(
+        repo.git(&["log", "-1", "--format=%s"])
+            .starts_with("Revert \"Add b\"")
+    );
+    assert!(!repo.path().join("b.txt").exists());
+
+    // Reverting a merge commit works too (against its first parent).
+    repo.git(&["merge", "--quiet", "--no-ff", "--no-edit", "feature"]);
+    let merge = head(&repo);
+    run(&repo, Action::Revert { id: merge }).unwrap();
+    assert!(!repo.path().join("b.txt").exists());
+}
+
+#[test]
+fn loads_only_the_checked_out_branch() {
+    let mut repo = TempRepo::new("first-parent");
+    with_identity(&repo);
+    repo.commit("a.txt", "base");
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+    repo.commit("b.txt", "feature work");
+    repo.git(&["switch", "--quiet", "--create", "unrelated", "main"]);
+    repo.commit("d.txt", "elsewhere");
+    repo.git(&["switch", "--quiet", "main"]);
+    repo.commit("c.txt", "main work");
+    repo.git(&["merge", "--quiet", "--no-ff", "--no-edit", "feature"]);
+
+    let all = repo::load(repo.path(), 100, false).unwrap();
+    assert_eq!(all.commits.len(), 5);
+    let options = LoadOptions {
+        limit: 100,
+        include_status: false,
+        first_parent: true,
+    };
+    let own = repo::load_with(repo.path(), options).unwrap();
+    let summaries: Vec<&str> = own.commits.iter().map(|c| c.summary.as_str()).collect();
+    assert_eq!(
+        summaries,
+        vec!["Merge branch 'feature'", "main work", "base"]
+    );
+    assert!(own.first_parent);
+    assert_eq!(own.lane_count, 1, "a straight line");
+    assert_eq!(
+        own.commits[0].parents.len(),
+        2,
+        "the merge still knows both parents"
+    );
+}
+
+#[test]
+fn reports_progress_and_remembers_upstreams() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("progress-remote.git");
+    let mut alice = TempRepo::new("progress-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    for i in 0..30 {
+        alice.commit(&format!("file{i}.txt"), &format!("Commit {i}"));
+    }
+    let phases = std::cell::RefCell::new(Vec::new());
+    actions::run_with_progress(alice.path(), Action::Push { force: false }, &|progress| {
+        phases.borrow_mut().push(progress.phase)
+    })
+    .unwrap();
+    assert_eq!(
+        phases.borrow().first().map(String::as_str),
+        Some("Connecting")
+    );
+
+    let snapshot = repo::load(alice.path(), 100, false).unwrap();
+    let main = snapshot.commits[0]
+        .refs
+        .iter()
+        .find(|r| r.name == "main")
+        .unwrap();
+    assert_eq!(main.upstream.as_deref(), Some("origin/main"));
+}
+
+#[cfg(unix)]
+#[test]
+fn cancels_a_slow_fetch() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("slow-remote.git");
+    let mut alice = TempRepo::new("slow-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "First");
+    alice.git(&["push", "--quiet", "origin", "main"]);
+    // Make the remote take a long time to answer.
+    alice.git(&[
+        "config",
+        "remote.origin.uploadpack",
+        "sleep 20; git-upload-pack",
+    ]);
+
+    let path = alice.path().to_owned();
+    let started = std::time::Instant::now();
+    let fetch =
+        std::thread::spawn(move || actions::run(&path, Action::Fetch { background: false }));
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    assert!(actions::cancel(), "a fetch was running");
+    let result = fetch.join().unwrap();
+    assert_eq!(result.unwrap_err(), "Cancelled.");
+    assert!(
+        started.elapsed().as_secs() < 5,
+        "cancelling doesn't wait for the remote"
+    );
+    assert!(!actions::cancel(), "nothing left to cancel");
 }

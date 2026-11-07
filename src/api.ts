@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 export type RefKind = "head" | "branch" | "remote" | "tag" | "stash";
 
@@ -13,6 +14,8 @@ export interface RefLabel {
   kind: RefKind;
   /** True for the branch that is checked out. */
   current: boolean;
+  /** For a local branch: the remote branch it tracks, like "origin/main". */
+  upstream?: string;
 }
 
 /**
@@ -21,10 +24,13 @@ export interface RefLabel {
  * - 1: a lane coming in from the top and ending in the row's node
  * - 2: a line leaving the row's node towards a parent's lane at the bottom
  *
- * A fourth element of `1` means the line is dashed (it belongs to a stash or to
- * uncommitted changes).
+ * The fourth element is the row of the commit whose parent link this line draws (a
+ * list of rows when several links share the lane). A fifth element of `1` means the
+ * line is dashed (it belongs to a stash or to uncommitted changes).
  */
-export type GraphLine = [0 | 1 | 2, number, number] | [0 | 1 | 2, number, number, 1];
+export type GraphLine =
+  | [0 | 1 | 2, number, number, number | number[]]
+  | [0 | 1 | 2, number, number, number | number[], 1];
 
 export interface GraphRow {
   column: number;
@@ -55,6 +61,10 @@ export interface RepoSnapshot {
   upstream: Upstream | null;
   /** Names of the configured remotes, like "origin". */
   remotes: string[];
+  /** A merge, rebase, cherry-pick or revert that stopped, usually because of conflicts. */
+  operation: Operation | null;
+  /** Only the checked-out branch's own history (first parents) was loaded. */
+  firstParent: boolean;
   headCommit: string | null;
   /** Commits, plus rows for uncommitted changes and stashes. */
   commits: CommitRow[];
@@ -63,6 +73,16 @@ export interface RepoSnapshot {
   laneCount: number;
   /** True when the repository has more commits than were loaded. */
   truncated: boolean;
+}
+
+export type OperationKind = "merge" | "rebase" | "cherryPick" | "revert" | "other";
+
+export interface Operation {
+  kind: OperationKind;
+  /** The commit message git prepared, for a merge, cherry-pick or revert. */
+  message: string | null;
+  /** For a rebase: the branch being rebased (HEAD is detached while it runs). */
+  branch: string | null;
 }
 
 export interface Upstream {
@@ -112,8 +132,13 @@ export const PAGE_SIZE = 10_000;
  * Load a repository. Reading uncommitted changes (`includeStatus`) can take a while in
  * large working trees, so the app loads without them first and then again with them.
  */
-export function openRepository(path: string, limit = PAGE_SIZE, includeStatus = true): Promise<RepoSnapshot> {
-  return invoke<RepoSnapshot>("open_repository", { path, limit, includeStatus });
+export function openRepository(
+  path: string,
+  limit = PAGE_SIZE,
+  includeStatus = true,
+  firstParent = false,
+): Promise<RepoSnapshot> {
+  return invoke<RepoSnapshot>("open_repository", { path, limit, includeStatus, firstParent });
 }
 
 /** Something that changes the repository. These run the installed git. */
@@ -140,7 +165,31 @@ export type Action =
   | { kind: "resetSoft"; id: string }
   | { kind: "deleteBranch"; name: string; force: boolean }
   | { kind: "deleteRemoteBranch"; name: string }
-  | { kind: "renameBranch"; name: string; newName: string };
+  | { kind: "renameBranch"; name: string; newName: string }
+  | { kind: "merge"; target: string }
+  | { kind: "rebase"; onto: string }
+  | { kind: "cherryPick"; id: string }
+  | { kind: "revert"; id: string }
+  | { kind: "continueOperation" }
+  | { kind: "skipCommit" }
+  | { kind: "abortOperation" };
+
+/** How far a fetch, pull or push has got. */
+export interface Progress {
+  /** Like "Receiving objects". */
+  phase: string;
+  percent: number | null;
+}
+
+/** Stop the fetch, pull or push that is running. */
+export function cancelAction(): Promise<boolean> {
+  return invoke<boolean>("cancel_action");
+}
+
+/** Calls `handler` with progress updates; resolves to a function that stops listening. */
+export function onProgress(handler: (progress: Progress) => void): Promise<() => void> {
+  return listen<Progress>("action-progress", (event) => handler(event.payload));
+}
 
 /** Run `action`; resolves to a short message saying what happened. */
 export function runAction(path: string, action: Action): Promise<string> {

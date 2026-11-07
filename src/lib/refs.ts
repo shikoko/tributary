@@ -80,6 +80,8 @@ export interface RefEntry {
   current: boolean;
   /** The first line of the commit's message. */
   summary: string;
+  /** For a local branch: the remote branch it tracks. */
+  upstream?: string;
 }
 
 export interface RefLists {
@@ -102,6 +104,7 @@ export function collectRefs(commits: CommitRow[]): RefLists {
         commitId: commit.id,
         current: ref.current,
         summary: commit.summary,
+        upstream: ref.upstream,
       };
       if (ref.kind === "branch") lists.branches.push(entry);
       else if (ref.kind === "tag") lists.tags.push(entry);

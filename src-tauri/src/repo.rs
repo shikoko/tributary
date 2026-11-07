@@ -30,6 +30,10 @@ pub struct RepoSnapshot {
     pub upstream: Option<Upstream>,
     /// Names of the configured remotes, like `origin`.
     pub remotes: Vec<String>,
+    /// A merge, rebase, cherry-pick or revert that stopped, usually because of conflicts.
+    pub operation: Option<Operation>,
+    /// Only the checked-out branch's own history (first parents) was loaded.
+    pub first_parent: bool,
     pub head_commit: Option<String>,
     /// Commits, plus a row for uncommitted changes and one for each stash.
     pub commits: Vec<CommitRow>,
@@ -55,6 +59,27 @@ pub struct CommitRow {
     pub parents: Vec<String>,
     pub refs: Vec<RefLabel>,
     pub graph: GraphRow,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Operation {
+    pub kind: OperationKind,
+    /// The commit message git prepared, for a merge, cherry-pick or revert.
+    pub message: Option<String>,
+    /// For a rebase: the branch being rebased (HEAD is detached while it runs).
+    pub branch: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OperationKind {
+    Merge,
+    Rebase,
+    CherryPick,
+    Revert,
+    /// Something else, like `git am` or `git bisect`.
+    Other,
 }
 
 #[derive(Debug, Serialize)]
@@ -95,6 +120,9 @@ pub struct RefLabel {
     pub kind: RefKind,
     /// `true` for the branch that is checked out.
     pub current: bool,
+    /// For a local branch: the remote branch it tracks, like `origin/main`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub upstream: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -166,10 +194,37 @@ fn open(path: &Path) -> Result<gix::Repository, Error> {
     Ok(repo)
 }
 
+/// What to load.
+#[derive(Debug, Clone, Copy)]
+pub struct LoadOptions {
+    /// At most this many commits.
+    pub limit: usize,
+    /// Read uncommitted changes. That can take a while in large working trees, so the
+    /// app first loads without them.
+    pub include_status: bool,
+    /// Only the checked-out branch's own history: HEAD and its first parents.
+    pub first_parent: bool,
+}
+
 /// Load up to `limit` of the most recent commits reachable from any branch, tag or HEAD,
-/// plus stashes. With `include_status`, uncommitted changes are read too; that can take a
-/// while in large working trees, so the app first loads without them.
+/// plus stashes, and optionally uncommitted changes.
 pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnapshot, Error> {
+    load_with(
+        path,
+        LoadOptions {
+            limit,
+            include_status,
+            first_parent: false,
+        },
+    )
+}
+
+pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Error> {
+    let LoadOptions {
+        limit,
+        include_status,
+        first_parent,
+    } = options;
     let repo = open(path)?;
     let limit = limit.clamp(1, MAX_LIMIT);
 
@@ -194,6 +249,7 @@ pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnaps
             name: "HEAD".into(),
             kind: RefKind::Head,
             current: true,
+            upstream: None,
         });
     }
     for labels in refs.values_mut() {
@@ -205,7 +261,11 @@ pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnaps
         });
     }
 
-    let mut tips: Vec<ObjectId> = refs.keys().copied().collect();
+    let mut tips: Vec<ObjectId> = if first_parent {
+        Vec::new()
+    } else {
+        refs.keys().copied().collect()
+    };
     tips.extend(head_commit);
     tips.sort();
     tips.dedup();
@@ -213,9 +273,13 @@ pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnaps
     let mut walked = Vec::new();
     let mut truncated = false;
     if !tips.is_empty() {
-        let walk = repo
+        let mut platform = repo
             .rev_walk(tips)
-            .sorting(Sorting::ByCommitTime(CommitTimeOrder::NewestFirst))
+            .sorting(Sorting::ByCommitTime(CommitTimeOrder::NewestFirst));
+        if first_parent {
+            platform = platform.first_parent_only();
+        }
+        let walk = platform
             .all()
             .map_err(|e| format!("Could not read history: {e}"))?;
         for info in walk {
@@ -242,7 +306,8 @@ pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnaps
             walked.push(Walked {
                 id: info.id,
                 kind: RowKind::Commit,
-                parents: info.parent_ids.iter().copied().collect(),
+                // From the commit itself: a first-parent walk only reports first parents.
+                parents: commit.parent_ids().map(|id| id.detach()).collect(),
                 commit_time: info.commit_time.unwrap_or(time),
                 summary,
                 author_name,
@@ -255,12 +320,13 @@ pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnaps
     // Stashes and uncommitted changes are drawn as extra rows on top of the commit
     // they belong to, as long as that commit is loaded.
     let loaded: HashSet<ObjectId> = walked.iter().map(|c| c.id).collect();
-    for (index, stash) in stashes(&repo) {
+    for (index, stash) in stashes(&repo).into_iter().filter(|_| !first_parent) {
         if loaded.contains(&stash.parents[0]) {
             refs.entry(stash.id).or_default().push(RefLabel {
                 name: format!("stash@{{{index}}}"),
                 kind: RefKind::Stash,
                 current: false,
+                upstream: None,
             });
             walked.push(stash);
         }
@@ -289,7 +355,12 @@ pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnaps
         .iter()
         .map(|c| Node {
             id: c.id,
-            parents: c.parents.clone(),
+            // In the first-parent view, merged branches aren't loaded: draw a straight line.
+            parents: if first_parent {
+                c.parents.iter().take(1).copied().collect()
+            } else {
+                c.parents.clone()
+            },
             dashed: c.kind != RowKind::Commit,
         })
         .collect();
@@ -314,6 +385,7 @@ pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnaps
         })
         .collect();
 
+    let operation = operation(&repo);
     Ok(RepoSnapshot {
         path: location.display().to_string(),
         name,
@@ -321,6 +393,8 @@ pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnaps
         upstream: head_branch
             .as_deref()
             .and_then(|branch| upstream(&repo, branch)),
+        operation,
+        first_parent,
         remotes: repo
             .remote_names()
             .iter()
@@ -344,6 +418,46 @@ struct Walked {
     author_name: String,
     author_email: String,
     time: i64,
+}
+
+/// A merge, rebase, cherry-pick or revert that is waiting to be continued or aborted.
+fn operation(repo: &gix::Repository) -> Option<Operation> {
+    use gix::state::InProgress;
+    let kind = match repo.state()? {
+        InProgress::Merge => OperationKind::Merge,
+        InProgress::Rebase | InProgress::RebaseInteractive | InProgress::ApplyMailboxRebase => {
+            OperationKind::Rebase
+        }
+        InProgress::CherryPick | InProgress::CherryPickSequence => OperationKind::CherryPick,
+        InProgress::Revert | InProgress::RevertSequence => OperationKind::Revert,
+        _ => OperationKind::Other,
+    };
+    // The message git prepared, without its "# Conflicts:" comment lines.
+    let message = std::fs::read_to_string(repo.git_dir().join("MERGE_MSG"))
+        .ok()
+        .map(|text| {
+            text.lines()
+                .filter(|line| !line.starts_with('#'))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .trim()
+                .to_owned()
+        })
+        .filter(|message| !message.is_empty());
+    let branch = (kind == OperationKind::Rebase)
+        .then(|| {
+            ["rebase-merge/head-name", "rebase-apply/head-name"]
+                .iter()
+                .find_map(|file| std::fs::read_to_string(repo.git_dir().join(file)).ok())
+        })
+        .flatten()
+        .map(|name| name.trim().trim_start_matches("refs/heads/").to_owned())
+        .filter(|name| !name.is_empty() && name != "detached HEAD");
+    Some(Operation {
+        kind,
+        message,
+        branch,
+    })
 }
 
 /// The remote-tracking branch that `branch` pulls from, like `origin/main`.
@@ -557,10 +671,14 @@ fn collect_refs(
         if !is_commit {
             continue;
         }
+        let upstream = (kind == RefKind::Branch)
+            .then(|| upstream(repo, name).map(|upstream| upstream.name))
+            .flatten();
         out.entry(id.detach()).or_default().push(RefLabel {
             current: kind == RefKind::Branch && Some(name) == head_branch,
             name: name.to_owned(),
             kind,
+            upstream,
         });
     }
     out

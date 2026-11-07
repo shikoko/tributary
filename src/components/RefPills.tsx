@@ -13,9 +13,21 @@ interface Props {
   /** Double-click on a label: check it out. */
   onActivate?: (pill: RefPill) => void;
   onContextMenu?: (pill: RefPill, x: number, y: number) => void;
+  /** Alt+click on a label: highlight its history. */
+  onFocusPill?: (pill: RefPill) => void;
+  /** Labels can be dragged onto commits (to merge or rebase). */
+  draggable?: boolean;
 }
 
-export function RefPills({ refs, color, limit, onActivate, onContextMenu }: Props) {
+/** What a dragged label carries. */
+export const DRAG_TYPE = "application/x-tributary-ref";
+
+/** The name git knows a label by, if it can be merged or rebased onto. */
+export function revisionOf(pill: RefPill): string | null {
+  return pill.kind === "branch" || pill.kind === "tag" ? pill.name : null;
+}
+
+export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocusPill, draggable }: Props) {
   const pills = useMemo(() => refPills(refs), [refs]);
   if (pills.length === 0) return null;
   const shown = limit ? pills.slice(0, limit) : pills;
@@ -24,7 +36,15 @@ export function RefPills({ refs, color, limit, onActivate, onContextMenu }: Prop
   return (
     <span className="ref-pills">
       {shown.map((pill) => (
-        <Pill key={pill.key} pill={pill} color={color} onActivate={onActivate} onContextMenu={onContextMenu} />
+        <Pill
+          key={pill.key}
+          pill={pill}
+          color={color}
+          onActivate={onActivate}
+          onContextMenu={onContextMenu}
+          onFocusPill={onFocusPill}
+          draggable={draggable}
+        />
       ))}
       {hidden.length > 0 && (
         <span className="ref-pill more" title={hidden.map(describePill).join("\n")}>
@@ -40,9 +60,12 @@ interface PillProps {
   color: string;
   onActivate?: (pill: RefPill) => void;
   onContextMenu?: (pill: RefPill, x: number, y: number) => void;
+  onFocusPill?: (pill: RefPill) => void;
+  draggable?: boolean;
 }
 
-function Pill({ pill, color, onActivate, onContextMenu }: PillProps) {
+function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }: PillProps) {
+  const revision = revisionOf(pill);
   const style = pill.current
     ? { background: color, borderColor: color, color: "#0d0f13" }
     : pill.kind === "tag" || pill.kind === "stash"
@@ -58,6 +81,18 @@ function Pill({ pill, color, onActivate, onContextMenu }: PillProps) {
         if (!onActivate) return;
         event.stopPropagation();
         onActivate(pill);
+      }}
+      onClick={(event) => {
+        if (!event.altKey || !onFocusPill) return;
+        event.stopPropagation();
+        onFocusPill(pill);
+      }}
+      draggable={Boolean(draggable && revision)}
+      onDragStart={(event) => {
+        if (!revision) return;
+        event.dataTransfer.setData(DRAG_TYPE, revision);
+        event.dataTransfer.setData("text/plain", revision);
+        event.dataTransfer.effectAllowed = "move";
       }}
       onContextMenu={(event) => {
         if (!onContextMenu) return;

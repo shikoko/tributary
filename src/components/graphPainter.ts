@@ -11,6 +11,8 @@ export interface GraphMetrics {
 export interface PaintOptions extends GraphMetrics {
   headId: string | null;
   selectedId: string | null;
+  /** While a branch is highlighted: the commits in its history. Everything else fades. */
+  focusIds: Set<string> | null;
   /** Colours behind the graph, used to outline nodes. */
   background: string;
   selectedBackground: string;
@@ -20,6 +22,8 @@ const LINE_WIDTH = 2;
 const NODE_RADIUS = 6.5;
 const MERGE_RADIUS = 4;
 const DASH = [4, 4];
+/** How visible lines and dots outside a highlighted branch's history are. */
+const FADED = 0.14;
 
 export function laneX(column: number, metrics: GraphMetrics): number {
   return metrics.padding + column * metrics.laneWidth + metrics.laneWidth / 2;
@@ -40,6 +44,10 @@ export function paintGraph(
   const { rowHeight } = options;
   const x = (column: number) => laneX(column, options);
   const corner = Math.min(rowHeight / 2, options.laneWidth) - 1;
+  const focus = options.focusIds;
+  // A line is part of the highlighted history when the commit it links from is.
+  const inFocus = (child: number | number[]) =>
+    Array.isArray(child) ? child.some((row) => focus!.has(commits[row]?.id)) : focus!.has(commits[child]?.id);
 
   ctx.lineWidth = LINE_WIDTH;
   ctx.lineCap = "round";
@@ -51,8 +59,9 @@ export function paintGraph(
     const middle = top + rowHeight / 2;
     const bottom = top + rowHeight;
 
-    for (const [kind, from, to, dashed] of commits[row].graph.lines) {
+    for (const [kind, from, to, child, dashed] of commits[row].graph.lines) {
       ctx.strokeStyle = laneColor(kind === 2 ? to : from);
+      ctx.globalAlpha = focus ? (inFocus(child) ? 1 : FADED) : 1;
       // Lines from stashes and uncommitted changes are dashed: they aren't history yet.
       ctx.setLineDash(dashed ? DASH : []);
       ctx.beginPath();
@@ -85,6 +94,7 @@ export function paintGraph(
 
   for (let row = first; row < last; row++) {
     const commit = commits[row];
+    ctx.globalAlpha = focus && !focus.has(commit.id) ? FADED : 1;
     const cx = x(commit.graph.column);
     const cy = (row - first) * rowHeight + rowHeight / 2;
     const color = laneColor(commit.graph.column);
@@ -129,6 +139,7 @@ export function paintGraph(
       ctx.stroke();
     }
   }
+  ctx.globalAlpha = 1;
 }
 
 /** A square path centred on (cx, cy), `half` wide on each side, with rounded corners. */

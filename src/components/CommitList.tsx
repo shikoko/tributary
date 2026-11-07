@@ -1,13 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { PAGE_SIZE, type CommitRow, type RepoSnapshot } from "../api";
+import { PAGE_SIZE, type CommitDetails, type CommitRow, type RepoSnapshot } from "../api";
 import { countChanges, type ChangeCounts as Counts } from "../lib/changes";
 import { laneColor } from "../lib/colors";
 import { fullDate, relativeTime, shortId } from "../lib/format";
 import type { RefPill } from "../lib/refs";
 import { Avatar } from "./Avatar";
 import { ChangeCounts } from "./ChangeCounts";
+import { CommitPreview } from "./CommitPreview";
 import { laneX, paintGraph, type GraphMetrics } from "./graphPainter";
-import { RefPills } from "./RefPills";
+import { DRAG_TYPE, RefPills } from "./RefPills";
 import { ResizeHandle } from "./ResizeHandle";
 
 const ROW_HEIGHT = 30;
@@ -25,6 +26,8 @@ const MIN_GRAPH_WIDTH = 72;
 const MAX_GRAPH_WIDTH = 320;
 /** How wide the graph column can be dragged. */
 const MAX_DRAGGED_GRAPH_WIDTH = 800;
+/** How long the pointer rests on a commit before its preview shows, in milliseconds. */
+const PREVIEW_DELAY = 650;
 /** Rows rendered above and below the visible area, so fast scrolling doesn't flash. */
 const OVERSCAN = 12;
 const FOOTER_HEIGHT = 56;
@@ -58,6 +61,18 @@ interface Props {
   /** Double-click on a branch label. */
   onPillActivate: (pill: RefPill, commit: CommitRow) => void;
   onPillContextMenu: (pill: RefPill, commit: CommitRow, x: number, y: number) => void;
+  /** Alt+click on a branch label. */
+  onPillFocus: (pill: RefPill, commit: CommitRow) => void;
+  /** While a branch is highlighted: the commits in its history. Other rows fade. */
+  focusIds: Set<string> | null;
+  /** Show a commit's preview when the pointer rests on it. */
+  previews: boolean;
+  loadDetails: (id: string) => Promise<CommitDetails>;
+  /** A branch or tag label was dropped on a commit. */
+  onDropRef: (revision: string, commit: CommitRow, x: number, y: number) => void;
+  /** Where to scroll to when the list first appears. */
+  initialScrollTop: number;
+  onScrollChange: (scrollTop: number) => void;
   onLoadMore: () => void;
   loadingMore: boolean;
 }
@@ -72,8 +87,15 @@ export function CommitList(props: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   /** Column widths when a drag started. */
   const dragStart = useRef({ refs: 0, graph: 0 });
-  const [scrollTop, setScrollTop] = useState(0);
+  const [scrollTop, setScrollTop] = useState(props.initialScrollTop);
   const [viewport, setViewport] = useState({ width: 0, height: 0, scrollbar: 0 });
+  const [preview, setPreview] = useState<{ commit: CommitRow; x: number; y: number } | null>(null);
+  const previewTimer = useRef<number | undefined>(undefined);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const hidePreview = () => {
+    window.clearTimeout(previewTimer.current);
+    setPreview(null);
+  };
 
   const rowHeight = dense ? DENSE_ROW_HEIGHT : ROW_HEIGHT;
   const metrics: GraphMetrics = { rowHeight, laneWidth: LANE_WIDTH, padding: GRAPH_PADDING };
@@ -110,6 +132,7 @@ export function CommitList(props: Props) {
         scrollbar: element.offsetWidth - element.clientWidth,
       });
     measure();
+    element.scrollTop = props.initialScrollTop;
     // Focus the list so the arrow keys work straight away.
     element.focus({ preventScroll: true });
     const observer = new ResizeObserver(measure);
@@ -143,10 +166,11 @@ export function CommitList(props: Props) {
       padding: GRAPH_PADDING,
       headId: headCommit,
       selectedId,
+      focusIds: props.focusIds,
       background: BACKGROUND,
       selectedBackground: SELECTED_BACKGROUND,
     });
-  }, [commits, first, last, graphWidth, headCommit, selectedId, rowHeight]);
+  }, [commits, first, last, graphWidth, headCommit, selectedId, rowHeight, props.focusIds]);
 
   // Bring the selected commit into view when it changes.
   useEffect(() => {
@@ -210,11 +234,41 @@ export function CommitList(props: Props) {
         narrow={narrow}
         dense={dense}
         selected={index === selectedIndex}
-        dimmed={matchIds !== null && !matchIds.has(commit.id)}
-        onSelect={onSelect}
-        onContextMenu={props.onContextMenu}
+        dimmed={
+          (matchIds !== null && !matchIds.has(commit.id)) || (props.focusIds !== null && !props.focusIds.has(commit.id))
+        }
+        dropTarget={dropTarget === commit.id}
+        onSelect={(id) => {
+          hidePreview();
+          onSelect(id);
+        }}
+        onContextMenu={(commit, x, y) => {
+          hidePreview();
+          props.onContextMenu(commit, x, y);
+        }}
         onPillActivate={props.onPillActivate}
         onPillContextMenu={props.onPillContextMenu}
+        onPillFocus={props.onPillFocus}
+        onHover={(event) => {
+          window.clearTimeout(previewTimer.current);
+          if (!props.previews || commit.kind === "worktree" || event.buttons) return setPreview(null);
+          const { clientX: x, clientY: y } = event;
+          previewTimer.current = window.setTimeout(() => setPreview({ commit, x, y }), PREVIEW_DELAY);
+        }}
+        onLeave={hidePreview}
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes(DRAG_TYPE) || commit.kind === "worktree") return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          setDropTarget(commit.id);
+        }}
+        onDrop={(event) => {
+          const revision = event.dataTransfer.getData(DRAG_TYPE);
+          setDropTarget(null);
+          if (!revision) return;
+          event.preventDefault();
+          props.onDropRef(revision, commit, event.clientX, event.clientY);
+        }}
       />,
     );
   }
@@ -258,7 +312,14 @@ export function CommitList(props: Props) {
         ref={scroller}
         className="list-scroller"
         tabIndex={0}
-        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+        onScroll={(event) => {
+          hidePreview();
+          setScrollTop(event.currentTarget.scrollTop);
+          props.onScrollChange(event.currentTarget.scrollTop);
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTarget(null);
+        }}
         onKeyDown={onKeyDown}
         role="listbox"
         aria-activedescendant={selectedId ? `commit-${selectedId}` : undefined}
@@ -283,6 +344,7 @@ export function CommitList(props: Props) {
           </div>
         )}
       </div>
+      {preview && <CommitPreview commit={preview.commit} x={preview.x} y={preview.y} loadDetails={props.loadDetails} />}
     </section>
   );
 }
@@ -300,12 +362,19 @@ interface RowProps {
   narrow: boolean;
   dense: boolean;
   selected: boolean;
-  /** Not a search match. */
+  /** Not a search match, or outside the highlighted history. */
   dimmed: boolean;
+  /** A label is being dragged over this row. */
+  dropTarget: boolean;
   onSelect: (id: string) => void;
   onContextMenu: (commit: CommitRow, x: number, y: number) => void;
   onPillActivate: (pill: RefPill, commit: CommitRow) => void;
   onPillContextMenu: (pill: RefPill, commit: CommitRow, x: number, y: number) => void;
+  onPillFocus: (pill: RefPill, commit: CommitRow) => void;
+  onHover: (event: React.MouseEvent) => void;
+  onLeave: () => void;
+  onDragOver: (event: React.DragEvent) => void;
+  onDrop: (event: React.DragEvent) => void;
 }
 
 function Row(props: RowProps) {
@@ -319,7 +388,7 @@ function Row(props: RowProps) {
   return (
     <div
       id={`commit-${commit.id}`}
-      className={`commit-row${selected ? " selected" : ""}${dimmed ? " dimmed" : ""}`}
+      className={`commit-row${selected ? " selected" : ""}${dimmed ? " dimmed" : ""}${props.dropTarget ? " drop-target" : ""}`}
       style={{
         top,
         height,
@@ -327,6 +396,11 @@ function Row(props: RowProps) {
         boxShadow: selected ? `inset 3px 0 0 ${color}` : undefined,
       }}
       onMouseDown={(event) => event.button === 0 && onSelect(commit.id)}
+      onMouseEnter={props.onHover}
+      onMouseMove={props.onHover}
+      onMouseLeave={props.onLeave}
+      onDragOver={props.onDragOver}
+      onDrop={props.onDrop}
       onContextMenu={(event) => {
         event.preventDefault();
         onSelect(commit.id);
@@ -345,6 +419,8 @@ function Row(props: RowProps) {
             onSelect(commit.id);
             props.onPillContextMenu(pill, commit, x, y);
           }}
+          onFocusPill={(pill) => props.onPillFocus(pill, commit)}
+          draggable
         />
       </div>
       {commit.refs.length > 0 && (

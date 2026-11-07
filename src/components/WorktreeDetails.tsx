@@ -32,6 +32,14 @@ export function WorktreeDetailsPanel({ snapshot, run, busy, draft, onDraft, onSt
   const [committing, setCommitting] = useState(false);
   const [lastMessage, setLastMessage] = useState<string | null>(null);
 
+  // During a merge, cherry-pick or revert, start from the message git prepared.
+  const prepared = snapshot.operation?.message ?? null;
+  useEffect(() => {
+    if (!prepared || draft.summary || draft.description) return;
+    const [summary, ...rest] = prepared.split("\n");
+    onDraft({ summary, description: rest.join("\n").trim(), amend: false });
+  }, [prepared]);
+
   // Amending starts from the last commit's message.
   useEffect(() => {
     if (!draft.amend || draft.summary || !snapshot.headCommit) return;

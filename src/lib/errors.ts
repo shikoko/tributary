@@ -1,6 +1,8 @@
 /** git refused because uncommitted changes would be overwritten: stashing them first helps. */
 export function isLocalChangesError(message: string): boolean {
-  return /would be overwritten by|commit your changes or stash them|Your local changes/i.test(message);
+  return /would be overwritten by|commit your changes or stash them|Your local changes|You have unstaged changes|Your index contains uncommitted changes/i.test(
+    message,
+  );
 }
 
 /** The changes in the way include untracked files. */

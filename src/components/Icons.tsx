@@ -164,6 +164,56 @@ export const SidebarIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** Two lines joining, for merging. */
+export const MergeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="4.5" cy="3.5" r="1.5" />
+    <circle cx="4.5" cy="12.5" r="1.5" />
+    <circle cx="11.5" cy="9" r="1.5" />
+    <path d="M4.5 5v6M4.5 5c0 3 3 4 5.5 4" />
+  </Icon>
+);
+
+/** A branch moved onto another line, for rebasing. */
+export const RebaseIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="4.5" cy="12.5" r="1.5" />
+    <circle cx="4.5" cy="3.5" r="1.5" />
+    <circle cx="11.5" cy="3.5" r="1.5" />
+    <path d="M4.5 5v6M11.5 5v2.5a2 2 0 0 1-2 2H6" />
+  </Icon>
+);
+
+export const CherryIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="5" cy="11" r="2.5" />
+    <circle cx="11" cy="11.5" r="2.5" />
+    <path d="M5 8.5C5.5 5 8 3 11.5 2.5M11 9C10.5 6.5 10.5 4.5 11.5 2.5" />
+  </Icon>
+);
+
+/** An arrow turning back on itself, for reverting. */
+export const RevertIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12.5 4.5h-6a3.5 3.5 0 0 0 0 7h4" />
+    <path d="M10 2l2.5 2.5L10 7" />
+  </Icon>
+);
+
+export const EyeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" />
+    <circle cx="8" cy="8" r="2" />
+  </Icon>
+);
+
+export const KeyboardIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="1.5" y="4" width="13" height="8" rx="1.5" />
+    <path d="M4 7h1M7 7h1M10 7h2M4.5 9.5h7" />
+  </Icon>
+);
+
 /** An arrow going back, for resetting. */
 export const ResetIcon = (p: IconProps) => (
   <Icon {...p}>

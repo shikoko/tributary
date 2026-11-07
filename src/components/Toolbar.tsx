@@ -10,7 +10,6 @@ import {
   CommitIcon,
   FetchIcon,
   FolderIcon,
-  Logo,
   PullIcon,
   PushIcon,
   RefreshIcon,
@@ -49,8 +48,6 @@ interface Props {
   lastFetch: number | null;
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
-  /** Open the recent repositories menu under the given element. */
-  onRepoMenu: (anchor: HTMLElement) => void;
   onViewMenu: (anchor: HTMLElement) => void;
   onRefresh: () => void;
   onPick: () => void;
@@ -60,7 +57,6 @@ interface Props {
 export function Toolbar(props: Props) {
   const { snapshot, refreshing, running, ahead, behind, search, searchInput } = props;
   const pushMenuButton = useRef<HTMLButtonElement>(null);
-  const repoButton = useRef<HTMLButtonElement>(null);
   const viewButton = useRef<HTMLButtonElement>(null);
   const commitCount = snapshot.commits.filter((c) => c.kind === "commit").length;
 
@@ -83,8 +79,8 @@ export function Toolbar(props: Props) {
         : `Push ${snapshot.headBranch} and set its upstream`;
 
   return (
-    <header className="toolbar">
-      <div className="toolbar-repo">
+    <header className="toolbar" data-tauri-drag-region>
+      <div className="toolbar-repo" data-tauri-drag-region>
         <button
           className={`icon-button${props.sidebarOpen ? " active" : ""}`}
           onClick={props.onToggleSidebar}
@@ -93,16 +89,6 @@ export function Toolbar(props: Props) {
           aria-pressed={props.sidebarOpen}
         >
           <SidebarIcon />
-        </button>
-        <Logo size={22} outline="#1a1d24" />
-        <button
-          ref={repoButton}
-          className="repo-name"
-          onClick={() => repoButton.current && props.onRepoMenu(repoButton.current)}
-          title={`${snapshot.path}\nClick to switch repository`}
-        >
-          <span>{snapshot.name}</span>
-          <ChevronDownIcon size={12} />
         </button>
         {snapshot.headBranch ? (
           <span className="head-chip" title="Checked out branch">

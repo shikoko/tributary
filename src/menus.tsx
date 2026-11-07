@@ -6,7 +6,12 @@ import type { MenuItem } from "./components/ContextMenu";
 import {
   BranchIcon,
   BranchPlusIcon,
+  CherryIcon,
   CloudIcon,
+  EyeIcon,
+  MergeIcon,
+  RebaseIcon,
+  RevertIcon,
   CommitIcon,
   CopyIcon,
   MinusIcon,
@@ -39,6 +44,29 @@ export interface MenuContext {
   localBranches: Set<string>;
   run: (action: Action) => void;
   open: (dialog: OpenDialog) => void;
+  /** Highlight the history of a branch, tag or commit. */
+  focus: (name: string, commitId: string) => void;
+}
+
+/** Merge and rebase entries for a branch, tag or commit, relative to the checked-out branch. */
+function mergeItems(ctx: MenuContext, revision: string, label: string): MenuItem[] {
+  const branch = ctx.snapshot.headBranch;
+  const disabled = !ctx.canChange || !branch || ctx.snapshot.operation !== null;
+  return [
+    {
+      label: `Merge ${label} into ${branch ?? "HEAD"}`,
+      icon: <MergeIcon />,
+      separated: true,
+      disabled,
+      onSelect: () => ctx.run({ kind: "merge", target: revision }),
+    },
+    {
+      label: `Rebase ${branch ?? "HEAD"} onto ${label}`,
+      icon: <RebaseIcon />,
+      disabled,
+      onSelect: () => ctx.run({ kind: "rebase", onto: revision }),
+    },
+  ];
 }
 
 /** Whether the checked-out branch can be hard reset to `commit`. */
@@ -103,6 +131,28 @@ export function commitMenu(ctx: MenuContext, commit: CommitRow): MenuItem[] {
     });
   }
   items.push(...checkouts.slice(0, 6).map((item, i) => ({ ...item, separated: i === 0 })));
+  const busy = !canChange || snapshot.operation !== null;
+  const isHead = commit.id === snapshot.headCommit;
+  items.push(
+    {
+      label: `Cherry-pick onto ${snapshot.headBranch ?? "HEAD"}`,
+      icon: <CherryIcon />,
+      separated: true,
+      disabled: busy || isHead,
+      onSelect: () => ctx.run({ kind: "cherryPick", id: commit.id }),
+    },
+    {
+      label: "Revert this commit",
+      icon: <RevertIcon />,
+      disabled: busy,
+      onSelect: () => ctx.run({ kind: "revert", id: commit.id }),
+    },
+    {
+      label: "Highlight history up to here",
+      icon: <EyeIcon />,
+      onSelect: () => ctx.focus(commit.summary || commit.id.slice(0, 7), commit.id),
+    },
+  );
   items.push(
     {
       label: "New branch here…",
@@ -196,6 +246,12 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
   if (pill.kind === "head") return [{ label: "Copy SHA", icon: <CopyIcon />, onSelect: () => copyText(commit.id) }];
   const { canChange, snapshot } = ctx;
   const checkout = checkoutFor(ctx, pill, commit);
+  const highlight: MenuItem = {
+    label: `Highlight ${pill.name}'s history`,
+    icon: <EyeIcon />,
+    separated: true,
+    onSelect: () => ctx.focus(pill.name, commit.id),
+  };
   if (pill.kind === "tag") {
     return [
       {
@@ -204,6 +260,8 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
         disabled: !canChange || commit.id === snapshot.headCommit,
         onSelect: () => checkout && ctx.run(checkout),
       },
+      ...mergeItems(ctx, pill.name, pill.name),
+      highlight,
       { label: "Copy tag name", icon: <CopyIcon />, separated: true, onSelect: () => copyText(pill.name) },
     ];
   }
@@ -240,6 +298,8 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
       onSelect: () => checkout && ctx.run(checkout),
     });
   }
+  if (!pill.current) items.push(...mergeItems(ctx, pill.name, pill.name));
+  items.push(highlight);
   // Remote copies of this branch at the same commit.
   const remoteNames = pill.local ? pill.remotes.map((remote) => `${remote}/${pill.name}`) : [pill.name];
   remoteNames.forEach((name, i) => {
@@ -272,6 +332,11 @@ export function pillForEntry(entry: RefEntry): RefPill {
     remotes: [],
     current: entry.current,
   };
+}
+
+/** Menu for a label dropped onto a commit: merge or rebase. */
+export function dropMenu(ctx: MenuContext, revision: string): MenuItem[] {
+  return mergeItems(ctx, revision, revision).map((item) => ({ ...item, separated: false }));
 }
 
 /** Delete-branch confirmations offer "Delete anyway" when git refuses an unmerged branch. */

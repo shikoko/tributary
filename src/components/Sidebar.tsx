@@ -3,6 +3,7 @@ import type { CommitRow } from "../api";
 import { collectRefs, type RefEntry } from "../lib/refs";
 import { useStoredState } from "../lib/settings";
 import { BranchIcon, CheckIcon, ChevronDownIcon, CloudIcon, SearchIcon, StashIcon, TagIcon } from "./Icons";
+import { DRAG_TYPE } from "./RefPills";
 
 interface Props {
   commits: CommitRow[];
@@ -12,10 +13,15 @@ interface Props {
   /** Double-click: check the branch out. */
   onActivate: (entry: RefEntry) => void;
   onContextMenu: (entry: RefEntry, x: number, y: number) => void;
+  /** Alt+click: highlight the entry's history. */
+  onFocus: (entry: RefEntry) => void;
+  /** For local branches that track a remote branch: commits to push and to pull. */
+  aheadBehind: Map<string, { ahead: number; behind: number }>;
 }
 
 /** Every branch, remote branch, tag and stash; click one to jump to its commit. */
-export function Sidebar({ commits, selectedId, width, onSelect, onActivate, onContextMenu }: Props) {
+export function Sidebar(props: Props) {
+  const { commits, selectedId, width, onSelect, onActivate, onContextMenu, onFocus, aheadBehind } = props;
   const [filter, setFilter] = useState("");
   const [collapsed, setCollapsed] = useStoredState<Record<string, boolean>>("sidebar.collapsed", { tags: true });
   const lists = useMemo(() => collectRefs(commits), [commits]);
@@ -26,11 +32,19 @@ export function Sidebar({ commits, selectedId, width, onSelect, onActivate, onCo
   // While filtering, every section is open so nothing that matches is hidden.
   const isOpen = (key: string) => Boolean(needle) || !collapsed[key];
 
-  const item = (entry: RefEntry, label: string, icon: ReactNode) => (
+  const item = (entry: RefEntry, label: string, icon: ReactNode) => {
+    const counts = entry.kind === "branch" ? aheadBehind.get(entry.name) : undefined;
+    return (
     <li key={`${entry.kind}:${entry.name}`}>
       <button
         className={`sidebar-item${entry.commitId === selectedId ? " selected" : ""}${entry.current ? " current" : ""}`}
-        onClick={() => onSelect(entry.commitId)}
+        draggable={entry.kind !== "stash"}
+        onDragStart={(event) => {
+          event.dataTransfer.setData(DRAG_TYPE, entry.name);
+          event.dataTransfer.setData("text/plain", entry.name);
+          event.dataTransfer.effectAllowed = "move";
+        }}
+        onClick={(event) => (event.altKey && entry.kind !== "stash" ? onFocus(entry) : onSelect(entry.commitId))}
         onDoubleClick={() => onActivate(entry)}
         onContextMenu={(event: MouseEvent) => {
           event.preventDefault();
@@ -41,9 +55,19 @@ export function Sidebar({ commits, selectedId, width, onSelect, onActivate, onCo
       >
         <span className="sidebar-icon">{entry.current ? <CheckIcon size={13} /> : icon}</span>
         <span className="sidebar-name">{label}</span>
+        {counts && (counts.ahead > 0 || counts.behind > 0) && (
+          <span
+            className="sidebar-counts"
+            title={`${counts.ahead} to push, ${counts.behind} to pull (${entry.upstream ?? "upstream"})`}
+          >
+            {counts.ahead > 0 && <span>↑{counts.ahead}</span>}
+            {counts.behind > 0 && <span>↓{counts.behind}</span>}
+          </span>
+        )}
       </button>
     </li>
-  );
+    );
+  };
 
   const section = (key: string, title: string, count: number, children: ReactNode) =>
     (count > 0 || !needle) && (

@@ -5,12 +5,15 @@
 //! be full ids of existing commits, branch and remote names must exist or be valid),
 //! so nothing can be mistaken for a git option.
 
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use gix::ObjectId;
 use gix::bstr::ByteSlice;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 type Error = String;
 
@@ -82,10 +85,93 @@ pub enum Action {
         #[serde(rename = "newName")]
         new_name: String,
     },
+    /// Merge a branch, tag or commit into the checked-out branch.
+    Merge { target: String },
+    /// Rebase the checked-out branch onto a branch, tag or commit.
+    Rebase { onto: String },
+    /// Apply the changes of a commit on top of the checked-out branch.
+    CherryPick { id: String },
+    /// Make a new commit that undoes a commit.
+    Revert { id: String },
+    /// Carry on with a merge, rebase, cherry-pick or revert after resolving conflicts.
+    ContinueOperation,
+    /// Leave out the commit a rebase, cherry-pick or revert stopped at.
+    SkipCommit,
+    /// Give up on a merge, rebase, cherry-pick or revert, going back to how things were.
+    AbortOperation,
+}
+
+/// How far a fetch, pull or push has got.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Progress {
+    /// Like "Receiving objects".
+    pub phase: String,
+    /// None until git reports a percentage.
+    pub percent: Option<u8>,
+}
+
+/// A fetch, pull or push that is running, so it can be cancelled.
+struct Running {
+    id: u64,
+    child: Arc<Mutex<Child>>,
+    cancelled: Arc<AtomicBool>,
+}
+
+static RUNNING: Mutex<Vec<Running>> = Mutex::new(Vec::new());
+static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Stop every fetch, pull or push that is running. Returns false if there are none.
+pub fn cancel() -> bool {
+    let running = RUNNING.lock().unwrap_or_else(|e| e.into_inner());
+    for run in running.iter() {
+        run.cancelled.store(true, Ordering::SeqCst);
+        let _ = run.child.lock().unwrap_or_else(|e| e.into_inner()).kill();
+    }
+    !running.is_empty()
+}
+
+/// "Receiving objects:  45% (450/1000)" → ("Receiving objects", 45).
+pub fn parse_progress(line: &str) -> Option<(String, u8)> {
+    let line = line.trim();
+    let line = line.strip_prefix("remote:").unwrap_or(line).trim();
+    let (phase, rest) = line.split_once(':')?;
+    if phase.is_empty() || !phase.chars().all(|c| c.is_ascii_alphabetic() || c == ' ') {
+        return None;
+    }
+    let rest = rest.trim_start();
+    let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+    if digits.is_empty() || !rest[digits.len()..].starts_with('%') {
+        return None;
+    }
+    Some((phase.trim().to_owned(), digits.parse::<u8>().ok()?.min(100)))
+}
+
+/// Progress chatter that doesn't belong in an error message, like "remote: Total 3 (delta 0)".
+fn is_progress_noise(line: &str) -> bool {
+    let line = line.trim();
+    let line = line.strip_prefix("remote:").unwrap_or(line).trim();
+    if line.starts_with("Total ") || parse_progress(line).is_some() {
+        return true;
+    }
+    // "Enumerating objects: 5, done."
+    line.split_once(':').is_some_and(|(phase, rest)| {
+        !phase.is_empty()
+            && phase.chars().all(|c| c.is_ascii_alphabetic() || c == ' ')
+            && rest.trim_start().starts_with(|c: char| c.is_ascii_digit())
+    })
 }
 
 /// Run `action` and return a short message saying what happened.
 pub fn run(path: &Path, action: Action) -> Result<String, Error> {
+    run_with_progress(path, action, &|_| {})
+}
+
+/// Like [`run`], reporting how far a fetch, pull or push has got.
+pub fn run_with_progress(
+    path: &Path,
+    action: Action,
+    on_progress: &dyn Fn(Progress),
+) -> Result<String, Error> {
     let repo = gix::discover(path)
         .map_err(|e| format!("{} is not a git repository ({e})", path.display()))?;
     let workdir = repo
@@ -138,19 +224,21 @@ pub fn run(path: &Path, action: Action) -> Result<String, Error> {
             if repo.remote_names().is_empty() {
                 return Err("This repository has no remotes to fetch from.".into());
             }
-            let args = ["fetch", "--all", "--prune", "--quiet"];
             if background {
                 // Nobody asked for this fetch, so never pop up a sign-in window for it.
-                git.run_with_env(&args, &[("GCM_INTERACTIVE", "never")])?;
+                git.run_with_env(
+                    &["fetch", "--all", "--prune", "--quiet"],
+                    &[("GCM_INTERACTIVE", "never")],
+                )?;
             } else {
-                git.run(&args)?;
+                git.run_progress(&["fetch", "--all", "--prune", "--progress"], on_progress)?;
             }
             Ok("Fetched from all remotes".into())
         }
         Action::Pull => {
             let branch = current_branch(&repo)?;
             // `--no-edit`: never wait for a merge message in an editor nobody can see.
-            let mut args = vec!["pull", "--no-edit", "--quiet"];
+            let mut args = vec!["pull", "--no-edit", "--progress"];
             // Without a merge-or-rebase preference, git refuses to pull a branch that has
             // diverged from its upstream. Merge then, like `git pull` used to by default.
             let config = repo.config_snapshot();
@@ -164,12 +252,12 @@ pub fn run(path: &Path, action: Action) -> Result<String, Error> {
             if !has_preference {
                 args.push("--no-rebase");
             }
-            git.run(&args)?;
+            git.run_progress(&args, on_progress)?;
             Ok(format!("Pulled {branch}"))
         }
         Action::Push { force } => {
             let branch = current_branch(&repo)?;
-            let mut args = vec!["push".to_owned(), "--quiet".to_owned()];
+            let mut args = vec!["push".to_owned(), "--progress".to_owned()];
             if force {
                 args.push("--force-with-lease".into());
             }
@@ -185,7 +273,7 @@ pub fn run(path: &Path, action: Action) -> Result<String, Error> {
                 }
             };
             let args: Vec<&str> = args.iter().map(String::as_str).collect();
-            git.run(&args)?;
+            git.run_progress(&args, on_progress)?;
             Ok(format!(
                 "{} {branch} to {remote}",
                 if force { "Force pushed" } else { "Pushed" }
@@ -212,9 +300,9 @@ pub fn run(path: &Path, action: Action) -> Result<String, Error> {
             git.run(&args)?;
             if stash_top(&git) == before {
                 // Nothing was stashed after all.
-                return run(path, *action);
+                return run_with_progress(path, *action, on_progress);
             }
-            match run(path, *action) {
+            match run_with_progress(path, *action, on_progress) {
                 Err(error) => match pop_stash(&git) {
                     Ok(()) => Err(error),
                     Err(_) => Err(format!(
@@ -356,7 +444,115 @@ pub fn run(path: &Path, action: Action) -> Result<String, Error> {
             git.run(&["branch", "--move", &name, new_name])?;
             Ok(format!("Renamed {name} to {new_name}"))
         }
+        Action::Merge { target } => {
+            let branch = current_branch(&repo)?;
+            let target = revision_name(&repo, &target)?;
+            git.run(&["merge", "--no-edit", &target])?;
+            Ok(format!("Merged {} into {branch}", short(&target)))
+        }
+        Action::Rebase { onto } => {
+            let branch = current_branch(&repo)?;
+            let onto = revision_name(&repo, &onto)?;
+            git.run(&["rebase", &onto])?;
+            Ok(format!("Rebased {branch} onto {}", short(&onto)))
+        }
+        Action::CherryPick { id } => {
+            let id = commit_id(&repo, &id)?;
+            let branch = current_branch(&repo).unwrap_or_else(|_| "HEAD".into());
+            let mut args = vec!["cherry-pick".to_owned()];
+            // A merge commit needs to know which parent its changes are relative to.
+            if is_merge(&repo, id) {
+                args.extend(["-m".into(), "1".into()]);
+            }
+            args.push(id.to_string());
+            git.run(&args.iter().map(String::as_str).collect::<Vec<_>>())?;
+            Ok(format!(
+                "Cherry-picked {} onto {branch}",
+                id.to_hex_with_len(7)
+            ))
+        }
+        Action::Revert { id } => {
+            let id = commit_id(&repo, &id)?;
+            let mut args = vec!["revert".to_owned(), "--no-edit".to_owned()];
+            if is_merge(&repo, id) {
+                args.extend(["-m".into(), "1".into()]);
+            }
+            args.push(id.to_string());
+            git.run(&args.iter().map(String::as_str).collect::<Vec<_>>())?;
+            Ok(format!("Reverted {}", id.to_hex_with_len(7)))
+        }
+        Action::ContinueOperation => {
+            let operation = in_progress(&repo)?;
+            if operation == "merge" {
+                git.run(&["commit", "--no-edit", "--quiet"])?;
+            } else {
+                git.run(&[operation, "--continue"])?;
+            }
+            Ok(format!("Finished the {operation}"))
+        }
+        Action::SkipCommit => {
+            let operation = in_progress(&repo)?;
+            if operation == "merge" {
+                return Err("A merge can't skip commits. Abort it instead.".into());
+            }
+            git.run(&[operation, "--skip"])?;
+            Ok(format!(
+                "Skipped the commit and carried on with the {operation}"
+            ))
+        }
+        Action::AbortOperation => {
+            let operation = in_progress(&repo)?;
+            git.run(&[operation, "--abort"])?;
+            Ok(format!("Aborted the {operation}"))
+        }
     }
+}
+
+/// The git command for the merge, rebase, cherry-pick or revert in progress.
+fn in_progress(repo: &gix::Repository) -> Result<&'static str, Error> {
+    use gix::state::InProgress;
+    match repo.state() {
+        Some(InProgress::Merge) => Ok("merge"),
+        Some(InProgress::Rebase | InProgress::RebaseInteractive) => Ok("rebase"),
+        Some(InProgress::CherryPick | InProgress::CherryPickSequence) => Ok("cherry-pick"),
+        Some(InProgress::Revert | InProgress::RevertSequence) => Ok("revert"),
+        Some(_) => Err("Another git operation is in progress. Finish it in a terminal.".into()),
+        None => Err("There's no merge, rebase, cherry-pick or revert in progress.".into()),
+    }
+}
+
+/// A full commit id, or the short name of an existing branch, remote branch or tag.
+fn revision_name(repo: &gix::Repository, target: &str) -> Result<String, Error> {
+    if let Ok(id) = commit_id(repo, target) {
+        return Ok(id.to_string());
+    }
+    let exists = ["refs/heads/", "refs/remotes/", "refs/tags/"]
+        .iter()
+        .any(|prefix| {
+            repo.try_find_reference(format!("{prefix}{target}").as_str())
+                .ok()
+                .flatten()
+                .is_some()
+        });
+    if target.starts_with('-') || !exists {
+        return Err(format!("There's no branch or tag called {target}."));
+    }
+    Ok(target.to_owned())
+}
+
+/// A short form of a revision for messages: commit ids are shortened, names kept.
+fn short(name: &str) -> &str {
+    if name.len() >= 40 && name.chars().all(|c| c.is_ascii_hexdigit()) {
+        &name[..7]
+    } else {
+        name
+    }
+}
+
+fn is_merge(repo: &gix::Repository, id: ObjectId) -> bool {
+    repo.find_commit(id)
+        .map(|commit| commit.parent_ids().count() > 1)
+        .unwrap_or(false)
 }
 
 /// The id of the newest stash, if there is one.
@@ -543,24 +739,169 @@ impl Git {
             .env("GIT_MERGE_AUTOEDIT", "no")
             .output()
             .map_err(|e| format!("Could not run git: {e}"))?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
         if output.status.success() {
-            return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
+            return Ok(stdout.into_owned());
         }
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let message = stderr.trim();
-        if message.contains("terminal prompts disabled")
-            || message.contains("could not read Username")
-        {
-            return Err(format!(
-                "Git needs your credentials for this remote. Sign in once with git in a terminal \
-                 (or set up a credential helper), then try again.\n\n{message}"
-            ));
+        Err(error_message(args, &output.status, &stdout, &stderr))
+    }
+
+    /// Run a fetch, pull or push, reporting progress and allowing [`cancel`].
+    fn run_progress(&self, args: &[&str], on_progress: &dyn Fn(Progress)) -> Result<String, Error> {
+        use std::sync::mpsc::{RecvTimeoutError, channel};
+        use std::time::Duration;
+
+        on_progress(Progress {
+            phase: "Connecting".into(),
+            percent: None,
+        });
+        let mut child = command(&self.executable)
+            .arg("-C")
+            .arg(&self.workdir)
+            .args(args)
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .env("GIT_EDITOR", "true")
+            .env("GIT_MERGE_AUTOEDIT", "no")
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Could not run git: {e}"))?;
+        let mut stderr = child.stderr.take().ok_or("Could not read git's output")?;
+        let stdout = child.stdout.take().ok_or("Could not read git's output")?;
+
+        // git's helper processes share its output pipes and can outlive it when it's
+        // cancelled, so the pipes are read on their own threads and never waited for
+        // once git itself has exited.
+        let (lines, received) = channel::<String>();
+        std::thread::spawn(move || {
+            let mut line = Vec::new();
+            let mut chunk = [0u8; 4096];
+            while let Ok(read) = stderr.read(&mut chunk) {
+                if read == 0 {
+                    break;
+                }
+                for &byte in &chunk[..read] {
+                    // git redraws its progress with carriage returns, so split on those too.
+                    if byte == b'\r' || byte == b'\n' {
+                        let _ = lines.send(String::from_utf8_lossy(&line).into_owned());
+                        line.clear();
+                    } else {
+                        line.push(byte);
+                    }
+                }
+            }
+            let _ = lines.send(String::from_utf8_lossy(&line).into_owned());
+        });
+        let (output, output_received) = channel::<String>();
+        std::thread::spawn(move || {
+            let mut text = String::new();
+            let _ = std::io::BufReader::new(stdout).read_to_string(&mut text);
+            let _ = output.send(text);
+        });
+
+        let child = Arc::new(Mutex::new(child));
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
+        RUNNING
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(Running {
+                id,
+                child: child.clone(),
+                cancelled: cancelled.clone(),
+            });
+
+        let mut messages = String::new();
+        let mut last: Option<(String, u8)> = None;
+        let mut handle = |text: String| {
+            if let Some(progress) = parse_progress(&text) {
+                if last.as_ref() != Some(&progress) {
+                    on_progress(Progress {
+                        phase: progress.0.clone(),
+                        percent: Some(progress.1),
+                    });
+                    last = Some(progress);
+                }
+            } else if !text.trim().is_empty() && !is_progress_noise(&text) {
+                messages.push_str(text.trim_end());
+                messages.push('\n');
+            }
+        };
+        let exited = |child: &Arc<Mutex<Child>>| {
+            child
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .try_wait()
+                .map_err(|e| format!("Could not run git: {e}"))
+        };
+        let status = loop {
+            match received.recv_timeout(Duration::from_millis(50)) {
+                Ok(text) => handle(text),
+                Err(RecvTimeoutError::Timeout) => {
+                    if let Some(status) = exited(&child)? {
+                        break status;
+                    }
+                }
+                Err(RecvTimeoutError::Disconnected) => {
+                    if let Some(status) = exited(&child)? {
+                        break status;
+                    }
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+            }
+        };
+        RUNNING
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .retain(|run| run.id != id);
+        if cancelled.load(Ordering::SeqCst) {
+            return Err("Cancelled.".into());
         }
-        Err(if message.is_empty() {
-            format!("git {} failed ({})", args.join(" "), output.status)
-        } else {
-            message.to_owned()
-        })
+
+        // Whatever git wrote just before exiting.
+        while let Ok(text) = received.recv_timeout(Duration::from_millis(200)) {
+            handle(text);
+        }
+        let stdout = output_received
+            .recv_timeout(Duration::from_secs(2))
+            .unwrap_or_default();
+        if status.success() {
+            return Ok(stdout);
+        }
+        Err(error_message(args, &status, &stdout, &messages))
+    }
+}
+
+/// git's error output, made a little friendlier.
+fn error_message(
+    args: &[&str],
+    status: &std::process::ExitStatus,
+    stdout: &str,
+    stderr: &str,
+) -> String {
+    // Merges report their conflicts on standard output.
+    let conflicts: Vec<&str> = stdout
+        .lines()
+        .filter(|line| line.starts_with("CONFLICT") || line.starts_with("Automatic merge failed"))
+        .collect();
+    let message = [conflicts.join("\n"), stderr.trim().to_owned()]
+        .into_iter()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+    if message.contains("terminal prompts disabled") || message.contains("could not read Username")
+    {
+        return format!(
+            "Git needs your credentials for this remote. Sign in once with git in a terminal \
+             (or set up a credential helper), then try again.\n\n{message}"
+        );
+    }
+    if message.is_empty() {
+        format!("git {} failed ({status})", args.join(" "))
+    } else {
+        message
     }
 }
 
@@ -575,4 +916,44 @@ fn command(executable: &Path) -> Command {
         command.creation_flags(CREATE_NO_WINDOW);
     }
     command
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_progress_lines() {
+        assert_eq!(
+            parse_progress("Receiving objects:  45% (450/1000), 1.2 MiB | 2.0 MiB/s"),
+            Some(("Receiving objects".into(), 45))
+        );
+        assert_eq!(
+            parse_progress("remote: Compressing objects: 100% (3/3), done."),
+            Some(("Compressing objects".into(), 100))
+        );
+        assert_eq!(parse_progress("To github.com:someone/repo.git"), None);
+        assert_eq!(
+            parse_progress(" ! [rejected]        main -> main (fetch first)"),
+            None
+        );
+        assert_eq!(parse_progress("error: failed to push some refs"), None);
+    }
+
+    #[test]
+    fn leaves_progress_chatter_out_of_error_messages() {
+        assert!(is_progress_noise("remote: Enumerating objects: 5, done."));
+        assert!(is_progress_noise(
+            "remote: Total 3 (delta 0), reused 0 (delta 0)"
+        ));
+        assert!(is_progress_noise(
+            "Writing objects: 100% (3/3), 280 bytes | 280.00 KiB/s, done."
+        ));
+        assert!(!is_progress_noise(
+            "error: failed to push some refs to 'origin'"
+        ));
+        assert!(!is_progress_noise(
+            "hint: Updates were rejected because the remote contains work"
+        ));
+    }
 }
