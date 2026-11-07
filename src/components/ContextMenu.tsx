@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { CheckIcon } from "./Icons";
 
 export interface MenuItem {
   label: string;
@@ -8,6 +9,10 @@ export interface MenuItem {
   danger?: boolean;
   /** Draw a divider above this item. */
   separated?: boolean;
+  /** For on/off settings: show a check mark when true. */
+  checked?: boolean;
+  /** A keyboard shortcut to show on the right, like "⌘B". */
+  shortcut?: string;
 }
 
 interface Props {
@@ -67,8 +72,9 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
                 item.onSelect();
               }}
             >
-              <span className="menu-icon">{item.icon}</span>
-              {item.label}
+              <span className="menu-icon">{item.checked ? <CheckIcon /> : item.icon}</span>
+              <span className="menu-label">{item.label}</span>
+              {item.shortcut && <span className="menu-shortcut">{item.shortcut}</span>}
             </button>
           </div>
         ))}

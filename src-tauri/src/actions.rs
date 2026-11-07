@@ -32,13 +32,56 @@ pub enum Action {
         id: String,
         checkout: bool,
     },
-    /// Fetch from every remote.
-    Fetch,
+    /// Fetch from every remote. `background` fetches never show sign-in prompts.
+    Fetch {
+        #[serde(default)]
+        background: bool,
+    },
     /// Pull into the checked-out branch.
     Pull,
     /// Push the checked-out branch, setting its upstream if it has none.
     /// `force` uses `--force-with-lease`.
     Push { force: bool },
+    /// Stash uncommitted changes, run `action`, then put the changes back.
+    StashAndRetry {
+        action: Box<Action>,
+        #[serde(default, rename = "includeUntracked")]
+        include_untracked: bool,
+    },
+    /// `git stash push`.
+    StashPush {
+        message: Option<String>,
+        #[serde(default, rename = "includeUntracked")]
+        include_untracked: bool,
+    },
+    /// Apply `stash@{index}`, which must be the stash commit `id`, and keep it.
+    StashApply { index: usize, id: String },
+    /// Apply `stash@{index}` and remove it from the stash list.
+    StashPop { index: usize, id: String },
+    /// Remove `stash@{index}` without applying it.
+    StashDrop { index: usize, id: String },
+    /// Stage files (`git add`).
+    Stage { paths: Vec<String> },
+    /// Unstage files, keeping their changes in the working tree.
+    Unstage { paths: Vec<String> },
+    /// Stage every change, including untracked files.
+    StageAll,
+    /// Unstage everything.
+    UnstageAll,
+    /// Commit the staged changes, or amend the last commit.
+    Commit { message: String, amend: bool },
+    /// `git reset --soft <id>`: move the branch, keeping all changes staged.
+    ResetSoft { id: String },
+    /// Delete a local branch. Without `force`, git refuses if it isn't merged.
+    DeleteBranch { name: String, force: bool },
+    /// Delete a branch like `origin/feature` from its remote.
+    DeleteRemoteBranch { name: String },
+    /// Rename a local branch.
+    RenameBranch {
+        name: String,
+        #[serde(rename = "newName")]
+        new_name: String,
+    },
 }
 
 /// Run `action` and return a short message saying what happened.
@@ -91,11 +134,17 @@ pub fn run(path: &Path, action: Action) -> Result<String, Error> {
                 Ok(format!("Created {name}"))
             }
         }
-        Action::Fetch => {
+        Action::Fetch { background } => {
             if repo.remote_names().is_empty() {
                 return Err("This repository has no remotes to fetch from.".into());
             }
-            git.run(&["fetch", "--all", "--prune", "--quiet"])?;
+            let args = ["fetch", "--all", "--prune", "--quiet"];
+            if background {
+                // Nobody asked for this fetch, so never pop up a sign-in window for it.
+                git.run_with_env(&args, &[("GCM_INTERACTIVE", "never")])?;
+            } else {
+                git.run(&args)?;
+            }
             Ok("Fetched from all remotes".into())
         }
         Action::Pull => {
@@ -142,7 +191,209 @@ pub fn run(path: &Path, action: Action) -> Result<String, Error> {
                 if force { "Force pushed" } else { "Pushed" }
             ))
         }
+        Action::StashAndRetry {
+            action,
+            include_untracked,
+        } => {
+            if matches!(*action, Action::StashAndRetry { .. }) {
+                return Err("Nested retries aren't supported.".into());
+            }
+            let before = stash_top(&git);
+            let mut args = vec![
+                "stash",
+                "push",
+                "--quiet",
+                "--message",
+                "Tributary: stashed to retry",
+            ];
+            if include_untracked {
+                args.push("--include-untracked");
+            }
+            git.run(&args)?;
+            if stash_top(&git) == before {
+                // Nothing was stashed after all.
+                return run(path, *action);
+            }
+            match run(path, *action) {
+                Err(error) => match pop_stash(&git) {
+                    Ok(()) => Err(error),
+                    Err(_) => Err(format!(
+                        "{error}\n\nYour changes couldn't be put back automatically. They're saved as stash@{{0}}."
+                    )),
+                },
+                Ok(message) => match pop_stash(&git) {
+                    Ok(()) => Ok(format!("{message}, and put your changes back")),
+                    Err(conflict) => Err(format!(
+                        "{message}, but your changes conflict with it. Resolve the conflicts in the marked files; \
+                         your changes are also still saved as stash@{{0}}.\n\n{conflict}"
+                    )),
+                },
+            }
+        }
+        Action::StashPush {
+            message,
+            include_untracked,
+        } => {
+            let before = stash_top(&git);
+            let mut args = vec!["stash", "push", "--quiet"];
+            if include_untracked {
+                args.push("--include-untracked");
+            }
+            let message = message
+                .map(|m| m.trim().to_owned())
+                .filter(|m| !m.is_empty());
+            if let Some(message) = &message {
+                args.extend(["--message", message]);
+            }
+            git.run(&args)?;
+            if stash_top(&git) == before {
+                return Err("There are no changes to stash.".into());
+            }
+            Ok("Stashed your changes as stash@{0}".into())
+        }
+        Action::StashApply { index, id } => {
+            let name = stash_name(&git, index, &id)?;
+            git.run(&["stash", "apply", "--quiet", &name])?;
+            Ok(format!("Applied {name}"))
+        }
+        Action::StashPop { index, id } => {
+            let name = stash_name(&git, index, &id)?;
+            git.run(&["stash", "pop", "--quiet", &name])?;
+            Ok(format!("Applied and removed {name}"))
+        }
+        Action::StashDrop { index, id } => {
+            let name = stash_name(&git, index, &id)?;
+            git.run(&["stash", "drop", "--quiet", &name])?;
+            Ok(format!("Dropped {name}"))
+        }
+        Action::Stage { paths } => {
+            let paths = check_paths(&paths)?;
+            let mut args = vec!["add", "--"];
+            args.extend(&paths);
+            git.run(&args)?;
+            Ok(format!("Staged {}", count(paths.len(), "file")))
+        }
+        Action::Unstage { paths } => {
+            let paths = check_paths(&paths)?;
+            let mut args = if repo.head_id().is_ok() {
+                vec!["restore", "--staged", "--"]
+            } else {
+                // Nothing is committed yet, so there's no HEAD to restore from.
+                vec!["rm", "--cached", "--quiet", "-r", "--"]
+            };
+            args.extend(&paths);
+            git.run(&args)?;
+            Ok(format!("Unstaged {}", count(paths.len(), "file")))
+        }
+        Action::StageAll => {
+            git.run(&["add", "--all"])?;
+            Ok("Staged all changes".into())
+        }
+        Action::UnstageAll => {
+            if repo.head_id().is_ok() {
+                git.run(&["reset", "--quiet"])?;
+            } else {
+                git.run(&["rm", "--cached", "--quiet", "-r", "."])?;
+            }
+            Ok("Unstaged all changes".into())
+        }
+        Action::Commit { message, amend } => {
+            let message = message.trim();
+            if message.is_empty() {
+                return Err("Write a commit message first.".into());
+            }
+            let mut args = vec!["commit", "--quiet", "--cleanup=strip", "--message", message];
+            if amend {
+                args.push("--amend");
+            }
+            git.run(&args)?;
+            let id = git.run(&["rev-parse", "--short", "HEAD"])?;
+            let summary = message.lines().next().unwrap_or_default();
+            Ok(format!(
+                "{} {}: {summary}",
+                if amend { "Amended" } else { "Committed" },
+                id.trim()
+            ))
+        }
+        Action::ResetSoft { id } => {
+            let id = commit_id(&repo, &id)?;
+            let branch = current_branch(&repo).unwrap_or_else(|_| "HEAD".into());
+            git.run(&["reset", "--soft", "--quiet", &id.to_string()])?;
+            Ok(format!(
+                "Moved {branch} back to {}; the changes are staged",
+                id.to_hex_with_len(7)
+            ))
+        }
+        Action::DeleteBranch { name, force } => {
+            require_ref(&repo, &format!("refs/heads/{name}"), &name)?;
+            if current_branch(&repo).ok().as_deref() == Some(name.as_str()) {
+                return Err(format!(
+                    "{name} is checked out. Check out another branch first."
+                ));
+            }
+            git.run(&["branch", if force { "-D" } else { "-d" }, &name])?;
+            Ok(format!("Deleted branch {name}"))
+        }
+        Action::DeleteRemoteBranch { name } => {
+            require_ref(&repo, &format!("refs/remotes/{name}"), &name)?;
+            let (remote, branch) = name
+                .split_once('/')
+                .ok_or_else(|| format!("{name} isn't a remote branch."))?;
+            let is_remote = repo
+                .remote_names()
+                .iter()
+                .any(|known| known.to_str_lossy() == remote);
+            if !is_remote || branch.starts_with('-') {
+                return Err(format!("{name} isn't a remote branch."));
+            }
+            git.run(&["push", "--quiet", remote, "--delete", branch])?;
+            Ok(format!("Deleted {branch} from {remote}"))
+        }
+        Action::RenameBranch { name, new_name } => {
+            require_ref(&repo, &format!("refs/heads/{name}"), &name)?;
+            let new_name = new_name.trim();
+            check_new_branch_name(&repo, &git, new_name)?;
+            git.run(&["branch", "--move", &name, new_name])?;
+            Ok(format!("Renamed {name} to {new_name}"))
+        }
     }
+}
+
+/// The id of the newest stash, if there is one.
+fn stash_top(git: &Git) -> Option<String> {
+    git.run(&["rev-parse", "--quiet", "--verify", "refs/stash"])
+        .ok()
+}
+
+/// Put the newest stash back, with its staged changes staged again when possible.
+fn pop_stash(git: &Git) -> Result<(), Error> {
+    match git.run(&["stash", "pop", "--quiet", "--index"]) {
+        Err(error) if error.contains("--index") => git.run(&["stash", "pop", "--quiet"]).map(drop),
+        result => result.map(drop),
+    }
+}
+
+/// `stash@{index}`, after checking that it still is the stash the user picked.
+fn stash_name(git: &Git, index: usize, id: &str) -> Result<String, Error> {
+    let name = format!("stash@{{{index}}}");
+    let actual = git
+        .run(&["rev-parse", "--quiet", "--verify", &name])
+        .unwrap_or_default();
+    if actual.trim() != id {
+        return Err("The stash list changed. Refresh and try again.".into());
+    }
+    Ok(name)
+}
+
+fn check_paths(paths: &[String]) -> Result<Vec<&str>, Error> {
+    if paths.is_empty() {
+        return Err("No files given.".into());
+    }
+    Ok(paths.iter().map(String::as_str).collect())
+}
+
+fn count(n: usize, word: &str) -> String {
+    format!("{n} {word}{}", if n == 1 { "" } else { "s" })
 }
 
 /// The full id of an existing commit, from its full hex id.
@@ -277,10 +528,15 @@ impl Git {
 
     /// Run git with `args`, returning its output, or its error message.
     fn run(&self, args: &[&str]) -> Result<String, Error> {
+        self.run_with_env(args, &[])
+    }
+
+    fn run_with_env(&self, args: &[&str], env: &[(&str, &str)]) -> Result<String, Error> {
         let output = command(&self.executable)
             .arg("-C")
             .arg(&self.workdir)
             .args(args)
+            .envs(env.iter().copied())
             // Nobody can answer a prompt or edit a message here: fail or accept the default.
             .env("GIT_TERMINAL_PROMPT", "0")
             .env("GIT_EDITOR", "true")

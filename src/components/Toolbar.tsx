@@ -15,7 +15,10 @@ import {
   PushIcon,
   RefreshIcon,
   SearchIcon,
+  SidebarIcon,
+  ViewIcon,
 } from "./Icons";
+import { relativeTime } from "../lib/format";
 
 export type RemoteAction = "fetch" | "pull" | "push";
 
@@ -42,6 +45,13 @@ interface Props {
   onRemote: (action: RemoteAction) => void;
   /** Open the push menu (with force push) under the given element. */
   onPushMenu: (anchor: HTMLElement) => void;
+  /** When the last successful fetch finished, in milliseconds since the epoch. */
+  lastFetch: number | null;
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
+  /** Open the recent repositories menu under the given element. */
+  onRepoMenu: (anchor: HTMLElement) => void;
+  onViewMenu: (anchor: HTMLElement) => void;
   onRefresh: () => void;
   onPick: () => void;
   onClose: () => void;
@@ -50,6 +60,8 @@ interface Props {
 export function Toolbar(props: Props) {
   const { snapshot, refreshing, running, ahead, behind, search, searchInput } = props;
   const pushMenuButton = useRef<HTMLButtonElement>(null);
+  const repoButton = useRef<HTMLButtonElement>(null);
+  const viewButton = useRef<HTMLButtonElement>(null);
   const commitCount = snapshot.commits.filter((c) => c.kind === "commit").length;
 
   const hasRemotes = snapshot.remotes.length > 0 && !snapshot.bare;
@@ -73,10 +85,25 @@ export function Toolbar(props: Props) {
   return (
     <header className="toolbar">
       <div className="toolbar-repo">
+        <button
+          className={`icon-button${props.sidebarOpen ? " active" : ""}`}
+          onClick={props.onToggleSidebar}
+          title={`${props.sidebarOpen ? "Hide" : "Show"} branches (${modKey}B)`}
+          aria-label="Toggle the branches sidebar"
+          aria-pressed={props.sidebarOpen}
+        >
+          <SidebarIcon />
+        </button>
         <Logo size={22} outline="#1a1d24" />
-        <span className="repo-name" title={snapshot.path}>
-          {snapshot.name}
-        </span>
+        <button
+          ref={repoButton}
+          className="repo-name"
+          onClick={() => repoButton.current && props.onRepoMenu(repoButton.current)}
+          title={`${snapshot.path}\nClick to switch repository`}
+        >
+          <span>{snapshot.name}</span>
+          <ChevronDownIcon size={12} />
+        </button>
         {snapshot.headBranch ? (
           <span className="head-chip" title="Checked out branch">
             <BranchIcon size={14} />
@@ -155,7 +182,11 @@ export function Toolbar(props: Props) {
           className="tool-button"
           onClick={() => props.onRemote("fetch")}
           disabled={fetchDisabled}
-          title={hasRemotes ? "Fetch from all remotes" : "This repository has no remotes"}
+          title={
+            !hasRemotes
+              ? "This repository has no remotes"
+              : `Fetch from all remotes${props.lastFetch ? ` (last fetched ${relativeTime(props.lastFetch / 1000)})` : ""}`
+          }
         >
           <FetchIcon className={running === "fetch" ? "pulse" : undefined} />
           <span className="label">Fetch</span>
@@ -185,6 +216,15 @@ export function Toolbar(props: Props) {
 
         <span className="toolbar-divider" />
 
+        <button
+          ref={viewButton}
+          className="icon-button"
+          onClick={() => viewButton.current && props.onViewMenu(viewButton.current)}
+          title="View options"
+          aria-label="View options"
+        >
+          <ViewIcon />
+        </button>
         <button
           className="icon-button"
           onClick={props.onRefresh}

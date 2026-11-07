@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { runAction, type CommitRow } from "../api";
+import { runAction, type Action, type CommitRow } from "../api";
+import { involvesUntrackedFiles, isLocalChangesError } from "../lib/errors";
 import { Dialog } from "./Dialog";
 import { CommitRef } from "./ResetDialog";
 
@@ -19,22 +20,35 @@ export function NewBranchDialog({ repoPath, target, canCheckout, onCancel, onDon
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const create = async () => {
-    if (!name.trim() || running) return;
+  const run = async (action: Action) => {
     setRunning(true);
     setError(null);
     try {
-      onDone(await runAction(repoPath, { kind: "createBranch", name: name.trim(), id: target.id, checkout }));
+      onDone(await runAction(repoPath, action));
     } catch (e) {
       setError(String(e));
       setRunning(false);
     }
   };
+  const createAction = (): Action => ({ kind: "createBranch", name: name.trim(), id: target.id, checkout });
+  const create = () => {
+    if (name.trim() && !running) run(createAction());
+  };
+  // Checking out failed because of uncommitted changes: offer to stash them around it.
+  const stashRetry =
+    error && checkout && isLocalChangesError(error)
+      ? {
+          label: "Stash changes and retry",
+          onClick: () =>
+            run({ kind: "stashAndRetry", action: createAction(), includeUntracked: involvesUntrackedFiles(error) }),
+        }
+      : null;
 
   return (
     <Dialog
       title="New branch"
       error={error}
+      errorAction={stashRetry}
       busy={running}
       onCancel={onCancel}
       buttons={

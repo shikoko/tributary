@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { commitDetails, type CommitDetails, type CommitRow, type FileChange, type Person } from "../api";
 import { laneColor, withAlpha } from "../lib/colors";
 import { dateInZone, fullDate, plural, shortId, utcOffset } from "../lib/format";
 import { copyText } from "../lib/clipboard";
 import { Avatar } from "./Avatar";
-import { CheckIcon, CloseIcon, CopyIcon, ResetIcon } from "./Icons";
+import { CheckIcon, CloseIcon, CopyIcon } from "./Icons";
 import { RefPills } from "./RefPills";
 
 /** Very large commits only list their first files, to keep the panel responsive. */
@@ -18,15 +18,21 @@ interface Props {
   hasCommit: (id: string) => boolean;
   onSelect: (id: string) => void;
   onClose: () => void;
-  /** Label of the hard reset button; no button when undefined. */
-  resetLabel?: string;
-  onReset: () => void;
+  /** Buttons shown under the commit's details, like "Hard reset main to this commit…". */
+  actions: DetailsAction[];
+}
+
+export interface DetailsAction {
+  label: string;
+  icon?: ReactNode;
+  danger?: boolean;
+  onClick: () => void;
 }
 
 type Loaded = { id: string; details?: CommitDetails; error?: string };
 
 export function CommitDetailsPanel(props: Props) {
-  const { repoPath, commit, cache, hasCommit, onSelect, onClose, resetLabel, onReset } = props;
+  const { repoPath, commit, cache, hasCommit, onSelect, onClose, actions } = props;
   const [loaded, setLoaded] = useState<Loaded>({ id: commit.id, details: cache.get(commit.id) });
 
   useEffect(() => {
@@ -114,12 +120,18 @@ export function CommitDetailsPanel(props: Props) {
           </dd>
         </dl>
 
-        {resetLabel && (
+        {actions.length > 0 && (
           <div className="details-actions">
-            <button className="danger-outline-button" onClick={onReset}>
-              <ResetIcon size={14} />
-              {resetLabel}
-            </button>
+            {actions.map((action) => (
+              <button
+                key={action.label}
+                className={action.danger ? "danger-outline-button" : "outline-button"}
+                onClick={action.onClick}
+              >
+                {action.icon}
+                {action.label}
+              </button>
+            ))}
           </div>
         )}
 
@@ -181,11 +193,20 @@ const STATUS: Record<FileChange["status"], { letter: string; color: string; labe
   conflicted: { letter: "!", color: "#ff5c6c", label: "Conflicted" },
 };
 
-export function FileLine({ file }: { file: FileChange }) {
+interface FileLineProps {
+  file: FileChange;
+  /** A button shown on hover, like "Stage". */
+  action?: { label: string; icon: ReactNode; onClick: () => void; disabled?: boolean };
+}
+
+export function FileLine({ file, action }: FileLineProps) {
   const status = STATUS[file.status];
-  const slash = file.path.lastIndexOf("/");
-  const name = file.path.slice(slash + 1);
-  const dir = slash >= 0 ? file.path.slice(0, slash) : "";
+  // Untracked folders are listed as "dir/" when everything inside them is new.
+  const isFolder = file.path.endsWith("/");
+  const path = isFolder ? file.path.slice(0, -1) : file.path;
+  const slash = path.lastIndexOf("/");
+  const name = path.slice(slash + 1) + (isFolder ? "/" : "");
+  const dir = slash >= 0 ? path.slice(0, slash) : "";
   const title = file.oldPath ? `${status.label}: ${file.oldPath} → ${file.path}` : `${status.label}: ${file.path}`;
   return (
     <li className="file" title={title}>
@@ -194,6 +215,17 @@ export function FileLine({ file }: { file: FileChange }) {
       </span>
       <span className="file-name">{name}</span>
       {dir && <span className="file-dir">{dir}</span>}
+      {action && (
+        <button
+          className="file-action"
+          onClick={action.onClick}
+          disabled={action.disabled}
+          title={action.label}
+          aria-label={`${action.label} ${file.path}`}
+        >
+          {action.icon}
+        </button>
+      )}
     </li>
   );
 }

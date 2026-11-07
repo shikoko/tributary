@@ -477,7 +477,7 @@ fn pushes_fetches_and_pulls() {
     run(&alice, Action::Push { force: false }).unwrap();
     assert_eq!(remote.git(&["rev-parse", "main"]), second);
 
-    run(&bob, Action::Fetch).unwrap();
+    run(&bob, Action::Fetch { background: false }).unwrap();
     assert_eq!(bob.git(&["rev-parse", "origin/main"]), second);
     assert_eq!(
         bob.git(&["rev-parse", "main"]),
@@ -564,8 +564,376 @@ fn pull_and_push_need_a_branch() {
             .contains("detached")
     );
     assert!(
-        run(&repo, Action::Fetch)
+        run(&repo, Action::Fetch { background: false })
             .unwrap_err()
             .contains("no remotes")
+    );
+}
+
+fn stash_count(repo: &TempRepo) -> usize {
+    repo.git(&["stash", "list"]).lines().count()
+}
+
+fn read(repo: &TempRepo, file: &str) -> String {
+    std::fs::read_to_string(repo.path().join(file)).unwrap()
+}
+
+#[test]
+fn stashes_apply_pop_and_drop() {
+    let mut repo = TempRepo::new("stash-actions");
+    repo.commit("a.txt", "committed");
+    std::fs::write(repo.path().join("a.txt"), "changed").unwrap();
+
+    let message = run(
+        &repo,
+        Action::StashPush {
+            message: Some("Half done".into()),
+            include_untracked: false,
+        },
+    )
+    .unwrap();
+    assert_eq!(message, "Stashed your changes as stash@{0}");
+    assert_eq!(read(&repo, "a.txt"), "committed");
+    assert!(repo.git(&["stash", "list"]).contains("Half done"));
+    let nothing = run(
+        &repo,
+        Action::StashPush {
+            message: None,
+            include_untracked: false,
+        },
+    )
+    .unwrap_err();
+    assert!(nothing.contains("no changes"), "{nothing}");
+
+    let id = repo.git(&["rev-parse", "stash@{0}"]);
+    run(
+        &repo,
+        Action::StashApply {
+            index: 0,
+            id: id.clone(),
+        },
+    )
+    .unwrap();
+    assert_eq!(read(&repo, "a.txt"), "changed");
+    assert_eq!(stash_count(&repo), 1, "apply keeps the stash");
+
+    repo.git(&["checkout", "--", "a.txt"]);
+    run(
+        &repo,
+        Action::StashPop {
+            index: 0,
+            id: id.clone(),
+        },
+    )
+    .unwrap();
+    assert_eq!(read(&repo, "a.txt"), "changed");
+    assert_eq!(stash_count(&repo), 0, "pop removes the stash");
+
+    run(
+        &repo,
+        Action::StashPush {
+            message: None,
+            include_untracked: false,
+        },
+    )
+    .unwrap();
+    let wrong = "0123456789012345678901234567890123456789".to_owned();
+    assert!(
+        run(
+            &repo,
+            Action::StashDrop {
+                index: 0,
+                id: wrong
+            }
+        )
+        .is_err()
+    );
+    let id = repo.git(&["rev-parse", "stash@{0}"]);
+    run(&repo, Action::StashDrop { index: 0, id }).unwrap();
+    assert_eq!(stash_count(&repo), 0);
+}
+
+#[test]
+fn stash_and_retry_puts_changes_back() {
+    let mut repo = TempRepo::new("stash-retry");
+    repo.commit("a.txt", "one\ntwo\nthree\nfour\nfive\n");
+    repo.git(&["branch", "old"]);
+    repo.commit("a.txt", "ONE\ntwo\nthree\nfour\nfive\n");
+    // An uncommitted edit to a file that differs between the branches.
+    std::fs::write(repo.path().join("a.txt"), "ONE\ntwo\nthree\nfour\nFIVE\n").unwrap();
+
+    let refused = run(&repo, Action::CheckoutBranch { name: "old".into() }).unwrap_err();
+    assert!(refused.contains("would be overwritten"), "{refused}");
+
+    let message = run(
+        &repo,
+        Action::StashAndRetry {
+            action: Box::new(Action::CheckoutBranch { name: "old".into() }),
+            include_untracked: false,
+        },
+    )
+    .unwrap();
+    assert_eq!(message, "Checked out old, and put your changes back");
+    assert_eq!(repo.git(&["branch", "--show-current"]), "old");
+    assert_eq!(read(&repo, "a.txt"), "one\ntwo\nthree\nfour\nFIVE\n");
+    assert_eq!(stash_count(&repo), 0);
+}
+
+#[test]
+fn stash_and_retry_keeps_the_stash_when_changes_conflict() {
+    let mut repo = TempRepo::new("stash-retry-conflict");
+    repo.commit("a.txt", "one");
+    repo.git(&["branch", "old"]);
+    repo.commit("a.txt", "two");
+    std::fs::write(repo.path().join("a.txt"), "three").unwrap();
+
+    let error = run(
+        &repo,
+        Action::StashAndRetry {
+            action: Box::new(Action::CheckoutBranch { name: "old".into() }),
+            include_untracked: false,
+        },
+    )
+    .unwrap_err();
+    assert!(error.contains("stash@{0}"), "{error}");
+    assert_eq!(repo.git(&["branch", "--show-current"]), "old");
+    assert_eq!(stash_count(&repo), 1, "the changes are still saved");
+}
+
+#[test]
+fn stages_unstages_commits_and_undoes() {
+    let mut repo = TempRepo::new("commit");
+    let first = repo.commit("a.txt", "first");
+    std::fs::write(repo.path().join("a.txt"), "changed").unwrap();
+    std::fs::write(repo.path().join("b.txt"), "new").unwrap();
+    let staged = |repo: &TempRepo| repo.git(&["diff", "--cached", "--name-only"]);
+
+    run(
+        &repo,
+        Action::Stage {
+            paths: vec!["a.txt".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(staged(&repo), "a.txt");
+    run(
+        &repo,
+        Action::Unstage {
+            paths: vec!["a.txt".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(staged(&repo), "");
+    run(&repo, Action::StageAll).unwrap();
+    assert_eq!(staged(&repo), "a.txt\nb.txt");
+    run(&repo, Action::UnstageAll).unwrap();
+    assert_eq!(staged(&repo), "");
+    assert!(run(&repo, Action::Stage { paths: vec![] }).is_err());
+
+    run(&repo, Action::StageAll).unwrap();
+    assert!(
+        run(
+            &repo,
+            Action::Commit {
+                message: "  ".into(),
+                amend: false
+            }
+        )
+        .is_err()
+    );
+    let message = run(
+        &repo,
+        Action::Commit {
+            message: "Second\n\nWith a body.".into(),
+            amend: false,
+        },
+    )
+    .unwrap();
+    assert!(
+        message.starts_with("Committed ") && message.ends_with(": Second"),
+        "{message}"
+    );
+    assert_eq!(
+        repo.git(&["log", "-1", "--format=%s|%b"]),
+        "Second|With a body."
+    );
+
+    let message = run(
+        &repo,
+        Action::Commit {
+            message: "Second, amended".into(),
+            amend: true,
+        },
+    )
+    .unwrap();
+    assert!(message.starts_with("Amended "), "{message}");
+    assert_eq!(repo.git(&["rev-list", "--count", "HEAD"]), "2");
+    assert_eq!(repo.git(&["log", "-1", "--format=%s"]), "Second, amended");
+
+    // Undo: the commit goes away, its changes stay staged.
+    run(&repo, Action::ResetSoft { id: first.clone() }).unwrap();
+    assert_eq!(repo.git(&["rev-parse", "HEAD"]), first);
+    assert_eq!(staged(&repo), "a.txt\nb.txt");
+}
+
+#[test]
+fn unstages_before_the_first_commit() {
+    let repo = TempRepo::new("unborn");
+    std::fs::write(repo.path().join("a.txt"), "new").unwrap();
+    run(
+        &repo,
+        Action::Stage {
+            paths: vec!["a.txt".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "a.txt");
+    run(
+        &repo,
+        Action::Unstage {
+            paths: vec!["a.txt".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "");
+    run(&repo, Action::StageAll).unwrap();
+    run(&repo, Action::UnstageAll).unwrap();
+    assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "");
+}
+
+#[test]
+fn deletes_and_renames_branches() {
+    let mut repo = TempRepo::new("branch-admin");
+    repo.commit("a.txt", "first");
+    repo.git(&["branch", "merged"]);
+    repo.git(&["switch", "--quiet", "--create", "unmerged"]);
+    repo.commit("b.txt", "only here");
+    repo.git(&["switch", "--quiet", "main"]);
+
+    assert_eq!(
+        run(
+            &repo,
+            Action::DeleteBranch {
+                name: "merged".into(),
+                force: false
+            }
+        )
+        .unwrap(),
+        "Deleted branch merged"
+    );
+    let refused = run(
+        &repo,
+        Action::DeleteBranch {
+            name: "unmerged".into(),
+            force: false,
+        },
+    )
+    .unwrap_err();
+    assert!(refused.contains("not fully merged"), "{refused}");
+    run(
+        &repo,
+        Action::DeleteBranch {
+            name: "unmerged".into(),
+            force: true,
+        },
+    )
+    .unwrap();
+    assert!(repo.git(&["branch", "--list", "unmerged"]).is_empty());
+    assert!(
+        run(
+            &repo,
+            Action::DeleteBranch {
+                name: "main".into(),
+                force: true
+            }
+        )
+        .is_err()
+    );
+
+    repo.git(&["branch", "old-name"]);
+    assert_eq!(
+        run(
+            &repo,
+            Action::RenameBranch {
+                name: "old-name".into(),
+                new_name: "new-name".into()
+            }
+        )
+        .unwrap(),
+        "Renamed old-name to new-name"
+    );
+    assert!(
+        repo.git(&["branch", "--list", "new-name"])
+            .contains("new-name")
+    );
+    assert!(
+        run(
+            &repo,
+            Action::RenameBranch {
+                name: "new-name".into(),
+                new_name: "main".into()
+            }
+        )
+        .is_err()
+    );
+    assert!(
+        run(
+            &repo,
+            Action::RenameBranch {
+                name: "new-name".into(),
+                new_name: "bad name".into()
+            }
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn deletes_remote_branches_and_fetches_in_the_background() {
+    let remote = TempRepo::bare("delete-remote.git");
+    let mut alice = TempRepo::new("delete-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "First");
+    alice.git(&["push", "--quiet", "origin", "main", "main:feature"]);
+    run(&alice, Action::Fetch { background: true }).unwrap();
+    assert!(
+        !alice
+            .git(&["branch", "--remotes", "--list", "origin/feature"])
+            .is_empty()
+    );
+
+    assert_eq!(
+        run(
+            &alice,
+            Action::DeleteRemoteBranch {
+                name: "origin/feature".into()
+            }
+        )
+        .unwrap(),
+        "Deleted feature from origin"
+    );
+    assert!(remote.git(&["branch", "--list", "feature"]).is_empty());
+    assert!(
+        alice
+            .git(&["branch", "--remotes", "--list", "origin/feature"])
+            .is_empty()
+    );
+    assert!(
+        run(
+            &alice,
+            Action::DeleteRemoteBranch {
+                name: "origin/missing".into()
+            }
+        )
+        .is_err()
+    );
+    assert!(
+        run(
+            &alice,
+            Action::DeleteRemoteBranch {
+                name: "main".into()
+            }
+        )
+        .is_err()
     );
 }

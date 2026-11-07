@@ -6,13 +6,15 @@ interface Props {
   /** The buttons, right-aligned at the bottom. */
   buttons: ReactNode;
   error?: string | null;
+  /** A button shown with the error, like "Stash changes and retry". */
+  errorAction?: { label: string; onClick: () => void } | null;
   /** While true, clicking outside or pressing Esc doesn't close the dialog. */
   busy?: boolean;
   onCancel: () => void;
 }
 
 /** A modal dialog. Esc or a click outside cancels it. */
-export function Dialog({ title, children, buttons, error, busy, onCancel }: Props) {
+export function Dialog({ title, children, buttons, error, errorAction, busy, onCancel }: Props) {
   return (
     <div className="dialog-backdrop" onMouseDown={() => !busy && onCancel()}>
       <div
@@ -30,7 +32,16 @@ export function Dialog({ title, children, buttons, error, busy, onCancel }: Prop
       >
         <h2>{title}</h2>
         {children}
-        {error && <div className="error-banner">{error}</div>}
+        {error && (
+          <div className="error-banner">
+            <span>{error}</span>
+            {errorAction && (
+              <button className="error-action" onClick={errorAction.onClick} disabled={busy}>
+                {errorAction.label}
+              </button>
+            )}
+          </div>
+        )}
         <div className="dialog-buttons">{buttons}</div>
       </div>
     </div>

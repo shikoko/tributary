@@ -3,27 +3,33 @@ import { PAGE_SIZE, type CommitRow, type RepoSnapshot } from "../api";
 import { countChanges, type ChangeCounts as Counts } from "../lib/changes";
 import { laneColor } from "../lib/colors";
 import { fullDate, relativeTime, shortId } from "../lib/format";
+import type { RefPill } from "../lib/refs";
 import { Avatar } from "./Avatar";
 import { ChangeCounts } from "./ChangeCounts";
 import { laneX, paintGraph, type GraphMetrics } from "./graphPainter";
 import { RefPills } from "./RefPills";
+import { ResizeHandle } from "./ResizeHandle";
 
 const ROW_HEIGHT = 30;
+const DENSE_ROW_HEIGHT = 24;
 const LANE_WIDTH = 20;
 const GRAPH_PADDING = 10;
-const METRICS: GraphMetrics = { rowHeight: ROW_HEIGHT, laneWidth: LANE_WIDTH, padding: GRAPH_PADDING };
-/** Width of the branch and tag column, left of the graph. */
+/** Default width of the branch and tag column, left of the graph. */
 const REFS_WIDTH = 180;
-const COMPACT_REFS_WIDTH = 120;
+const NARROW_REFS_WIDTH = 120;
+const MIN_REFS_WIDTH = 80;
+const MAX_REFS_WIDTH = 400;
 /** Space between a label and the right edge of the branch and tag column. */
 const REFS_PADDING = 8;
 const MIN_GRAPH_WIDTH = 72;
 const MAX_GRAPH_WIDTH = 320;
+/** How wide the graph column can be dragged. */
+const MAX_DRAGGED_GRAPH_WIDTH = 800;
 /** Rows rendered above and below the visible area, so fast scrolling doesn't flash. */
 const OVERSCAN = 12;
 const FOOTER_HEIGHT = 56;
 /** Below this width the SHA column and author names are hidden. */
-const COMPACT_WIDTH = 760;
+const NARROW_WIDTH = 760;
 /** The graph gets narrower before the commit message column goes below this width. */
 const MIN_MESSAGE_WIDTH = 200;
 
@@ -31,25 +37,46 @@ const MIN_MESSAGE_WIDTH = 200;
 const BACKGROUND = "#14161b";
 const SELECTED_BACKGROUND = "#252b38";
 
+/** Column widths chosen by dragging; null means automatic. */
+export interface ColumnWidths {
+  refs: number | null;
+  graph: number | null;
+}
+
 interface Props {
   snapshot: RepoSnapshot;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   /** While searching: the ids of the matching commits. Other rows are dimmed. */
   matchIds: Set<string> | null;
+  /** Smaller rows, to see more at once. */
+  dense: boolean;
+  columnWidths: ColumnWidths;
+  onColumnWidths: (widths: ColumnWidths) => void;
   /** Right-click on a row, at window coordinates (x, y). */
   onContextMenu: (commit: CommitRow, x: number, y: number) => void;
+  /** Double-click on a branch label. */
+  onPillActivate: (pill: RefPill, commit: CommitRow) => void;
+  onPillContextMenu: (pill: RefPill, commit: CommitRow, x: number, y: number) => void;
   onLoadMore: () => void;
   loadingMore: boolean;
 }
 
+const clamp = (value: number, min: number, max: number) => Math.round(Math.min(max, Math.max(min, value)));
+
 export function CommitList(props: Props) {
-  const { snapshot, selectedId, onSelect, matchIds, onContextMenu, onLoadMore, loadingMore } = props;
+  const { snapshot, selectedId, onSelect, matchIds, dense, columnWidths, onColumnWidths, onLoadMore, loadingMore } =
+    props;
   const { commits, headCommit } = snapshot;
   const scroller = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
+  /** Column widths when a drag started. */
+  const dragStart = useRef({ refs: 0, graph: 0 });
   const [scrollTop, setScrollTop] = useState(0);
   const [viewport, setViewport] = useState({ width: 0, height: 0, scrollbar: 0 });
+
+  const rowHeight = dense ? DENSE_ROW_HEIGHT : ROW_HEIGHT;
+  const metrics: GraphMetrics = { rowHeight, laneWidth: LANE_WIDTH, padding: GRAPH_PADDING };
 
   const indexById = useMemo(() => new Map(commits.map((commit, index) => [commit.id, index])), [commits]);
   const changeCounts = useMemo(
@@ -58,16 +85,19 @@ export function CommitList(props: Props) {
   );
   const selectedIndex = selectedId ? (indexById.get(selectedId) ?? -1) : -1;
 
-  const compact = viewport.width > 0 && viewport.width < COMPACT_WIDTH;
-  const refsWidth = compact ? COMPACT_REFS_WIDTH : REFS_WIDTH;
-  const otherColumns = compact ? 44 + 104 : 180 + 128 + 80;
-  // Wide enough for every lane, but leave room for the commit message in narrow windows.
-  const graphWidth = Math.min(
-    MAX_GRAPH_WIDTH,
-    Math.max(MIN_GRAPH_WIDTH, GRAPH_PADDING * 2 + snapshot.laneCount * LANE_WIDTH),
-    Math.max(MIN_GRAPH_WIDTH, viewport.width - refsWidth - otherColumns - MIN_MESSAGE_WIDTH),
-  );
-  const columns = compact
+  const narrow = viewport.width > 0 && viewport.width < NARROW_WIDTH;
+  const refsWidth = columnWidths.refs ?? (narrow ? NARROW_REFS_WIDTH : REFS_WIDTH);
+  const otherColumns = narrow ? 44 + 104 : 180 + 128 + 80;
+  // Wide enough for every lane, but leave room for the commit message in narrow windows,
+  // unless a width was chosen by dragging.
+  const graphWidth =
+    columnWidths.graph ??
+    Math.min(
+      MAX_GRAPH_WIDTH,
+      Math.max(MIN_GRAPH_WIDTH, GRAPH_PADDING * 2 + snapshot.laneCount * LANE_WIDTH),
+      Math.max(MIN_GRAPH_WIDTH, viewport.width - refsWidth - otherColumns - MIN_MESSAGE_WIDTH),
+    );
+  const columns = narrow
     ? `${refsWidth}px ${graphWidth}px minmax(0, 1fr) 44px 104px`
     : `${refsWidth}px ${graphWidth}px minmax(0, 1fr) 180px 128px 80px`;
 
@@ -87,15 +117,15 @@ export function CommitList(props: Props) {
     return () => observer.disconnect();
   }, []);
 
-  const first = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
-  const last = Math.min(commits.length, Math.ceil((scrollTop + viewport.height) / ROW_HEIGHT) + OVERSCAN);
+  const first = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN);
+  const last = Math.min(commits.length, Math.ceil((scrollTop + viewport.height) / rowHeight) + OVERSCAN);
 
   // Draw the graph for the rendered rows.
   useLayoutEffect(() => {
     const element = canvas.current;
     if (!element) return;
     const ratio = window.devicePixelRatio || 1;
-    const height = Math.max(0, last - first) * ROW_HEIGHT;
+    const height = Math.max(0, last - first) * rowHeight;
     const pixelWidth = Math.ceil(graphWidth * ratio);
     const pixelHeight = Math.ceil(height * ratio);
     if (element.width !== pixelWidth) element.width = pixelWidth;
@@ -108,37 +138,39 @@ export function CommitList(props: Props) {
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, graphWidth, height);
     paintGraph(ctx, commits, first, last, {
-      ...METRICS,
+      rowHeight,
+      laneWidth: LANE_WIDTH,
+      padding: GRAPH_PADDING,
       headId: headCommit,
       selectedId,
       background: BACKGROUND,
       selectedBackground: SELECTED_BACKGROUND,
     });
-  }, [commits, first, last, graphWidth, headCommit, selectedId]);
+  }, [commits, first, last, graphWidth, headCommit, selectedId, rowHeight]);
 
   // Bring the selected commit into view when it changes.
   useEffect(() => {
     const element = scroller.current;
     if (!element || selectedIndex < 0) return;
-    const top = selectedIndex * ROW_HEIGHT;
-    const bottom = top + ROW_HEIGHT;
+    const top = selectedIndex * rowHeight;
+    const bottom = top + rowHeight;
     const viewTop = element.scrollTop;
     const viewBottom = viewTop + element.clientHeight;
     if (top >= viewTop && bottom <= viewBottom) return;
-    const nearby = top >= viewTop - ROW_HEIGHT && bottom <= viewBottom + ROW_HEIGHT;
+    const nearby = top >= viewTop - rowHeight && bottom <= viewBottom + rowHeight;
     if (!nearby) {
       // A jump (for example to a parent commit): centre it.
-      element.scrollTop = top - element.clientHeight / 2 + ROW_HEIGHT / 2;
+      element.scrollTop = top - element.clientHeight / 2 + rowHeight / 2;
     } else if (top < viewTop) {
       element.scrollTop = top;
     } else {
       element.scrollTop = bottom - element.clientHeight;
     }
-  }, [selectedIndex]);
+  }, [selectedIndex, rowHeight]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (commits.length === 0) return;
-    const page = Math.max(1, Math.floor(viewport.height / ROW_HEIGHT) - 1);
+    const page = Math.max(1, Math.floor(viewport.height / rowHeight) - 1);
     const moves: Record<string, number> = {
       ArrowDown: 1,
       ArrowUp: -1,
@@ -159,6 +191,8 @@ export function CommitList(props: Props) {
     event.preventDefault();
   };
 
+  const startDrag = () => (dragStart.current = { refs: refsWidth, graph: graphWidth });
+
   const rows = [];
   for (let index = first; index < last; index++) {
     const commit = commits[index];
@@ -166,33 +200,59 @@ export function CommitList(props: Props) {
       <Row
         key={commit.id}
         commit={commit}
-        top={index * ROW_HEIGHT}
+        top={index * rowHeight}
+        height={rowHeight}
+        metrics={metrics}
         columns={columns}
         refsWidth={refsWidth}
         graphWidth={graphWidth}
         changes={commit.kind === "worktree" ? changeCounts : undefined}
-        compact={compact}
+        narrow={narrow}
+        dense={dense}
         selected={index === selectedIndex}
         dimmed={matchIds !== null && !matchIds.has(commit.id)}
         onSelect={onSelect}
-        onContextMenu={onContextMenu}
+        onContextMenu={props.onContextMenu}
+        onPillActivate={props.onPillActivate}
+        onPillContextMenu={props.onPillContextMenu}
       />,
     );
   }
 
   return (
-    <section className="commit-list" aria-label="Commits">
+    <section className={`commit-list${dense ? " dense" : ""}`} aria-label="Commits">
       <div
         className="list-header"
         style={{ gridTemplateColumns: columns, paddingRight: viewport.scrollbar }}
         role="presentation"
       >
-        <div className="refs-heading">Branch / Tag</div>
-        <div>Graph</div>
+        <div className="refs-heading">
+          Branch / Tag
+          <ResizeHandle
+            onResizeStart={startDrag}
+            onResize={(delta) =>
+              onColumnWidths({ ...columnWidths, refs: clamp(dragStart.current.refs + delta, MIN_REFS_WIDTH, MAX_REFS_WIDTH) })
+            }
+            onReset={() => onColumnWidths({ ...columnWidths, refs: null })}
+          />
+        </div>
+        <div className="graph-heading">
+          Graph
+          <ResizeHandle
+            onResizeStart={startDrag}
+            onResize={(delta) =>
+              onColumnWidths({
+                ...columnWidths,
+                graph: clamp(dragStart.current.graph + delta, MIN_GRAPH_WIDTH, MAX_DRAGGED_GRAPH_WIDTH),
+              })
+            }
+            onReset={() => onColumnWidths({ ...columnWidths, graph: null })}
+          />
+        </div>
         <div>Message</div>
-        <div>{compact ? "" : "Author"}</div>
+        <div>{narrow ? "" : "Author"}</div>
         <div>Date</div>
-        {!compact && <div>SHA</div>}
+        {!narrow && <div>SHA</div>}
       </div>
       <div
         ref={scroller}
@@ -208,12 +268,12 @@ export function CommitList(props: Props) {
         ) : (
           <div
             className="list-spacer"
-            style={{ height: commits.length * ROW_HEIGHT + (snapshot.truncated ? FOOTER_HEIGHT : 0) }}
+            style={{ height: commits.length * rowHeight + (snapshot.truncated ? FOOTER_HEIGHT : 0) }}
           >
             {rows}
-            <canvas ref={canvas} className="graph-canvas" style={{ top: first * ROW_HEIGHT, left: refsWidth }} />
+            <canvas ref={canvas} className="graph-canvas" style={{ top: first * rowHeight, left: refsWidth }} />
             {snapshot.truncated && (
-              <div className="list-footer" style={{ top: commits.length * ROW_HEIGHT, height: FOOTER_HEIGHT }}>
+              <div className="list-footer" style={{ top: commits.length * rowHeight, height: FOOTER_HEIGHT }}>
                 <span>Showing the {commits.length.toLocaleString()} most recent commits.</span>
                 <button className="tool-button" onClick={onLoadMore} disabled={loadingMore}>
                   {loadingMore ? "Loading…" : `Load ${PAGE_SIZE.toLocaleString()} more`}
@@ -230,33 +290,39 @@ export function CommitList(props: Props) {
 interface RowProps {
   commit: CommitRow;
   top: number;
+  height: number;
+  metrics: GraphMetrics;
   columns: string;
   refsWidth: number;
   graphWidth: number;
   /** For the uncommitted changes row: how many files changed. */
   changes?: Counts;
-  compact: boolean;
+  narrow: boolean;
+  dense: boolean;
   selected: boolean;
   /** Not a search match. */
   dimmed: boolean;
   onSelect: (id: string) => void;
   onContextMenu: (commit: CommitRow, x: number, y: number) => void;
+  onPillActivate: (pill: RefPill, commit: CommitRow) => void;
+  onPillContextMenu: (pill: RefPill, commit: CommitRow, x: number, y: number) => void;
 }
 
 function Row(props: RowProps) {
-  const { commit, top, columns, refsWidth, graphWidth, changes, compact, selected, dimmed, onSelect, onContextMenu } =
+  const { commit, top, height, metrics, columns, refsWidth, graphWidth, changes, narrow, dense, selected, dimmed } =
     props;
+  const { onSelect, onContextMenu } = props;
   const color = laneColor(commit.graph.column);
   // A line from the label to the commit's node in the graph.
   const connectorStart = refsWidth - REFS_PADDING;
-  const connectorEnd = refsWidth + Math.min(laneX(commit.graph.column, METRICS), graphWidth);
+  const connectorEnd = refsWidth + Math.min(laneX(commit.graph.column, metrics), graphWidth);
   return (
     <div
       id={`commit-${commit.id}`}
       className={`commit-row${selected ? " selected" : ""}${dimmed ? " dimmed" : ""}`}
       style={{
         top,
-        height: ROW_HEIGHT,
+        height,
         gridTemplateColumns: columns,
         boxShadow: selected ? `inset 3px 0 0 ${color}` : undefined,
       }}
@@ -270,7 +336,16 @@ function Row(props: RowProps) {
       aria-selected={selected}
     >
       <div className="cell refs-cell">
-        <RefPills refs={commit.refs} color={color} limit={1} />
+        <RefPills
+          refs={commit.refs}
+          color={color}
+          limit={1}
+          onActivate={(pill) => props.onPillActivate(pill, commit)}
+          onContextMenu={(pill, x, y) => {
+            onSelect(commit.id);
+            props.onPillContextMenu(pill, commit, x, y);
+          }}
+        />
       </div>
       {commit.refs.length > 0 && (
         <span
@@ -287,7 +362,7 @@ function Row(props: RowProps) {
           </div>
           <div />
           <div />
-          {!compact && <div />}
+          {!narrow && <div />}
         </>
       ) : (
         <>
@@ -300,13 +375,13 @@ function Row(props: RowProps) {
             </span>
           </div>
           <div className="cell author" title={`${commit.authorName} <${commit.authorEmail}>`}>
-            <Avatar name={commit.authorName} email={commit.authorEmail} size={22} />
-            {!compact && <span className="author-name">{commit.authorName}</span>}
+            <Avatar name={commit.authorName} email={commit.authorEmail} size={dense ? 18 : 22} />
+            {!narrow && <span className="author-name">{commit.authorName}</span>}
           </div>
           <div className="cell date" title={fullDate(commit.time)}>
             {relativeTime(commit.time)}
           </div>
-          {!compact && <div className="cell sha">{shortId(commit.id)}</div>}
+          {!narrow && <div className="cell sha">{shortId(commit.id)}</div>}
         </>
       )}
     </div>

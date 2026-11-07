@@ -10,9 +10,12 @@ interface Props {
   color: string;
   /** Show at most this many pills, followed by a "+N" pill. */
   limit?: number;
+  /** Double-click on a label: check it out. */
+  onActivate?: (pill: RefPill) => void;
+  onContextMenu?: (pill: RefPill, x: number, y: number) => void;
 }
 
-export function RefPills({ refs, color, limit }: Props) {
+export function RefPills({ refs, color, limit, onActivate, onContextMenu }: Props) {
   const pills = useMemo(() => refPills(refs), [refs]);
   if (pills.length === 0) return null;
   const shown = limit ? pills.slice(0, limit) : pills;
@@ -21,7 +24,7 @@ export function RefPills({ refs, color, limit }: Props) {
   return (
     <span className="ref-pills">
       {shown.map((pill) => (
-        <Pill key={pill.key} pill={pill} color={color} />
+        <Pill key={pill.key} pill={pill} color={color} onActivate={onActivate} onContextMenu={onContextMenu} />
       ))}
       {hidden.length > 0 && (
         <span className="ref-pill more" title={hidden.map(describePill).join("\n")}>
@@ -32,7 +35,14 @@ export function RefPills({ refs, color, limit }: Props) {
   );
 }
 
-function Pill({ pill, color }: { pill: RefPill; color: string }) {
+interface PillProps {
+  pill: RefPill;
+  color: string;
+  onActivate?: (pill: RefPill) => void;
+  onContextMenu?: (pill: RefPill, x: number, y: number) => void;
+}
+
+function Pill({ pill, color, onActivate, onContextMenu }: PillProps) {
   const style = pill.current
     ? { background: color, borderColor: color, color: "#0d0f13" }
     : pill.kind === "tag" || pill.kind === "stash"
@@ -40,7 +50,22 @@ function Pill({ pill, color }: { pill: RefPill; color: string }) {
       : { background: withAlpha(color, 0.2), borderColor: withAlpha(color, 0.65) };
 
   return (
-    <span className={`ref-pill ${pill.kind}${pill.current ? " current" : ""}`} style={style} title={describePill(pill)}>
+    <span
+      className={`ref-pill ${pill.kind}${pill.current ? " current" : ""}`}
+      style={style}
+      title={describePill(pill) + (onActivate && pill.kind === "branch" && !pill.current ? " — double-click to check out" : "")}
+      onDoubleClick={(event) => {
+        if (!onActivate) return;
+        event.stopPropagation();
+        onActivate(pill);
+      }}
+      onContextMenu={(event) => {
+        if (!onContextMenu) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onContextMenu(pill, event.clientX, event.clientY);
+      }}
+    >
       {pill.current && <CheckIcon size={12} strokeWidth={2.2} />}
       {pill.kind === "tag" && <TagIcon size={12} />}
       {pill.kind === "head" && <CommitIcon size={12} />}

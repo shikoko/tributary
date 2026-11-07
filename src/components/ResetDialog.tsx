@@ -17,6 +17,8 @@ export function ResetDialog({ snapshot, target, onCancel, onDone }: Props) {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const branch = snapshot.headBranch ?? "HEAD";
+  // Resetting to the current commit only throws away uncommitted changes.
+  const discardOnly = target.id === snapshot.headCommit;
 
   const { head, leaving, lostFiles, untrackedFiles } = useMemo(() => {
     const byId = new Map(snapshot.commits.map((commit) => [commit.id, commit]));
@@ -41,7 +43,7 @@ export function ResetDialog({ snapshot, target, onCancel, onDone }: Props) {
 
   return (
     <Dialog
-      title={`Hard reset ${branch}?`}
+      title={discardOnly ? "Discard all uncommitted changes?" : `Hard reset ${branch}?`}
       error={error}
       busy={running}
       onCancel={onCancel}
@@ -51,11 +53,14 @@ export function ResetDialog({ snapshot, target, onCancel, onDone }: Props) {
             Cancel
           </button>
           <button className="danger-button" onClick={reset} disabled={running}>
-            {running ? "Resetting…" : `Reset ${branch}`}
+            {running ? (discardOnly ? "Discarding…" : "Resetting…") : discardOnly ? "Discard changes" : `Reset ${branch}`}
           </button>
         </>
       }
     >
+      {discardOnly ? (
+        <p>Your files will be changed back to how they are in the last commit.</p>
+      ) : (
       <p>
         <strong>{branch}</strong> will point to <CommitRef commit={target} />
         {head && head.id !== target.id && (
@@ -66,6 +71,7 @@ export function ResetDialog({ snapshot, target, onCancel, onDone }: Props) {
         )}
         , and your files will be changed to match it.
       </p>
+      )}
       <ul className="dialog-consequences">
         {leaving > 0 && (
           <li>

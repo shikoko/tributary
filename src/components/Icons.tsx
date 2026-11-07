@@ -123,6 +123,47 @@ export const BranchPlusIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const PlusIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 3v10M3 8h10" />
+  </Icon>
+);
+
+export const MinusIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 8h10" />
+  </Icon>
+);
+
+export const TrashIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 8.6a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-8.6" />
+  </Icon>
+);
+
+export const PencilIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10.5 2.5 13.5 5.5 6 13H3v-3z" />
+  </Icon>
+);
+
+/** Two sliders, for view settings. */
+export const ViewIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2.5 5h11M2.5 11h11" />
+    <circle cx="6" cy="5" r="1.75" fill="#1a1d24" />
+    <circle cx="10.5" cy="11" r="1.75" fill="#1a1d24" />
+  </Icon>
+);
+
+/** A panel on the left, for the sidebar. */
+export const SidebarIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="3" width="12" height="10" rx="1.5" />
+    <path d="M6 3v10" />
+  </Icon>
+);
+
 /** An arrow going back, for resetting. */
 export const ResetIcon = (p: IconProps) => (
   <Icon {...p}>

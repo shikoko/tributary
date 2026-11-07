@@ -123,9 +123,24 @@ export type Action =
   | { kind: "checkoutRemoteBranch"; name: string }
   | { kind: "checkoutCommit"; id: string }
   | { kind: "createBranch"; name: string; id: string; checkout: boolean }
-  | { kind: "fetch" }
+  | { kind: "fetch"; background?: boolean }
   | { kind: "pull" }
-  | { kind: "push"; force: boolean };
+  | { kind: "push"; force: boolean }
+  /** Stash uncommitted changes, run `action`, then put the changes back. */
+  | { kind: "stashAndRetry"; action: Action; includeUntracked: boolean }
+  | { kind: "stashPush"; message: string | null; includeUntracked: boolean }
+  | { kind: "stashApply"; index: number; id: string }
+  | { kind: "stashPop"; index: number; id: string }
+  | { kind: "stashDrop"; index: number; id: string }
+  | { kind: "stage"; paths: string[] }
+  | { kind: "unstage"; paths: string[] }
+  | { kind: "stageAll" }
+  | { kind: "unstageAll" }
+  | { kind: "commit"; message: string; amend: boolean }
+  | { kind: "resetSoft"; id: string }
+  | { kind: "deleteBranch"; name: string; force: boolean }
+  | { kind: "deleteRemoteBranch"; name: string }
+  | { kind: "renameBranch"; name: string; newName: string };
 
 /** Run `action`; resolves to a short message saying what happened. */
 export function runAction(path: string, action: Action): Promise<string> {
