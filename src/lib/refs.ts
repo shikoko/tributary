@@ -82,6 +82,8 @@ export interface RefEntry {
   summary: string;
   /** For a local branch: the remote branch it tracks. */
   upstream?: string;
+  /** Left out of the graph (its commit may not be loaded). */
+  hidden?: boolean;
 }
 
 export interface RefLists {

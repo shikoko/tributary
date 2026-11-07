@@ -1,5 +1,6 @@
-import type { CommitRow } from "../api";
+import type { CommitRow, GraphLine } from "../api";
 import { laneColor } from "../lib/colors";
+import type { Slot } from "../lib/days";
 
 export interface GraphMetrics {
   rowHeight: number;
@@ -29,14 +30,23 @@ export function laneX(column: number, metrics: GraphMetrics): number {
   return metrics.padding + column * metrics.laneWidth + metrics.laneWidth / 2;
 }
 
+/** The lanes that pass through a divider placed just above commit row `before`. */
+function passingLines(commit: CommitRow): GraphLine[] {
+  return commit.graph.lines
+    .filter(([kind]) => kind !== 2)
+    .map(([, from, , child, dashed]) => (dashed ? [0, from, from, child, 1] : [0, from, from, child]));
+}
+
 /**
- * Draw rows `first` to `last` (exclusive) of the graph, with row `first` at the top of
- * the canvas. Each row draws only its own segments, so any window of rows lines up
- * with its neighbours.
+ * Draw list rows `first` to `last` (exclusive) of the graph, with row `first` at the top
+ * of the canvas. A row is a commit (its index in `commits`) or a divider, which the lanes
+ * pass straight through. Each row draws only its own segments, so any window of rows
+ * lines up with its neighbours.
  */
 export function paintGraph(
   ctx: CanvasRenderingContext2D,
   commits: CommitRow[],
+  slots: Slot[],
   first: number,
   last: number,
   options: PaintOptions,
@@ -54,12 +64,14 @@ export function paintGraph(
   ctx.lineJoin = "round";
 
   // Lines first, so the nodes are drawn on top of them.
-  for (let row = first; row < last; row++) {
-    const top = (row - first) * rowHeight;
+  for (let slot = first; slot < last; slot++) {
+    const top = (slot - first) * rowHeight;
     const middle = top + rowHeight / 2;
     const bottom = top + rowHeight;
+    const row = slots[slot];
+    const lines = typeof row === "number" ? commits[row].graph.lines : passingLines(commits[row.before]);
 
-    for (const [kind, from, to, child, dashed] of commits[row].graph.lines) {
+    for (const [kind, from, to, child, dashed] of lines) {
       ctx.strokeStyle = laneColor(kind === 2 ? to : from);
       ctx.globalAlpha = focus ? (inFocus(child) ? 1 : FADED) : 1;
       // Lines from stashes and uncommitted changes are dashed: they aren't history yet.
@@ -92,11 +104,13 @@ export function paintGraph(
   }
   ctx.setLineDash([]);
 
-  for (let row = first; row < last; row++) {
+  for (let slot = first; slot < last; slot++) {
+    const row = slots[slot];
+    if (typeof row !== "number") continue;
     const commit = commits[row];
     ctx.globalAlpha = focus && !focus.has(commit.id) ? FADED : 1;
     const cx = x(commit.graph.column);
-    const cy = (row - first) * rowHeight + rowHeight / 2;
+    const cy = (slot - first) * rowHeight + rowHeight / 2;
     const color = laneColor(commit.graph.column);
     const selected = commit.id === options.selectedId;
     const background = selected ? options.selectedBackground : options.background;

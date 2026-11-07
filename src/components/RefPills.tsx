@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { RefLabel } from "../api";
 import { withAlpha } from "../lib/colors";
+import { pressLabel } from "../lib/drag";
 import { describePill, refPills, type RefPill } from "../lib/refs";
 import { CheckIcon, CloudIcon, CommitIcon, LaptopIcon, StashIcon, TagIcon } from "./Icons";
 
@@ -18,9 +19,6 @@ interface Props {
   /** Labels can be dragged onto commits (to merge or rebase). */
   draggable?: boolean;
 }
-
-/** What a dragged label carries. */
-export const DRAG_TYPE = "application/x-tributary-ref";
 
 /** The name git knows a label by, if it can be merged or rebased onto. */
 export function revisionOf(pill: RefPill): string | null {
@@ -87,12 +85,8 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
         event.stopPropagation();
         onFocusPill(pill);
       }}
-      draggable={Boolean(draggable && revision)}
-      onDragStart={(event) => {
-        if (!revision) return;
-        event.dataTransfer.setData(DRAG_TYPE, revision);
-        event.dataTransfer.setData("text/plain", revision);
-        event.dataTransfer.effectAllowed = "move";
+      onPointerDown={(event) => {
+        if (draggable && revision && !event.altKey) pressLabel(event, revision);
       }}
       onContextMenu={(event) => {
         if (!onContextMenu) return;

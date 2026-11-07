@@ -1200,6 +1200,7 @@ fn loads_only_the_checked_out_branch() {
         limit: 100,
         include_status: false,
         first_parent: true,
+        ..LoadOptions::default()
     };
     let own = repo::load_with(repo.path(), options).unwrap();
     let summaries: Vec<&str> = own.commits.iter().map(|c| c.summary.as_str()).collect();
@@ -1273,4 +1274,445 @@ fn cancels_a_slow_fetch() {
         "cancelling doesn't wait for the remote"
     );
     assert!(!actions::cancel(), "nothing left to cancel");
+}
+
+fn options(limit: usize) -> LoadOptions {
+    LoadOptions {
+        limit,
+        ..LoadOptions::default()
+    }
+}
+
+#[test]
+fn hides_and_solos_branches() {
+    let mut repo = TempRepo::new("hide");
+    repo.commit("a.txt", "base");
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+    repo.commit("b.txt", "feature work");
+    repo.git(&["tag", "v1"]);
+    repo.git(&["switch", "--quiet", "--create", "old", "main"]);
+    repo.commit("c.txt", "old work");
+    repo.git(&["switch", "--quiet", "main"]);
+    repo.commit("d.txt", "main work");
+
+    let summaries = |snapshot: &repo::RepoSnapshot| -> Vec<String> {
+        snapshot.commits.iter().map(|c| c.summary.clone()).collect()
+    };
+    let labels = |snapshot: &repo::RepoSnapshot| -> Vec<String> {
+        let mut names: Vec<String> = snapshot
+            .commits
+            .iter()
+            .flat_map(|c| c.refs.iter().map(|r| r.name.clone()))
+            .collect();
+        names.sort();
+        names
+    };
+
+    let hidden = repo::load_with(
+        repo.path(),
+        LoadOptions {
+            hidden: vec!["refs/heads/old".into(), "refs/heads/main".into()],
+            ..options(100)
+        },
+    )
+    .unwrap();
+    assert!(!summaries(&hidden).contains(&"old work".to_owned()));
+    assert_eq!(
+        labels(&hidden),
+        vec!["feature", "main", "v1"],
+        "the checked-out branch stays"
+    );
+    assert_eq!(hidden.hidden_refs.len(), 1);
+    assert_eq!(hidden.hidden_refs[0].name, "old");
+    assert_eq!(hidden.hidden_refs[0].kind, RefKind::Branch);
+
+    let solo = repo::load_with(
+        repo.path(),
+        LoadOptions {
+            solo: vec!["refs/heads/feature".into()],
+            ..options(100)
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        summaries(&solo),
+        vec!["main work", "feature work", "base"],
+        "the soloed branch and the checked-out one"
+    );
+    assert_eq!(labels(&solo), vec!["feature", "main"]);
+    let hidden_names: Vec<&str> = solo.hidden_refs.iter().map(|r| r.name.as_str()).collect();
+    assert_eq!(hidden_names, vec!["old", "v1"]);
+}
+
+#[test]
+fn reports_commit_times_identity_links_and_fetch_time() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("links-remote.git");
+    let mut repo = TempRepo::new("links");
+    with_identity(&repo);
+    repo.git(&["remote", "add", "origin", remote.url()]);
+    repo.commit("a.txt", "First");
+    repo.git(&["push", "--quiet", "origin", "main"]);
+
+    let before = repo::load(repo.path(), 100, false).unwrap();
+    assert_eq!(before.last_fetched, None);
+    assert!(
+        before.web_remotes.is_empty(),
+        "a local path has no web page"
+    );
+    let user = before.user.as_ref().unwrap();
+    assert_eq!(user.email.as_deref(), Some("committer@example.com"));
+    assert_eq!(before.commits[0].commit_time, before.commits[0].time);
+
+    run(&repo, Action::Fetch { background: false }).unwrap();
+    repo.git(&[
+        "remote",
+        "set-url",
+        "origin",
+        "git@github.com:owner/repo.git",
+    ]);
+    let after = repo::load(repo.path(), 100, false).unwrap();
+    assert!(after.last_fetched.is_some());
+    assert_eq!(after.web_remotes.len(), 1);
+    assert_eq!(after.web_remotes[0].name, "origin");
+    assert_eq!(after.web_remotes[0].url, "https://github.com/owner/repo");
+}
+
+#[test]
+fn creates_pushes_deletes_and_restores_tags() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("tags-remote.git");
+    let mut repo = TempRepo::new("tags");
+    with_identity(&repo);
+    repo.git(&["remote", "add", "origin", remote.url()]);
+    let first = repo.commit("a.txt", "First");
+    let second = repo.commit("b.txt", "Second");
+
+    run(
+        &repo,
+        Action::CreateTag {
+            name: "v1".into(),
+            id: first.clone(),
+            message: None,
+        },
+    )
+    .unwrap();
+    run(
+        &repo,
+        Action::CreateTag {
+            name: "v2".into(),
+            id: second.clone(),
+            message: Some("Release two".into()),
+        },
+    )
+    .unwrap();
+    assert_eq!(repo.git(&["rev-parse", "v1^{commit}"]), first);
+    assert_eq!(repo.git(&["cat-file", "-t", "v2"]), "tag");
+    for (name, error) in [
+        ("v1", "already exists"),
+        ("bad name", "isn't a valid"),
+        ("-x", "isn't a valid"),
+    ] {
+        let result = run(
+            &repo,
+            Action::CreateTag {
+                name: name.into(),
+                id: first.clone(),
+                message: None,
+            },
+        );
+        assert!(result.unwrap_err().contains(error), "{name}");
+    }
+
+    let snapshot = repo::load(repo.path(), 100, false).unwrap();
+    let v2 = snapshot.commits[0]
+        .refs
+        .iter()
+        .find(|r| r.name == "v2")
+        .unwrap();
+    let tag_object = v2
+        .target
+        .clone()
+        .expect("annotated tags know their tag object");
+    assert_eq!(tag_object, repo.git(&["rev-parse", "v2"]));
+    let v1 = snapshot.commits[1]
+        .refs
+        .iter()
+        .find(|r| r.name == "v1")
+        .unwrap();
+    assert_eq!(v1.target, None);
+
+    run(
+        &repo,
+        Action::PushTag {
+            name: "v2".into(),
+            remote: None,
+        },
+    )
+    .unwrap();
+    assert_eq!(remote.git(&["tag", "--list"]), "v2");
+    run(
+        &repo,
+        Action::DeleteRemoteTag {
+            name: "v2".into(),
+            remote: "origin".into(),
+        },
+    )
+    .unwrap();
+    assert_eq!(remote.git(&["tag", "--list"]), "");
+
+    run(&repo, Action::DeleteTag { name: "v2".into() }).unwrap();
+    assert!(run(&repo, Action::DeleteTag { name: "v2".into() }).is_err());
+    run(
+        &repo,
+        Action::RestoreTag {
+            name: "v2".into(),
+            id: tag_object.clone(),
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        repo.git(&["rev-parse", "v2"]),
+        tag_object,
+        "the same annotated tag is back"
+    );
+    assert_eq!(
+        repo.git(&["tag", "--list", "--format=%(contents:subject)", "v2"]),
+        "Release two"
+    );
+}
+
+#[test]
+fn cherry_picks_and_reverts_several_commits() {
+    let mut repo = TempRepo::new("multi-pick");
+    with_identity(&repo);
+    repo.commit("base.txt", "base");
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+    let one = repo.commit("notes.txt", "one");
+    let two = repo.commit("notes.txt", "one\ntwo");
+    repo.git(&["switch", "--quiet", "main"]);
+
+    let message = run(
+        &repo,
+        Action::CherryPickMany {
+            ids: vec![one.clone(), two.clone()],
+        },
+    )
+    .unwrap();
+    assert_eq!(message, "Cherry-picked 2 commits onto main");
+    assert_eq!(read(&repo, "notes.txt"), "one\ntwo");
+    // In order: the second one builds on the first. (git joins a two-line subject.)
+    assert_eq!(repo.git(&["log", "-2", "--format=%s"]), "one two\none");
+
+    let picked_two = head(&repo);
+    let picked_one = repo.git(&["rev-parse", "HEAD~1"]);
+    run(
+        &repo,
+        Action::RevertMany {
+            ids: vec![picked_two, picked_one],
+        },
+    )
+    .unwrap();
+    assert!(!repo.path().join("notes.txt").exists());
+
+    let twice = run(
+        &repo,
+        Action::CherryPickMany {
+            ids: vec![one.clone(), one],
+        },
+    );
+    assert!(twice.unwrap_err().contains("twice"));
+}
+
+#[test]
+fn rewrites_history_interactively() {
+    use actions::{RebaseStep, StepAction};
+    let mut repo = TempRepo::new("interactive");
+    with_identity(&repo);
+    let base = repo.commit("base.txt", "base");
+    let a = repo.commit("a.txt", "Add a");
+    let b = repo.commit("b.txt", "Add b");
+    let c = repo.commit("c.txt", "Add c");
+    let d = repo.commit("d.txt", "Add d");
+    let e = repo.commit("e.txt", "Add e");
+    let f = repo.commit("f.txt", "Add f");
+    let step = |id: &str, action: StepAction| RebaseStep {
+        id: id.to_owned(),
+        action,
+        message: None,
+    };
+
+    let missing = run(
+        &repo,
+        Action::InteractiveRebase {
+            onto: base.clone(),
+            steps: vec![step(&a, StepAction::Pick)],
+        },
+    );
+    assert!(missing.unwrap_err().contains("changed"));
+    let squash_first = run(
+        &repo,
+        Action::InteractiveRebase {
+            onto: d.clone(),
+            steps: vec![step(&e, StepAction::Squash), step(&f, StepAction::Pick)],
+        },
+    );
+    assert!(squash_first.unwrap_err().contains("oldest"));
+
+    let steps = vec![
+        step(&b, StepAction::Pick),
+        step(&a, StepAction::Pick),
+        RebaseStep {
+            id: c.clone(),
+            action: StepAction::Reword,
+            message: Some("Add c, reworded\n\nWith a body.".into()),
+        },
+        step(&d, StepAction::Fixup),
+        step(&e, StepAction::Squash),
+        step(&f, StepAction::Drop),
+    ];
+    let message = run(
+        &repo,
+        Action::InteractiveRebase {
+            onto: base.clone(),
+            steps,
+        },
+    )
+    .unwrap();
+    assert_eq!(message, "Rewrote main's history");
+    assert_eq!(
+        repo.git(&["log", "--format=%s", &format!("{base}..HEAD")]),
+        "Add c, reworded\nAdd a\nAdd b"
+    );
+    let combined = repo.git(&["log", "-1", "--format=%B"]);
+    assert!(combined.contains("With a body."), "{combined}");
+    assert!(
+        combined.contains("Add e"),
+        "squash keeps both messages: {combined}"
+    );
+    assert!(
+        !combined.contains("Add d"),
+        "fixup drops its message: {combined}"
+    );
+    assert!(!combined.contains('#'), "no comment lines: {combined}");
+    for file in ["a.txt", "b.txt", "c.txt", "d.txt", "e.txt"] {
+        assert!(repo.path().join(file).exists(), "{file}");
+    }
+    assert!(!repo.path().join("f.txt").exists(), "dropped");
+    assert_eq!(repo.git(&["status", "--porcelain"]), "");
+    assert!(
+        !repo.path().join(".git/tributary-rebase").exists(),
+        "cleaned up"
+    );
+
+    // History with merges is left alone.
+    repo.git(&["switch", "--quiet", "--create", "side"]);
+    let side = repo.commit("side.txt", "side");
+    repo.git(&["switch", "--quiet", "main"]);
+    repo.commit("main.txt", "main");
+    repo.git(&["merge", "--quiet", "--no-edit", "side"]);
+    let ids = repo.git(&["rev-list", &format!("{base}..HEAD")]);
+    let steps = ids
+        .lines()
+        .rev()
+        .map(|id| step(id, StepAction::Pick))
+        .collect();
+    let merges = run(&repo, Action::InteractiveRebase { onto: base, steps });
+    assert!(merges.unwrap_err().contains("merges"), "{side}");
+}
+
+#[test]
+fn clones_and_creates_repositories() {
+    let _turn = remote_turn();
+    let mut source = TempRepo::new("clone-source");
+    source.commit("a.txt", "First");
+    let parent = TempRepo::empty("clone-parent");
+
+    let cloned = actions::clone_repository(source.url(), parent.path(), "copy", &|_| {}).unwrap();
+    assert_eq!(cloned, parent.path().join("copy"));
+    let snapshot = repo::load(&cloned, 100, false).unwrap();
+    assert_eq!(snapshot.commits.len(), 1);
+    assert_eq!(snapshot.remotes, vec!["origin"]);
+
+    let again = actions::clone_repository(source.url(), parent.path(), "copy", &|_| {});
+    assert!(again.unwrap_err().contains("already exists"));
+    let missing = actions::clone_repository("/no/such/repo.git", parent.path(), "broken", &|_| {});
+    assert!(missing.is_err());
+    assert!(
+        !parent.path().join("broken").exists(),
+        "a failed clone leaves nothing behind"
+    );
+    for name in ["", "a/b", ".."] {
+        assert!(actions::clone_repository(source.url(), parent.path(), name, &|_| {}).is_err());
+    }
+    assert!(actions::clone_repository("--upload-pack=x", parent.path(), "x", &|_| {}).is_err());
+
+    let fresh = parent.path().join("fresh");
+    std::fs::create_dir(&fresh).unwrap();
+    actions::init_repository(&fresh).unwrap();
+    assert!(fresh.join(".git").is_dir());
+    assert!(repo::load(&fresh, 100, true).unwrap().commits.is_empty());
+    assert!(
+        actions::init_repository(&fresh)
+            .unwrap_err()
+            .contains("already")
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn passes_on_the_pull_request_link_the_remote_suggests() {
+    use std::os::unix::fs::PermissionsExt;
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("pr-remote.git");
+    let hook = remote.path().join("hooks/post-receive");
+    std::fs::write(
+        &hook,
+        "#!/bin/sh\necho 'Create a pull request for feature by visiting:'\necho '     https://github.com/owner/repo/pull/new/feature'\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let mut repo = TempRepo::new("pr");
+    repo.git(&["remote", "add", "origin", remote.url()]);
+    repo.commit("a.txt", "First");
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+
+    let outcome =
+        actions::run_with_progress(repo.path(), Action::Push { force: false }, &|_| {}).unwrap();
+    assert_eq!(
+        outcome.pull_request.as_deref(),
+        Some("https://github.com/owner/repo/pull/new/feature")
+    );
+}
+
+#[test]
+fn logs_the_git_commands_it_runs() {
+    let mut repo = TempRepo::new("activity");
+    with_identity(&repo);
+    repo.commit("a.txt", "First");
+    std::fs::write(repo.path().join("b.txt"), "b").unwrap();
+    run(&repo, Action::StageAll).unwrap();
+    assert!(
+        run(
+            &repo,
+            Action::CheckoutBranch {
+                name: "nope".into()
+            }
+        )
+        .is_err()
+    );
+
+    let folder = repo.path().display().to_string();
+    let mine: Vec<_> = actions::activity()
+        .into_iter()
+        .filter(|entry| entry.folder == folder)
+        .collect();
+    assert_eq!(
+        mine.len(),
+        1,
+        "the failed checkout never reached git: {mine:?}"
+    );
+    assert_eq!(mine[0].args, vec!["add", "--all"]);
+    assert!(mine[0].success);
+    assert!(!mine[0].background);
 }

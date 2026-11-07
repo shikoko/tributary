@@ -1,10 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { commitDetails, type CommitDetails, type CommitRow, type FileChange, type Person } from "../api";
+import { commitDetails, type CommitDetails, type CommitRow, type FileChange, type Person, type WebRemote } from "../api";
 import { laneColor, withAlpha } from "../lib/colors";
 import { dateInZone, fullDate, plural, shortId, utcOffset } from "../lib/format";
 import { copyText } from "../lib/clipboard";
+import { coAuthors } from "../lib/weblinks";
 import { Avatar } from "./Avatar";
 import { CheckIcon, CloseIcon, CopyIcon } from "./Icons";
+import { MessageText } from "./MessageText";
 import { RefPills } from "./RefPills";
 
 /** Very large commits only list their first files, to keep the panel responsive. */
@@ -20,6 +22,10 @@ interface Props {
   onClose: () => void;
   /** Buttons shown under the commit's details, like "Hard reset main to this commit…". */
   actions: DetailsAction[];
+  /** The remote that issue numbers like #12 in the message link to. */
+  remote: WebRemote | undefined;
+  /** An abbreviated commit id → the id of a loaded commit with it, or null. */
+  resolveCommit: (prefix: string) => string | null;
 }
 
 export interface DetailsAction {
@@ -32,7 +38,7 @@ export interface DetailsAction {
 type Loaded = { id: string; details?: CommitDetails; error?: string };
 
 export function CommitDetailsPanel(props: Props) {
-  const { repoPath, commit, cache, hasCommit, onSelect, onClose, actions } = props;
+  const { repoPath, commit, cache, hasCommit, onSelect, onClose, actions, remote, resolveCommit } = props;
   const [loaded, setLoaded] = useState<Loaded>({ id: commit.id, details: cache.get(commit.id) });
 
   useEffect(() => {
@@ -86,8 +92,19 @@ export function CommitDetailsPanel(props: Props) {
       </header>
 
       <div className="details-scroll">
-        <h2 className="details-summary">{details?.summary ?? commit.summary}</h2>
-        {details?.body && <p className="details-body">{details.body}</p>}
+        <h2 className="details-summary">
+          <MessageText
+            text={details?.summary ?? commit.summary}
+            remote={remote}
+            resolveCommit={resolveCommit}
+            onSelectCommit={onSelect}
+          />
+        </h2>
+        {details?.body && (
+          <p className="details-body">
+            <MessageText text={details.body} remote={remote} resolveCommit={resolveCommit} onSelectCommit={onSelect} />
+          </p>
+        )}
 
         {commit.refs.length > 0 && (
           <div className="details-refs">
@@ -98,6 +115,10 @@ export function CommitDetailsPanel(props: Props) {
         <div className="people">
           <PersonLine role="authored" person={author} exact={Boolean(details)} />
           {showCommitter && <PersonLine role="committed" person={committer} exact />}
+          {details &&
+            coAuthors(details.body).map((person) => (
+              <PersonLine key={person.email} role="co-authored" person={{ ...person, time: 0, offset: 0 }} exact={false} />
+            ))}
         </div>
 
         <dl className="meta">
@@ -176,7 +197,9 @@ function PersonLine({ role, person, exact }: { role: string; person: Person; exa
           </span>
         </div>
         <div className="person-when">
-          {role} {exact ? `${dateInZone(person.time, person.offset)} (${utcOffset(person.offset)})` : fullDate(person.time)}
+          {role}
+          {person.time > 0 &&
+            ` ${exact ? `${dateInZone(person.time, person.offset)} (${utcOffset(person.offset)})` : fullDate(person.time)}`}
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions for the main window: core APIs, window title and dragging, page zoom, and the folder picker.",
+  "description": "Permissions for the main window: core APIs (including the menu bar), window title and dragging, page zoom, the folder picker, and opening web links or showing a folder in Finder or Explorer.",
   "windows": [
     "main"
   ],
@@ -11,6 +11,7 @@
     "core:window:allow-start-dragging",
     "core:window:allow-internal-toggle-maximize",
     "core:webview:allow-set-webview-zoom",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "opener:default"
   ]
 }

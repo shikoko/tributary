@@ -16,6 +16,22 @@ export interface RefLabel {
   current: boolean;
   /** For a local branch: the remote branch it tracks, like "origin/main". */
   upstream?: string;
+  /** For an annotated tag: the id of the tag object (the label sits on its commit). */
+  target?: string;
+}
+
+/** The full name of a branch, remote branch or tag, like "refs/heads/main". */
+export function fullRefName(ref: { kind: RefKind; name: string }): string | null {
+  switch (ref.kind) {
+    case "branch":
+      return `refs/heads/${ref.name}`;
+    case "remote":
+      return `refs/remotes/${ref.name}`;
+    case "tag":
+      return `refs/tags/${ref.name}`;
+    default:
+      return null;
+  }
 }
 
 /**
@@ -46,6 +62,8 @@ export interface CommitRow {
   authorEmail: string;
   /** Author time in seconds since the Unix epoch. */
   time: number;
+  /** Commit time in seconds since the Unix epoch. */
+  commitTime: number;
   parents: string[];
   refs: RefLabel[];
   graph: GraphRow;
@@ -73,6 +91,38 @@ export interface RepoSnapshot {
   laneCount: number;
   /** True when the repository has more commits than were loaded. */
   truncated: boolean;
+  /** Branches, remote branches and tags left out of the graph (hidden, or not soloed). */
+  hiddenRefs: HiddenRef[];
+  /** Remotes whose repository has a web page. */
+  webRemotes: WebRemote[];
+  /** The name and email commits are made with here. */
+  user: { name: string | null; email: string | null } | null;
+  /** When the repository was last fetched from, in seconds since the Unix epoch. */
+  lastFetched: number | null;
+}
+
+export interface HiddenRef {
+  name: string;
+  kind: RefKind;
+  /** The commit it points to. */
+  commit: string;
+  upstream?: string;
+}
+
+export type WebHost = "github" | "gitlab" | "bitbucket" | "gitea" | "other";
+
+export interface WebRemote {
+  /** Like "origin". */
+  name: string;
+  host: WebHost;
+  /** The repository's page, like "https://github.com/owner/repo". */
+  url: string;
+}
+
+/** Which branches the graph shows: hidden ones are left out; if any are soloed, only those. */
+export interface Visibility {
+  hidden: string[];
+  solo: string[];
 }
 
 export type OperationKind = "merge" | "rebase" | "cherryPick" | "revert" | "other";
@@ -137,8 +187,16 @@ export function openRepository(
   limit = PAGE_SIZE,
   includeStatus = true,
   firstParent = false,
+  visibility: Visibility = { hidden: [], solo: [] },
 ): Promise<RepoSnapshot> {
-  return invoke<RepoSnapshot>("open_repository", { path, limit, includeStatus, firstParent });
+  return invoke<RepoSnapshot>("open_repository", {
+    path,
+    limit,
+    includeStatus,
+    firstParent,
+    hidden: visibility.hidden,
+    solo: visibility.solo,
+  });
 }
 
 /** Something that changes the repository. These run the installed git. */
@@ -172,7 +230,49 @@ export type Action =
   | { kind: "revert"; id: string }
   | { kind: "continueOperation" }
   | { kind: "skipCommit" }
-  | { kind: "abortOperation" };
+  | { kind: "abortOperation" }
+  /** Oldest first. */
+  | { kind: "cherryPickMany"; ids: string[] }
+  /** Newest first. */
+  | { kind: "revertMany"; ids: string[] }
+  /** Every commit after `onto` on the checked-out branch, oldest first. */
+  | { kind: "interactiveRebase"; onto: string; steps: RebaseStep[] }
+  | { kind: "createTag"; name: string; id: string; message: string | null }
+  | { kind: "deleteTag"; name: string }
+  | { kind: "restoreTag"; name: string; id: string }
+  | { kind: "pushTag"; name: string; remote: string | null }
+  | { kind: "deleteRemoteTag"; name: string; remote: string };
+
+export type StepAction = "pick" | "reword" | "squash" | "fixup" | "drop";
+
+export interface RebaseStep {
+  id: string;
+  action: StepAction;
+  /** The new message, for "reword". */
+  message?: string;
+}
+
+/** What an action did. */
+export interface Outcome {
+  message: string;
+  /** After pushing a new branch: the page the remote suggested for opening a pull request. */
+  pullRequest?: string;
+}
+
+/** A git command Tributary ran. */
+export interface LogEntry {
+  id: number;
+  /** Milliseconds since the Unix epoch. */
+  started: number;
+  durationMs: number;
+  folder: string;
+  /** Everything after `git`. */
+  args: string[];
+  success: boolean;
+  output: string;
+  /** Run by Tributary on its own, like the regular background fetch. */
+  background: boolean;
+}
 
 /** How far a fetch, pull or push has got. */
 export interface Progress {
@@ -181,7 +281,7 @@ export interface Progress {
   percent: number | null;
 }
 
-/** Stop the fetch, pull or push that is running. */
+/** Stop the fetch, pull, push or clone that is running. */
 export function cancelAction(): Promise<boolean> {
   return invoke<boolean>("cancel_action");
 }
@@ -192,8 +292,33 @@ export function onProgress(handler: (progress: Progress) => void): Promise<() =>
 }
 
 /** Run `action`; resolves to a short message saying what happened. */
-export function runAction(path: string, action: Action): Promise<string> {
-  return invoke<string>("run_action", { path, action });
+export async function runAction(path: string, action: Action): Promise<string> {
+  return (await runActionFor(path, action)).message;
+}
+
+/** Like `runAction`, with everything the action reported. */
+export function runActionFor(path: string, action: Action): Promise<Outcome> {
+  return invoke<Outcome>("run_action", { path, action });
+}
+
+/** Clone `url` into a new folder `name` inside `parent`; resolves to the new folder. */
+export function cloneRepository(url: string, parent: string, name: string): Promise<string> {
+  return invoke<string>("clone_repository", { url, parent, name });
+}
+
+/** Create a repository in an existing folder. */
+export function initRepository(path: string): Promise<string> {
+  return invoke<string>("init_repository", { path });
+}
+
+/** The git commands Tributary ran recently, oldest first. */
+export function activityLog(): Promise<LogEntry[]> {
+  return invoke<LogEntry[]>("activity_log");
+}
+
+/** Calls `handler` for every git command Tributary runs from now on. */
+export function onActivity(handler: (entry: LogEntry) => void): Promise<() => void> {
+  return listen<LogEntry>("activity", (event) => handler(event.payload));
 }
 
 export function commitDetails(path: string, id: string): Promise<CommitDetails> {

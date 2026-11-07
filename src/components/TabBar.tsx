@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { CloseIcon, Logo, PlusIcon } from "./Icons";
 import { modKey } from "../lib/platform";
 
@@ -14,16 +14,19 @@ interface Props {
   onClose: (path: string) => void;
   /** Open the "new tab" menu under the given element. */
   onNew: (anchor: HTMLElement) => void;
+  /** The File, View, … menus, on systems without a menu bar of their own. */
+  menuBar?: ReactNode;
 }
 
 /** One tab per open repository. The empty space drags the window (macOS title bar). */
-export function TabBar({ tabs, activePath, onSelect, onClose, onNew }: Props) {
+export function TabBar({ tabs, activePath, onSelect, onClose, onNew, menuBar }: Props) {
   const plus = useRef<HTMLButtonElement>(null);
   return (
     <div className="tab-bar" data-tauri-drag-region>
       <span className="tab-logo" data-tauri-drag-region>
         <Logo size={18} outline="#121419" />
       </span>
+      {menuBar}
       <div className="tabs" role="tablist">
         {tabs.map((tab, index) => (
           <div

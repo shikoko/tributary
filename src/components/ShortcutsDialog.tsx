@@ -1,4 +1,4 @@
-import { modKey } from "../lib/platform";
+import { isMac, modKey } from "../lib/platform";
 import { Dialog } from "./Dialog";
 
 const SHORTCUTS: [string, string][] = [
@@ -10,12 +10,17 @@ const SHORTCUTS: [string, string][] = [
   [`${modKey}1 … ${modKey}9`, "Switch to a tab"],
   [`${modKey}R or F5`, "Refresh"],
   [`${modKey}B`, "Show or hide the branch sidebar"],
+  [isMac ? "⇧⌘L" : "Ctrl+Shift+L", "Show or hide the activity log (the git commands Tributary ran)"],
   [`${modKey}Enter`, "Commit, in the commit message box"],
   [`${modKey}+ / ${modKey}− / ${modKey}0`, "Zoom in, zoom out, actual size"],
   ["↑ ↓ Page Up/Down Home End", "Move through commits"],
+  ["Shift+click, Shift+↑ ↓", "Select a range of commits"],
+  [`${modKey.replace("+", "")}+click`, "Add a commit to the selection, or take it out"],
   ["Double-click a branch label", "Check out the branch"],
   ["Alt+click a branch label", "Highlight the branch's history"],
-  ["Esc", "Close the details panel, stop highlighting"],
+  ["Drag a branch label onto a commit", "Merge or rebase"],
+  ["Right-click the column headings", "Choose columns and how dates are shown"],
+  ["Esc", "Stop highlighting, clear the selection, close the details panel"],
   ["?", "This list"],
 ];
 

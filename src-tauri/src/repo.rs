@@ -12,6 +12,7 @@ use gix::traverse::commit::simple::CommitTimeOrder;
 use serde::Serialize;
 
 use crate::graph::{self, GraphRow, Node};
+use crate::links::{self, WebRemote};
 
 /// Upper bound for a single load, to keep the UI responsive on huge repositories.
 pub const MAX_LIMIT: usize = 200_000;
@@ -43,6 +44,33 @@ pub struct RepoSnapshot {
     pub lane_count: u16,
     /// `true` when there are more commits than were loaded.
     pub truncated: bool,
+    /// Branches, remote branches and tags left out of the graph because they're hidden
+    /// (or not soloed), so they can still be listed and shown again.
+    pub hidden_refs: Vec<HiddenRef>,
+    /// Remotes whose repository has a web page.
+    pub web_remotes: Vec<WebRemote>,
+    /// The name and email address commits are made with here (`user.name`, `user.email`).
+    pub user: Option<Identity>,
+    /// When the repository was last fetched from (seconds since the Unix epoch).
+    pub last_fetched: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HiddenRef {
+    pub name: String,
+    pub kind: RefKind,
+    /// The commit it points to.
+    pub commit: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub upstream: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Identity {
+    pub name: Option<String>,
+    pub email: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -56,6 +84,8 @@ pub struct CommitRow {
     pub author_email: String,
     /// Author time, in seconds since the Unix epoch.
     pub time: i64,
+    /// Commit time, in seconds since the Unix epoch.
+    pub commit_time: i64,
     pub parents: Vec<String>,
     pub refs: Vec<RefLabel>,
     pub graph: GraphRow,
@@ -123,6 +153,22 @@ pub struct RefLabel {
     /// For a local branch: the remote branch it tracks, like `origin/main`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub upstream: Option<String>,
+    /// For an annotated tag: the id of the tag object itself (`kind` points at its commit).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+}
+
+impl RefLabel {
+    /// The full name, like `refs/heads/main`, or `None` for HEAD and stashes.
+    pub fn full_name(&self) -> Option<String> {
+        let prefix = match self.kind {
+            RefKind::Branch => "refs/heads/",
+            RefKind::Remote => "refs/remotes/",
+            RefKind::Tag => "refs/tags/",
+            RefKind::Head | RefKind::Stash => return None,
+        };
+        Some(format!("{prefix}{}", self.name))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -195,7 +241,7 @@ fn open(path: &Path) -> Result<gix::Repository, Error> {
 }
 
 /// What to load.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Default)]
 pub struct LoadOptions {
     /// At most this many commits.
     pub limit: usize,
@@ -204,6 +250,10 @@ pub struct LoadOptions {
     pub include_status: bool,
     /// Only the checked-out branch's own history: HEAD and its first parents.
     pub first_parent: bool,
+    /// Full names of branches, remote branches and tags to leave out, like `refs/heads/old`.
+    pub hidden: Vec<String>,
+    /// When not empty, only these refs (and the checked-out branch) are shown.
+    pub solo: Vec<String>,
 }
 
 /// Load up to `limit` of the most recent commits reachable from any branch, tag or HEAD,
@@ -214,7 +264,7 @@ pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnaps
         LoadOptions {
             limit,
             include_status,
-            first_parent: false,
+            ..LoadOptions::default()
         },
     )
 }
@@ -224,6 +274,8 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
         limit,
         include_status,
         first_parent,
+        hidden,
+        solo,
     } = options;
     let repo = open(path)?;
     let limit = limit.clamp(1, MAX_LIMIT);
@@ -250,7 +302,38 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
             kind: RefKind::Head,
             current: true,
             upstream: None,
+            target: None,
         });
+    }
+
+    // Hidden (or not soloed) refs aren't labelled, and their history is only loaded if
+    // something shown leads to it. The checked-out branch is always shown.
+    let mut hidden_refs = Vec::new();
+    if !hidden.is_empty() || !solo.is_empty() {
+        for (id, labels) in refs.iter_mut() {
+            labels.retain(|label| {
+                let Some(full_name) = label.full_name() else {
+                    return true;
+                };
+                let shown = label.current
+                    || if solo.is_empty() {
+                        !hidden.contains(&full_name)
+                    } else {
+                        solo.contains(&full_name)
+                    };
+                if !shown {
+                    hidden_refs.push(HiddenRef {
+                        name: label.name.clone(),
+                        kind: label.kind,
+                        commit: id.to_string(),
+                        upstream: label.upstream.clone(),
+                    });
+                }
+                shown
+            });
+        }
+        refs.retain(|_, labels| !labels.is_empty());
+        hidden_refs.sort_by(|a, b| a.kind.cmp(&b.kind).then_with(|| a.name.cmp(&b.name)));
     }
     for labels in refs.values_mut() {
         labels.sort_by(|a, b| {
@@ -327,6 +410,7 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
                 kind: RefKind::Stash,
                 current: false,
                 upstream: None,
+                target: None,
             });
             walked.push(stash);
         }
@@ -381,11 +465,26 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
             author_name: c.author_name,
             author_email: c.author_email,
             time: c.time,
+            commit_time: if c.kind == RowKind::Worktree {
+                c.time
+            } else {
+                c.commit_time
+            },
             graph,
         })
         .collect();
 
     let operation = operation(&repo);
+    let config = repo.config_snapshot();
+    let identity = Identity {
+        name: config
+            .string("user.name")
+            .map(|v| v.to_str_lossy().into_owned()),
+        email: config
+            .string("user.email")
+            .map(|v| v.to_str_lossy().into_owned()),
+    };
+    let user = (identity.name.is_some() || identity.email.is_some()).then_some(identity);
     Ok(RepoSnapshot {
         path: location.display().to_string(),
         name,
@@ -406,7 +505,42 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
         worktree,
         lane_count: layout.width,
         truncated,
+        hidden_refs,
+        web_remotes: web_remotes(&repo),
+        user,
+        last_fetched: last_fetched(&repo),
     })
+}
+
+/// The web pages of the remotes that have one.
+fn web_remotes(repo: &gix::Repository) -> Vec<WebRemote> {
+    repo.remote_names()
+        .iter()
+        .filter_map(|name| {
+            let remote = repo.find_remote(name.as_bstr()).ok()?;
+            let url = remote.url(gix::remote::Direction::Fetch)?;
+            let (host, url) = links::web_url(&url.to_bstring().to_str_lossy())?;
+            Some(WebRemote {
+                name: name.to_str_lossy().into_owned(),
+                host,
+                url,
+            })
+        })
+        .collect()
+}
+
+/// When `FETCH_HEAD` was last written, which every fetch (and pull) does.
+fn last_fetched(repo: &gix::Repository) -> Option<i64> {
+    [repo.git_dir(), repo.common_dir()]
+        .iter()
+        .find_map(|dir| {
+            std::fs::metadata(dir.join("FETCH_HEAD"))
+                .ok()?
+                .modified()
+                .ok()
+        })
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|age| age.as_secs() as i64)
 }
 
 struct Walked {
@@ -660,9 +794,14 @@ fn collect_refs(
         } else {
             continue;
         };
+        let direct = reference.target().try_id().map(|id| id.to_owned());
         let Ok(id) = reference.peel_to_id() else {
             continue;
         };
+        // An annotated tag points at a tag object, which points at the commit.
+        let target = direct
+            .filter(|direct| kind == RefKind::Tag && *direct != id.detach())
+            .map(|direct| direct.to_string());
         // Tags can point at trees or blobs; only commits belong in the graph.
         let is_commit = repo
             .find_header(id.detach())
@@ -679,6 +818,7 @@ fn collect_refs(
             name: name.to_owned(),
             kind,
             upstream,
+            target,
         });
     }
     out

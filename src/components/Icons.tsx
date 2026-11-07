@@ -243,6 +243,95 @@ export const CommitIcon = (p: IconProps) => (
 );
 
 /** The Tributary mark: two branches flowing into the main line. */
+export const EyeOffIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6.6 3.7A7.4 7.4 0 0 1 8 3.5c3.5 0 6 4.5 6 4.5a12 12 0 0 1-1.6 2.1M4.2 4.9C2.8 6 2 8 2 8s2.5 4.5 6 4.5c1.2 0 2.3-.4 3.2-1" />
+    <path d="M6.6 6.7a2 2 0 0 0 2.7 2.7" />
+    <path d="M2 2l12 12" />
+  </Icon>
+);
+
+export const PinIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9.8 2l4.2 4.2-2 .8-2.2 2.2.3 2.8-1 1-2.6-2.6L3 14l3.4-3.5L3.8 7.9l1-1 2.8.3L9.8 5z" />
+  </Icon>
+);
+
+export const CloneIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 2v7.5M5 6.5l3 3 3-3" />
+    <path d="M2.5 10.5v1A1.5 1.5 0 0 0 4 13h8a1.5 1.5 0 0 0 1.5-1.5v-1" />
+  </Icon>
+);
+
+export const NewRepoIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5z" />
+    <path d="M8 7v4M6 9h4" />
+  </Icon>
+);
+
+export const ActivityIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="2.5" width="12" height="11" rx="1.5" />
+    <path d="M4.5 6l2 2-2 2M8 10.5h3.5" />
+  </Icon>
+);
+
+export const ExternalLinkIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 2.5h4.5V7M13.5 2.5L7.5 8.5" />
+    <path d="M11.5 9.5v2.5a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 12V6A1.5 1.5 0 0 1 4 4.5h2.5" />
+  </Icon>
+);
+
+export const PullRequestIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="4" cy="3.5" r="1.5" />
+    <circle cx="4" cy="12.5" r="1.5" />
+    <circle cx="12" cy="12.5" r="1.5" />
+    <path d="M4 5v6M12 11V6.5A2 2 0 0 0 10 4.5H7.5M9 3l-1.5 1.5L9 6" />
+  </Icon>
+);
+
+export const GripIcon = (p: IconProps) => (
+  <Icon {...p} stroke="none" fill="currentColor">
+    <circle cx="6" cy="4" r="1.1" />
+    <circle cx="10" cy="4" r="1.1" />
+    <circle cx="6" cy="8" r="1.1" />
+    <circle cx="10" cy="8" r="1.1" />
+    <circle cx="6" cy="12" r="1.1" />
+    <circle cx="10" cy="12" r="1.1" />
+  </Icon>
+);
+
+export const UserIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="5.5" r="2.5" />
+    <path d="M3 13.5c.6-2.4 2.6-4 5-4s4.4 1.6 5 4" />
+  </Icon>
+);
+
+export const ColumnsIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="3" width="12" height="10" rx="1.5" />
+    <path d="M6 3v10M10 3v10" />
+  </Icon>
+);
+
+export const RewriteIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2.5 4h7M2.5 8h5M2.5 12h7" />
+    <path d="M12.5 3v10M11 11.5l1.5 1.5 1.5-1.5M11 4.5L12.5 3 14 4.5" />
+  </Icon>
+);
+
+export const MenuIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
+  </Icon>
+);
+
 export function Logo({ size = 32, outline = "#14161b" }: { size?: number; outline?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">

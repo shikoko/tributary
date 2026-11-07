@@ -1,5 +1,6 @@
 pub mod actions;
 pub mod graph;
+pub mod links;
 pub mod repo;
 
 use std::path::PathBuf;
@@ -10,19 +11,24 @@ use tauri::{AppHandle, Emitter};
 const DEFAULT_LIMIT: usize = 10_000;
 
 /// Load a repository's history and graph layout, and optionally its uncommitted changes.
-/// With `first_parent`, only the checked-out branch's own history is loaded.
+/// With `first_parent`, only the checked-out branch's own history is loaded. `hidden`
+/// refs (full names) are left out; when `solo` isn't empty, only those refs are shown.
 #[tauri::command]
 async fn open_repository(
     path: String,
     limit: Option<usize>,
     include_status: Option<bool>,
     first_parent: Option<bool>,
+    hidden: Option<Vec<String>>,
+    solo: Option<Vec<String>>,
 ) -> Result<repo::RepoSnapshot, String> {
     let path = PathBuf::from(path);
     let options = repo::LoadOptions {
         limit: limit.unwrap_or(DEFAULT_LIMIT),
         include_status: include_status.unwrap_or(true),
         first_parent: first_parent.unwrap_or(false),
+        hidden: hidden.unwrap_or_default(),
+        solo: solo.unwrap_or_default(),
     };
     tauri::async_runtime::spawn_blocking(move || repo::load_with(&path, options))
         .await
@@ -46,7 +52,7 @@ async fn run_action(
     app: AppHandle,
     path: String,
     action: actions::Action,
-) -> Result<String, String> {
+) -> Result<actions::Outcome, String> {
     let path = PathBuf::from(path);
     tauri::async_runtime::spawn_blocking(move || {
         actions::run_with_progress(&path, action, &|progress| {
@@ -57,21 +63,66 @@ async fn run_action(
     .map_err(|e| e.to_string())?
 }
 
-/// Stop the fetch, pull or push that is running.
+/// Clone `url` into a new folder `name` inside `parent`, reporting progress as
+/// `action-progress` events. Returns the new repository's folder.
+#[tauri::command]
+async fn clone_repository(
+    app: AppHandle,
+    url: String,
+    parent: String,
+    name: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        actions::clone_repository(&url, &PathBuf::from(parent), &name, &|progress| {
+            let _ = app.emit("action-progress", progress);
+        })
+        .map(|path| path.display().to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Create a new repository in an existing folder.
+#[tauri::command]
+async fn init_repository(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || actions::init_repository(&PathBuf::from(path)))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Stop the fetch, pull, push or clone that is running.
 #[tauri::command]
 fn cancel_action() -> bool {
     actions::cancel()
+}
+
+/// The git commands Tributary ran recently, oldest first. New ones arrive as
+/// `activity` events.
+#[tauri::command]
+fn activity_log() -> Vec<actions::LogEntry> {
+    actions::activity()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            let handle = app.handle().clone();
+            actions::on_activity(move |entry| {
+                let _ = handle.emit("activity", entry);
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             open_repository,
             commit_details,
             run_action,
-            cancel_action
+            clone_repository,
+            init_repository,
+            cancel_action,
+            activity_log
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

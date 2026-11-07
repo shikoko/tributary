@@ -5,15 +5,19 @@
 //! be full ids of existing commits, branch and remote names must exist or be valid),
 //! so nothing can be mistaken for a git option.
 
+use std::collections::VecDeque;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use gix::ObjectId;
 use gix::bstr::ByteSlice;
 use serde::{Deserialize, Serialize};
+
+use crate::links;
 
 type Error = String;
 
@@ -99,6 +103,151 @@ pub enum Action {
     SkipCommit,
     /// Give up on a merge, rebase, cherry-pick or revert, going back to how things were.
     AbortOperation,
+    /// Cherry-pick several commits, in the order given (oldest first).
+    CherryPickMany { ids: Vec<String> },
+    /// Revert several commits, in the order given (newest first).
+    RevertMany { ids: Vec<String> },
+    /// Rewrite the commits after `onto` on the checked-out branch: reorder, reword,
+    /// squash, fix up or drop them. `steps` lists every one of those commits, oldest first.
+    InteractiveRebase {
+        onto: String,
+        steps: Vec<RebaseStep>,
+    },
+    /// Create a tag on a commit: annotated when there is a message, lightweight otherwise.
+    CreateTag {
+        name: String,
+        id: String,
+        message: Option<String>,
+    },
+    /// Delete a local tag.
+    DeleteTag { name: String },
+    /// Put back a deleted tag, pointing at a commit or tag object `id`.
+    RestoreTag { name: String, id: String },
+    /// Push a tag to a remote (the default remote when none is given).
+    PushTag {
+        name: String,
+        remote: Option<String>,
+    },
+    /// Delete a tag from a remote.
+    DeleteRemoteTag { name: String, remote: String },
+}
+
+/// One commit in an interactive rebase.
+#[derive(Debug, Deserialize)]
+pub struct RebaseStep {
+    pub id: String,
+    pub action: StepAction,
+    /// The new message, for [`StepAction::Reword`].
+    #[serde(default)]
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum StepAction {
+    Pick,
+    /// Keep the commit with a new message.
+    Reword,
+    /// Combine with the commit before it, keeping both messages.
+    Squash,
+    /// Combine with the commit before it, keeping only that commit's message.
+    Fixup,
+    Drop,
+}
+
+/// What an action did.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Outcome {
+    /// A short message for the user.
+    pub message: String,
+    /// After pushing a new branch: the page the remote suggested for opening a pull request.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pull_request: Option<String>,
+}
+
+/// A git command Tributary ran, for the activity log.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogEntry {
+    pub id: u64,
+    /// When it started, in milliseconds since the Unix epoch.
+    pub started: u64,
+    pub duration_ms: u64,
+    /// The folder it ran in.
+    pub folder: String,
+    /// Everything after `git`.
+    pub args: Vec<String>,
+    pub success: bool,
+    /// What git printed, shortened when it's long.
+    pub output: String,
+    /// Run by Tributary on its own, like the fetch every few minutes.
+    pub background: bool,
+}
+
+const LOG_SIZE: usize = 300;
+const LOG_OUTPUT: usize = 8_000;
+static LOG: Mutex<VecDeque<LogEntry>> = Mutex::new(VecDeque::new());
+type Listener = Box<dyn Fn(&LogEntry) + Send + Sync>;
+static LISTENER: OnceLock<Listener> = OnceLock::new();
+
+/// The most recent git commands, oldest first.
+pub fn activity() -> Vec<LogEntry> {
+    LOG.lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .iter()
+        .cloned()
+        .collect()
+}
+
+/// Call `listener` after every git command (for the app to update its activity log).
+pub fn on_activity(listener: impl Fn(&LogEntry) + Send + Sync + 'static) {
+    let _ = LISTENER.set(Box::new(listener));
+}
+
+/// Read-only helpers that would only clutter the log.
+const UNLOGGED: [&str; 4] = ["rev-parse", "rev-list", "check-ref-format", "merge-base"];
+
+fn record(
+    git: &Git,
+    args: &[&str],
+    started: SystemTime,
+    took: Instant,
+    success: bool,
+    output: &str,
+) {
+    if args.first().is_some_and(|first| UNLOGGED.contains(first)) {
+        return;
+    }
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    let output = output.trim();
+    let output = match output.char_indices().nth(LOG_OUTPUT) {
+        Some((cut, _)) => format!("{}\n…", &output[..cut]),
+        None => output.to_owned(),
+    };
+    let entry = LogEntry {
+        id: NEXT.fetch_add(1, Ordering::SeqCst),
+        started: started
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0),
+        duration_ms: took.elapsed().as_millis() as u64,
+        folder: git.workdir.display().to_string(),
+        args: args.iter().map(|arg| (*arg).to_owned()).collect(),
+        success,
+        output,
+        background: git.background,
+    };
+    {
+        let mut log = LOG.lock().unwrap_or_else(|e| e.into_inner());
+        if log.len() == LOG_SIZE {
+            log.pop_front();
+        }
+        log.push_back(entry.clone());
+    }
+    if let Some(listener) = LISTENER.get() {
+        listener(&entry);
+    }
 }
 
 /// How far a fetch, pull or push has got.
@@ -163,7 +312,7 @@ fn is_progress_noise(line: &str) -> bool {
 
 /// Run `action` and return a short message saying what happened.
 pub fn run(path: &Path, action: Action) -> Result<String, Error> {
-    run_with_progress(path, action, &|_| {})
+    run_with_progress(path, action, &|_| {}).map(|outcome| outcome.message)
 }
 
 /// Like [`run`], reporting how far a fetch, pull or push has got.
@@ -171,6 +320,20 @@ pub fn run_with_progress(
     path: &Path,
     action: Action,
     on_progress: &dyn Fn(Progress),
+) -> Result<Outcome, Error> {
+    let mut pull_request = None;
+    let message = perform(path, action, on_progress, &mut pull_request)?;
+    Ok(Outcome {
+        message,
+        pull_request,
+    })
+}
+
+fn perform(
+    path: &Path,
+    action: Action,
+    on_progress: &dyn Fn(Progress),
+    pull_request: &mut Option<String>,
 ) -> Result<String, Error> {
     let repo = gix::discover(path)
         .map_err(|e| format!("{} is not a git repository ({e})", path.display()))?;
@@ -226,6 +389,10 @@ pub fn run_with_progress(
             }
             if background {
                 // Nobody asked for this fetch, so never pop up a sign-in window for it.
+                let git = Git {
+                    background: true,
+                    ..git
+                };
                 git.run_with_env(
                     &["fetch", "--all", "--prune", "--quiet"],
                     &[("GCM_INTERACTIVE", "never")],
@@ -273,7 +440,8 @@ pub fn run_with_progress(
                 }
             };
             let args: Vec<&str> = args.iter().map(String::as_str).collect();
-            git.run_progress(&args, on_progress)?;
+            let output = git.run_progress(&args, on_progress)?;
+            *pull_request = links::pull_request_url(&output.messages);
             Ok(format!(
                 "{} {branch} to {remote}",
                 if force { "Force pushed" } else { "Pushed" }
@@ -300,9 +468,9 @@ pub fn run_with_progress(
             git.run(&args)?;
             if stash_top(&git) == before {
                 // Nothing was stashed after all.
-                return run_with_progress(path, *action, on_progress);
+                return perform(path, *action, on_progress, pull_request);
             }
-            match run_with_progress(path, *action, on_progress) {
+            match perform(path, *action, on_progress, pull_request) {
                 Err(error) => match pop_stash(&git) {
                     Ok(()) => Err(error),
                     Err(_) => Err(format!(
@@ -505,7 +673,335 @@ pub fn run_with_progress(
             git.run(&[operation, "--abort"])?;
             Ok(format!("Aborted the {operation}"))
         }
+        Action::CherryPickMany { ids } => {
+            let ids = commit_ids(&repo, &ids)?;
+            if ids.iter().any(|&id| is_merge(&repo, id)) {
+                return Err("Merge commits can only be cherry-picked one at a time.".into());
+            }
+            let branch = current_branch(&repo).unwrap_or_else(|_| "HEAD".into());
+            let mut args = vec!["cherry-pick".to_owned()];
+            args.extend(ids.iter().map(ToString::to_string));
+            git.run(&args.iter().map(String::as_str).collect::<Vec<_>>())?;
+            Ok(format!(
+                "Cherry-picked {} onto {branch}",
+                count(ids.len(), "commit")
+            ))
+        }
+        Action::RevertMany { ids } => {
+            let ids = commit_ids(&repo, &ids)?;
+            if ids.iter().any(|&id| is_merge(&repo, id)) {
+                return Err("Merge commits can only be reverted one at a time.".into());
+            }
+            let mut args = vec!["revert".to_owned(), "--no-edit".to_owned()];
+            args.extend(ids.iter().map(ToString::to_string));
+            git.run(&args.iter().map(String::as_str).collect::<Vec<_>>())?;
+            Ok(format!("Reverted {}", count(ids.len(), "commit")))
+        }
+        Action::InteractiveRebase { onto, steps } => interactive_rebase(&repo, &git, &onto, &steps),
+        Action::CreateTag { name, id, message } => {
+            let name = name.trim().to_owned();
+            check_new_tag_name(&repo, &git, &name)?;
+            let id = commit_id(&repo, &id)?.to_string();
+            let message = message
+                .map(|m| m.trim().to_owned())
+                .filter(|m| !m.is_empty());
+            match &message {
+                Some(message) => {
+                    git.run(&["tag", "--annotate", "--message", message, &name, &id])?
+                }
+                None => git.run(&["tag", &name, &id])?,
+            };
+            Ok(format!("Created tag {name}"))
+        }
+        Action::DeleteTag { name } => {
+            require_tag(&repo, &name)?;
+            git.run(&["tag", "--delete", &name])?;
+            Ok(format!("Deleted tag {name}"))
+        }
+        Action::RestoreTag { name, id } => {
+            check_new_tag_name(&repo, &git, &name)?;
+            let oid = ObjectId::from_hex(id.as_bytes()).map_err(|_| format!("Invalid id {id}"))?;
+            repo.find_object(oid)
+                .map_err(|e| format!("Could not find {id}: {e}"))?;
+            git.run(&["tag", &name, &oid.to_string()])?;
+            Ok(format!("Restored tag {name}"))
+        }
+        Action::PushTag { name, remote } => {
+            require_tag(&repo, &name)?;
+            let remote = match remote {
+                Some(remote) => known_remote(&repo, &remote)?,
+                None => default_remote(&repo)?,
+            };
+            let refspec = format!("refs/tags/{name}:refs/tags/{name}");
+            git.run_progress(&["push", "--progress", &remote, &refspec], on_progress)?;
+            Ok(format!("Pushed tag {name} to {remote}"))
+        }
+        Action::DeleteRemoteTag { name, remote } => {
+            let remote = known_remote(&repo, &remote)?;
+            if name.starts_with('-')
+                || git
+                    .run(&["check-ref-format", &format!("refs/tags/{name}")])
+                    .is_err()
+            {
+                return Err(format!("There's no tag called {name}."));
+            }
+            git.run(&[
+                "push",
+                "--quiet",
+                &remote,
+                "--delete",
+                &format!("refs/tags/{name}"),
+            ])?;
+            Ok(format!("Deleted tag {name} from {remote}"))
+        }
     }
+}
+
+/// Create a repository in an existing folder.
+pub fn init_repository(path: &Path) -> Result<String, Error> {
+    if !path.is_dir() {
+        return Err(format!("{} isn't a folder.", path.display()));
+    }
+    if path.join(".git").exists() {
+        return Err(format!("{} is already a git repository.", path.display()));
+    }
+    let git = Git::find(path.to_owned())?;
+    git.run(&["init", "--quiet"])?;
+    Ok(format!("Created a repository in {}", path.display()))
+}
+
+/// Clone `url` into a new folder called `name` inside `parent`, returning that folder.
+/// Reports progress like a fetch, and can be cancelled with [`cancel`].
+pub fn clone_repository(
+    url: &str,
+    parent: &Path,
+    name: &str,
+    on_progress: &dyn Fn(Progress),
+) -> Result<PathBuf, Error> {
+    let url = url.trim();
+    if url.is_empty() {
+        return Err("Enter the address of the repository to clone.".into());
+    }
+    if url.starts_with('-') || url.contains(char::is_control) || url.contains(' ') {
+        return Err(format!("\"{url}\" doesn't look like a repository address."));
+    }
+    let name = name.trim();
+    if name.is_empty() || name == "." || name == ".." || name.contains(['/', '\\']) {
+        return Err("Choose a folder name, without slashes.".into());
+    }
+    if !parent.is_dir() {
+        return Err(format!("{} isn't a folder.", parent.display()));
+    }
+    let target = parent.join(name);
+    let existed = target.exists();
+    let empty = || {
+        std::fs::read_dir(&target)
+            .map(|mut entries| entries.next().is_none())
+            .unwrap_or(false)
+    };
+    if existed && !(target.is_dir() && empty()) {
+        return Err(format!(
+            "{} already exists. Choose another name or folder.",
+            target.display()
+        ));
+    }
+    let target_arg = target
+        .to_str()
+        .ok_or("The folder's path has characters git can't be given here.")?;
+    let git = Git::find(parent.to_owned())?;
+    if let Err(error) =
+        git.run_progress(&["clone", "--progress", "--", url, target_arg], on_progress)
+    {
+        // Don't leave a half-finished clone behind.
+        if existed {
+            if let Ok(entries) = std::fs::read_dir(&target) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let _ = if path.is_dir() {
+                        std::fs::remove_dir_all(path)
+                    } else {
+                        std::fs::remove_file(path)
+                    };
+                }
+            }
+        } else {
+            let _ = std::fs::remove_dir_all(&target);
+        }
+        return Err(error);
+    }
+    Ok(target)
+}
+
+/// Rewrite the commits after `onto`: git's own interactive rebase, with the to-do list
+/// written for it instead of edited by hand.
+fn interactive_rebase(
+    repo: &gix::Repository,
+    git: &Git,
+    onto: &str,
+    steps: &[RebaseStep],
+) -> Result<String, Error> {
+    let branch = current_branch(repo)?;
+    let onto = commit_id(repo, onto)?.to_string();
+    if git
+        .run(&["merge-base", "--is-ancestor", &onto, "HEAD"])
+        .is_err()
+    {
+        return Err(format!("{} isn't part of {branch}'s history.", &onto[..7]));
+    }
+    let range = format!("{onto}..HEAD");
+    if !git
+        .run(&["rev-list", "--merges", &range])?
+        .trim()
+        .is_empty()
+    {
+        return Err(
+            "Those commits include merges, which can't be rewritten this way. Use git in a terminal for this one."
+                .into(),
+        );
+    }
+    let mut expected: Vec<String> = git
+        .run(&["rev-list", &range])?
+        .lines()
+        .map(str::to_owned)
+        .collect();
+    if expected.is_empty() {
+        return Err("There are no commits after that one to rewrite.".into());
+    }
+    let mut given: Vec<String> = steps.iter().map(|step| step.id.clone()).collect();
+    expected.sort();
+    given.sort();
+    if given != expected {
+        return Err("The branch changed. Refresh and try again.".into());
+    }
+    match steps.iter().find(|step| step.action != StepAction::Drop) {
+        None => {
+            return Err(
+                "Every commit would be dropped. To do that, hard reset to the commit instead."
+                    .into(),
+            );
+        }
+        Some(first) if matches!(first.action, StepAction::Squash | StepAction::Fixup) => {
+            return Err(
+                "The oldest commit kept can't be squashed or fixed up: there's no commit before it to combine with."
+                    .into(),
+            );
+        }
+        _ => {}
+    }
+
+    // The to-do list and new messages live in the git folder until the rebase is done
+    // (it may stop for conflicts and be continued later).
+    let folder = repo.git_dir().join("tributary-rebase");
+    let _ = std::fs::remove_dir_all(&folder);
+    std::fs::create_dir_all(&folder).map_err(|e| format!("Could not prepare the rebase: {e}"))?;
+    let executable = sh_quote(&git.executable.to_string_lossy());
+    let mut todo = String::new();
+    for (index, step) in steps.iter().enumerate() {
+        let id = &step.id;
+        match step.action {
+            StepAction::Pick => todo.push_str(&format!("pick {id}\n")),
+            StepAction::Squash => todo.push_str(&format!("squash {id}\n")),
+            StepAction::Fixup => todo.push_str(&format!("fixup {id}\n")),
+            StepAction::Drop => todo.push_str(&format!("drop {id}\n")),
+            StepAction::Reword => {
+                let message = step
+                    .message
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|m| !m.is_empty())
+                    .ok_or("Write the new message for each commit you reword.")?;
+                let file = folder.join(format!("message-{index}.txt"));
+                std::fs::write(&file, message)
+                    .map_err(|e| format!("Could not prepare the rebase: {e}"))?;
+                let file = sh_quote(&file.to_string_lossy());
+                todo.push_str(&format!(
+                    "pick {id}\nexec {executable} commit --amend --quiet --allow-empty --cleanup=strip --file {file}\n"
+                ));
+            }
+        }
+    }
+    let todo_file = folder.join("todo");
+    std::fs::write(&todo_file, todo).map_err(|e| format!("Could not prepare the rebase: {e}"))?;
+    // git hands its to-do file to this "editor", which replaces it with ours.
+    let editor = format!("cp {}", sh_quote(&todo_file.to_string_lossy()));
+    git.run_with_env(
+        &["rebase", "--interactive", "--no-autosquash", &onto],
+        &[("GIT_SEQUENCE_EDITOR", &editor)],
+    )?;
+    let _ = std::fs::remove_dir_all(&folder);
+    Ok(format!("Rewrote {}'s history", branch))
+}
+
+/// A string in single quotes for git's shell, with forward slashes (git's shell on
+/// Windows reads `C:/…` paths too).
+fn sh_quote(text: &str) -> String {
+    format!("'{}'", text.replace('\\', "/").replace('\'', "'\\''"))
+}
+
+/// Full ids of distinct existing commits.
+fn commit_ids(repo: &gix::Repository, ids: &[String]) -> Result<Vec<ObjectId>, Error> {
+    if ids.is_empty() {
+        return Err("No commits given.".into());
+    }
+    let mut seen = std::collections::HashSet::new();
+    ids.iter()
+        .map(|id| {
+            let oid = commit_id(repo, id)?;
+            if !seen.insert(oid) {
+                return Err(format!("{id} is listed twice."));
+            }
+            Ok(oid)
+        })
+        .collect()
+}
+
+fn require_tag(repo: &gix::Repository, name: &str) -> Result<(), Error> {
+    if name.starts_with('-')
+        || repo
+            .try_find_reference(format!("refs/tags/{name}").as_str())
+            .ok()
+            .flatten()
+            .is_none()
+    {
+        return Err(format!("There is no tag called {name}."));
+    }
+    Ok(())
+}
+
+fn check_new_tag_name(repo: &gix::Repository, git: &Git, name: &str) -> Result<(), Error> {
+    if name.is_empty() {
+        return Err("Enter a name for the tag.".into());
+    }
+    if name.starts_with('-')
+        || git
+            .run(&["check-ref-format", &format!("refs/tags/{name}")])
+            .is_err()
+    {
+        return Err(format!(
+            "\"{name}\" isn't a valid tag name. Avoid spaces and characters like ~ ^ : ? * [ \\."
+        ));
+    }
+    if repo
+        .try_find_reference(format!("refs/tags/{name}").as_str())
+        .ok()
+        .flatten()
+        .is_some()
+    {
+        return Err(format!("A tag called {name} already exists."));
+    }
+    Ok(())
+}
+
+/// The name of a configured remote.
+fn known_remote(repo: &gix::Repository, name: &str) -> Result<String, Error> {
+    let known = repo
+        .remote_names()
+        .iter()
+        .any(|remote| remote.to_str_lossy() == name);
+    if !known || name.starts_with('-') {
+        return Err(format!("There's no remote called {name}."));
+    }
+    Ok(name.to_owned())
 }
 
 /// The git command for the merge, rebase, cherry-pick or revert in progress.
@@ -694,6 +1190,14 @@ fn default_remote(repo: &gix::Repository) -> Result<String, Error> {
 struct Git {
     executable: PathBuf,
     workdir: PathBuf,
+    /// Running on Tributary's own initiative, not because the user asked (for the log).
+    background: bool,
+}
+
+/// What a fetch, pull or push printed.
+struct ProgressOutput {
+    /// Messages on standard error, without the progress lines.
+    messages: String,
 }
 
 impl Git {
@@ -719,6 +1223,7 @@ impl Git {
         Ok(Git {
             executable,
             workdir,
+            background: false,
         })
     }
 
@@ -728,6 +1233,7 @@ impl Git {
     }
 
     fn run_with_env(&self, args: &[&str], env: &[(&str, &str)]) -> Result<String, Error> {
+        let (started, took) = (SystemTime::now(), Instant::now());
         let output = command(&self.executable)
             .arg("-C")
             .arg(&self.workdir)
@@ -740,18 +1246,25 @@ impl Git {
             .output()
             .map_err(|e| format!("Could not run git: {e}"))?;
         let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let printed = format!("{}\n{}", stdout.trim_end(), stderr.trim_end());
+        record(self, args, started, took, output.status.success(), &printed);
         if output.status.success() {
             return Ok(stdout.into_owned());
         }
-        let stderr = String::from_utf8_lossy(&output.stderr);
         Err(error_message(args, &output.status, &stdout, &stderr))
     }
 
     /// Run a fetch, pull or push, reporting progress and allowing [`cancel`].
-    fn run_progress(&self, args: &[&str], on_progress: &dyn Fn(Progress)) -> Result<String, Error> {
+    fn run_progress(
+        &self,
+        args: &[&str],
+        on_progress: &dyn Fn(Progress),
+    ) -> Result<ProgressOutput, Error> {
         use std::sync::mpsc::{RecvTimeoutError, channel};
         use std::time::Duration;
 
+        let (started, took) = (SystemTime::now(), Instant::now());
         on_progress(Progress {
             phase: "Connecting".into(),
             percent: None,
@@ -857,6 +1370,7 @@ impl Git {
             .unwrap_or_else(|e| e.into_inner())
             .retain(|run| run.id != id);
         if cancelled.load(Ordering::SeqCst) {
+            record(self, args, started, took, false, "Cancelled.");
             return Err("Cancelled.".into());
         }
 
@@ -867,8 +1381,10 @@ impl Git {
         let stdout = output_received
             .recv_timeout(Duration::from_secs(2))
             .unwrap_or_default();
+        let printed = format!("{}\n{}", stdout.trim_end(), messages.trim_end());
+        record(self, args, started, took, status.success(), &printed);
         if status.success() {
-            return Ok(stdout);
+            return Ok(ProgressOutput { messages });
         }
         Err(error_message(args, &status, &stdout, &messages))
     }
