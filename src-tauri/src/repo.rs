@@ -860,6 +860,33 @@ fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> {
         }
     }
 
+    // Conflicts where one side deleted the file don't show up as conflicts above (the
+    // file can even look untracked), so take every unmerged path from the index itself.
+    if let Ok(index) = repo.index_or_empty() {
+        let mut conflicted: Vec<String> = index
+            .entries()
+            .iter()
+            .filter(|entry| entry.stage_raw() != 0)
+            .map(|entry| lossy(entry.path(&index)))
+            .collect();
+        conflicted.dedup();
+        if !conflicted.is_empty() {
+            status
+                .staged
+                .retain(|file| !conflicted.contains(&file.path));
+            status
+                .unstaged
+                .retain(|file| !conflicted.contains(&file.path));
+            status
+                .unstaged
+                .extend(conflicted.into_iter().map(|path| FileChange {
+                    path,
+                    old_path: None,
+                    status: FileStatus::Conflicted,
+                }));
+        }
+    }
+
     if status.staged.is_empty() && status.unstaged.is_empty() {
         return None;
     }

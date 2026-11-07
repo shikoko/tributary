@@ -2119,6 +2119,19 @@ fn resolves_conflicts_by_keeping_one_side() {
         .unwrap();
     assert_eq!(operation.mine.as_deref(), Some("main"));
     assert_eq!(operation.theirs.as_deref(), Some("feature"));
+    // Including the file main deleted, which git leaves in the working tree.
+    let status = repo::load(repo.path(), 100, true)
+        .unwrap()
+        .worktree
+        .unwrap();
+    assert_eq!(
+        files(&status.unstaged),
+        vec![
+            ("a.txt", FileStatus::Conflicted),
+            ("gone.txt", FileStatus::Conflicted),
+            ("hero.uasset", FileStatus::Conflicted)
+        ]
+    );
 
     let resolve = |paths: &[&str], keep| {
         run(
@@ -2161,6 +2174,29 @@ fn resolves_conflicts_by_keeping_one_side() {
         resolve(&["a.txt"], Side::Mine).unwrap_err(),
         "a.txt has no conflicts left."
     );
+
+    // Undo puts the conflicts back, deleted file included.
+    run(
+        &repo,
+        Action::RecreateConflicts {
+            paths: vec!["a.txt".into(), "hero.uasset".into(), "gone.txt".into()],
+        },
+    )
+    .unwrap();
+    let status = repo::load(repo.path(), 100, true)
+        .unwrap()
+        .worktree
+        .unwrap();
+    let conflicted: Vec<_> = status
+        .unstaged
+        .iter()
+        .filter(|file| file.status == FileStatus::Conflicted)
+        .map(|file| file.path.as_str())
+        .collect();
+    assert_eq!(conflicted, vec!["a.txt", "gone.txt", "hero.uasset"]);
+    assert!(read(&repo, "a.txt").contains("<<<<<<<"));
+    resolve(&["a.txt", "hero.uasset", "gone.txt"], Side::Theirs).unwrap();
+    assert_eq!(read(&repo, "gone.txt"), "feature edit");
     run(&repo, Action::ContinueOperation).unwrap();
     assert_eq!(parents(&repo, "HEAD"), 2);
 }

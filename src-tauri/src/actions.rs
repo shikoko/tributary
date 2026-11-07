@@ -145,6 +145,8 @@ pub enum Action {
     /// (the checked-out branch, or the branch being rebased) or theirs. A side that
     /// deleted the file deletes it. For files that can't be merged, like game assets.
     ResolveConflicts { paths: Vec<String>, keep: Side },
+    /// Put the conflicts back into files resolved with [`Action::ResolveConflicts`] (undo).
+    RecreateConflicts { paths: Vec<String> },
     /// Lock files with Git LFS, so nobody else can push changes to them.
     LockFiles { paths: Vec<String> },
     /// Release Git LFS locks, by id (the file may not exist here). `force` releases
@@ -1094,6 +1096,39 @@ fn perform(
             Ok(format!("Deleted tag {name} from {remote}"))
         }
         Action::ResolveConflicts { paths, keep } => resolve_conflicts(&repo, &git, &paths, keep),
+        Action::RecreateConflicts { paths } => {
+            let paths = check_file_paths(&paths)?;
+            in_progress(&repo)?;
+            // git remembers how resolved files conflicted: bring that back into the index,
+            // then put the conflicted files back as the merge left them.
+            for batch in in_batches(&paths) {
+                let mut args = vec!["update-index", "--unresolve", "--"];
+                args.extend(batch);
+                git.run_with_env(&args, &LITERAL)?;
+            }
+            let stages = conflict_stages(&git, &paths)?;
+            let (mut both, mut ours, mut theirs) = (Vec::new(), Vec::new(), Vec::new());
+            for &path in &paths {
+                match stages.get(path) {
+                    Some(found) if found.contains(&'2') && found.contains(&'3') => both.push(path),
+                    Some(found) if found.contains(&'2') => ours.push(path),
+                    Some(found) if found.contains(&'3') => theirs.push(path),
+                    _ => {}
+                }
+            }
+            for (flag, list) in [("--merge", &both), ("--ours", &ours), ("--theirs", &theirs)] {
+                for batch in in_batches(list) {
+                    let mut args = vec!["checkout", flag, "--"];
+                    args.extend(batch);
+                    // Binary files can't get conflict markers; git leaves your version.
+                    let _ = git.run_with_env(&args, &LITERAL);
+                }
+            }
+            Ok(format!(
+                "Put the conflicts back in {}",
+                describe_files(&paths)
+            ))
+        }
         Action::LockFiles { paths } => {
             let paths = check_file_paths(&paths)?;
             each_file(&paths, "lock", |path| {
@@ -1223,6 +1258,29 @@ fn in_batches<'a>(paths: &'a [&'a str]) -> impl Iterator<Item = &'a [&'a str]> {
 /// Paths are taken literally, never as patterns: a file can be called `a*.png`.
 const LITERAL: [(&str, &str); 1] = [("GIT_LITERAL_PATHSPECS", "1")];
 
+/// Which versions each conflicted file among `paths` has in the index: '1' (the common
+/// ancestor), '2' (ours) and '3' (theirs).
+fn conflict_stages(
+    git: &Git,
+    paths: &[&str],
+) -> Result<std::collections::HashMap<String, Vec<char>>, Error> {
+    let mut stages: std::collections::HashMap<String, Vec<char>> = Default::default();
+    for batch in in_batches(paths) {
+        let mut args = vec!["ls-files", "--unmerged", "-z", "--"];
+        args.extend(batch);
+        // "<mode> <id> <stage>\t<path>" records.
+        for record in git.run_with_env(&args, &LITERAL)?.split('\0') {
+            let Some((info, path)) = record.split_once('\t') else {
+                continue;
+            };
+            if let Some(number) = info.split(' ').nth(2).and_then(|s| s.chars().next()) {
+                stages.entry(path.to_owned()).or_default().push(number);
+            }
+        }
+    }
+    Ok(stages)
+}
+
 fn resolve_conflicts(
     repo: &gix::Repository,
     git: &Git,
@@ -1244,20 +1302,7 @@ fn resolve_conflicts(
         ("--theirs", '3')
     };
 
-    // Which versions each conflicted file has: "<mode> <id> <stage>\t<path>" records.
-    let mut stages: std::collections::HashMap<String, Vec<char>> = Default::default();
-    for batch in in_batches(&paths) {
-        let mut args = vec!["ls-files", "--unmerged", "-z", "--"];
-        args.extend(batch);
-        for record in git.run_with_env(&args, &LITERAL)?.split('\0') {
-            let Some((info, path)) = record.split_once('\t') else {
-                continue;
-            };
-            if let Some(number) = info.split(' ').nth(2).and_then(|s| s.chars().next()) {
-                stages.entry(path.to_owned()).or_default().push(number);
-            }
-        }
-    }
+    let stages = conflict_stages(git, &paths)?;
     let mut take = Vec::new();
     let mut delete = Vec::new();
     for &path in &paths {
