@@ -1922,21 +1922,20 @@ body.resizing * {
   color: var(--text);
 }
 
+/* The + is a small tab at the end of the row, on the same bottom edge as the tabs. */
 .tab-new {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* Level with the tabs, which sit on the bar's bottom edge: centred on their middle. */
   align-self: flex-end;
-  width: 26px;
-  height: 26px;
-  margin-bottom: 2px;
-  margin-left: 4px;
+  width: 34px;
+  height: 30px;
+  margin-left: 2px;
   padding: 0;
   border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
+  border-radius: 7px 7px 0 0;
+  background: #15181e;
+  color: var(--text-secondary);
   flex: none;
 }
 
@@ -2668,10 +2667,24 @@ body.dragging-label * {
 
 /* In-window menu bar (Windows and Linux) */
 .menu-bar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
-  margin-right: 8px;
+  margin-right: 10px;
+  padding-right: 10px;
+}
+
+/* A short line between the menus and the tabs. */
+.menu-bar::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 1px;
+  height: 18px;
+  margin-top: -9px;
+  background: var(--border-strong);
 }
 
 .menu-bar-item {
