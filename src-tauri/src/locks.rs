@@ -9,9 +9,8 @@ use std::sync::{LazyLock, Mutex};
 
 use serde::{Deserialize, Serialize};
 
-use crate::actions::Git;
-
-type Error = String;
+use crate::error::{Error, Result};
+use crate::git::Git;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -101,7 +100,7 @@ fn unsupported(error: &str) -> bool {
         "unsupported",
     ]
     .iter()
-    .any(|sign| error.contains(sign))
+    .any(|sign| error.to_string().contains(sign))
 }
 
 /// Don't pop up sign-in windows for listing locks.
@@ -184,17 +183,14 @@ pub(crate) fn owner_of_new_lock(output: &str) -> Option<String> {
 
 /// The locks on the repository's LFS server.
 pub fn locks(path: &Path) -> Result<Locks, Error> {
-    let repo = gix::discover(path)
-        .map_err(|e| format!("{} is not a git repository ({e})", path.display()))?;
+    let repo = gix::discover(path).map_err(|e| Error::not_a_repository(path, e))?;
     let Some(workdir) = repo.workdir() else {
         return Ok(Locks::default());
     };
     if !uses_lfs(workdir) {
         return Ok(Locks::default());
     }
-    let mut git = Git::find(workdir.to_owned())?;
-    // Nobody asked for this, so never pop up a sign-in window for it.
-    git.background = true;
+    let git = Git::find(workdir.to_owned())?.in_background();
 
     let workdir = workdir.to_owned();
     let listed = if without_verify(&workdir) {
@@ -226,7 +222,11 @@ pub fn locks(path: &Path) -> Result<Locks, Error> {
                     list_all(&git, &workdir)
                 }
                 Err(error) => {
-                    if unsupported(&error) || verified.as_ref().is_err_and(|e| unsupported(e)) {
+                    if unsupported(&error.to_string())
+                        || verified
+                            .as_ref()
+                            .is_err_and(|e| unsupported(&e.to_string()))
+                    {
                         return Ok(Locks::default());
                     }
                     Err(error)
@@ -246,7 +246,7 @@ pub fn locks(path: &Path) -> Result<Locks, Error> {
         Err(error) => Ok(Locks {
             supported: true,
             locks: Vec::new(),
-            error: Some(error),
+            error: Some(error.to_string()),
         }),
     }
 }

@@ -5477,6 +5477,7 @@ dependencies = [
  "tauri-plugin-notification",
  "tauri-plugin-opener",
  "tauri-plugin-updater",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

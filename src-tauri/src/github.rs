@@ -5,10 +5,9 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::actions::Git;
+use crate::error::{Error, Result};
+use crate::git::Git;
 use crate::links::Host;
-
-type Error = String;
 
 /// At most this many pull requests get their checks looked up.
 const MAX_CHECKED: usize = 25;
@@ -25,8 +24,17 @@ pub struct PullRequest {
     pub branch: String,
     pub draft: bool,
     pub author: String,
-    /// "success", "failure" or "pending"; None when it has no checks (or they couldn't be read).
-    pub checks: Option<String>,
+    /// None when it has no checks (or they couldn't be read).
+    pub checks: Option<CheckState>,
+}
+
+/// How a pull request's checks (GitHub Actions and others) went.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CheckState {
+    Success,
+    Failure,
+    Pending,
 }
 
 #[derive(Deserialize)]
@@ -99,7 +107,7 @@ fn github_repository(path: &Path) -> Result<Option<(String, String)>, Error> {
 }
 
 /// Combine the results of a commit's checks: any failure fails, anything still running is pending.
-fn summarize(runs: &[CheckRun]) -> Option<String> {
+fn summarize(runs: &[CheckRun]) -> Option<CheckState> {
     if runs.is_empty() {
         return None;
     }
@@ -110,16 +118,13 @@ fn summarize(runs: &[CheckRun]) -> Option<String> {
         )
     });
     let running = runs.iter().any(|run| run.status != "completed");
-    Some(
-        if failed {
-            "failure"
-        } else if running {
-            "pending"
-        } else {
-            "success"
-        }
-        .to_owned(),
-    )
+    Some(if failed {
+        CheckState::Failure
+    } else if running {
+        CheckState::Pending
+    } else {
+        CheckState::Success
+    })
 }
 
 /// The open pull requests of the repository's GitHub remote. Empty for other remotes.
@@ -199,7 +204,7 @@ pub async fn pull_requests(path: &Path) -> Result<Vec<PullRequest>, Error> {
 }
 
 /// A commit's checks (GitHub Actions and other apps), or else its commit statuses.
-async fn check_state<F, R>(get: &F, full_name: &str, sha: &str) -> Option<String>
+async fn check_state<F, R>(get: &F, full_name: &str, sha: &str) -> Option<CheckState>
 where
     F: Fn(String) -> R,
     R: std::future::Future<Output = reqwest::Result<reqwest::Response>>,
@@ -223,7 +228,15 @@ where
     .json()
     .await
     .ok()?;
-    (status.total_count > 0).then_some(status.state)
+    if status.total_count == 0 {
+        return None;
+    }
+    match status.state.as_str() {
+        "success" => Some(CheckState::Success),
+        "pending" => Some(CheckState::Pending),
+        "failure" | "error" => Some(CheckState::Failure),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -244,17 +257,16 @@ mod tests {
             summarize(&[
                 run("completed", Some("success")),
                 run("completed", Some("skipped"))
-            ])
-            .as_deref(),
-            Some("success")
+            ]),
+            Some(CheckState::Success)
         );
         assert_eq!(
-            summarize(&[run("completed", Some("success")), run("in_progress", None)]).as_deref(),
-            Some("pending")
+            summarize(&[run("completed", Some("success")), run("in_progress", None)]),
+            Some(CheckState::Pending)
         );
         assert_eq!(
-            summarize(&[run("in_progress", None), run("completed", Some("failure"))]).as_deref(),
-            Some("failure")
+            summarize(&[run("in_progress", None), run("completed", Some("failure"))]),
+            Some(CheckState::Failure)
         );
     }
 }

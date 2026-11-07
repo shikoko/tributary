@@ -1,0 +1,343 @@
+//! Uncommitted changes: staging, committing, stashing, discarding and ignoring.
+
+mod common;
+
+use common::{TempRepo, outcome, read, run, stash_count, with_identity};
+use tributary_lib::actions::Action;
+
+#[test]
+fn stashes_apply_pop_and_drop() {
+    let mut repo = TempRepo::new("stash-actions");
+    repo.commit("a.txt", "committed");
+    std::fs::write(repo.path().join("a.txt"), "changed").unwrap();
+
+    let message = run(
+        &repo,
+        Action::StashPush {
+            message: Some("Half done".into()),
+            include_untracked: false,
+            paths: vec![],
+        },
+    )
+    .unwrap();
+    assert_eq!(message, "Stashed your changes as stash@{0}");
+    assert_eq!(read(&repo, "a.txt"), "committed");
+    assert!(repo.git(&["stash", "list"]).contains("Half done"));
+    let nothing = run(
+        &repo,
+        Action::StashPush {
+            message: None,
+            include_untracked: false,
+            paths: vec![],
+        },
+    )
+    .unwrap_err();
+    assert!(nothing.contains("no changes"), "{nothing}");
+
+    let id = repo.git(&["rev-parse", "stash@{0}"]);
+    run(
+        &repo,
+        Action::StashApply {
+            index: 0,
+            id: id.clone(),
+        },
+    )
+    .unwrap();
+    assert_eq!(read(&repo, "a.txt"), "changed");
+    assert_eq!(stash_count(&repo), 1, "apply keeps the stash");
+
+    repo.git(&["checkout", "--", "a.txt"]);
+    run(
+        &repo,
+        Action::StashPop {
+            index: 0,
+            id: id.clone(),
+        },
+    )
+    .unwrap();
+    assert_eq!(read(&repo, "a.txt"), "changed");
+    assert_eq!(stash_count(&repo), 0, "pop removes the stash");
+
+    run(
+        &repo,
+        Action::StashPush {
+            message: None,
+            include_untracked: false,
+            paths: vec![],
+        },
+    )
+    .unwrap();
+    let wrong = "0123456789012345678901234567890123456789".to_owned();
+    assert!(
+        run(
+            &repo,
+            Action::StashDrop {
+                index: 0,
+                id: wrong
+            }
+        )
+        .is_err()
+    );
+    let id = repo.git(&["rev-parse", "stash@{0}"]);
+    run(&repo, Action::StashDrop { index: 0, id }).unwrap();
+    assert_eq!(stash_count(&repo), 0);
+}
+
+#[test]
+fn stash_and_retry_puts_changes_back() {
+    let mut repo = TempRepo::new("stash-retry");
+    repo.commit("a.txt", "one\ntwo\nthree\nfour\nfive\n");
+    repo.git(&["branch", "old"]);
+    repo.commit("a.txt", "ONE\ntwo\nthree\nfour\nfive\n");
+    // An uncommitted edit to a file that differs between the branches.
+    std::fs::write(repo.path().join("a.txt"), "ONE\ntwo\nthree\nfour\nFIVE\n").unwrap();
+
+    let refused = run(&repo, Action::CheckoutBranch { name: "old".into() }).unwrap_err();
+    assert!(refused.contains("would be overwritten"), "{refused}");
+
+    let message = run(
+        &repo,
+        Action::StashAndRetry {
+            action: Box::new(Action::CheckoutBranch { name: "old".into() }),
+            include_untracked: false,
+        },
+    )
+    .unwrap();
+    assert_eq!(message, "Checked out old, and put your changes back");
+    assert_eq!(repo.git(&["branch", "--show-current"]), "old");
+    assert_eq!(read(&repo, "a.txt"), "one\ntwo\nthree\nfour\nFIVE\n");
+    assert_eq!(stash_count(&repo), 0);
+}
+
+#[test]
+fn stash_and_retry_keeps_the_stash_when_changes_conflict() {
+    let mut repo = TempRepo::new("stash-retry-conflict");
+    repo.commit("a.txt", "one");
+    repo.git(&["branch", "old"]);
+    repo.commit("a.txt", "two");
+    std::fs::write(repo.path().join("a.txt"), "three").unwrap();
+
+    let error = run(
+        &repo,
+        Action::StashAndRetry {
+            action: Box::new(Action::CheckoutBranch { name: "old".into() }),
+            include_untracked: false,
+        },
+    )
+    .unwrap_err();
+    assert!(error.contains("stash@{0}"), "{error}");
+    assert_eq!(repo.git(&["branch", "--show-current"]), "old");
+    assert_eq!(stash_count(&repo), 1, "the changes are still saved");
+}
+
+#[test]
+fn stages_unstages_commits_and_undoes() {
+    let mut repo = TempRepo::new("commit");
+    let first = repo.commit("a.txt", "first");
+    std::fs::write(repo.path().join("a.txt"), "changed").unwrap();
+    std::fs::write(repo.path().join("b.txt"), "new").unwrap();
+    let staged = |repo: &TempRepo| repo.git(&["diff", "--cached", "--name-only"]);
+
+    run(
+        &repo,
+        Action::Stage {
+            paths: vec!["a.txt".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(staged(&repo), "a.txt");
+    run(
+        &repo,
+        Action::Unstage {
+            paths: vec!["a.txt".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(staged(&repo), "");
+    run(&repo, Action::StageAll).unwrap();
+    assert_eq!(staged(&repo), "a.txt\nb.txt");
+    run(&repo, Action::UnstageAll).unwrap();
+    assert_eq!(staged(&repo), "");
+    assert!(run(&repo, Action::Stage { paths: vec![] }).is_err());
+
+    run(&repo, Action::StageAll).unwrap();
+    assert!(
+        run(
+            &repo,
+            Action::Commit {
+                message: "  ".into(),
+                amend: false
+            }
+        )
+        .is_err()
+    );
+    let message = run(
+        &repo,
+        Action::Commit {
+            message: "Second\n\nWith a body.".into(),
+            amend: false,
+        },
+    )
+    .unwrap();
+    assert!(
+        message.starts_with("Committed ") && message.ends_with(": Second"),
+        "{message}"
+    );
+    assert_eq!(
+        repo.git(&["log", "-1", "--format=%s|%b"]),
+        "Second|With a body."
+    );
+
+    let message = run(
+        &repo,
+        Action::Commit {
+            message: "Second, amended".into(),
+            amend: true,
+        },
+    )
+    .unwrap();
+    assert!(message.starts_with("Amended "), "{message}");
+    assert_eq!(repo.git(&["rev-list", "--count", "HEAD"]), "2");
+    assert_eq!(repo.git(&["log", "-1", "--format=%s"]), "Second, amended");
+
+    // Undo: the commit goes away, its changes stay staged.
+    run(&repo, Action::ResetSoft { id: first.clone() }).unwrap();
+    assert_eq!(repo.git(&["rev-parse", "HEAD"]), first);
+    assert_eq!(staged(&repo), "a.txt\nb.txt");
+}
+
+#[test]
+fn unstages_before_the_first_commit() {
+    let repo = TempRepo::new("unborn");
+    std::fs::write(repo.path().join("a.txt"), "new").unwrap();
+    run(
+        &repo,
+        Action::Stage {
+            paths: vec!["a.txt".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "a.txt");
+    run(
+        &repo,
+        Action::Unstage {
+            paths: vec!["a.txt".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "");
+    run(&repo, Action::StageAll).unwrap();
+    run(&repo, Action::UnstageAll).unwrap();
+    assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "");
+}
+
+#[test]
+fn discards_files_and_puts_them_back() {
+    let mut repo = TempRepo::new("discard");
+    with_identity(&repo);
+    repo.commit("a.txt", "original");
+    repo.commit("keep.txt", "keep");
+    std::fs::write(repo.path().join("a.txt"), "edited").unwrap();
+    std::fs::write(repo.path().join("keep.txt"), "also edited").unwrap();
+    std::fs::write(repo.path().join("new.log"), "new").unwrap();
+
+    let discarded = outcome(
+        &repo,
+        Action::DiscardFiles {
+            paths: vec!["a.txt".into(), "new.log".into()],
+        },
+    );
+    assert_eq!(discarded.message, "Discarded the changes to 2 files");
+    assert_eq!(read(&repo, "a.txt"), "original");
+    assert!(!repo.path().join("new.log").exists());
+    // Other changes stay, and the stash list isn't touched.
+    assert_eq!(read(&repo, "keep.txt"), "also edited");
+    assert_eq!(stash_count(&repo), 0);
+
+    let reference = discarded.backup.expect("kept for undo");
+    assert!(reference.starts_with("refs/tributary/discarded/"));
+    assert_eq!(
+        run(
+            &repo,
+            Action::RestoreDiscarded {
+                reference: reference.clone()
+            }
+        )
+        .unwrap(),
+        "Put the discarded changes back"
+    );
+    assert_eq!(read(&repo, "a.txt"), "edited");
+    assert_eq!(read(&repo, "new.log"), "new");
+    assert!(run(&repo, Action::RestoreDiscarded { reference }).is_err());
+    assert!(
+        run(
+            &repo,
+            Action::DiscardFiles {
+                paths: vec!["unchanged.txt".into()]
+            }
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn ignores_files_and_stops_ignoring_them() {
+    let mut repo = TempRepo::new("ignore");
+    repo.commit("a.txt", "First");
+    std::fs::write(repo.path().join("debug.log"), "noise").unwrap();
+    std::fs::create_dir_all(repo.path().join("Saved")).unwrap();
+    std::fs::write(repo.path().join("Saved/autosave.uasset"), "noise").unwrap();
+    let untracked = |repo: &TempRepo| repo.git(&["status", "--porcelain", "--untracked-files=all"]);
+    assert!(untracked(&repo).contains("debug.log"));
+
+    run(
+        &repo,
+        Action::IgnorePaths {
+            patterns: vec!["*.log".into(), "Saved/".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(read(&repo, ".gitignore"), "*.log\nSaved/\n");
+    assert_eq!(untracked(&repo), "?? .gitignore");
+    // Already there: not added twice.
+    run(
+        &repo,
+        Action::IgnorePaths {
+            patterns: vec!["*.log".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(read(&repo, ".gitignore"), "*.log\nSaved/\n");
+
+    run(
+        &repo,
+        Action::UnignorePaths {
+            patterns: vec!["*.log".into(), "Saved/".into()],
+        },
+    )
+    .unwrap();
+    assert!(!repo.path().join(".gitignore").exists());
+}
+
+#[test]
+fn stashes_only_the_chosen_files() {
+    let mut repo = TempRepo::new("stash-files");
+    repo.commit("a.txt", "a");
+    repo.commit("b.txt", "b");
+    std::fs::write(repo.path().join("a.txt"), "a edited").unwrap();
+    std::fs::write(repo.path().join("b.txt"), "b edited").unwrap();
+    assert_eq!(
+        run(
+            &repo,
+            Action::StashPush {
+                message: None,
+                include_untracked: false,
+                paths: vec!["a.txt".into()],
+            },
+        )
+        .unwrap(),
+        "Stashed a.txt as stash@{0}"
+    );
+    assert_eq!(read(&repo, "a.txt"), "a");
+    assert_eq!(read(&repo, "b.txt"), "b edited");
+}

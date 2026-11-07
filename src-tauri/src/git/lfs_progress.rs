@@ -18,7 +18,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use crate::actions::Progress;
+use super::Progress;
 
 /// How often the log file is read.
 const POLL: Duration = Duration::from_millis(100);

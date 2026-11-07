@@ -11,9 +11,8 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
-use crate::actions::Git;
-
-type Error = String;
+use crate::error::{Error, Result};
+use crate::git::Git;
 
 /// Where releases come from.
 const REPOSITORY: &str = "shikoko/tributary";
@@ -106,7 +105,7 @@ async fn latest_manifest() -> Result<Option<(String, Option<String>)>, Error> {
                 "Couldn't see Tributary's releases on GitHub: sign in to GitHub with git on this computer (by cloning or fetching a GitHub repository), then try again.".into(),
             );
         }
-        status => return Err(format!("GitHub answered with an error ({status})")),
+        status => return Err(format!("GitHub answered with an error ({status})").into()),
     }
     let release: Release = response
         .json()

@@ -32,6 +32,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Pure-Rust git implementation: reads history without needing git installed.
 gix = { version = "0.90", default-features = false, features = ["sha1", "blob-diff", "status", "max-performance"] }
+thiserror = "2"
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
@@ -40,3 +41,11 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+# App code reports errors instead of panicking; tests may unwrap.
+unwrap_used = "warn"
+expect_used = "warn"
