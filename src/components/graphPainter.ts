@@ -64,6 +64,10 @@ export function paintGraph(
   ctx.lineJoin = "round";
 
   // Lines first, so the nodes are drawn on top of them.
+  // Lines that look the same are gathered into one path and stroked once. Stroking each
+  // row's piece separately paints the soft edge pixels twice where the rounded ends of
+  // neighbouring rows overlap, which shows as a small bump at every row boundary.
+  const batches = new Map<string, { color: string; alpha: number; dashed: boolean; path: Path2D }>();
   for (let slot = first; slot < last; slot++) {
     const top = (slot - first) * rowHeight;
     const middle = top + rowHeight / 2;
@@ -72,37 +76,45 @@ export function paintGraph(
     const lines = typeof row === "number" ? commits[row].graph.lines : passingLines(commits[row.before]);
 
     for (const [kind, from, to, child, dashed] of lines) {
-      ctx.strokeStyle = laneColor(kind === 2 ? to : from);
-      ctx.globalAlpha = focus ? (inFocus(child) ? 1 : FADED) : 1;
-      // Lines from stashes and uncommitted changes are dashed: they aren't history yet.
-      ctx.setLineDash(dashed ? DASH : []);
-      ctx.beginPath();
+      const color = laneColor(kind === 2 ? to : from);
+      const alpha = focus ? (inFocus(child) ? 1 : FADED) : 1;
+      const key = `${color} ${alpha} ${dashed ? 1 : 0}`;
+      let batch = batches.get(key);
+      if (!batch) batches.set(key, (batch = { color, alpha, dashed: !!dashed, path: new Path2D() }));
+      const path = batch.path;
       if (kind === 0) {
-        ctx.moveTo(x(from), top);
-        ctx.lineTo(x(from), bottom);
+        path.moveTo(x(from), top);
+        path.lineTo(x(from), bottom);
       } else if (kind === 1) {
         // Down from the top of the row, then across into the node.
-        ctx.moveTo(x(from), top);
+        path.moveTo(x(from), top);
         if (from === to) {
-          ctx.lineTo(x(to), middle);
+          path.lineTo(x(to), middle);
         } else {
-          ctx.arcTo(x(from), middle, x(to), middle, corner);
-          ctx.lineTo(x(to), middle);
+          path.arcTo(x(from), middle, x(to), middle, corner);
+          path.lineTo(x(to), middle);
         }
       } else {
         // Across from the node, then down to the bottom of the row.
-        ctx.moveTo(x(from), middle);
+        path.moveTo(x(from), middle);
         if (from === to) {
-          ctx.lineTo(x(to), bottom);
+          path.lineTo(x(to), bottom);
         } else {
-          ctx.arcTo(x(to), middle, x(to), bottom, corner);
-          ctx.lineTo(x(to), bottom);
+          path.arcTo(x(to), middle, x(to), bottom, corner);
+          path.lineTo(x(to), bottom);
         }
       }
-      ctx.stroke();
     }
   }
+  for (const { color, alpha, dashed, path } of batches.values()) {
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = alpha;
+    // Lines from stashes and uncommitted changes are dashed: they aren't history yet.
+    ctx.setLineDash(dashed ? DASH : []);
+    ctx.stroke(path);
+  }
   ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
 
   for (let slot = first; slot < last; slot++) {
     const row = slots[slot];
