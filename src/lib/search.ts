@@ -21,3 +21,14 @@ export function findMatches(commits: CommitRow[], query: string): number[] {
   });
   return matches;
 }
+
+/**
+ * The next of the sorted row `indexes` after row `from` (or before it, for `step` -1),
+ * wrapping around at the ends. `from` -1 means nothing is selected.
+ */
+export function stepThrough(indexes: number[], from: number, step: 1 | -1): number | undefined {
+  if (indexes.length === 0) return undefined;
+  return step > 0
+    ? (indexes.find((index) => index > from) ?? indexes[0])
+    : ([...indexes].reverse().find((index) => index < from) ?? indexes[indexes.length - 1]);
+}

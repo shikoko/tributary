@@ -1,226 +1,110 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
-  activityLog,
   cancelAction,
   commitDetails,
-  commitsBetween,
-  fileChecks,
   fileHistory,
   fullRefName,
   initRepository,
-  onActivity,
   onProgress,
   openRepository,
   PAGE_SIZE,
-  remoteState,
-  runAction,
   runActionFor,
   WORKTREE_ID,
   type Action,
   type CommitDetails,
   type CommitRow,
   type FileChange,
-  type FileChecks,
   type Lock,
-  type LogEntry,
   type Progress,
   type RepoSnapshot,
-  type Visibility,
+  type Visibility
 } from "./api";
 import { involvesUntrackedFiles, isLocalChangesError } from "./lib/errors";
-import { ancestors, countMissing } from "./lib/graph";
+import { ancestors, rewritable } from "./lib/graph";
+import { undoFor } from "./lib/undo";
+import { selectCommit, type SelectHow } from "./lib/selection";
 import { useLfsLocks } from "./lib/locks";
 import { makeLookup, PullRequestsContext, usePullRequests } from "./lib/pullRequests";
-import { describeNews, findNews, remoteTips, watchedFor, type News } from "./lib/news";
-import { notifySystem } from "./lib/notify";
 import { useUpdates } from "./lib/updates";
-import { baseName, folderOf, joinPath, relativeTo } from "./lib/paths";
-import { copyText } from "./lib/clipboard";
-import { setNativeMenu, type NativeMenu } from "./lib/nativeMenu";
+import { baseName, joinPath, relativeTo } from "./lib/paths";
 import { loadPlace, savePlace } from "./lib/place";
 import { isMac } from "./lib/platform";
 import { forgetRepo, loadRecent, noteBranch, pinRepo, rememberRepo } from "./lib/recent";
-import { stashIndexOf, type RefEntry } from "./lib/refs";
+import { type RefEntry } from "./lib/refs";
 import { NO_VISIBILITY, readVisibility, useRepoSetting } from "./lib/repoPrefs";
-import { findMatches } from "./lib/search";
-import { readSetting, useStoredState } from "./lib/settings";
-import { plural } from "./lib/format";
-import { newPullRequestUrl, openInBrowser, siteName, webRemote } from "./lib/weblinks";
+import { findMatches, stepThrough } from "./lib/search";
+import { readSetting } from "./lib/settings";
+import { openInBrowser, webRemote } from "./lib/weblinks";
 import {
-  canResetTo,
   checkoutFor,
   commitMenu,
-  deleteAnyway,
   dropMenu,
   pillForEntry,
   pillMenu,
   selectionMenu,
-  splitRemoteBranch,
   type MenuContext,
-  type OpenDialog,
+  type OpenDialog
 } from "./menus";
 import { ActivityPanel } from "./components/ActivityPanel";
+import { MessageTools } from "./components/MessageTools";
+import { withCoAuthor } from "./lib/commitMessage";
+import { menuItems, shortcutLabel} from "./app/appCommand";
+import {
+  FOCUS_REFRESH_INTERVAL,
+  PROGRESS_DELAY,
+  RETRYABLE,
+  RUNNING_LABELS,
+  ZOOM_LEVELS,
+  type Busy,
+  type Focus,
+  type Running
+} from "./app/constants";
+import { useBackgroundFetch } from "./app/useBackgroundFetch";
+import { useBranchCounts } from "./app/useBranchCounts";
+import { useAutoLock, useFileChecks } from "./app/useFileChecks";
+import { useKeyboardShortcuts } from "./app/useKeyboardShortcuts";
+import { appMenus, helpCommandsFor, settingsCommand, startCommands, type MenuBarContext } from "./app/appMenus";
+import { fileMenuItems, lockMenuItems, type FileMenuContext } from "./app/fileMenus";
+import { RepositoryDialogs } from "./app/Dialogs";
+import { columnMenuItems, detailsActionsFor, pushMenuItems } from "./app/listMenus";
+import { paletteCommands } from "./app/paletteCommands";
+import { useNativeMenu } from "./app/useNativeMenu";
+import { settingsSections } from "./app/settingsSections";
+import { usePreferences } from "./app/usePreferences";
+import { useActivityLog, useFolderDrop, useWindowFocus } from "./app/useWindowEvents";
+import { applyZoom, setWindowTitle } from "./app/window";
 import { ProfilePictures } from "./components/Avatar";
 import { CloneDialog } from "./components/CloneDialog";
-import { CommandPalette, type Command } from "./components/CommandPalette";
-import { CommitDetailsPanel, type DetailsAction } from "./components/CommitDetails";
-import { CommitList, DEFAULT_COLUMNS, type ColumnOptions, type ColumnWidths, type SelectHow } from "./components/CommitList";
-import { ConfirmDialog } from "./components/ConfirmDialog";
+import { CommandPalette} from "./components/CommandPalette";
+import { CommitDetailsPanel} from "./components/CommitDetails";
+import { CommitList, DEFAULT_COLUMNS } from "./components/CommitList";
 import { ContextMenu, type MenuItem } from "./components/ContextMenu";
-import { ForcePushDialog } from "./components/ForcePushDialog";
 import {
-  ActivityIcon,
-  BellIcon,
-  BranchIcon,
-  BroomIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  CloneIcon,
   CloseIcon,
-  CloudIcon,
-  ColumnsIcon,
-  CopyIcon,
   DownloadIcon,
-  ExternalLinkIcon,
   EyeIcon,
-  EyeOffIcon,
-  FetchIcon,
-  FileHistoryIcon,
   FolderIcon,
-  GearIcon,
-  HistoryIcon,
-  IgnoreIcon,
-  KeyboardIcon,
-  LockIcon,
-  MergeIcon,
-  NewRepoIcon,
-  PlusIcon,
-  PullIcon,
-  PullRequestIcon,
-  PushIcon,
-  RebaseIcon,
-  RecoverIcon,
-  RefreshIcon,
-  ResetIcon,
-  SearchIcon,
-  SidebarIcon,
-  StashIcon,
-  TagIcon,
-  TrashIcon,
-  UnlockIcon,
-  UserIcon,
-  ViewIcon,
-} from "./components/Icons";
-import { InteractiveRebaseDialog } from "./components/InteractiveRebaseDialog";
+  PlusIcon} from "./components/Icons";
 import { MenuBar, type AppMenu } from "./components/MenuBar";
 import { MultiSelectPanel } from "./components/MultiSelectPanel";
-import { NewBranchDialog } from "./components/NewBranchDialog";
 import { OperationBar } from "./components/OperationBar";
 import { ProgressStrip } from "./components/ProgressStrip";
-import { PruneDialog } from "./components/PruneDialog";
-import { RestoreDialog } from "./components/RestoreDialog";
-import { RecoverDialog } from "./components/RecoverDialog";
-import { NameList, SettingsDialog, type SettingsSection } from "./components/SettingsDialog";
-import { LfsStorageSummary, PruneLfsDialog } from "./components/LfsCleanup";
+import { SettingsDialog} from "./components/SettingsDialog";
 import { UpdateDialog } from "./components/UpdateDialog";
-import { DEFAULT_PROTECTED, ProtectedActionDialog } from "./components/Safety";
-import { DeleteBranchDialog, DeleteRemoteBranchDialog } from "./components/DeleteBranchDialogs";
-import { RenameBranchDialog } from "./components/RenameBranchDialog";
-import { ResetDialog } from "./components/ResetDialog";
+import { DEFAULT_PROTECTED} from "./components/Safety";
 import { ResizeHandle } from "./components/ResizeHandle";
 import { ShortcutsDialog } from "./components/ShortcutsDialog";
 import { Sidebar } from "./components/Sidebar";
-import { StashDialog } from "./components/StashDialog";
 import { StatusBar } from "./components/StatusBar";
 import { TabBar, type Tab } from "./components/TabBar";
-import { TagDialog } from "./components/TagDialog";
 import { Toast, type ToastMessage } from "./components/Toast";
 import { Toolbar, type RemoteAction } from "./components/Toolbar";
+import { ViewBanner } from "./components/ViewBanner";
 import { Welcome } from "./components/Welcome";
-import { conflictSides, EMPTY_DRAFT, lfsPattern, WorktreeDetailsPanel, type CommitDraft } from "./components/WorktreeDetails";
-
-type Busy = { kind: "open"; path: string } | { kind: "refresh" } | { kind: "more" } | null;
-type Running = RemoteAction | "other" | null;
-/** What's highlighted: a branch's (or commit's) history, an author's commits, or the commits that changed a file or folder. */
-type Focus =
-  | { kind: "history"; name: string; commitId: string }
-  | { kind: "author"; name: string; email: string }
-  | { kind: "path"; path: string; folder: boolean; ids: string[]; names: string[]; truncated: boolean };
-
-/** Don't refresh on window focus more often than this, in milliseconds. */
-const FOCUS_REFRESH_INTERVAL = 2000;
-/** How often to fetch in the background, in minutes, to choose from. */
-const FETCH_MINUTES = [1, 2, 5, 10, 15, 30];
-/** The first background fetch after opening a repository. */
-const FIRST_AUTO_FETCH_DELAY = 5000;
-/** Fetches, pulls and pushes that finish faster than this don't show a progress bar. */
-const PROGRESS_DELAY = 300;
-const ZOOM_LEVELS = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
-/** How many git commands the activity log keeps. */
-const ACTIVITY_SIZE = 300;
-/** Actions that can be retried after stashing when uncommitted changes are in the way. */
-const RETRYABLE = new Set<Action["kind"]>([
-  "pull",
-  "checkoutBranch",
-  "checkoutRemoteBranch",
-  "checkoutCommit",
-  "createBranch",
-  "merge",
-  "rebase",
-  "cherryPick",
-  "revert",
-  "cherryPickMany",
-  "revertMany",
-  "interactiveRebase",
-]);
-const RUNNING_LABELS: Record<RemoteAction, string> = { fetch: "Fetching", pull: "Pulling", push: "Pushing" };
-
-/** A command for the menu bar, the menus and the command palette. */
-interface AppCommand {
-  id: string;
-  label: string;
-  icon?: ReactNode;
-  /** A keyboard shortcut, like "CmdOrCtrl+K". */
-  keys?: string;
-  enabled?: boolean;
-  /** For on/off settings. */
-  checked?: boolean;
-  danger?: boolean;
-  run: () => void;
-}
-type MenuEntry = AppCommand | "-";
-
-/** "CmdOrCtrl+Shift+L" as it's written on this platform: "⇧⌘L" or "Ctrl+Shift+L". */
-function shortcutLabel(keys: string): string {
-  const parts = keys.split("+").filter(Boolean);
-  const key = keys.endsWith("++") ? "+" : (parts.pop() ?? "");
-  const shown = key === "=" ? "+" : key;
-  if (isMac) {
-    const symbols: Record<string, string> = { CmdOrCtrl: "⌘", Shift: "⇧", Alt: "⌥", Ctrl: "⌃" };
-    const order = ["Ctrl", "Alt", "Shift", "CmdOrCtrl"];
-    return parts.sort((a, b) => order.indexOf(a) - order.indexOf(b)).map((part) => symbols[part] ?? part).join("") + shown;
-  }
-  return [...parts.map((part) => (part === "CmdOrCtrl" ? "Ctrl" : part)), shown].join("+");
-}
-
-function setWindowTitle(title: string) {
-  document.title = title;
-  getCurrentWindow()
-    .setTitle(title)
-    .catch(() => {});
-}
-
-function applyZoom(level: number) {
-  getCurrentWebview()
-    .setZoom(level)
-    .catch(() => {});
-}
+import { conflictSides, EMPTY_DRAFT, WorktreeDetailsPanel, type CommitDraft } from "./components/WorktreeDetails";
 
 const unique = (names: string[]) => [...new Set(names)];
 const sameAuthor = (commit: CommitRow, name: string, email: string) =>
@@ -246,37 +130,16 @@ export default function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   /** Where the commit list starts scrolled to, for the repository that was just opened. */
   const [initialScroll, setInitialScroll] = useState(0);
-  const [activity, setActivity] = useState<LogEntry[]>([]);
-  /** Log entries up to this id were cleared. */
-  const [activityCleared, setActivityCleared] = useState(0);
-  /** A folder is being dragged over the window. */
-  const [droppingFolder, setDroppingFolder] = useState(false);
 
   // Remembered between launches.
-  const [tabs, setTabs] = useStoredState<Tab[]>("tabs.list", []);
-  const [, setActiveTab] = useStoredState<string | null>("tabs.active", null);
-  const [sidebarOpen, setSidebarOpen] = useStoredState("sidebar.open", true);
-  const [sidebarWidth, setSidebarWidth] = useStoredState("sidebar.width", 220);
-  const [detailsWidth, setDetailsWidth] = useStoredState("details.width", 380);
-  const [columnWidths, setColumnWidths] = useStoredState<ColumnWidths>("columns", { refs: null, graph: null });
-  const [columnOptions, setColumnOptions] = useStoredState<ColumnOptions>("columns.shown", DEFAULT_COLUMNS);
-  const [daySeparators, setDaySeparators] = useStoredState("list.daySeparators", true);
-  const [dense, setDense] = useStoredState("rows.compact", false);
-  const [zoom, setZoom] = useStoredState("zoom", 1);
-  const [autoFetch, setAutoFetch] = useStoredState("fetch.auto", true);
-  const [reopenTabs, setReopenTabs] = useStoredState("reopenLast", true);
-  const [firstParentOnly, setFirstParentOnly] = useStoredState("history.firstParent", false);
-  const [profilePictures, setProfilePictures] = useStoredState("avatars.pictures", false);
-  const [previews, setPreviews] = useStoredState("previews", true);
-  const [activityOpen, setActivityOpen] = useStoredState("activity.open", false);
-  const [fetchMinutes, setFetchMinutes] = useStoredState("fetch.minutes", 5);
-  /** New commits found by a background fetch: not mentioned, a message in the window, or a system notification too. */
-  const [newCommitNotices, setNewCommitNotices] = useStoredState<"off" | "app" | "system">("notify.newCommits", "app");
-  const [autoUpdate, setAutoUpdate] = useStoredState("updates.auto", true);
-  /** Warn about files at least this big (in MB) that aren't in Git LFS. */
-  const [largeFileMB, setLargeFileMB] = useStoredState("files.largeMB", 10);
-  /** Lock lockable files as soon as you change them. */
-  const [autoLock, setAutoLock] = useStoredState("locks.auto", false);
+  const preferences = usePreferences();
+  const { tabs, setTabs, setActiveTab, sidebarOpen, setSidebarOpen, sidebarWidth, setSidebarWidth } = preferences;
+  const { detailsWidth, setDetailsWidth, columnWidths, setColumnWidths, columnOptions, setColumnOptions } = preferences;
+  const { daySeparators, setDaySeparators, dense, zoom, setZoom, autoFetch } = preferences;
+  const { firstParentOnly, setFirstParentOnly, profilePictures } = preferences;
+  const { previews, activityOpen, setActivityOpen, fetchMinutes } = preferences;
+  const { newCommitNotices, autoUpdate, largeFileMB } = preferences;
+  const { autoLock } = preferences;
   const updates = useUpdates(autoUpdate);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
@@ -518,48 +381,6 @@ export default function App() {
     if (snapshot) drafts.current.set(snapshot.path, draft);
   }, [draft, snapshot]);
 
-  /** What undoing `action` would take, given where HEAD is now. */
-  const undoFor = (action: Action, before: RepoSnapshot): Action | null => {
-    const back: Action | null = before.headBranch
-      ? { kind: "checkoutBranch", name: before.headBranch }
-      : before.headCommit
-        ? { kind: "checkoutCommit", id: before.headCommit }
-        : null;
-    switch (action.kind) {
-      case "checkoutBranch":
-      case "checkoutRemoteBranch":
-      case "checkoutCommit":
-        return back;
-      case "resetHard":
-      case "merge":
-      case "rebase":
-      case "cherryPick":
-      case "revert":
-      case "cherryPickMany":
-      case "revertMany":
-      case "interactiveRebase":
-        return before.headCommit ? { kind: "resetHard", id: before.headCommit } : null;
-      case "commit":
-        return before.headCommit ? { kind: "resetSoft", id: before.headCommit } : null;
-      case "deleteBranches":
-        // Branches that weren't deleted are skipped when restoring.
-        return { kind: "restoreBranches", branches: action.branches };
-      case "resolveConflicts":
-        return { kind: "recreateConflicts", paths: action.paths };
-      case "ignorePaths":
-        return { kind: "unignorePaths", patterns: action.patterns };
-      case "stashAndRetry": {
-        // Undo the same way: put the changes aside, undo, and put them back.
-        const inner = undoFor(action.action, before);
-        return inner && inner.kind !== "resetSoft"
-          ? { kind: "stashAndRetry", action: inner, includeUntracked: action.includeUntracked }
-          : null;
-      }
-      default:
-        return null;
-    }
-  };
-
   /** Run a git action, reload, then show what happened. Resolves to true when it worked. */
   const act = useCallback(
     async (action: Action, kind: Running = "other", options: { quiet?: boolean; confirmed?: boolean } = {}): Promise<boolean> => {
@@ -632,7 +453,6 @@ export default function App() {
       }
       return true;
     },
-    // undoFor only reads its arguments.
     [snapshot, load, protectedHead, lfs.refresh, prs.refresh],
   );
 
@@ -662,34 +482,13 @@ export default function App() {
   /** Select a commit: alone, a range from the last one (shift), or adding / removing it (⌘ or Ctrl). */
   const select = useCallback(
     (id: string | null, how: SelectHow = {}) => {
-      const list = commits ?? [];
-      const selectable = (commitId: string) => byId.get(commitId)?.kind !== "worktree";
-      if (!id) {
-        setSelectedId(null);
-        setSelection(null);
-        return;
-      }
-      const anchor = selectionAnchor.current;
-      if (how.extend && anchor && anchor !== id && selectable(id) && selectable(anchor) && indexById.has(anchor)) {
-        const [from, to] = [indexById.get(anchor)!, indexById.get(id)!].sort((a, b) => a - b);
-        const range = list.slice(from, to + 1).filter((commit) => commit.kind !== "worktree").map((commit) => commit.id);
-        setSelection(range.length > 1 ? range : null);
-        setSelectedId(id);
-        return;
-      }
-      if (how.toggle && selectable(id)) {
-        const base = selection ?? (selectedId && selectable(selectedId) ? [selectedId] : []);
-        const next = base.includes(id) ? base.filter((other) => other !== id) : [...base, id];
-        setSelection(next.length > 1 ? next : null);
-        setSelectedId(next.includes(id) ? id : (next[next.length - 1] ?? null));
-        selectionAnchor.current = id;
-        return;
-      }
-      selectionAnchor.current = id;
-      setSelection(null);
-      setSelectedId(id);
+      const current = { selectedId, ids: selection, anchor: selectionAnchor.current };
+      const next = selectCommit(current, id, how, commits ?? [], indexById);
+      selectionAnchor.current = next.anchor;
+      setSelectedId(next.selectedId);
+      setSelection(next.ids);
     },
-    [commits, byId, indexById, selectedId, selection],
+    [commits, indexById, selectedId, selection],
   );
 
   // Search: matching commits are highlighted, and Enter / Shift+Enter move between them.
@@ -723,13 +522,8 @@ export default function App() {
     if (snapshot && first !== undefined) select(snapshot.commits[first].id);
   };
   const stepSearch = (step: 1 | -1) => {
-    if (!snapshot || matches.length === 0) return;
-    const from = selectedIndex ?? -1;
-    const next =
-      step > 0
-        ? (matches.find((index) => index > from) ?? matches[0])
-        : ([...matches].reverse().find((index) => index < from) ?? matches[matches.length - 1]);
-    select(snapshot.commits[next].id);
+    const next = stepThrough(matches, selectedIndex ?? -1, step);
+    if (snapshot && next !== undefined) select(snapshot.commits[next].id);
   };
 
   // File history: the commits that changed a file or folder stay bright, and the banner steps through them.
@@ -793,13 +587,8 @@ export default function App() {
       .sort((a, b) => a - b);
   }, [focus, indexById]);
   const stepHistory = (step: 1 | -1) => {
-    if (!snapshot || pathMatches.length === 0) return;
-    const from = selectedIndex ?? -1;
-    const next =
-      step > 0
-        ? (pathMatches.find((index) => index > from) ?? pathMatches[0])
-        : ([...pathMatches].reverse().find((index) => index < from) ?? pathMatches[pathMatches.length - 1]);
-    select(snapshot.commits[next].id);
+    const next = stepThrough(pathMatches, selectedIndex ?? -1, step);
+    if (snapshot && next !== undefined) select(snapshot.commits[next].id);
   };
   /** Files in a commit that belong to the history being shown. */
   const isHistoryFile = (path: string) => {
@@ -861,76 +650,44 @@ export default function App() {
   const soloing = visibility.solo.length > 0;
   const hiddenCount = soloing ? visibility.solo.length : visibility.hidden.length;
 
-  // The latest state, for keyboard shortcuts, timers and window events that outlive a render.
-  const latest = useRef({ snapshot, dialog, running, refresh, autoFetch, tabs, focus, selection, refreshLocks: lfs.refresh, refreshPrs: prs.refresh, notices: newCommitNotices, switchTab: (_path: string) => {} });
-  latest.current = { snapshot, dialog, running, refresh, autoFetch, tabs, focus, selection, refreshLocks: lfs.refresh, refreshPrs: prs.refresh, notices: newCommitNotices, switchTab };
+  // The latest state, for timers and window events that outlive a render.
+  const latest = useRef({ snapshot, dialog, running, refresh });
+  latest.current = { snapshot, dialog, running, refresh };
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const mod = event.metaKey || event.ctrlKey;
-      const key = event.key.toLowerCase();
-      const typing = (event.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable]");
-      const { tabs, snapshot, focus, selection } = latest.current;
-      if (mod && key === "k") {
-        event.preventDefault();
-        setPaletteOpen((open) => !open);
-      } else if (mod && key === ",") {
-        event.preventDefault();
-        setSettingsOpen(true);
-      } else if (mod && key === "o" && !event.shiftKey) {
-        event.preventDefault();
-        pick();
-      } else if (mod && key === "t" && !event.shiftKey) {
-        event.preventDefault();
-        newTab();
-      } else if (mod && key === "w") {
-        event.preventDefault();
-        if (snapshot) closeTab(snapshot.path);
-        else if (startTab) closeStartTab();
-      } else if (mod && /^[1-9]$/.test(key)) {
-        event.preventDefault();
-        const tab = tabs[Number(key) - 1];
-        if (tab) switchTab(tab.path);
-      } else if (event.ctrlKey && event.key === "Tab" && tabs.length > 1 && snapshot) {
-        event.preventDefault();
-        const index = tabs.findIndex((tab) => tab.path === snapshot.path);
-        const next = tabs[(index + (event.shiftKey ? tabs.length - 1 : 1)) % tabs.length];
-        switchTab(next.path);
-      } else if ((mod && key === "r") || event.key === "F5") {
-        event.preventDefault();
-        refresh();
-      } else if (mod && key === "f") {
-        event.preventDefault();
-        searchInput.current?.focus();
-        searchInput.current?.select();
-      } else if (mod && key === "b") {
-        event.preventDefault();
-        setSidebarOpen((open) => !open);
-      } else if (mod && event.shiftKey && key === "l") {
-        event.preventDefault();
-        setActivityOpen((open) => !open);
-      } else if (mod && (key === "=" || key === "+")) {
-        event.preventDefault();
-        zoomBy(1);
-      } else if (mod && key === "-") {
-        event.preventDefault();
-        zoomBy(-1);
-      } else if (mod && key === "0") {
-        event.preventDefault();
-        zoomBy(0);
-      } else if (event.key === "?" && !typing) {
-        event.preventDefault();
-        setShortcutsOpen(true);
-      } else if (event.key === "Escape" && !typing) {
-        // Stop highlighting first, then drop a multiple selection, then close the details.
-        if (focus) setFocus(null);
-        else if (selection) setSelection(null);
-        else setSelectedId(null);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [pick, refresh, zoomBy, setSidebarOpen, setActivityOpen, closeTab, switchTab, newTab, startTab, closeStartTab]);
+  useKeyboardShortcuts({
+    togglePalette: () => setPaletteOpen((open) => !open),
+    openSettings: () => setSettingsOpen(true),
+    open: pick,
+    newTab,
+    closeTab: () => {
+      if (snapshot) closeTab(snapshot.path);
+      else if (startTab) closeStartTab();
+    },
+    showTab: (index) => {
+      const tab = tabs[index];
+      if (tab) switchTab(tab.path);
+    },
+    cycleTab: (backwards) => {
+      if (tabs.length < 2 || !snapshot) return;
+      const index = tabs.findIndex((tab) => tab.path === snapshot.path);
+      switchTab(tabs[(index + (backwards ? tabs.length - 1 : 1)) % tabs.length].path);
+    },
+    refresh,
+    focusSearch: () => {
+      searchInput.current?.focus();
+      searchInput.current?.select();
+    },
+    toggleSidebar: () => setSidebarOpen((open) => !open),
+    toggleActivity: () => setActivityOpen((open) => !open),
+    zoom: zoomBy,
+    showShortcuts: () => setShortcutsOpen(true),
+    escape: () => {
+      // Stop highlighting first, then drop a multiple selection, then close the details.
+      if (focus) setFocus(null);
+      else if (selection) setSelection(null);
+      else setSelectedId(null);
+    },
+  });
 
   // Reopen your tabs (or the last repository) on launch.
   useEffect(() => {
@@ -941,244 +698,49 @@ export default function App() {
     if (path) load(path, "open");
   }, [load]);
 
-  // The activity log: what's already been run, then each new command as it happens.
-  useEffect(() => {
-    let stop: (() => void) | undefined;
-    let disposed = false;
-    activityLog()
-      .then((entries) => !disposed && setActivity(entries))
-      .catch(() => {});
-    onActivity((entry) => setActivity((current) => [...current.slice(1 - ACTIVITY_SIZE), entry]))
-      .then((unlisten) => (disposed ? unlisten() : (stop = unlisten)))
-      .catch(() => {});
-    return () => {
-      disposed = true;
-      stop?.();
-    };
-  }, []);
-
+  const activity = useActivityLog();
   // A folder dropped onto the window opens it.
-  useEffect(() => {
-    let stop: (() => void) | undefined;
-    let disposed = false;
-    getCurrentWebview()
-      .onDragDropEvent((event) => {
-        const { payload } = event;
-        if (payload.type === "enter" || payload.type === "over") setDroppingFolder(true);
-        else if (payload.type === "leave") setDroppingFolder(false);
-        else if (payload.type === "drop") {
-          setDroppingFolder(false);
-          const path = payload.paths[0];
-          if (path && !latest.current.dialog) load(path, "open");
-        }
-      })
-      .then((unlisten) => (disposed ? unlisten() : (stop = unlisten)))
-      .catch(() => {});
-    return () => {
-      disposed = true;
-      stop?.();
-    };
-  }, [load]);
-
+  const droppingFolder = useFolderDrop((path) => !latest.current.dialog && load(path, "open"));
   // Pick up changes made elsewhere (a commit in the terminal, an edit in the editor)
   // when coming back to the window.
-  useEffect(() => {
-    const onFocus = () => {
-      const { snapshot, dialog, running, refresh } = latest.current;
-      if (!snapshot || dialog || running || blockFocusRefresh.current) return;
-      if (Date.now() - lastLoad.current < FOCUS_REFRESH_INTERVAL) return;
-      refresh();
-      latest.current.refreshLocks();
-      latest.current.refreshPrs();
-    };
-    const stopQuietly = (stop: () => void) => {
-      try {
-        stop();
-      } catch {
-        // Already gone.
-      }
-    };
-    // The DOM event covers most cases; the window event also catches the app being
-    // activated while the web page itself already had focus.
-    window.addEventListener("focus", onFocus);
-    let unlisten: (() => void) | undefined;
-    let disposed = false;
-    getCurrentWindow()
-      .onFocusChanged(({ payload: focused }) => focused && onFocus())
-      .then((stop) => (disposed ? stopQuietly(stop) : (unlisten = stop)))
-      .catch(() => {});
-    return () => {
-      disposed = true;
-      window.removeEventListener("focus", onFocus);
-      if (unlisten) stopQuietly(unlisten);
-    };
-  }, []);
+  useWindowFocus(() => {
+    const { snapshot, dialog, running, refresh } = latest.current;
+    if (!snapshot || dialog || running || blockFocusRefresh.current) return;
+    if (Date.now() - lastLoad.current < FOCUS_REFRESH_INTERVAL) return;
+    refresh();
+    lfs.refresh();
+    prs.refresh();
+  });
 
-  // Fetch in the background every few minutes, so the pull and push counts stay current.
   const repoPath = snapshot?.path ?? null;
   const canFetch = Boolean(snapshot && !snapshot.bare && snapshot.remotes.length > 0);
-  // With system notifications, keep fetching while the window is minimized, so news still arrives.
-  const fetchWhileHidden = newCommitNotices === "system";
-  useEffect(() => {
-    if (!repoPath || !canFetch || !autoFetch) return;
-    let stopped = false;
-    const fetchNow = async () => {
-      const { snapshot, dialog, running } = latest.current;
-      if (stopped || !snapshot || snapshot.path !== repoPath || dialog || running) return;
-      if (document.hidden && !fetchWhileHidden) return;
-      const before = remoteTips(snapshot);
-      const known = new Set(snapshot.commits.map((commit) => commit.id));
-      try {
-        await runAction(repoPath, { kind: "fetch", background: true });
-        if (stopped) return;
-        pendingNews.current = { path: repoPath, before, known };
-        if (!latest.current.dialog && !latest.current.running) latest.current.refresh();
-        latest.current.refreshLocks();
-        latest.current.refreshPrs();
-      } catch {
-        // Usually missing credentials or no network. Fetching by hand shows the reason;
-        // don't try again in the background until then.
-        stopped = true;
-      }
-    };
-    const first = setTimeout(fetchNow, FIRST_AUTO_FETCH_DELAY);
-    const timer = setInterval(fetchNow, Math.max(1, fetchMinutes) * 60 * 1000);
-    return () => {
-      stopped = true;
-      clearTimeout(first);
-      clearInterval(timer);
-    };
-  }, [repoPath, canFetch, autoFetch, fetchMinutes, fetchWhileHidden]);
+  const tabNews = useBackgroundFetch({
+    snapshot,
+    tabs,
+    enabled: autoFetch,
+    minutes: fetchMinutes,
+    notices: newCommitNotices,
+    isBusy: () => Boolean(latest.current.dialog || latest.current.running),
+    afterFetch: () => {
+      if (!latest.current.dialog && !latest.current.running) latest.current.refresh();
+      lfs.refresh();
+      prs.refresh();
+    },
+    notify: setToast,
+    pull: () => act({ kind: "pull" }, "pull"),
+    show: (id) => select(id),
+    switchTab,
+  });
 
-  // The other tabs are fetched in the background too. Tabs with new commits get a dot.
-  const [tabNews, setTabNews] = useState<Record<string, string>>({});
-  const tabFailures = useRef(new Map<string, number>());
-  useEffect(() => {
-    if (!autoFetch) return;
-    let stopped = false;
-    const announce = (tab: Tab, news: News[]) => {
-      setTabNews((current) => ({ ...current, [tab.path]: news.map(describeNews).join("\n") }));
-      const { notices, switchTab } = latest.current;
-      if (notices === "off") return;
-      setToast({
-        text: `${tab.name}: ${describeNews(news[0])}`,
-        icon: <BellIcon size={14} />,
-        action: { label: "Open", onClick: () => switchTab(tab.path) },
-      });
-      if (notices === "system" && !document.hasFocus()) {
-        for (const item of news) notifySystem(tab.name, describeNews(item));
-      }
-    };
-    const fetchOthers = async () => {
-      for (const tab of latest.current.tabs) {
-        if (stopped || (document.hidden && !fetchWhileHidden)) return;
-        if (tab.path === latest.current.snapshot?.path) continue;
-        // Missing credentials or no network: leave it alone for half an hour.
-        const failed = tabFailures.current.get(tab.path);
-        if (failed && Date.now() - failed < 30 * 60 * 1000) continue;
-        try {
-          const before = await remoteState(tab.path);
-          if (before.remotes.length === 0) continue;
-          await runAction(tab.path, { kind: "fetch", background: true });
-          const after = await remoteState(tab.path);
-          const news: News[] = [];
-          for (const branch of watchedFor(after.upstream, after.remotes)) {
-            const old = before.tips[branch];
-            const tip = after.tips[branch];
-            if (!old || !tip || old === tip) continue;
-            const { count, authors } = await commitsBetween(tab.path, old, tip);
-            if (count > 0) news.push({ branch, tip, count, authors });
-          }
-          tabFailures.current.delete(tab.path);
-          if (news.length > 0 && !stopped) {
-            news.sort((a, b) => Number(b.branch === after.upstream) - Number(a.branch === after.upstream));
-            announce(tab, news);
-          }
-        } catch {
-          tabFailures.current.set(tab.path, Date.now());
-        }
-      }
-    };
-    // A little after the open tab's own fetch.
-    const first = setTimeout(fetchOthers, FIRST_AUTO_FETCH_DELAY + 15_000);
-    const timer = setInterval(fetchOthers, Math.max(1, fetchMinutes) * 60 * 1000);
-    return () => {
-      stopped = true;
-      clearTimeout(first);
-      clearInterval(timer);
-    };
-  }, [autoFetch, fetchMinutes, fetchWhileHidden]);
-  // Opening a tab reads its news.
-  useEffect(() => {
-    if (repoPath) setTabNews((current) => (repoPath in current ? Object.fromEntries(Object.entries(current).filter(([path]) => path !== repoPath)) : current));
-  }, [repoPath]);
-
-  // After a background fetch: tell you about new commits on your branch's upstream or on main.
-  const pendingNews = useRef<{ path: string; before: Map<string, string>; known: Set<string> } | null>(null);
-  useEffect(() => {
-    const pending = pendingNews.current;
-    if (!snapshot || !pending || pending.path !== snapshot.path) return;
-    pendingNews.current = null;
-    if (newCommitNotices === "off") return;
-    const news = findNews(pending.before, pending.known, snapshot);
-    if (news.length === 0) return;
-    // Your own branch's news first.
-    news.sort((a, b) => Number(b.branch === snapshot.upstream?.name) - Number(a.branch === snapshot.upstream?.name));
-    const top = news[0];
-    const pullable = top.branch === snapshot.upstream?.name && !snapshot.operation;
-    setToast({
-      text: describeNews(top) + (news.length > 1 ? `, and more on ${news.length - 1} other ${news.length === 2 ? "branch" : "branches"}` : ""),
-      icon: <BellIcon size={14} />,
-      action: pullable
-        ? { label: "Pull", onClick: () => act({ kind: "pull" }, "pull") }
-        : { label: "Show", onClick: () => select(top.tip) },
-    });
-    if (newCommitNotices === "system" && !document.hasFocus()) {
-      for (const item of news) notifySystem(snapshot.name, describeNews(item));
-    }
-    // Only the snapshot matters: the rest is read as it is when the snapshot arrives.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [snapshot]);
-
-  // Changed files: which are big and not in Git LFS, and which are lockable.
-  const [checks, setChecks] = useState<FileChecks | null>(null);
-  const changedFiles = useMemo(
-    () =>
-      snapshot?.worktree
-        ? [...snapshot.worktree.staged, ...snapshot.worktree.unstaged]
-            .filter((file) => file.status !== "deleted" && file.status !== "conflicted")
-            .map((file) => file.path)
-        : [],
-    [snapshot],
-  );
-  const changedSignature = changedFiles.join("\n");
-  useEffect(() => {
-    if (!repoPath || changedFiles.length === 0) {
-      setChecks(null);
-      return;
-    }
-    let live = true;
-    fileChecks(repoPath, changedFiles, Math.max(1, largeFileMB) * 1_000_000)
-      .then((found) => live && setChecks(found))
-      .catch(() => live && setChecks(null));
-    return () => {
-      live = false;
-    };
-    // The signature stands for the list of files.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repoPath, changedSignature, largeFileMB]);
-
-  // With "lock when I change them" on: lock lockable files you've changed that nobody holds.
-  const autoLocked = useRef(new Set<string>());
-  useEffect(() => {
-    if (!autoLock || !snapshot || !lfs.locks || running || !checks) return;
-    const toLock = checks.lockable.filter((path) => !lfs.byPath.has(path) && !autoLocked.current.has(`${snapshot.path}\n${path}`));
-    if (toLock.length === 0) return;
-    // Try each file once per session, even if locking fails.
-    for (const path of toLock) autoLocked.current.add(`${snapshot.path}\n${path}`);
-    act({ kind: "lockFiles", paths: toLock });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoLock, checks, lfs.locks]);
+  const checks = useFileChecks(snapshot, largeFileMB);
+  useAutoLock({
+    enabled: autoLock,
+    repoPath,
+    checks,
+    locks: lfs.locks ? lfs.byPath : null,
+    busy: running !== null,
+    lock: (paths) => act({ kind: "lockFiles", paths }),
+  });
 
   // The "only this branch" setting changed: reload.
   const firstParentLoaded = snapshot?.firstParent;
@@ -1186,49 +748,9 @@ export default function App() {
     if (firstParentLoaded !== undefined && firstParentLoaded !== firstParentOnly) latest.current.refresh();
   }, [firstParentOnly, firstParentLoaded]);
 
-  // How far the checked-out branch is ahead of / behind its upstream, among loaded commits.
-  const headHistory = useMemo(() => ancestors(snapshot?.headCommit, byId), [snapshot, byId]);
-  const { ahead, behind } = useMemo(() => {
-    if (!snapshot?.upstream?.commit || !snapshot.headCommit) return { ahead: 0, behind: 0 };
-    const remote = ancestors(snapshot.upstream.commit, byId);
-    return { ahead: countMissing(headHistory, remote), behind: countMissing(remote, headHistory) };
-  }, [snapshot, byId, headHistory]);
+  const { headHistory, ahead, behind, aheadBehind, localBranches } = useBranchCounts(snapshot, byId);
 
-  // The same for every local branch that tracks a remote branch, for the sidebar.
-  const aheadBehind = useMemo(() => {
-    const result = new Map<string, { ahead: number; behind: number }>();
-    if (!snapshot) return result;
-    const remoteTips = new Map<string, string>();
-    const branches: { name: string; id: string; upstream: string }[] = [];
-    for (const commit of snapshot.commits) {
-      for (const ref of commit.refs) {
-        if (ref.kind === "remote") remoteTips.set(ref.name, commit.id);
-        if (ref.kind === "branch" && ref.upstream) branches.push({ name: ref.name, id: commit.id, upstream: ref.upstream });
-      }
-    }
-    for (const branch of branches) {
-      const upstreamId = remoteTips.get(branch.upstream);
-      if (!upstreamId) continue;
-      const local = ancestors(branch.id, byId);
-      const remote = ancestors(upstreamId, byId);
-      result.set(branch.name, { ahead: countMissing(local, remote), behind: countMissing(remote, local) });
-    }
-    return result;
-  }, [snapshot, byId]);
-
-  // Local branch names anywhere in the history, to know which remote branches can be checked out.
-  const localBranches = useMemo(
-    () =>
-      new Set([
-        ...(snapshot?.commits ?? []).flatMap((commit) =>
-          commit.refs.filter((ref) => ref.kind === "branch").map((ref) => ref.name),
-        ),
-        ...(snapshot?.hiddenRefs ?? []).filter((ref) => ref.kind === "branch").map((ref) => ref.name),
-      ]),
-    [snapshot],
-  );
-
-  const activityHere = activity.filter((entry) => entry.id > activityCleared);
+  const activityHere = activity.entries;
   const lastHere = [...activityHere].reverse().find((entry) => entry.folder === snapshot?.path && !entry.background);
   const activityFailed = Boolean(lastHere && !lastHere.success);
 
@@ -1236,118 +758,6 @@ export default function App() {
   const menuUnder = (anchor: HTMLElement, items: MenuItem[], width = 240) => {
     const rect = anchor.getBoundingClientRect();
     setMenu({ x: Math.max(4, Math.min(rect.left, rect.right - width)), y: rect.bottom + 4, items });
-  };
-
-  // Commands that work with or without an open repository.
-  const fileCommands: AppCommand[] = [
-    { id: "open", label: "Open Repository…", icon: <FolderIcon />, keys: "CmdOrCtrl+O", run: pick },
-    { id: "clone", label: "Clone Repository…", icon: <CloneIcon />, run: () => setDialog({ kind: "clone" }) },
-    { id: "init", label: "New Repository…", icon: <NewRepoIcon />, run: createRepository },
-  ];
-  const settingsCommand: AppCommand = { id: "settings", label: "Settings…", icon: <GearIcon />, keys: "CmdOrCtrl+,", run: () => setSettingsOpen(true) };
-  const helpCommands: AppCommand[] = [
-    { id: "palette", label: "Command Palette", icon: <SearchIcon />, keys: "CmdOrCtrl+K", run: () => setPaletteOpen(true) },
-    { id: "shortcuts", label: "Keyboard Shortcuts", icon: <KeyboardIcon />, run: () => setShortcutsOpen(true) },
-  ];
-  const zoomCommands: AppCommand[] = [
-    { id: "zoom-in", label: "Zoom In", keys: "CmdOrCtrl+=", run: () => zoomBy(1) },
-    { id: "zoom-out", label: "Zoom Out", keys: "CmdOrCtrl+-", run: () => zoomBy(-1) },
-    { id: "zoom-reset", label: `Actual Size (now ${Math.round(zoom * 100)}%)`, keys: "CmdOrCtrl+0", run: () => zoomBy(0) },
-  ];
-  const settingCommands: AppCommand[] = [
-    { id: "previews", label: "Previews on Hover", checked: previews, run: () => setPreviews(!previews) },
-    { id: "pictures", label: "Profile Pictures (Gravatar, GitHub)", checked: profilePictures, run: () => setProfilePictures(!profilePictures) },
-    { id: "auto-fetch", label: `Fetch Every ${fetchMinutes === 1 ? "Minute" : `${fetchMinutes} Minutes`}`, checked: autoFetch, run: () => setAutoFetch(!autoFetch) },
-    { id: "reopen", label: "Reopen Tabs on Launch", checked: reopenTabs, run: () => setReopenTabs(!reopenTabs) },
-  ];
-
-  /** The menu bar: on macOS the system's own, elsewhere one in the tab bar. */
-  const appMenus = (): { label: string; entries: MenuEntry[] }[] => {
-    if (!snapshot) {
-      return [
-        { label: "File", entries: [...fileCommands, ...(isMac ? [] : ["-" as const, settingsCommand])] },
-        { label: "View", entries: [...settingCommands, "-", ...zoomCommands] },
-        { label: "Help", entries: helpCommands },
-      ];
-    }
-    const hasRemotes = snapshot.remotes.length > 0 && !snapshot.bare;
-    const canChange = !snapshot.bare && running === null;
-    const remote = webRemote(snapshot);
-    const prUrl = remote && snapshot.headBranch && snapshot.upstream ? newPullRequestUrl(remote, splitRemoteBranch(snapshot.upstream.name, snapshot.remotes).branch) : null;
-    const head = snapshot.headCommit ? byId.get(snapshot.headCommit) : undefined;
-    return [
-      {
-        label: "File",
-        entries: [
-          { id: "new-tab", label: "New Tab", keys: "CmdOrCtrl+T", icon: <PlusIcon />, run: newTab },
-          ...fileCommands,
-          "-",
-          { id: "close-tab", label: "Close Tab", keys: "CmdOrCtrl+W", icon: <CloseIcon />, run: () => closeTab(snapshot.path) },
-          ...(isMac ? [] : ["-" as const, settingsCommand]),
-        ],
-      },
-      {
-        label: "View",
-        entries: [
-          { id: "search", label: "Search Commits", keys: "CmdOrCtrl+F", icon: <SearchIcon />, run: () => searchInput.current?.focus() },
-          helpCommands[0],
-          "-",
-          { id: "sidebar", label: "Branches Sidebar", keys: "CmdOrCtrl+B", checked: sidebarOpen, run: () => setSidebarOpen(!sidebarOpen) },
-          { id: "activity", label: "Activity", keys: "CmdOrCtrl+Shift+L", checked: activityOpen, run: () => setActivityOpen(!activityOpen) },
-          "-",
-          { id: "first-parent", label: `Only ${snapshot.headBranch ?? "HEAD"}'s Own History`, checked: firstParentOnly, run: () => setFirstParentOnly(!firstParentOnly) },
-          { id: "show-all", label: "Show All Branches", enabled: hiddenCount > 0, run: showAllBranches },
-          { id: "mine", label: "Highlight My Commits", checked: highlightingMine, enabled: Boolean(user), run: highlightMine },
-          "-",
-          { id: "day-separators", label: "Day Separators", checked: daySeparators, run: () => setDaySeparators(!daySeparators) },
-          { id: "dense", label: "Compact Rows", checked: dense, run: () => setDense(!dense) },
-          ...settingCommands.slice(0, 2),
-          "-",
-          ...zoomCommands,
-          "-",
-          { id: "reset-layout", label: "Reset Column and Panel Sizes", run: resetLayout },
-        ],
-      },
-      {
-        label: "Repository",
-        entries: [
-          { id: "refresh", label: "Refresh", keys: "CmdOrCtrl+R", icon: <RefreshIcon />, run: refresh },
-          { id: "fetch", label: "Fetch", icon: <FetchIcon />, enabled: hasRemotes && canChange, run: () => act({ kind: "fetch" }, "fetch") },
-          { id: "pull", label: "Pull", icon: <PullIcon />, enabled: hasRemotes && canChange && Boolean(snapshot.upstream), run: () => act({ kind: "pull" }, "pull") },
-          { id: "push", label: "Push", icon: <PushIcon />, enabled: hasRemotes && canChange && Boolean(snapshot.headBranch), run: () => act({ kind: "push", force: false }, "push") },
-          { id: "force-push", label: "Force Push…", icon: <PushIcon />, danger: true, enabled: hasRemotes && canChange && Boolean(snapshot.headBranch), run: () => setDialog({ kind: "forcePush" }) },
-          "-",
-          { id: "commit", label: "Commit…", icon: <PlusIcon />, enabled: Boolean(snapshot.worktree) && canChange, run: () => select(WORKTREE_ID) },
-          { id: "stash", label: "Stash Changes…", icon: <StashIcon />, enabled: Boolean(snapshot.worktree) && canChange, run: () => setDialog({ kind: "stash" }) },
-          "-",
-          { id: "new-branch", label: "New Branch…", icon: <BranchIcon />, enabled: Boolean(head) && canChange, run: () => head && setDialog({ kind: "newBranch", target: head }) },
-          { id: "new-tag", label: "New Tag…", icon: <TagIcon />, enabled: Boolean(head) && canChange, run: () => head && setDialog({ kind: "tag", target: head }) },
-          { id: "prune", label: "Prune Branches…", icon: <BroomIcon />, enabled: canChange, run: () => setDialog({ kind: "prune" }) },
-          { id: "restore", label: "Restore Branch…", icon: <HistoryIcon />, enabled: canChange, run: () => setDialog({ kind: "restore" }) },
-          "-",
-          { id: "file-history", label: "File History…", icon: <FileHistoryIcon />, run: () => pickHistory(false) },
-          { id: "folder-history", label: "Folder History…", icon: <FolderIcon />, run: () => pickHistory(true) },
-          ...(lfs.locks ? [{ id: "lock-files", label: "Lock Files…", icon: <LockIcon />, enabled: canChange, run: pickFilesToLock }] : []),
-          ...(lfs.locks || checks?.usesLfs
-            ? [{ id: "prune-lfs", label: "Clean Up Git LFS Files…", icon: <BroomIcon />, enabled: canChange, run: () => setDialog({ kind: "pruneLfs" }) }]
-            : []),
-          { id: "recover", label: "Recover Commits…", icon: <RecoverIcon />, run: () => setDialog({ kind: "recover" }) },
-          "-",
-          ...(remote
-            ? [
-                { id: "open-web", label: `Open on ${siteName(remote)}`, icon: <ExternalLinkIcon />, run: () => openInBrowser(remote.url) },
-                ...(prUrl
-                  ? [{ id: "pull-request", label: remote.host === "gitlab" ? "Create Merge Request…" : "Create Pull Request…", icon: <PullRequestIcon />, run: () => openInBrowser(prUrl) }]
-                  : []),
-              ]
-            : []),
-          { id: "reveal", label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, run: reveal },
-          "-",
-          settingCommands[2],
-        ],
-      },
-      { label: "Help", entries: [...helpCommands, "-", settingCommands[3]] },
-    ];
   };
 
   function resetLayout() {
@@ -1360,245 +770,66 @@ export default function App() {
     if (snapshot) revealItemInDir(snapshot.path).catch((e) => setError({ message: String(e) }));
   }
 
-  const menuItems = (entries: MenuEntry[]): MenuItem[] => {
-    const items: MenuItem[] = [];
-    let separated = false;
-    for (const entry of entries) {
-      if (entry === "-") {
-        separated = items.length > 0;
-        continue;
-      }
-      items.push({
-        label: entry.label,
-        icon: entry.icon,
-        checked: entry.checked,
-        danger: entry.danger,
-        disabled: entry.enabled === false,
-        shortcut: entry.keys ? shortcutLabel(entry.keys) : undefined,
-        separated,
-        onSelect: entry.run,
-      });
-      separated = false;
-    }
-    return items;
+  const menuBarContext: MenuBarContext = {
+    snapshot,
+    running: running !== null,
+    head: snapshot?.headCommit ? byId.get(snapshot.headCommit) : undefined,
+    preferences,
+    hiddenCount,
+    highlightingMine,
+    usesLocks: Boolean(lfs.locks),
+    usesLfs: Boolean(checks?.usesLfs),
+    do: {
+      open: pick,
+      clone: () => setDialog({ kind: "clone" }),
+      create: createRepository,
+      settings: () => setSettingsOpen(true),
+      palette: () => setPaletteOpen(true),
+      shortcuts: () => setShortcutsOpen(true),
+      zoom: zoomBy,
+      newTab,
+      closeTab,
+      search: () => searchInput.current?.focus(),
+      showAllBranches,
+      highlightMine,
+      resetLayout,
+      refresh,
+      act: (action, kind) => act(action, kind ?? "other"),
+      dialog: setDialog,
+      select: (id) => select(id),
+      history: pickHistory,
+      lockFiles: pickFilesToLock,
+      reveal,
+    },
   };
-
-  // On macOS, the commands go in the system menu bar (rebuilt when they change).
-  const menus = appMenus();
-  const commandRuns = useRef(new Map<string, () => void>());
-  commandRuns.current = new Map(
-    menus.flatMap((m) => m.entries).flatMap((entry) => (entry === "-" ? [] : [[entry.id, entry.run] as const])),
-  );
-  commandRuns.current.set("settings", settingsCommand.run);
-  const nativeMenus: NativeMenu[] = [
-    { label: "Tributary", items: [{ system: "About" }, { system: "Separator" }, { id: "settings", label: "Settings…", accelerator: "CmdOrCtrl+," }, { system: "Separator" }, { system: "Services" }, { system: "Separator" }, { system: "Hide" }, { system: "HideOthers" }, { system: "ShowAll" }, { system: "Separator" }, { system: "Quit" }] },
-    ...menus.flatMap((m, index): NativeMenu[] => {
-      const items: NativeMenu["items"] = [];
-      let separated = false;
-      for (const entry of m.entries) {
-        if (entry === "-") {
-          separated = items.length > 0;
-          continue;
-        }
-        items.push({ id: entry.id, label: entry.label, accelerator: entry.keys, enabled: entry.enabled ?? true, checked: entry.checked, separated });
-        separated = false;
-      }
-      const menu = { label: m.label, items };
-      // Edit (for text fields) after File, and Window before Help, as on every Mac app.
-      if (index === 0) {
-        return [menu, { label: "Edit", items: [{ system: "Undo" }, { system: "Redo" }, { system: "Separator" }, { system: "Cut" }, { system: "Copy" }, { system: "Paste" }, { system: "SelectAll" }] }];
-      }
-      if (m.label === "Help") return [{ label: "Window", items: [{ system: "Minimize" }, { system: "Maximize" }, { system: "Fullscreen" }] }, menu];
-      return [menu];
-    }),
-  ];
-  const nativeSignature = isMac ? JSON.stringify(nativeMenus) : "";
-  useEffect(() => {
-    if (!isMac) return;
-    setNativeMenu(JSON.parse(nativeSignature), (id) => commandRuns.current.get(id)?.()).catch(() => {});
-  }, [nativeSignature]);
+  const menus = appMenus(menuBarContext);
+  useNativeMenu(menus, { settings: () => setSettingsOpen(true) });
 
   const menuBar = isMac ? undefined : (
     <MenuBar menus={menus.map((m): AppMenu => ({ label: m.label, items: menuItems(m.entries) }))} onOpen={(m, anchor) => menuUnder(anchor, m.items, 280)} />
   );
 
-  /** Everything in the Settings window. */
-  const settingsSections = (): SettingsSection[] => {
-    const sections: SettingsSection[] = [
-      {
-        title: "General",
-        rows: [
-          { kind: "toggle", label: "Reopen tabs on launch", value: reopenTabs, set: setReopenTabs },
-          {
-            kind: "toggle",
-            label: "Check for updates automatically",
-            hint: "New versions come from Tributary's GitHub releases.",
-            value: autoUpdate,
-            set: setAutoUpdate,
+  const settingsDialog = settingsOpen && (
+    <SettingsDialog
+      sections={settingsSections({
+        preferences,
+        version,
+        updates,
+        onInstallUpdate: () => setUpdateOpen(true),
+        repository: snapshot && {
+          name: snapshot.name,
+          path: snapshot.path,
+          protectedBranches,
+          setProtectedBranches,
+          onCleanUpLfs: () => {
+            setSettingsOpen(false);
+            setDialog({ kind: "pruneLfs" });
           },
-          {
-            kind: "custom",
-            label: version ? `Version ${version}` : "Version",
-            hint: updates.status ?? undefined,
-            content: updates.available ? (
-              <button className="outline-button" onClick={() => setUpdateOpen(true)}>
-                <DownloadIcon size={14} />
-                <span className="button-label">Install {updates.available.version}</span>
-              </button>
-            ) : (
-              <button className="outline-button" onClick={updates.check} disabled={updates.checking}>
-                <span className="button-label">{updates.checking ? "Checking…" : "Check now"}</span>
-              </button>
-            ),
-          },
-        ],
-      },
-      {
-        title: "Fetching",
-        rows: [
-          {
-            kind: "toggle",
-            label: "Fetch in the background",
-            hint: "Keeps the pull and push counts current.",
-            value: autoFetch,
-            set: setAutoFetch,
-          },
-          {
-            kind: "select",
-            label: "How often",
-            value: String(fetchMinutes),
-            options: FETCH_MINUTES.map((minutes) => ({ value: String(minutes), label: minutes === 1 ? "Every minute" : `Every ${minutes} minutes` })),
-            set: (value) => setFetchMinutes(Number(value)),
-            disabled: !autoFetch,
-          },
-          {
-            kind: "select",
-            label: "New commits",
-            hint: "When a background fetch finds new commits on main, or on the branch yours tracks.",
-            value: newCommitNotices,
-            options: [
-              { value: "off", label: "Don't tell me" },
-              { value: "app", label: "Show a message in Tributary" },
-              { value: "system", label: "Also notify me when Tributary is in the background" },
-            ],
-            set: (value) => setNewCommitNotices(value as "off" | "app" | "system"),
-            disabled: !autoFetch,
-          },
-        ],
-      },
-      {
-        title: "Large files and Git LFS",
-        rows: [
-          {
-            kind: "select",
-            label: "Warn about big files outside Git LFS",
-            hint: "Committed into git itself, they stay in every clone forever.",
-            value: String(largeFileMB),
-            options: [1, 5, 10, 25, 50, 100].map((mb) => ({ value: String(mb), label: `Bigger than ${mb} MB` })),
-            set: (value) => setLargeFileMB(Number(value)),
-          },
-          {
-            kind: "toggle",
-            label: "Lock files when I change them",
-            hint: "Lockable files (like .uasset), as soon as you change one that nobody has locked.",
-            value: autoLock,
-            set: setAutoLock,
-          },
-        ],
-      },
-      {
-        title: "Commit list",
-        rows: [
-          { kind: "toggle", label: "Compact rows", value: dense, set: setDense },
-          { kind: "toggle", label: "Day separators", value: daySeparators, set: setDaySeparators },
-          { kind: "toggle", label: "Previews on hover", hint: "A commit's details when you rest the pointer on it.", value: previews, set: setPreviews },
-          {
-            kind: "toggle",
-            label: "Profile pictures",
-            hint: "From Gravatar and GitHub, looked up by email address.",
-            value: profilePictures,
-            set: setProfilePictures,
-          },
-          {
-            kind: "custom",
-            label: "Columns",
-            content: (
-              <span className="settings-checks">
-                {(["author", "date", "sha"] as const).map((column) => (
-                  <label key={column} className="checkbox">
-                    <input
-                      type="checkbox"
-                      checked={columnOptions[column]}
-                      onChange={() => setColumnOptions({ ...columnOptions, [column]: !columnOptions[column] })}
-                    />
-                    {column === "sha" ? "SHA" : column[0].toUpperCase() + column.slice(1)}
-                  </label>
-                ))}
-              </span>
-            ),
-          },
-          {
-            kind: "select",
-            label: "Dates",
-            value: columnOptions.dateFormat,
-            options: [
-              { value: "relative", label: "Relative (“3 hours ago”)" },
-              { value: "exact", label: "Exact dates and times" },
-            ],
-            set: (value) => setColumnOptions({ ...columnOptions, dateFormat: value as ColumnOptions["dateFormat"] }),
-            disabled: !columnOptions.date,
-          },
-          {
-            kind: "select",
-            label: "Which date",
-            value: columnOptions.dateKind,
-            options: [
-              { value: "authored", label: "When it was written" },
-              { value: "committed", label: "When it was committed" },
-            ],
-            set: (value) => setColumnOptions({ ...columnOptions, dateKind: value as ColumnOptions["dateKind"] }),
-            disabled: !columnOptions.date,
-          },
-          {
-            kind: "select",
-            label: "Zoom",
-            value: String(zoom),
-            options: ZOOM_LEVELS.map((level) => ({ value: String(level), label: `${Math.round(level * 100)}%` })),
-            set: (value) => setZoom(Number(value)),
-          },
-        ],
-      },
-    ];
-    if (snapshot) {
-      sections.push({
-        title: `This repository: ${snapshot.name}`,
-        rows: [
-          {
-            kind: "custom",
-            label: "Protected branches",
-            hint: "Can't be deleted; rebasing, hard resetting or force pushing them needs their name typed.",
-            content: <NameList names={protectedBranches} onChange={setProtectedBranches} placeholder="Add a branch" />,
-          },
-          {
-            kind: "custom",
-            label: "Git LFS files on this computer",
-            hint: "Copies of every version you've downloaded. Cleaning up keeps what you still need.",
-            content: (
-              <LfsStorageSummary
-                repoPath={snapshot.path}
-                onCleanUp={() => {
-                  setSettingsOpen(false);
-                  setDialog({ kind: "pruneLfs" });
-                }}
-              />
-            ),
-          },
-        ],
-      });
-    }
-    return sections;
-  };
-  const settingsDialog = settingsOpen && <SettingsDialog sections={settingsSections()} onClose={() => setSettingsOpen(false)} />;
+        },
+      })}
+      onClose={() => setSettingsOpen(false)}
+    />
+  );
   const updateDialog = updateOpen && updates.available && <UpdateDialog update={updates.available} onClose={() => setUpdateOpen(false)} />;
   const updatePill = updates.available && (
     <button className="update-pill" onClick={() => setUpdateOpen(true)} title={`Tributary ${updates.available.version} is available`}>
@@ -1661,7 +892,7 @@ export default function App() {
         {cloneDialog}
         {paletteOpen && (
           <CommandPalette
-            commands={[...fileCommands, settingsCommand, ...helpCommands].map((c) => ({ id: c.id, label: c.label, icon: c.icon, shortcut: c.keys && shortcutLabel(c.keys), run: c.run }))}
+            commands={[...startCommands(menuBarContext), settingsCommand(menuBarContext), ...helpCommandsFor(menuBarContext)].map((c) => ({ id: c.id, label: c.label, icon: c.icon, shortcut: c.keys && shortcutLabel(c.keys), run: c.run }))}
             onClose={() => setPaletteOpen(false)}
           />
         )}
@@ -1678,16 +909,7 @@ export default function App() {
   const branchLabel = snapshot.headBranch ?? "HEAD";
   const canChange = !snapshot.bare && running === null;
 
-  /** The commits after `commit` on the checked-out branch (newest first), or why they can't be rewritten. */
-  const rewritable = (commit: CommitRow): CommitRow[] | string => {
-    if (!snapshot.headBranch) return "check out a branch first";
-    if (commit.id === snapshot.headCommit) return `${branchLabel} has nothing after this commit`;
-    if (!headHistory.has(commit.id)) return `not part of ${branchLabel}`;
-    const before = ancestors(commit.id, byId);
-    const after = snapshot.commits.filter((c) => headHistory.has(c.id) && !before.has(c.id));
-    if (after.some((c) => c.parents.length > 1)) return "the commits after it include merges";
-    return after;
-  };
+  const rewritableAfter = (commit: CommitRow) => rewritable(commit, snapshot, headHistory, byId);
 
   const ctx: MenuContext = {
     snapshot,
@@ -1704,330 +926,71 @@ export default function App() {
     togglePin,
     protectedBranches,
     toggleProtected,
-    rewritable,
+    rewritable: rewritableAfter,
     openUrl: openInBrowser,
   };
   const commitById = (id: string) => byId.get(id);
   const conflictedPaths = (snapshot.worktree?.unstaged ?? []).filter((file) => file.status === "conflicted").map((file) => file.path);
   const conflicts = conflictedPaths.length;
 
-  /** Lock, unlock or force-unlock a file. */
-  const lockItems = (path: string, lock: Lock | undefined, separated: boolean): MenuItem[] => {
-    if (!lock) {
-      return [{ label: "Lock file", icon: <LockIcon />, separated, disabled: !canChange, onSelect: () => act({ kind: "lockFiles", paths: [path] }) }];
-    }
-    if (lock.mine) {
-      return [
-        { label: "Unlock file", icon: <UnlockIcon />, separated, disabled: !canChange, onSelect: () => act({ kind: "unlockFiles", locks: [{ id: lock.id, path: lock.path }] }) },
-      ];
-    }
-    return [
-      { label: `Locked by ${lock.owner || "someone else"}`, icon: <LockIcon />, separated, disabled: true, onSelect: () => {} },
-      { label: "Force unlock…", icon: <UnlockIcon />, danger: true, disabled: !canChange, onSelect: () => setDialog({ kind: "forceUnlock", lock }) },
-    ];
+  const fileMenuContext: FileMenuContext = {
+    snapshot,
+    canChange,
+    run: (action) => act(action),
+    openDialog: setDialog,
+    showHistory,
+    locks: lfs.locks ? lfs.byPath : null,
+    checks,
+    reveal: (path) =>
+      revealItemInDir(joinPath(snapshot.path, path)).catch(() => setToast({ text: `${baseName(path)} isn't in the working tree` })),
   };
-  const revealFile = (path: string) =>
-    revealItemInDir(joinPath(snapshot.path, path)).catch(() => setToast({ text: `${baseName(path)} isn't in the working tree` }));
-
-  // Help with commit messages: your recent ones, and people to credit as co-authors.
-  const myEmail = user?.email?.toLowerCase() ?? null;
-  const recentMessages = snapshot.commits
-    .filter((commit) => commit.kind === "commit" && (myEmail ? commit.authorEmail.toLowerCase() === myEmail : commit.authorName === user?.name))
-    .filter((commit, index, list) => list.findIndex((other) => other.summary === commit.summary) === index)
-    .slice(0, 12);
-  const people = (() => {
-    const counts = new Map<string, { name: string; email: string; count: number }>();
-    for (const commit of snapshot.commits) {
-      if (commit.kind !== "commit" || !commit.authorEmail) continue;
-      const email = commit.authorEmail.toLowerCase();
-      // You, and bots like Dependabot, aren't co-authors.
-      if (email === myEmail || email.includes("[bot]") || commit.authorName.endsWith("[bot]")) continue;
-      const known = counts.get(email);
-      if (known) known.count += 1;
-      else counts.set(email, { name: commit.authorName, email: commit.authorEmail, count: 1 });
-    }
-    return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, 12);
-  })();
-  const reuseMessage = async (commit: CommitRow) => {
-    const details = await loadDetails(commit.id).catch(() => null);
-    setDraft((current) => ({ ...current, summary: details?.summary ?? commit.summary, description: details?.body ?? "" }));
-  };
-  const addCoAuthor = (person: { name: string; email: string }) =>
-    setDraft((current) => {
-      const trailer = `Co-authored-by: ${person.name} <${person.email}>`;
-      if (current.description.includes(trailer)) return current;
-      const description = current.description.trimEnd();
-      const lines = description.split("\n");
-      // Trailers go together at the end, after a blank line.
-      const endsWithTrailer = /^[\w-]+: /.test(lines[lines.length - 1] ?? "");
-      return { ...current, description: description ? `${description}${endsWithTrailer ? "\n" : "\n\n"}${trailer}` : trailer };
-    });
+  const fileMenu = (file: FileChange, x: number, y: number, where: "worktree" | "commit") =>
+    showMenu(x, y, fileMenuItems(fileMenuContext, file, where));
+  const lockMenu = (lock: Lock, x: number, y: number) => showMenu(x, y, lockMenuItems(fileMenuContext, lock));
   const messageTools = (
-    <div className="message-tools">
-      <button
-        className="message-tool"
-        disabled={recentMessages.length === 0}
-        onClick={(event) =>
-          menuUnder(
-            event.currentTarget,
-            recentMessages.map((commit) => ({ label: commit.summary, icon: <HistoryIcon />, onSelect: () => reuseMessage(commit) })),
-            360,
-          )
-        }
-        title="Start from one of your recent commit messages"
-      >
-        <HistoryIcon size={12} />
-        Recent messages
-      </button>
-      <button
-        className="message-tool"
-        disabled={people.length === 0}
-        onClick={(event) =>
-          menuUnder(
-            event.currentTarget,
-            people.map((person) => ({ label: `${person.name} <${person.email}>`, icon: <UserIcon />, onSelect: () => addCoAuthor(person) })),
-            360,
-          )
-        }
-        title="Credit someone who worked on this with you"
-      >
-        <UserIcon size={12} />
-        Add co-author
-      </button>
-    </div>
+    <MessageTools
+      commits={snapshot.commits}
+      you={user}
+      onUseMessage={async (commit) => {
+        const details = await loadDetails(commit.id).catch(() => null);
+        setDraft((current) => ({ ...current, summary: details?.summary ?? commit.summary, description: details?.body ?? "" }));
+      }}
+      onAddCoAuthor={(person) => setDraft((current) => ({ ...current, description: withCoAuthor(current.description, person) }))}
+      openMenu={menuUnder}
+    />
   );
 
-  /** Right-click on a file in a commit or in the uncommitted changes. */
-  const fileMenu = (file: FileChange, x: number, y: number, where: "worktree" | "commit") => {
-    const folder = file.path.endsWith("/");
-    const path = file.path.replace(/\/+$/, "");
-    const dir = folderOf(path);
-    const items: MenuItem[] = [];
-    if (where === "worktree" && file.status === "conflicted") {
-      const sides = conflictSides(snapshot);
-      items.push(
-        { label: `Keep mine (${sides.mine})`, icon: <CheckIcon />, disabled: !canChange, onSelect: () => act({ kind: "resolveConflicts", paths: [path], keep: "mine" }) },
-        { label: `Take theirs (${sides.theirs})`, icon: <MergeIcon />, disabled: !canChange, onSelect: () => act({ kind: "resolveConflicts", paths: [path], keep: "theirs" }) },
-      );
-    }
-    items.push({
-      label: folder ? "Show this folder's history" : "Show this file's history",
-      icon: <FileHistoryIcon />,
-      separated: items.length > 0,
-      onSelect: () => showHistory(folder ? `${path}/` : path),
-    });
-    if (dir) items.push({ label: `Show the history of ${dir}/`, icon: <FolderIcon />, onSelect: () => showHistory(`${dir}/`) });
-    if (lfs.locks && !folder) items.push(...lockItems(path, lfs.byPath.get(path), true));
-    if (where === "worktree" && file.status !== "conflicted") {
-      const paths = file.oldPath ? [file.oldPath, path] : [path];
-      const big = checks?.large.some((large) => large.path === file.path);
-      if (big) {
-        const pattern = lfsPattern(file.path);
-        const staged = snapshot.worktree?.staged.some((staged) => staged.path === file.path);
-        items.push({
-          label: `Track ${pattern} with Git LFS`,
-          icon: <CloudIcon />,
-          separated: true,
-          disabled: !canChange,
-          onSelect: () => act({ kind: "trackWithLfs", patterns: [pattern], paths: staged ? [file.path] : [] }),
-        });
-      }
-      if (file.status === "untracked") {
-        const name = baseName(path);
-        const pattern = lfsPattern(path);
-        items.push({
-          label: folder ? `Ignore the folder ${name}/` : `Ignore ${name}`,
-          icon: <IgnoreIcon />,
-          separated: !big,
-          disabled: !canChange,
-          onSelect: () => act({ kind: "ignorePaths", patterns: [folder ? `/${path}/` : `/${path}`] }),
-        });
-        if (!folder && pattern !== path) {
-          items.push({ label: `Ignore all ${pattern} files`, icon: <IgnoreIcon />, disabled: !canChange, onSelect: () => act({ kind: "ignorePaths", patterns: [pattern] }) });
-        }
-        if (dir) {
-          items.push({ label: `Ignore the folder ${dir}/`, icon: <IgnoreIcon />, disabled: !canChange, onSelect: () => act({ kind: "ignorePaths", patterns: [`/${dir}/`] }) });
-        }
-      }
-      items.push(
-        {
-          label: folder ? "Stash this folder…" : "Stash this file…",
-          icon: <StashIcon />,
-          separated: true,
-          disabled: !canChange,
-          onSelect: () => setDialog({ kind: "stash", paths }),
-        },
-        {
-          label: folder ? "Delete this folder" : file.status === "untracked" ? "Delete this file" : "Discard changes",
-          icon: <TrashIcon />,
-          danger: true,
-          disabled: !canChange,
-          onSelect: () => act({ kind: "discardFiles", paths }),
-        },
-      );
-    }
-    items.push({ label: "Copy path", icon: <CopyIcon />, separated: true, onSelect: () => copyText(path) });
-    if (where === "worktree" && file.status !== "deleted") {
-      items.push({ label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, onSelect: () => revealFile(path) });
-    }
-    showMenu(x, y, items);
-  };
-  /** A locked file in the sidebar. */
-  const lockMenu = (lock: Lock, x: number, y: number) =>
-    showMenu(x, y, [
-      { label: "Show this file's history", icon: <FileHistoryIcon />, onSelect: () => showHistory(lock.path) },
-      ...lockItems(lock.path, lock, true),
-      { label: "Copy path", icon: <CopyIcon />, separated: true, onSelect: () => copyText(lock.path) },
-      { label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, onSelect: () => revealFile(lock.path) },
-    ]);
-
   const pushMenu = (anchor: HTMLElement) =>
-    menuUnder(anchor, [
-      { label: "Push", icon: <PushIcon />, onSelect: () => act({ kind: "push", force: false }, "push") },
-      {
-        label: "Force push…",
-        icon: <PushIcon />,
-        danger: true,
-        separated: true,
-        onSelect: () => setDialog({ kind: "forcePush" }),
-      },
-    ]);
-
+    menuUnder(anchor, pushMenuItems(() => act({ kind: "push", force: false }, "push"), setDialog));
   const viewMenu = (anchor: HTMLElement) => {
-    const view = menus.find((m) => m.label === "View")!;
-    menuUnder(anchor, menuItems(view.entries.filter((entry) => entry === "-" || !["search", "palette"].includes(entry.id))), 320);
+    const view = menus.find((m) => m.label === "View");
+    if (view) menuUnder(anchor, menuItems(view.entries.filter((entry) => entry === "-" || !["search", "palette"].includes(entry.id))), 320);
   };
-
-  const headerMenu = (x: number, y: number) => {
-    const toggle = (key: "author" | "date" | "sha") => setColumnOptions({ ...columnOptions, [key]: !columnOptions[key] });
-    showMenu(x, y, [
-      { label: "Author", icon: <ColumnsIcon />, checked: columnOptions.author, onSelect: () => toggle("author") },
-      { label: "Date", icon: <ColumnsIcon />, checked: columnOptions.date, onSelect: () => toggle("date") },
-      { label: "SHA", icon: <ColumnsIcon />, checked: columnOptions.sha, onSelect: () => toggle("sha") },
-      {
-        label: "Relative dates (“3 hours ago”)",
-        separated: true,
-        checked: columnOptions.dateFormat === "relative",
-        disabled: !columnOptions.date,
-        onSelect: () => setColumnOptions({ ...columnOptions, dateFormat: "relative" }),
-      },
-      {
-        label: "Exact dates and times",
-        checked: columnOptions.dateFormat === "exact",
-        disabled: !columnOptions.date,
-        onSelect: () => setColumnOptions({ ...columnOptions, dateFormat: "exact" }),
-      },
-      {
-        label: "When it was written (author date)",
-        separated: true,
-        checked: columnOptions.dateKind === "authored",
-        disabled: !columnOptions.date,
-        onSelect: () => setColumnOptions({ ...columnOptions, dateKind: "authored" }),
-      },
-      {
-        label: "When it was committed (commit date)",
-        checked: columnOptions.dateKind === "committed",
-        disabled: !columnOptions.date,
-        onSelect: () => setColumnOptions({ ...columnOptions, dateKind: "committed" }),
-      },
-      { label: "Day separators", separated: true, checked: daySeparators, onSelect: () => setDaySeparators(!daySeparators) },
-    ]);
-  };
-
+  const headerMenu = (x: number, y: number) =>
+    showMenu(x, y, columnMenuItems(columnOptions, setColumnOptions, daySeparators, setDaySeparators));
   const remoteActions: Record<RemoteAction, Action> = {
     fetch: { kind: "fetch" },
     pull: { kind: "pull" },
     push: { kind: "push", force: false },
   };
-
-  const detailsActions = (commit: CommitRow): DetailsAction[] => {
-    if (commit.kind === "stash") {
-      const index = stashIndexOf(commit);
-      if (index === null || !canChange) return [];
-      return [
-        { label: "Apply", icon: <StashIcon size={14} />, onClick: () => act({ kind: "stashApply", index, id: commit.id }) },
-        { label: "Pop", icon: <StashIcon size={14} />, onClick: () => act({ kind: "stashPop", index, id: commit.id }) },
-        {
-          label: "Drop…",
-          icon: <TrashIcon size={14} />,
-          danger: true,
-          onClick: () => setDialog({ kind: "dropStash", index, id: commit.id, label: `stash@{${index}}` }),
-        },
-      ];
-    }
-    return canChange && canResetTo(snapshot, commit)
-      ? [
-          {
-            label: `Hard reset ${branchLabel} to this commit…`,
-            icon: <ResetIcon size={14} />,
-            danger: true,
-            onClick: () => setDialog({ kind: "reset", target: commit }),
-          },
-        ]
-      : [];
-  };
-
-  // Everything the command palette can do: the menu bar's commands, plus one for each branch and tab.
-  const commands = (): Command[] => {
-    const list: Command[] = [];
-    const seen = new Set<string>();
-    const add = (command: Command, enabled = true) => {
-      if (!enabled || seen.has(command.id)) return;
-      seen.add(command.id);
-      list.push(command);
-    };
-    for (const m of menus) {
-      for (const entry of m.entries) {
-        if (entry === "-" || entry.enabled === false) continue;
-        const label = entry.checked === undefined ? entry.label : `${entry.checked ? "Turn off" : "Turn on"}: ${entry.label}`;
-        add({ id: entry.id, label, icon: entry.icon, group: m.label === "Repository" ? "Repository" : m.label === "View" ? "View" : undefined, shortcut: entry.keys && shortcutLabel(entry.keys), run: entry.run });
-      }
-    }
-    for (const tab of tabs) {
-      if (tab.path !== snapshot.path) add({ id: `tab:${tab.path}`, label: `Switch to ${tab.name}`, group: "Tab", run: () => switchTab(tab.path) });
-    }
-    if (snapshot.worktree && canChange) {
-      add({ id: "stage-all", label: "Stage all changes", group: "Changes", run: () => act({ kind: "stageAll" }, "other", { quiet: true }) });
-      add({ id: "unstage-all", label: "Unstage all changes", group: "Changes", run: () => act({ kind: "unstageAll" }, "other", { quiet: true }) });
-    }
-    if (snapshot.operation && snapshot.operation.kind !== "other" && canChange) {
-      add({ id: "continue", label: `Continue the ${snapshot.operation.kind}`, group: "In progress", run: () => act({ kind: "continueOperation" }) });
-      add({ id: "abort", label: `Abort the ${snapshot.operation.kind}`, group: "In progress", run: () => act({ kind: "abortOperation" }) });
-    }
-    for (const commit of snapshot.commits) {
-      for (const ref of commit.refs) {
-        if (ref.kind === "branch" && !ref.current && canChange) {
-          add({ id: `checkout:${ref.name}`, label: `Check out ${ref.name}`, icon: <BranchIcon />, group: "Branch", run: () => act({ kind: "checkoutBranch", name: ref.name }) });
-        }
-        if (ref.kind === "remote" && canChange) {
-          const { branch } = splitRemoteBranch(ref.name, snapshot.remotes);
-          if (!localBranches.has(branch)) {
-            add({ id: `track:${ref.name}`, label: `Check out ${branch} (tracking ${ref.name})`, icon: <CloudIcon />, group: "Branch", run: () => act({ kind: "checkoutRemoteBranch", name: ref.name }) });
-          }
-        }
-        if ((ref.kind === "branch" || ref.kind === "remote" || ref.kind === "tag") && !ref.current) {
-          if (canChange && snapshot.headBranch && !snapshot.operation) {
-            add({ id: `merge:${ref.name}`, label: `Merge ${ref.name} into ${branchLabel}`, icon: <MergeIcon />, group: "Branch", run: () => act({ kind: "merge", target: ref.name }) });
-            add({ id: `rebase:${ref.name}`, label: `Rebase ${branchLabel} onto ${ref.name}`, icon: <RebaseIcon />, group: "Branch", run: () => act({ kind: "rebase", onto: ref.name }) });
-          }
-          add({ id: `focus:${ref.name}`, label: `Highlight ${ref.name}'s history`, icon: <EyeIcon />, group: "View", run: () => setFocus({ kind: "history", name: ref.name, commitId: commit.id }) });
-          const name = fullRefName(ref);
-          if (name) add({ id: `hide:${name}`, label: `Hide ${ref.name}`, icon: <EyeOffIcon />, group: "View", run: () => setHidden([name], true) });
-        }
-      }
-    }
-    for (const ref of snapshot.hiddenRefs) {
-      const name = fullRefName(ref);
-      if (name) add({ id: `show:${name}`, label: `Show ${ref.name}`, icon: <EyeIcon />, group: "View", run: () => setHidden([name], false) });
-    }
-    add({ id: "settings", label: "Settings…", icon: <GearIcon />, shortcut: shortcutLabel("CmdOrCtrl+,"), run: () => setSettingsOpen(true) });
-    if (focus) add({ id: "unfocus", label: "Stop highlighting", icon: <EyeIcon />, group: "View", run: () => setFocus(null) });
-    add({ id: "activity", label: activityOpen ? "Hide activity" : "Show activity", icon: <ActivityIcon />, group: "View", run: () => setActivityOpen(!activityOpen) });
-    add({ id: "mine", label: "Highlight my commits", icon: <UserIcon />, group: "View", run: highlightMine }, Boolean(user));
-    add({ id: "sidebar", label: sidebarOpen ? "Hide branches sidebar" : "Show branches sidebar", icon: <SidebarIcon />, group: "View", run: () => setSidebarOpen(!sidebarOpen) });
-    add({ id: "dense", label: dense ? "Normal rows" : "Compact rows", icon: <ViewIcon />, group: "View", run: () => setDense(!dense) });
-    return list;
-  };
+  const detailsActions = (commit: CommitRow) => detailsActionsFor(commit, snapshot, canChange, (action) => act(action), setDialog);
+  const commands = () =>
+    paletteCommands({
+      menus,
+      snapshot,
+      tabs,
+      canChange,
+      localBranches,
+      branchLabel,
+      focused: focus !== null,
+      preferences,
+      run: (action, options) => act(action, "other", options),
+      switchTab,
+      setFocus,
+      setHidden,
+      openSettings: () => setSettingsOpen(true),
+      highlightMine,
+    });
 
   const head = snapshot.headCommit ? commitById(snapshot.headCommit) : undefined;
   const panelResize = (panel: "sidebar" | "details") => ({
@@ -2126,66 +1089,18 @@ export default function App() {
         </div>
       )}
       {(focus || snapshot.firstParent || soloing) && (
-        <div className="view-banner" role="status">
-          {focus?.kind === "path" ? <FileHistoryIcon size={14} /> : <EyeIcon size={14} />}
-          {focus?.kind === "path" ? (
-            <span>
-              Highlighting the {plural(focus.ids.length, "commit")}
-              {focus.truncated ? "+" : ""} that changed{" "}
-              <strong title={focus.path}>
-                {baseName(focus.path)}
-                {focus.folder ? "/" : ""}
-              </strong>
-              {focus.ids.length > pathMatches.length && ` (${(focus.ids.length - pathMatches.length).toLocaleString()} not loaded)`}.
-            </span>
-          ) : focus?.kind === "history" ? (
-            <span>
-              Highlighting <strong>{focus.name}</strong>'s history.
-            </span>
-          ) : focus?.kind === "author" ? (
-            <span>
-              Highlighting <strong>{highlightingMine ? "your" : `${focus.name || focus.email}'s`}</strong> commits ({focusedCount}{" "}
-              loaded).
-            </span>
-          ) : snapshot.firstParent ? (
-            <span>
-              Showing only <strong>{branchLabel}</strong>'s own history.
-            </span>
-          ) : (
-            <span>
-              Showing only{" "}
-              <strong>
-                {visibility.solo
-                  .map((name) => name.replace(/^refs\/(heads|remotes|tags)\//, ""))
-                  .slice(0, 4)
-                  .join(", ")}
-                {visibility.solo.length > 4 ? ` and ${visibility.solo.length - 4} more` : ""}
-              </strong>{" "}
-              (and {branchLabel}).
-            </span>
-          )}
-          {focus?.kind === "path" && pathMatches.length > 0 && (
-            <span className="banner-steps">
-              <button className="icon-button" onClick={() => stepHistory(-1)} title="Newer change" aria-label="Newer change">
-                <ChevronUpIcon size={13} />
-              </button>
-              <span className="banner-step-count">
-                {selectedIndex !== undefined && pathMatches.includes(selectedIndex)
-                  ? `${pathMatches.indexOf(selectedIndex) + 1} of ${pathMatches.length}`
-                  : plural(pathMatches.length, "change")}
-              </span>
-              <button className="icon-button" onClick={() => stepHistory(1)} title="Older change" aria-label="Older change">
-                <ChevronDownIcon size={13} />
-              </button>
-            </span>
-          )}
-          <button
-            className="link-button"
-            onClick={() => (focus ? setFocus(null) : snapshot.firstParent ? setFirstParentOnly(false) : showAllBranches())}
-          >
-            {focus ? "Show everything (Esc)" : "Show all branches"}
-          </button>
-        </div>
+        <ViewBanner
+          focus={focus}
+          firstParent={snapshot.firstParent}
+          solo={visibility.solo}
+          branchLabel={branchLabel}
+          mine={highlightingMine}
+          focusedCount={focusedCount}
+          pathMatches={pathMatches}
+          selectedIndex={selectedIndex}
+          onStep={stepHistory}
+          onShowEverything={() => (focus ? setFocus(null) : snapshot.firstParent ? setFirstParentOnly(false) : showAllBranches())}
+        />
       )}
       <main className="workspace">
         {sidebarOpen && (
@@ -2311,7 +1226,7 @@ export default function App() {
         <ActivityPanel
           entries={activityHere}
           folder={snapshot.path}
-          onClear={() => setActivityCleared(activity[activity.length - 1]?.id ?? 0)}
+          onClear={activity.clear}
           onClose={() => setActivityOpen(false)}
         />
       )}
@@ -2339,236 +1254,22 @@ export default function App() {
       {settingsDialog}
       {updateDialog}
       {cloneDialog}
-      {dialog?.kind === "reset" && (
-        <ResetDialog
-          snapshot={snapshot}
-          target={dialog.target}
-          protectedName={dialog.target.id === snapshot.headCommit ? null : protectedHead}
-          onCancel={() => setDialog(null)}
-          onDone={(message) => {
-            const before = snapshot.headCommit;
-            if (dialog.target.id !== before) select(dialog.target.id);
-            finishDialog(message, before && dialog.target.id !== before ? { kind: "resetHard", id: before } : undefined);
-          }}
-        />
-      )}
-      {dialog?.kind === "newBranch" && (
-        <NewBranchDialog
-          repoPath={snapshot.path}
-          target={dialog.target}
-          canCheckout={!snapshot.bare}
-          onCancel={() => setDialog(null)}
-          onDone={(message) => finishDialog(message)}
-        />
-      )}
-      {dialog?.kind === "tag" && (
-        <TagDialog
-          repoPath={snapshot.path}
-          target={dialog.target}
-          remote={snapshot.remotes.includes("origin") ? "origin" : (snapshot.remotes[0] ?? null)}
-          onCancel={() => setDialog(null)}
-          onDone={(message, name) => finishDialog(message, { kind: "deleteTag", name })}
-        />
-      )}
-      {dialog?.kind === "interactiveRebase" && (
-        <InteractiveRebaseDialog
-          branch={branchLabel}
-          onto={dialog.onto}
-          commits={dialog.commits}
-          loadDetails={loadDetails}
-          onCancel={() => setDialog(null)}
-          onStart={(steps) => {
-            setDialog(null);
-            act({ kind: "interactiveRebase", onto: dialog.onto.id, steps });
-          }}
-        />
-      )}
-      {dialog?.kind === "prune" && (
-        <PruneDialog
-          repoPath={snapshot.path}
-          fetchFirst={snapshot.remotes.length > 0}
-          pinned={pins}
-          protectedNames={protectedBranches}
-          onCancel={() => setDialog(null)}
-          onDelete={(branches) => {
-            setDialog(null);
-            act({ kind: "deleteBranches", branches });
-          }}
-        />
-      )}
-      {dialog?.kind === "restore" && (
-        <RestoreDialog
-          repoPath={snapshot.path}
-          onCancel={() => setDialog(null)}
-          onRestore={(backup) => {
-            setDialog(null);
-            act({ kind: "restoreBackup", reference: backup.reference }, "other", { quiet: false });
-          }}
-        />
-      )}
-      {dialog?.kind === "protectedAction" && (
-        <ProtectedActionDialog
-          branch={dialog.branch}
-          title={`Rewrite ${dialog.branch}?`}
-          explanation={`${dialog.action.kind === "interactiveRebase" ? "This interactive rebase" : "Rebasing"} rewrites ${dialog.branch}'s history: its commits get new ids, so anyone who already has them will have to reconcile. Tributary keeps a backup of where it was.`}
-          confirmLabel={dialog.action.kind === "interactiveRebase" ? "Start rebase" : `Rebase ${dialog.branch}`}
-          onCancel={() => setDialog(null)}
-          onConfirm={() => {
-            setDialog(null);
-            act(dialog.action, "other", { confirmed: true });
-          }}
-        />
-      )}
-      {dialog?.kind === "forcePush" && (
-        <ForcePushDialog
-          snapshot={snapshot}
-          protectedName={protectedHead}
-          onCancel={() => setDialog(null)}
-          onDone={(message) => finishDialog(message)}
-        />
-      )}
-      {dialog?.kind === "stash" && snapshot.worktree && (
-        <StashDialog
-          repoPath={snapshot.path}
-          status={snapshot.worktree}
-          paths={dialog.paths}
-          onCancel={() => setDialog(null)}
-          onDone={(message) => finishDialog(message)}
-        />
-      )}
-      {dialog?.kind === "rename" && (
-        <RenameBranchDialog
-          repoPath={snapshot.path}
-          branch={dialog.branch}
-          onCancel={() => setDialog(null)}
-          onDone={(message, newName) =>
-            finishDialog(message, { kind: "renameBranch", name: newName, newName: dialog.branch })
-          }
-        />
-      )}
-      {dialog?.kind === "deleteBranch" && (
-        <DeleteBranchDialog
-          repoPath={snapshot.path}
-          branch={dialog.branch}
-          retryFor={deleteAnyway(dialog.branch)}
-          onCancel={() => setDialog(null)}
-          onDone={(message) => {
-            // Undo puts it back as it was, tracking the same remote branch.
-            const label = byId.get(dialog.commitId)?.refs.find((ref) => ref.kind === "branch" && ref.name === dialog.branch);
-            const upstream = label?.upstream ? splitRemoteBranch(label.upstream, snapshot.remotes) : null;
-            finishDialog(message, {
-              kind: "restoreBranches",
-              branches: [
-                {
-                  name: dialog.branch,
-                  id: dialog.commitId,
-                  remote: upstream?.remote ?? null,
-                  merge: upstream ? `refs/heads/${upstream.branch}` : null,
-                },
-              ],
-            });
-          }}
-        />
-      )}
-      {dialog?.kind === "deleteRemoteBranch" && (
-        <DeleteRemoteBranchDialog
-          repoPath={snapshot.path}
-          name={dialog.name}
-          remote={splitRemoteBranch(dialog.name, snapshot.remotes).remote}
-          branch={splitRemoteBranch(dialog.name, snapshot.remotes).branch}
-          onCancel={() => setDialog(null)}
-          onDone={(message) => {
-            const commit = snapshot.commits.find((c) => c.refs.some((ref) => ref.kind === "remote" && ref.name === dialog.name));
-            finishDialog(message, commit ? { kind: "restoreRemoteBranch", name: dialog.name, id: commit.id } : undefined);
-          }}
-        />
-      )}
-      {dialog?.kind === "deleteTag" && (
-        <ConfirmDialog
-          repoPath={snapshot.path}
-          title={`Delete tag ${dialog.name}?`}
-          confirmLabel="Delete tag"
-          busyLabel="Deleting…"
-          danger
-          action={{ kind: "deleteTag", name: dialog.name }}
-          onCancel={() => setDialog(null)}
-          onDone={(message) => finishDialog(message, { kind: "restoreTag", name: dialog.name, id: dialog.restoreId })}
-        >
-          <p>The tag is removed from this repository. Copies of it on remotes are kept.</p>
-        </ConfirmDialog>
-      )}
-      {dialog?.kind === "deleteRemoteTag" && (
-        <ConfirmDialog
-          repoPath={snapshot.path}
-          title={`Delete ${dialog.name} from ${dialog.remote}?`}
-          confirmLabel="Delete from remote"
-          busyLabel="Deleting…"
-          danger
-          action={{ kind: "deleteRemoteTag", name: dialog.name, remote: dialog.remote }}
-          onCancel={() => setDialog(null)}
-          onDone={(message) => finishDialog(message)}
-        >
-          <p>
-            The tag will be removed from <strong>{dialog.remote}</strong>, for everyone who uses it. The tag in this
-            repository is kept.
-          </p>
-        </ConfirmDialog>
-      )}
-      {dialog?.kind === "forceUnlock" && (
-        <ConfirmDialog
-          repoPath={snapshot.path}
-          title={`Unlock ${baseName(dialog.lock.path)}?`}
-          confirmLabel="Force unlock"
-          busyLabel="Unlocking…"
-          danger
-          action={{ kind: "unlockFiles", locks: [{ id: dialog.lock.id, path: dialog.lock.path }], force: true }}
-          onCancel={() => setDialog(null)}
-          onDone={(message) => {
-            finishDialog(message);
-            lfs.refresh(true);
-          }}
-        >
-          <p>
-            <strong>{dialog.lock.owner || "Someone else"}</strong> locked <strong>{dialog.lock.path}</strong>. If they're still
-            working on it, their changes and yours will clash, and one of you will lose work. Check with them first.
-          </p>
-        </ConfirmDialog>
-      )}
-      {dialog?.kind === "recover" && (
-        <RecoverDialog
-          repoPath={snapshot.path}
-          isLoaded={(id) => byId.has(id)}
-          truncated={snapshot.truncated}
-          onCancel={() => setDialog(null)}
-          onShow={(id) => {
-            setDialog(null);
-            select(id);
-          }}
-          onCreateBranch={(entry) =>
-            setDialog({
-              kind: "newBranch",
-              target: { id: entry.id, summary: entry.summary, kind: "commit", refs: [], parents: [] } as unknown as CommitRow,
-            })
-          }
-        />
-      )}
-      {dialog?.kind === "pruneLfs" && (
-        <PruneLfsDialog repoPath={snapshot.path} onCancel={() => setDialog(null)} onDone={(message) => finishDialog(message)} />
-      )}
-      {dialog?.kind === "dropStash" && (
-        <ConfirmDialog
-          repoPath={snapshot.path}
-          title={`Drop ${dialog.label}?`}
-          confirmLabel="Drop stash"
-          busyLabel="Dropping…"
-          danger
-          action={{ kind: "stashDrop", index: dialog.index, id: dialog.id }}
-          onCancel={() => setDialog(null)}
-          onDone={(message) => finishDialog(message)}
-        >
-          <p>The changes saved in this stash will be gone.</p>
-        </ConfirmDialog>
-      )}
+      <RepositoryDialogs
+        dialog={dialog}
+        snapshot={snapshot}
+        byId={byId}
+        branchLabel={branchLabel}
+        protectedHead={protectedHead}
+        protectedBranches={protectedBranches}
+        pins={pins}
+        loadDetails={loadDetails}
+        run={act}
+        select={select}
+        open={setDialog}
+        onClose={() => setDialog(null)}
+        onFinish={finishDialog}
+        onLocksChanged={() => lfs.refresh(true)}
+      />
       {dropOverlay}
       {toast && <Toast toast={toast} onDone={hideToast} />}
     </div>,

@@ -69,6 +69,12 @@ export interface CommitRow {
   graph: GraphRow;
 }
 
+/** The name and email address commits are made with (`user.name`, `user.email`). */
+export interface Identity {
+  name: string | null;
+  email: string | null;
+}
+
 export interface RepoSnapshot {
   path: string;
   name: string;
@@ -96,7 +102,7 @@ export interface RepoSnapshot {
   /** Remotes whose repository has a web page. */
   webRemotes: WebRemote[];
   /** The name and email commits are made with here. */
-  user: { name: string | null; email: string | null } | null;
+  user: Identity | null;
   /** When the repository was last fetched from, in seconds since the Unix epoch. */
   lastFetched: number | null;
   /** Local branches whose remote branch was deleted (usually merged pull requests). */

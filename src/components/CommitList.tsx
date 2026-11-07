@@ -6,6 +6,7 @@ import { slotsFor, type Slot } from "../lib/days";
 import { onLabelDrop } from "../lib/drag";
 import { compactTime, fullDate, shortId } from "../lib/format";
 import type { RefPill } from "../lib/refs";
+import type { SelectHow } from "../lib/selection";
 import { Avatar } from "./Avatar";
 import { ChangeCounts } from "./ChangeCounts";
 import { CommitPreview } from "./CommitPreview";
@@ -69,11 +70,6 @@ export const DEFAULT_COLUMNS: ColumnOptions = {
   dateKind: "authored",
 };
 
-/** How a click changes the selection: from the last selected commit to this one, or adding / removing it. */
-export interface SelectHow {
-  extend?: boolean;
-  toggle?: boolean;
-}
 
 interface Props {
   snapshot: RepoSnapshot;
