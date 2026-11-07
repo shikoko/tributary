@@ -1,4 +1,4 @@
-import type { Action, CommitRow, RepoSnapshot, Visibility } from "./api";
+import type { Action, CommitRow, Lock, RepoSnapshot, Visibility } from "./api";
 import { copyText } from "./lib/clipboard";
 import { isNotMergedError } from "./lib/errors";
 import { stashIndexOf, type RefEntry, type RefPill } from "./lib/refs";
@@ -55,6 +55,8 @@ export type OpenDialog =
   | { kind: "protectedAction"; action: Action; branch: string }
   /** `commits`: the commits after `onto`, newest first. */
   | { kind: "interactiveRebase"; onto: CommitRow; commits: CommitRow[] }
+  /** Release someone else's Git LFS lock. */
+  | { kind: "forceUnlock"; lock: Lock }
   | null;
 
 /** What the menus need from the app. */

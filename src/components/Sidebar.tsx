@@ -1,5 +1,6 @@
 import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
-import { fullRefName, type CommitRow, type HiddenRef, type Visibility } from "../api";
+import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Visibility } from "../api";
+import { lockTitle } from "./CommitDetails";
 import { pressLabel } from "../lib/drag";
 import { collectRefs, type RefEntry } from "../lib/refs";
 import { useStoredState } from "../lib/settings";
@@ -14,6 +15,7 @@ import {
   EyeOffIcon,
   FolderIcon,
   PinIcon,
+  PlusIcon,
   SearchIcon,
   StashIcon,
   TagIcon,
@@ -44,6 +46,13 @@ interface Props {
   protectedBranches: string[];
   /** For local branches that track a remote branch: commits to push and to pull. */
   aheadBehind: Map<string, { ahead: number; behind: number }>;
+  /** Files locked with Git LFS, or null when the repository doesn't use locking. */
+  locks: Lock[] | null;
+  /** Why the locks couldn't be refreshed. */
+  locksError: string | null;
+  onLockMenu: (lock: Lock, x: number, y: number) => void;
+  /** Lock files you choose (null while that can't be done). */
+  onLockFiles: (() => void) | null;
 }
 
 /** An entry, or a folder of entries that share a prefix like "feature/". */
@@ -228,6 +237,7 @@ export function Sidebar(props: Props) {
   const branches = lists.branches.filter(matches);
   const tags = lists.tags.filter(matches);
   const stashes = lists.stashes.filter(matches);
+  const locks = props.locks?.filter((lock) => !needle || lock.path.toLowerCase().includes(needle)) ?? null;
   const remotes = [...lists.remotes.entries()].map(([remote, entries]) => [remote, entries.filter(matches)] as const);
   const remoteCount = remotes.reduce((sum, [, entries]) => sum + entries.length, 0);
   const everything = [...lists.branches, ...[...lists.remotes.values()].flat(), ...lists.tags];
@@ -305,6 +315,45 @@ export function Sidebar(props: Props) {
           stashes.length,
           <ul>{stashes.map((e) => item(e, stashLabel(e), <StashIcon size={13} />))}</ul>,
         )}
+        {locks &&
+          section(
+            "locks",
+            "Locked files",
+            locks.length,
+            <ul>
+              {locks.map((lock) => (
+                <li key={lock.id}>
+                  <div
+                    className={`sidebar-item sidebar-locked${lock.mine ? " mine" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    title={`${lock.path}\n${lockTitle(lock)}`}
+                    onClick={(event) => props.onLockMenu(lock, event.clientX, event.clientY)}
+                    onContextMenu={(event: MouseEvent) => {
+                      event.preventDefault();
+                      props.onLockMenu(lock, event.clientX, event.clientY);
+                    }}
+                  >
+                    <span className="sidebar-icon">
+                      <LockIcon size={12} />
+                    </span>
+                    <span className="sidebar-name">{lock.path.split("/").pop()}</span>
+                    <span className="sidebar-lock-owner">{lock.mine ? "you" : lock.owner}</span>
+                  </div>
+                </li>
+              ))}
+              {props.locksError && (
+                <li className="sidebar-empty" title={props.locksError}>
+                  Couldn't refresh the locks
+                </li>
+              )}
+            </ul>,
+            props.onLockFiles && (
+              <button className="sidebar-heading-action" onClick={props.onLockFiles} title="Lock files…" aria-label="Lock files">
+                <PlusIcon size={13} />
+              </button>
+            ),
+          )}
       </div>
     </aside>
   );

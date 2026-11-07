@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { commitDetails, type Action, type FileChange, type RepoSnapshot } from "../api";
+import { commitDetails, type Action, type FileChange, type Lock, type RepoSnapshot } from "../api";
 import { plural } from "../lib/format";
 import { modKey } from "../lib/platform";
 import { FileLine } from "./CommitDetails";
-import { CloseIcon, MinusIcon, PlusIcon, StashIcon, TrashIcon } from "./Icons";
+import { CloseIcon, LockIcon, MinusIcon, PlusIcon, StashIcon, TrashIcon } from "./Icons";
 
 export interface CommitDraft {
   summary: string;
@@ -24,11 +24,25 @@ interface Props {
   onStash: () => void;
   onDiscard: () => void;
   onClose: () => void;
+  /** A file's Git LFS lock. */
+  lockOf: (path: string) => Lock | undefined;
+  /** Right-click on a file. */
+  onFileMenu: (file: FileChange, x: number, y: number) => void;
 }
 
 /** The "Uncommitted changes" panel: stage and unstage files, then commit. */
-export function WorktreeDetailsPanel({ snapshot, run, busy, draft, onDraft, onStash, onDiscard, onClose }: Props) {
+export function WorktreeDetailsPanel({ snapshot, run, busy, draft, onDraft, onStash, onDiscard, onClose, lockOf, onFileMenu }: Props) {
   const status = snapshot.worktree ?? { staged: [], unstaged: [] };
+  const conflicted = status.unstaged.filter((file) => file.status === "conflicted");
+  const unstaged = status.unstaged.filter((file) => file.status !== "conflicted");
+  const { mine, theirs } = conflictSides(snapshot);
+  const resolve = (paths: string[], keep: "mine" | "theirs") => run({ kind: "resolveConflicts", paths, keep });
+  // Changed files someone else has locked: pushing them will be refused.
+  const lockedByOthers = [...status.staged, ...status.unstaged].filter((file) => {
+    const lock = lockOf(file.path);
+    return lock && !lock.mine;
+  });
+  const lockHolders = [...new Set(lockedByOthers.map((file) => lockOf(file.path)!.owner || "someone else"))];
   const [committing, setCommitting] = useState(false);
   const [lastMessage, setLastMessage] = useState<string | null>(null);
 
@@ -105,11 +119,69 @@ export function WorktreeDetailsPanel({ snapshot, run, busy, draft, onDraft, onSt
       </header>
 
       <div className="details-scroll worktree">
+        {lockedByOthers.length > 0 && (
+          <div className="lock-warning" role="status">
+            <LockIcon size={13} />
+            <span>
+              {lockedByOthers.length === 1 ? (
+                <>
+                  <strong>{lockedByOthers[0].path.split("/").pop()}</strong> is locked by {lockHolders[0]}
+                </>
+              ) : (
+                <>
+                  {plural(lockedByOthers.length, "changed file")} are locked by {lockHolders.join(", ")}
+                </>
+              )}
+              . You won't be able to push {lockedByOthers.length === 1 ? "your changes to it" : "them"} until{" "}
+              {lockedByOthers.length === 1 ? "it's" : "they're"} unlocked.
+            </span>
+          </div>
+        )}
+        {conflicted.length > 0 && (
+          <section className="files conflicts">
+            <h3>
+              Conflicts
+              <span className="hint">{plural(conflicted.length, "file")}</span>
+              <span className="spacer" />
+              <button className="link-button" onClick={() => resolve(conflicted.map((file) => file.path), "mine")} disabled={busy} title={`Keep ${mine}'s version of every conflicted file`}>
+                All mine
+              </button>
+              <button className="link-button" onClick={() => resolve(conflicted.map((file) => file.path), "theirs")} disabled={busy} title={`Take ${theirs}'s version of every conflicted file`}>
+                All theirs
+              </button>
+            </h3>
+            <div className="conflict-help">
+              Pick a whole version of each file (best for files that can't be merged, like assets), or fix the file and stage it.
+            </div>
+            <ul className="file-list">
+              {conflicted.map((file) => (
+                <FileLine
+                  key={file.path}
+                  file={file}
+                  lock={lockOf(file.path)}
+                  onContextMenu={onFileMenu}
+                  choices={[
+                    { label: "Mine", title: `Keep ${mine}'s version`, onClick: () => resolve([file.path], "mine"), disabled: busy },
+                    { label: "Theirs", title: `Take ${theirs}'s version`, onClick: () => resolve([file.path], "theirs"), disabled: busy },
+                  ]}
+                  action={{
+                    label: "Stage (mark as resolved)",
+                    icon: <PlusIcon size={13} />,
+                    onClick: () => run({ kind: "stage", paths: [file.path] }, { quiet: true }),
+                    disabled: busy,
+                  }}
+                />
+              ))}
+            </ul>
+          </section>
+        )}
         <FileSection
           title="Staged"
           files={status.staged}
           empty="Nothing staged yet. Stage the files you want to commit."
           bulk={{ label: "Unstage all", onClick: () => run({ kind: "unstageAll" }, { quiet: true }) }}
+          lockOf={lockOf}
+          onFileMenu={onFileMenu}
           fileAction={(file) => ({
             label: "Unstage",
             icon: <MinusIcon size={13} />,
@@ -119,9 +191,11 @@ export function WorktreeDetailsPanel({ snapshot, run, busy, draft, onDraft, onSt
         />
         <FileSection
           title="Unstaged"
-          files={status.unstaged}
+          files={unstaged}
           empty="No other changes."
           bulk={{ label: "Stage all", onClick: () => run({ kind: "stageAll" }, { quiet: true }) }}
+          lockOf={lockOf}
+          onFileMenu={onFileMenu}
           fileAction={(file) => ({
             label: "Stage",
             icon: <PlusIcon size={13} />,
@@ -188,9 +262,11 @@ interface FileSectionProps {
   bulk: { label: string; onClick: () => void };
   fileAction: (file: FileChange) => { label: string; icon: React.ReactNode; onClick: () => void };
   busy: boolean;
+  lockOf: (path: string) => Lock | undefined;
+  onFileMenu: (file: FileChange, x: number, y: number) => void;
 }
 
-function FileSection({ title, files, empty, bulk, fileAction, busy }: FileSectionProps) {
+function FileSection({ title, files, empty, bulk, fileAction, busy, lockOf, onFileMenu }: FileSectionProps) {
   return (
     <section className="files">
       <h3>
@@ -212,10 +288,21 @@ function FileSection({ title, files, empty, bulk, fileAction, busy }: FileSectio
               key={`${file.status}:${file.oldPath ?? ""}:${file.path}`}
               file={file}
               action={{ ...fileAction(file), disabled: busy }}
+              lock={lockOf(file.path)}
+              onContextMenu={onFileMenu}
             />
           ))}
         </ul>
       )}
     </section>
   );
+}
+
+/** What the two sides of a conflict are called, for buttons like "Keep main's version". */
+export function conflictSides(snapshot: RepoSnapshot): { mine: string; theirs: string } {
+  const operation = snapshot.operation;
+  return {
+    mine: operation?.mine ?? snapshot.headBranch ?? "your branch",
+    theirs: operation?.theirs ?? "the other side",
+  };
 }

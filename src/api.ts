@@ -135,6 +135,13 @@ export interface Operation {
   message: string | null;
   /** For a rebase: the branch being rebased (HEAD is detached while it runs). */
   branch: string | null;
+  /**
+   * The two sides of a conflict: yours (the checked-out branch, or the branch being
+   * rebased) and theirs (what's merged, picked, reverted or rebased onto), like "main"
+   * and "feat/x" or "commit a1b2c3d".
+   */
+  mine: string | null;
+  theirs: string | null;
 }
 
 export interface Upstream {
@@ -250,7 +257,13 @@ export type Action =
   | { kind: "deleteTag"; name: string }
   | { kind: "restoreTag"; name: string; id: string }
   | { kind: "pushTag"; name: string; remote: string | null }
-  | { kind: "deleteRemoteTag"; name: string; remote: string };
+  | { kind: "deleteRemoteTag"; name: string; remote: string }
+  /** Take one side's version of whole conflicted files. */
+  | { kind: "resolveConflicts"; paths: string[]; keep: "mine" | "theirs" }
+  /** Undo resolveConflicts: put the conflicts back. */
+  | { kind: "recreateConflicts"; paths: string[] }
+  | { kind: "lockFiles"; paths: string[] }
+  | { kind: "unlockFiles"; locks: { id: string; path: string }[]; force?: boolean };
 
 export type StepAction = "pick" | "reword" | "squash" | "fixup" | "drop";
 
@@ -412,4 +425,47 @@ export function onActivity(handler: (entry: LogEntry) => void): Promise<() => vo
 
 export function commitDetails(path: string, id: string): Promise<CommitDetails> {
   return invoke<CommitDetails>("commit_details", { path, id });
+}
+
+/** A file locked with Git LFS. */
+export interface Lock {
+  id: string;
+  /** Relative to the repository's root. */
+  path: string;
+  /** Who holds it: their name on the server (on GitHub, their username). */
+  owner: string;
+  /** Like "2026-05-17T15:49:06Z". */
+  lockedAt: string | null;
+  mine: boolean;
+}
+
+export interface Locks {
+  /** The repository uses Git LFS and its server supports locking. */
+  supported: boolean;
+  /** Yours first. */
+  locks: Lock[];
+  /** Why the locks couldn't be listed this time. */
+  error: string | null;
+}
+
+/** The files locked with Git LFS (asks the server, so it can take a moment). */
+export function lfsLocks(path: string): Promise<Locks> {
+  return invoke<Locks>("lfs_locks", { path });
+}
+
+/** The commits that changed a file or folder. */
+export interface FileHistory {
+  /** Relative to the repository's root, without a trailing slash. */
+  path: string;
+  folder: boolean;
+  /** Newest first. */
+  ids: string[];
+  /** For a file: every path it had, following renames. */
+  names: string[];
+  truncated: boolean;
+}
+
+/** `file` is relative to the repository's root, or an absolute path inside it. */
+export function fileHistory(path: string, file: string): Promise<FileHistory> {
+  return invoke<FileHistory>("file_history", { path, file });
 }

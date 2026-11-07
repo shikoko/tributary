@@ -3386,3 +3386,145 @@ textarea.text-input {
 .restore-remove {
   flex: none;
 }
+
+/* Git LFS locks */
+
+.file-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  flex: none;
+  font-size: 11px;
+}
+
+.file-lock.mine {
+  color: var(--accent);
+}
+
+.file-lock.theirs {
+  color: #ffad1f;
+}
+
+.file-lock-owner {
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lock-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(255, 173, 31, 0.1);
+  color: #ffd48a;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.lock-warning svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.lock-warning strong {
+  color: #ffe2ad;
+}
+
+.sidebar-locked .sidebar-icon {
+  color: #ffad1f;
+}
+
+.sidebar-locked.mine .sidebar-icon {
+  color: var(--accent);
+}
+
+.sidebar-lock-owner {
+  max-width: 45%;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  flex: none;
+}
+
+/* Conflicts: keep one side's version */
+
+.files h3 {
+  white-space: nowrap;
+}
+
+.files.conflicts h3 .link-button + .link-button {
+  margin-left: 2px;
+}
+
+.conflict-help {
+  margin: -2px 0 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.file.with-choices .file-dir {
+  flex: 1;
+}
+
+.file-choices {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+  flex: none;
+}
+
+.file-choice {
+  height: 20px;
+  padding: 0 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.file-choice:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.file.with-choices .file-action {
+  margin-left: 0;
+}
+
+/* File history */
+
+.file.highlighted {
+  background: rgba(31, 181, 255, 0.1);
+}
+
+.file.highlighted .file-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.banner-steps {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.banner-steps .icon-button {
+  width: 22px;
+  height: 22px;
+}
+
+.banner-step-count {
+  min-width: 64px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}

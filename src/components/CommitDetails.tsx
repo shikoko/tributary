@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { commitDetails, type CommitDetails, type CommitRow, type FileChange, type Person, type WebRemote } from "../api";
+import { commitDetails, type CommitDetails, type CommitRow, type FileChange, type Lock, type Person, type WebRemote } from "../api";
 import { laneColor, withAlpha } from "../lib/colors";
-import { dateInZone, fullDate, plural, shortId, utcOffset } from "../lib/format";
+import { dateInZone, fullDate, plural, relativeTime, shortId, utcOffset } from "../lib/format";
+import { lockOwner } from "../lib/locks";
 import { copyText } from "../lib/clipboard";
 import { coAuthors } from "../lib/weblinks";
 import { Avatar } from "./Avatar";
-import { CheckIcon, CloseIcon, CopyIcon } from "./Icons";
+import { CheckIcon, CloseIcon, CopyIcon, LockIcon } from "./Icons";
 import { MessageText } from "./MessageText";
 import { RefPills } from "./RefPills";
 import { reflowBody } from "../lib/message";
@@ -27,6 +28,12 @@ interface Props {
   remote: WebRemote | undefined;
   /** An abbreviated commit id → the id of a loaded commit with it, or null. */
   resolveCommit: (prefix: string) => string | null;
+  /** Right-click on a changed file. */
+  onFileMenu?: (file: FileChange, x: number, y: number) => void;
+  /** Files to show first and stand out, like the one whose history is highlighted. */
+  isHighlighted?: (path: string) => boolean;
+  /** A file's Git LFS lock. */
+  lockOf?: (path: string) => Lock | undefined;
 }
 
 export interface DetailsAction {
@@ -40,6 +47,7 @@ type Loaded = { id: string; details?: CommitDetails; error?: string };
 
 export function CommitDetailsPanel(props: Props) {
   const { repoPath, commit, cache, hasCommit, onSelect, onClose, actions, remote, resolveCommit } = props;
+  const { onFileMenu, isHighlighted, lockOf } = props;
   const [loaded, setLoaded] = useState<Loaded>({ id: commit.id, details: cache.get(commit.id) });
 
   useEffect(() => {
@@ -181,9 +189,17 @@ export function CommitDetailsPanel(props: Props) {
             <div className="muted">No file changes.</div>
           ) : (
             <ul className="file-list">
-              {details.files.slice(0, MAX_FILES).map((file) => (
-                <FileLine key={`${file.status}:${file.oldPath ?? ""}:${file.path}`} file={file} />
-              ))}
+              {highlightedFirst(details.files, isHighlighted)
+                .slice(0, MAX_FILES)
+                .map((file) => (
+                  <FileLine
+                    key={`${file.status}:${file.oldPath ?? ""}:${file.path}`}
+                    file={file}
+                    highlighted={isHighlighted?.(file.path) || (file.oldPath ? isHighlighted?.(file.oldPath) : false)}
+                    lock={lockOf?.(file.path)}
+                    onContextMenu={onFileMenu}
+                  />
+                ))}
               {details.files.length > MAX_FILES && (
                 <li className="muted more-files">and {plural(details.files.length - MAX_FILES, "more file")}</li>
               )}
@@ -193,6 +209,13 @@ export function CommitDetailsPanel(props: Props) {
       </div>
     </aside>
   );
+}
+
+/** The highlighted files first, keeping the order otherwise. */
+function highlightedFirst(files: FileChange[], isHighlighted?: (path: string) => boolean): FileChange[] {
+  if (!isHighlighted) return files;
+  const hit = (file: FileChange) => isHighlighted(file.path) || (file.oldPath !== null && isHighlighted(file.oldPath));
+  return [...files.filter(hit), ...files.filter((file) => !hit(file))];
 }
 
 function PersonLine({ role, person, exact }: { role: string; person: Person; exact: boolean }) {
@@ -232,9 +255,22 @@ interface FileLineProps {
   file: FileChange;
   /** A button shown on hover, like "Stage". */
   action?: { label: string; icon: ReactNode; onClick: () => void; disabled?: boolean };
+  /** Buttons that are always shown, like "Mine" and "Theirs" for a conflicted file. */
+  choices?: { label: string; title: string; onClick: () => void; disabled?: boolean }[];
+  /** Its Git LFS lock. */
+  lock?: Lock;
+  /** Stands out, like the file whose history is highlighted. */
+  highlighted?: boolean;
+  onContextMenu?: (file: FileChange, x: number, y: number) => void;
 }
 
-export function FileLine({ file, action }: FileLineProps) {
+/** "Locked by you" or "Locked by rosa 2 days ago". */
+export function lockTitle(lock: Lock): string {
+  const when = lock.lockedAt ? Date.parse(lock.lockedAt) : NaN;
+  return `Locked by ${lockOwner(lock)}${Number.isNaN(when) ? "" : ` ${relativeTime(when / 1000)}`}`;
+}
+
+export function FileLine({ file, action, choices, lock, highlighted, onContextMenu }: FileLineProps) {
   const status = STATUS[file.status];
   // Untracked folders are listed as "dir/" when everything inside them is new.
   const isFolder = file.path.endsWith("/");
@@ -244,12 +280,43 @@ export function FileLine({ file, action }: FileLineProps) {
   const dir = slash >= 0 ? path.slice(0, slash) : "";
   const title = file.oldPath ? `${status.label}: ${file.oldPath} → ${file.path}` : `${status.label}: ${file.path}`;
   return (
-    <li className="file" title={title}>
+    <li
+      className={`file${highlighted ? " highlighted" : ""}${choices ? " with-choices" : ""}`}
+      title={lock ? `${title}\n${lockTitle(lock)}` : title}
+      onContextMenu={
+        onContextMenu &&
+        ((event) => {
+          event.preventDefault();
+          onContextMenu(file, event.clientX, event.clientY);
+        })
+      }
+    >
       <span className="file-status" style={{ color: status.color, background: withAlpha(status.color, 0.14) }}>
         {status.letter}
       </span>
       <span className="file-name">{name}</span>
+      {lock && (
+        <span className={`file-lock ${lock.mine ? "mine" : "theirs"}`}>
+          <LockIcon size={11} />
+          {!lock.mine && <span className="file-lock-owner">{lock.owner}</span>}
+        </span>
+      )}
       {dir && <span className="file-dir">{dir}</span>}
+      {choices && (
+        <span className="file-choices">
+          {choices.map((choice) => (
+            <button
+              key={choice.label}
+              className="file-choice"
+              onClick={choice.onClick}
+              disabled={choice.disabled}
+              title={choice.title}
+            >
+              {choice.label}
+            </button>
+          ))}
+        </span>
+      )}
       {action && (
         <button
           className="file-action"

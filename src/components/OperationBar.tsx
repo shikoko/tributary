@@ -6,17 +6,21 @@ interface Props {
   branch: string;
   /** Files that still have conflicts. */
   conflicts: number;
+  /** What the two sides are called, like "main" and "feat/x". */
+  sides: { mine: string; theirs: string };
   busy: boolean;
   onContinue: () => void;
   onSkip: () => void;
   onAbort: () => void;
   onShowFiles: () => void;
+  /** Take one side's version of every conflicted file. */
+  onKeepAll: (keep: "mine" | "theirs") => void;
 }
 
 const NAMES = { merge: "merge", rebase: "rebase", cherryPick: "cherry-pick", revert: "revert", other: "operation" };
 
 /** Shown while a merge, rebase, cherry-pick or revert waits for conflicts to be resolved. */
-export function OperationBar({ operation, branch, conflicts, busy, onContinue, onSkip, onAbort, onShowFiles }: Props) {
+export function OperationBar({ operation, branch, conflicts, sides, busy, onContinue, onSkip, onAbort, onShowFiles, onKeepAll }: Props) {
   const name = NAMES[operation.kind];
   if (operation.kind === "other") {
     return (
@@ -38,16 +42,27 @@ export function OperationBar({ operation, branch, conflicts, busy, onContinue, o
             <button className="link-button" onClick={onShowFiles}>
               {plural(conflicts, "file")} with conflicts
             </button>
-            : fix them, stage them, then {next}.
+            : pick a version of each, or fix and stage them, then {next}.
           </>
         ) : (
           <>No conflicts left: {next} when you're ready.</>
         )}
       </span>
       <span className="operation-buttons">
-        <button className="primary-small-button" onClick={onContinue} disabled={busy || conflicts > 0}>
-          {operation.kind === "merge" ? "Commit merge" : "Continue"}
-        </button>
+        {conflicts > 0 ? (
+          <>
+            <button className="secondary-button" onClick={() => onKeepAll("mine")} disabled={busy} title={`Keep ${sides.mine}'s version of every conflicted file`}>
+              Keep all mine
+            </button>
+            <button className="secondary-button" onClick={() => onKeepAll("theirs")} disabled={busy} title={`Take ${sides.theirs}'s version of every conflicted file`}>
+              Take all theirs
+            </button>
+          </>
+        ) : (
+          <button className="primary-small-button" onClick={onContinue} disabled={busy}>
+            {operation.kind === "merge" ? "Commit merge" : "Continue"}
+          </button>
+        )}
         {operation.kind !== "merge" && (
           <button className="secondary-button" onClick={onSkip} disabled={busy} title="Leave out this commit">
             Skip commit

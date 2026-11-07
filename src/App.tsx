@@ -7,6 +7,7 @@ import {
   activityLog,
   cancelAction,
   commitDetails,
+  fileHistory,
   fullRefName,
   initRepository,
   onActivity,
@@ -19,6 +20,8 @@ import {
   type Action,
   type CommitDetails,
   type CommitRow,
+  type FileChange,
+  type Lock,
   type LogEntry,
   type Progress,
   type RepoSnapshot,
@@ -26,6 +29,9 @@ import {
 } from "./api";
 import { involvesUntrackedFiles, isLocalChangesError } from "./lib/errors";
 import { ancestors, countMissing } from "./lib/graph";
+import { useLfsLocks } from "./lib/locks";
+import { baseName, folderOf, joinPath, relativeTo } from "./lib/paths";
+import { copyText } from "./lib/clipboard";
 import { setNativeMenu, type NativeMenu } from "./lib/nativeMenu";
 import { loadPlace, savePlace } from "./lib/place";
 import { isMac } from "./lib/platform";
@@ -34,6 +40,7 @@ import { stashIndexOf, type RefEntry } from "./lib/refs";
 import { NO_VISIBILITY, readVisibility, useRepoSetting } from "./lib/repoPrefs";
 import { findMatches } from "./lib/search";
 import { readSetting, useStoredState } from "./lib/settings";
+import { plural } from "./lib/format";
 import { newPullRequestUrl, openInBrowser, siteName, webRemote } from "./lib/weblinks";
 import {
   canResetTo,
@@ -61,17 +68,23 @@ import {
   ActivityIcon,
   BranchIcon,
   BroomIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   CloneIcon,
   CloseIcon,
   CloudIcon,
   ColumnsIcon,
+  CopyIcon,
   ExternalLinkIcon,
   EyeIcon,
   EyeOffIcon,
   FetchIcon,
+  FileHistoryIcon,
   FolderIcon,
   HistoryIcon,
   KeyboardIcon,
+  LockIcon,
   MergeIcon,
   NewRepoIcon,
   PlusIcon,
@@ -86,6 +99,7 @@ import {
   StashIcon,
   TagIcon,
   TrashIcon,
+  UnlockIcon,
   UserIcon,
   ViewIcon,
 } from "./components/Icons";
@@ -111,12 +125,15 @@ import { TagDialog } from "./components/TagDialog";
 import { Toast, type ToastMessage } from "./components/Toast";
 import { Toolbar, type RemoteAction } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
-import { EMPTY_DRAFT, WorktreeDetailsPanel, type CommitDraft } from "./components/WorktreeDetails";
+import { conflictSides, EMPTY_DRAFT, WorktreeDetailsPanel, type CommitDraft } from "./components/WorktreeDetails";
 
 type Busy = { kind: "open"; path: string } | { kind: "refresh" } | { kind: "more" } | null;
 type Running = RemoteAction | "other" | null;
-/** What's highlighted: a branch's (or commit's) history, or an author's commits. */
-type Focus = { kind: "history"; name: string; commitId: string } | { kind: "author"; name: string; email: string };
+/** What's highlighted: a branch's (or commit's) history, an author's commits, or the commits that changed a file or folder. */
+type Focus =
+  | { kind: "history"; name: string; commitId: string }
+  | { kind: "author"; name: string; email: string }
+  | { kind: "path"; path: string; folder: boolean; ids: string[]; names: string[]; truncated: boolean };
 
 /** Don't refresh on window focus more often than this, in milliseconds. */
 const FOCUS_REFRESH_INTERVAL = 2000;
@@ -259,6 +276,7 @@ export default function App() {
       ? { count: snapshot.goneBranches.length, remote: snapshot.remotes.length === 1 ? snapshot.remotes[0] : "the remote" }
       : null;
 
+  const lfs = useLfsLocks(snapshot?.path ?? null);
   const searchInput = useRef<HTMLInputElement>(null);
   const detailsCache = useRef(new Map<string, CommitDetails>());
   /** Commit messages being written, by repository. */
@@ -488,6 +506,8 @@ export default function App() {
       case "deleteBranches":
         // Branches that weren't deleted are skipped when restoring.
         return { kind: "restoreBranches", branches: action.branches };
+      case "resolveConflicts":
+        return { kind: "recreateConflicts", paths: action.paths };
       case "stashAndRetry": {
         // Undo the same way: put the changes aside, undo, and put them back.
         const inner = undoFor(action.action, before);
@@ -543,6 +563,9 @@ export default function App() {
       // Reload even after a failure (a pull with conflicts still changes things), and
       // only then show the result, since reloading clears old errors.
       await load(before.path, "refresh", Math.max(PAGE_SIZE, before.commits.length));
+      // Locks change when you lock or unlock, and may have changed on the server.
+      if (action.kind === "lockFiles" || action.kind === "unlockFiles") lfs.refresh(true);
+      else if (kind && kind !== "other") lfs.refresh();
       if (failure === "Cancelled.") {
         setToast({ text: "Cancelled" });
         return false;
@@ -565,7 +588,7 @@ export default function App() {
       return true;
     },
     // undoFor only reads its arguments.
-    [snapshot, load, protectedHead],
+    [snapshot, load, protectedHead, lfs.refresh],
   );
 
   /** A dialog finished its action: reload and show what happened, with an optional undo. */
@@ -634,6 +657,7 @@ export default function App() {
   const focusIds = useMemo(() => {
     if (!focus || !commits) return null;
     if (focus.kind === "history") return ancestors(focus.commitId, byId);
+    if (focus.kind === "path") return new Set(focus.ids);
     return new Set(commits.filter((c) => c.kind === "commit" && sameAuthor(c, focus.name, focus.email)).map((c) => c.id));
   }, [focus, byId, commits]);
   useEffect(() => {
@@ -661,6 +685,81 @@ export default function App() {
         ? (matches.find((index) => index > from) ?? matches[0])
         : ([...matches].reverse().find((index) => index < from) ?? matches[matches.length - 1]);
     select(snapshot.commits[next].id);
+  };
+
+  // File history: the commits that changed a file or folder stay bright, and the banner steps through them.
+  const showHistory = async (file: string) => {
+    if (!snapshot) return;
+    try {
+      const history = await fileHistory(snapshot.path, file);
+      setFocus({ kind: "path", ...history });
+      const newest = history.ids.find((id) => indexById.has(id));
+      if (newest) select(newest);
+      else
+        setToast({
+          text: history.ids.length
+            ? `None of the commits that changed ${baseName(history.path)} are loaded`
+            : `No commits changed ${baseName(history.path)}`,
+        });
+    } catch (e) {
+      setError({ message: String(e) });
+    }
+  };
+  const pickHistory = async (directory: boolean) => {
+    if (!snapshot) return;
+    blockFocusRefresh.current = true;
+    try {
+      const picked = await open({
+        directory,
+        multiple: false,
+        defaultPath: snapshot.path,
+        title: directory ? "Show the history of a folder" : "Show the history of a file",
+      });
+      if (typeof picked === "string") await showHistory(directory ? `${picked}/` : picked);
+    } catch (e) {
+      setError({ message: String(e) });
+    } finally {
+      blockFocusRefresh.current = false;
+    }
+  };
+  /** Lock files you choose with Git LFS. */
+  const pickFilesToLock = async () => {
+    if (!snapshot) return;
+    blockFocusRefresh.current = true;
+    try {
+      const picked = await open({ multiple: true, directory: false, defaultPath: snapshot.path, title: "Lock files" });
+      const files = picked === null ? [] : Array.isArray(picked) ? picked : [picked];
+      const paths = files.map((file) => relativeTo(snapshot.path, file));
+      const inside = paths.filter((path): path is string => path !== null);
+      if (inside.length < paths.length) setError({ message: "Only files inside this repository can be locked." });
+      if (inside.length > 0) await act({ kind: "lockFiles", paths: inside });
+    } catch (e) {
+      setError({ message: String(e) });
+    } finally {
+      blockFocusRefresh.current = false;
+    }
+  };
+  /** The loaded commits that changed the file or folder whose history is shown, in list order. */
+  const pathMatches = useMemo(() => {
+    if (focus?.kind !== "path") return [];
+    return focus.ids
+      .map((id) => indexById.get(id))
+      .filter((index): index is number => index !== undefined)
+      .sort((a, b) => a - b);
+  }, [focus, indexById]);
+  const stepHistory = (step: 1 | -1) => {
+    if (!snapshot || pathMatches.length === 0) return;
+    const from = selectedIndex ?? -1;
+    const next =
+      step > 0
+        ? (pathMatches.find((index) => index > from) ?? pathMatches[0])
+        : ([...pathMatches].reverse().find((index) => index < from) ?? pathMatches[pathMatches.length - 1]);
+    select(snapshot.commits[next].id);
+  };
+  /** Files in a commit that belong to the history being shown. */
+  const isHistoryFile = (path: string) => {
+    if (focus?.kind !== "path") return false;
+    return focus.folder ? path === focus.path || path.startsWith(`${focus.path}/`) : focus.names.includes(path);
   };
 
   const loadDetails = useCallback(
@@ -718,8 +817,8 @@ export default function App() {
   const hiddenCount = soloing ? visibility.solo.length : visibility.hidden.length;
 
   // The latest state, for keyboard shortcuts, timers and window events that outlive a render.
-  const latest = useRef({ snapshot, dialog, running, refresh, autoFetch, tabs, focus, selection });
-  latest.current = { snapshot, dialog, running, refresh, autoFetch, tabs, focus, selection };
+  const latest = useRef({ snapshot, dialog, running, refresh, autoFetch, tabs, focus, selection, refreshLocks: lfs.refresh });
+  latest.current = { snapshot, dialog, running, refresh, autoFetch, tabs, focus, selection, refreshLocks: lfs.refresh };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -841,6 +940,7 @@ export default function App() {
       if (!snapshot || dialog || running || blockFocusRefresh.current) return;
       if (Date.now() - lastLoad.current < FOCUS_REFRESH_INTERVAL) return;
       refresh();
+      latest.current.refreshLocks();
     };
     const stopQuietly = (stop: () => void) => {
       try {
@@ -878,6 +978,7 @@ export default function App() {
         await runAction(repoPath, { kind: "fetch", background: true });
         if (stopped) return;
         if (!latest.current.dialog && !latest.current.running) latest.current.refresh();
+        latest.current.refreshLocks();
       } catch {
         // Usually missing credentials or no network. Fetching by hand shows the reason;
         // don't try again in the background until then.
@@ -1035,6 +1136,10 @@ export default function App() {
           { id: "new-tag", label: "New Tag…", icon: <TagIcon />, enabled: Boolean(head) && canChange, run: () => head && setDialog({ kind: "tag", target: head }) },
           { id: "prune", label: "Prune Branches…", icon: <BroomIcon />, enabled: canChange, run: () => setDialog({ kind: "prune" }) },
           { id: "restore", label: "Restore Branch…", icon: <HistoryIcon />, enabled: canChange, run: () => setDialog({ kind: "restore" }) },
+          "-",
+          { id: "file-history", label: "File History…", icon: <FileHistoryIcon />, run: () => pickHistory(false) },
+          { id: "folder-history", label: "Folder History…", icon: <FolderIcon />, run: () => pickHistory(true) },
+          ...(lfs.locks ? [{ id: "lock-files", label: "Lock Files…", icon: <LockIcon />, enabled: canChange, run: pickFilesToLock }] : []),
           "-",
           ...(remote
             ? [
@@ -1219,7 +1324,62 @@ export default function App() {
     openUrl: openInBrowser,
   };
   const commitById = (id: string) => byId.get(id);
-  const conflicts = (snapshot.worktree?.unstaged ?? []).filter((file) => file.status === "conflicted").length;
+  const conflictedPaths = (snapshot.worktree?.unstaged ?? []).filter((file) => file.status === "conflicted").map((file) => file.path);
+  const conflicts = conflictedPaths.length;
+
+  /** Lock, unlock or force-unlock a file. */
+  const lockItems = (path: string, lock: Lock | undefined, separated: boolean): MenuItem[] => {
+    if (!lock) {
+      return [{ label: "Lock file", icon: <LockIcon />, separated, disabled: !canChange, onSelect: () => act({ kind: "lockFiles", paths: [path] }) }];
+    }
+    if (lock.mine) {
+      return [
+        { label: "Unlock file", icon: <UnlockIcon />, separated, disabled: !canChange, onSelect: () => act({ kind: "unlockFiles", locks: [{ id: lock.id, path: lock.path }] }) },
+      ];
+    }
+    return [
+      { label: `Locked by ${lock.owner || "someone else"}`, icon: <LockIcon />, separated, disabled: true, onSelect: () => {} },
+      { label: "Force unlock…", icon: <UnlockIcon />, danger: true, disabled: !canChange, onSelect: () => setDialog({ kind: "forceUnlock", lock }) },
+    ];
+  };
+  const revealFile = (path: string) =>
+    revealItemInDir(joinPath(snapshot.path, path)).catch(() => setToast({ text: `${baseName(path)} isn't in the working tree` }));
+
+  /** Right-click on a file in a commit or in the uncommitted changes. */
+  const fileMenu = (file: FileChange, x: number, y: number, where: "worktree" | "commit") => {
+    const folder = file.path.endsWith("/");
+    const path = file.path.replace(/\/+$/, "");
+    const dir = folderOf(path);
+    const items: MenuItem[] = [];
+    if (where === "worktree" && file.status === "conflicted") {
+      const sides = conflictSides(snapshot);
+      items.push(
+        { label: `Keep mine (${sides.mine})`, icon: <CheckIcon />, disabled: !canChange, onSelect: () => act({ kind: "resolveConflicts", paths: [path], keep: "mine" }) },
+        { label: `Take theirs (${sides.theirs})`, icon: <MergeIcon />, disabled: !canChange, onSelect: () => act({ kind: "resolveConflicts", paths: [path], keep: "theirs" }) },
+      );
+    }
+    items.push({
+      label: folder ? "Show this folder's history" : "Show this file's history",
+      icon: <FileHistoryIcon />,
+      separated: items.length > 0,
+      onSelect: () => showHistory(folder ? `${path}/` : path),
+    });
+    if (dir) items.push({ label: `Show the history of ${dir}/`, icon: <FolderIcon />, onSelect: () => showHistory(`${dir}/`) });
+    if (lfs.locks && !folder) items.push(...lockItems(path, lfs.byPath.get(path), true));
+    items.push({ label: "Copy path", icon: <CopyIcon />, separated: true, onSelect: () => copyText(path) });
+    if (where === "worktree" && file.status !== "deleted") {
+      items.push({ label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, onSelect: () => revealFile(path) });
+    }
+    showMenu(x, y, items);
+  };
+  /** A locked file in the sidebar. */
+  const lockMenu = (lock: Lock, x: number, y: number) =>
+    showMenu(x, y, [
+      { label: "Show this file's history", icon: <FileHistoryIcon />, onSelect: () => showHistory(lock.path) },
+      ...lockItems(lock.path, lock, true),
+      { label: "Copy path", icon: <CopyIcon />, separated: true, onSelect: () => copyText(lock.path) },
+      { label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, onSelect: () => revealFile(lock.path) },
+    ]);
 
   const pushMenu = (anchor: HTMLElement) =>
     menuUnder(anchor, [
@@ -1440,6 +1600,8 @@ export default function App() {
           operation={snapshot.operation}
           branch={snapshot.operation.branch ?? branchLabel}
           conflicts={conflicts}
+          sides={conflictSides(snapshot)}
+          onKeepAll={(keep) => act({ kind: "resolveConflicts", paths: conflictedPaths, keep })}
           busy={running !== null}
           onContinue={() => act({ kind: "continueOperation" })}
           onSkip={() => act({ kind: "skipCommit" })}
@@ -1462,8 +1624,18 @@ export default function App() {
       )}
       {(focus || snapshot.firstParent || soloing) && (
         <div className="view-banner" role="status">
-          <EyeIcon size={14} />
-          {focus?.kind === "history" ? (
+          {focus?.kind === "path" ? <FileHistoryIcon size={14} /> : <EyeIcon size={14} />}
+          {focus?.kind === "path" ? (
+            <span>
+              Highlighting the {plural(focus.ids.length, "commit")}
+              {focus.truncated ? "+" : ""} that changed{" "}
+              <strong title={focus.path}>
+                {baseName(focus.path)}
+                {focus.folder ? "/" : ""}
+              </strong>
+              {focus.ids.length > pathMatches.length && ` (${(focus.ids.length - pathMatches.length).toLocaleString()} not loaded)`}.
+            </span>
+          ) : focus?.kind === "history" ? (
             <span>
               Highlighting <strong>{focus.name}</strong>'s history.
             </span>
@@ -1487,6 +1659,21 @@ export default function App() {
                 {visibility.solo.length > 4 ? ` and ${visibility.solo.length - 4} more` : ""}
               </strong>{" "}
               (and {branchLabel}).
+            </span>
+          )}
+          {focus?.kind === "path" && pathMatches.length > 0 && (
+            <span className="banner-steps">
+              <button className="icon-button" onClick={() => stepHistory(-1)} title="Newer change" aria-label="Newer change">
+                <ChevronUpIcon size={13} />
+              </button>
+              <span className="banner-step-count">
+                {selectedIndex !== undefined && pathMatches.includes(selectedIndex)
+                  ? `${pathMatches.indexOf(selectedIndex) + 1} of ${pathMatches.length}`
+                  : plural(pathMatches.length, "change")}
+              </span>
+              <button className="icon-button" onClick={() => stepHistory(1)} title="Older change" aria-label="Older change">
+                <ChevronDownIcon size={13} />
+              </button>
             </span>
           )}
           <button
@@ -1525,6 +1712,10 @@ export default function App() {
               onShowAll={showAllBranches}
               onPrune={canChange ? () => setDialog({ kind: "prune" }) : null}
               protectedBranches={protectedBranches}
+              locks={lfs.locks?.locks ?? null}
+              locksError={lfs.locks?.error ?? null}
+              onLockMenu={lockMenu}
+              onLockFiles={canChange ? pickFilesToLock : null}
             />
             <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
           </>
@@ -1587,6 +1778,8 @@ export default function App() {
                   onStash={() => setDialog({ kind: "stash" })}
                   onDiscard={() => head && setDialog({ kind: "reset", target: head })}
                   onClose={() => select(null)}
+                  lockOf={(path) => lfs.byPath.get(path)}
+                  onFileMenu={(file, x, y) => fileMenu(file, x, y, "worktree")}
                 />
               ) : (
                 <CommitDetailsPanel
@@ -1599,6 +1792,9 @@ export default function App() {
                   actions={detailsActions(selected!)}
                   remote={webRemote(snapshot)}
                   resolveCommit={resolveCommit}
+                  onFileMenu={(file, x, y) => fileMenu(file, x, y, "commit")}
+                  isHighlighted={focus?.kind === "path" ? isHistoryFile : undefined}
+                  lockOf={lfs.locks ? (path) => lfs.byPath.get(path) : undefined}
                 />
               )}
             </div>
@@ -1806,6 +2002,26 @@ export default function App() {
           <p>
             The tag will be removed from <strong>{dialog.remote}</strong>, for everyone who uses it. The tag in this
             repository is kept.
+          </p>
+        </ConfirmDialog>
+      )}
+      {dialog?.kind === "forceUnlock" && (
+        <ConfirmDialog
+          repoPath={snapshot.path}
+          title={`Unlock ${baseName(dialog.lock.path)}?`}
+          confirmLabel="Force unlock"
+          busyLabel="Unlocking…"
+          danger
+          action={{ kind: "unlockFiles", locks: [{ id: dialog.lock.id, path: dialog.lock.path }], force: true }}
+          onCancel={() => setDialog(null)}
+          onDone={(message) => {
+            finishDialog(message);
+            lfs.refresh(true);
+          }}
+        >
+          <p>
+            <strong>{dialog.lock.owner || "Someone else"}</strong> locked <strong>{dialog.lock.path}</strong>. If they're still
+            working on it, their changes and yours will clash, and one of you will lose work. Check with them first.
           </p>
         </ConfirmDialog>
       )}

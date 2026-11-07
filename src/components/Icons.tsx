@@ -394,3 +394,76 @@ export function Logo({ size = 32 }: { size?: number }) {
     </svg>
   );
 }
+
+/** An open padlock. */
+export const UnlockIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+    <path d="M5.5 7V5a2.5 2.5 0 0 1 4.9-.7" />
+  </Icon>
+);
+
+/** A page with a clock: the history of a file. */
+export const FileHistoryIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8.5 14H4.5A1.5 1.5 0 0 1 3 12.5v-9A1.5 1.5 0 0 1 4.5 2h4l3.5 3.5V7" />
+    <path d="M8.5 2v3.5H12" />
+    <circle cx="11.5" cy="11.5" r="3" />
+    <path d="M11.5 10v1.5l1 .8" />
+  </Icon>
+);
+
+/** A cog, for settings. */
+export const GearIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="8" r="2" />
+    <path d="M8 1.75v1.5M8 12.75v1.5M14.25 8h-1.5M3.25 8h-1.5M12.42 3.58l-1.06 1.06M4.64 11.36l-1.06 1.06M12.42 12.42l-1.06-1.06M4.64 4.64 3.58 3.58" />
+    <circle cx="8" cy="8" r="4.25" />
+  </Icon>
+);
+
+/** A bell, for notifications. */
+export const BellIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 11.5V7a4 4 0 0 1 8 0v4.5l1 1H3z" />
+    <path d="M6.75 14a1.4 1.4 0 0 0 2.5 0" />
+  </Icon>
+);
+
+/** An arrow down onto a line: download (an update). */
+export const DownloadIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 2.5v7.5M4.75 7 8 10.25 11.25 7" />
+    <path d="M3 13.5h10" />
+  </Icon>
+);
+
+/** The Windows title bar's buttons: thin lines on a 10×10 grid, like the system's own. */
+function WindowGlyph({ children }: { children: React.ReactNode }) {
+  return (
+    <svg width={10} height={10} viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1} aria-hidden="true" shapeRendering="crispEdges">
+      {children}
+    </svg>
+  );
+}
+export const MinimizeGlyph = () => (
+  <WindowGlyph>
+    <path d="M0 5.5h10" />
+  </WindowGlyph>
+);
+export const MaximizeGlyph = () => (
+  <WindowGlyph>
+    <rect x="0.5" y="0.5" width="9" height="9" />
+  </WindowGlyph>
+);
+export const RestoreGlyph = () => (
+  <WindowGlyph>
+    <rect x="0.5" y="2.5" width="7" height="7" />
+    <path d="M2.5 2.5V0.5h7v7h-2" />
+  </WindowGlyph>
+);
+export const CloseGlyph = () => (
+  <svg width={10} height={10} viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1} aria-hidden="true">
+    <path d="M0.5 0.5l9 9M9.5 0.5l-9 9" />
+  </svg>
+);
