@@ -156,7 +156,12 @@ function PersonLine({ role, person, exact }: { role: string; person: Person; exa
       <Avatar name={person.name} email={person.email} size={32} />
       <div className="person-text">
         <div className="person-name">
-          {person.name || "Unknown"} <span className="person-email">{person.email}</span>
+          <span className="person-full-name" title={person.name}>
+            {person.name || "Unknown"}
+          </span>
+          <span className="person-email" title={person.email}>
+            {person.email}
+          </span>
         </div>
         <div className="person-when">
           {role} {exact ? `${dateInZone(person.time, person.offset)} (${utcOffset(person.offset)})` : fullDate(person.time)}

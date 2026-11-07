@@ -1,55 +1,208 @@
+import { useRef, type RefObject } from "react";
 import type { RepoSnapshot } from "../api";
 import { plural, shortId } from "../lib/format";
 import { modKey } from "../lib/platform";
-import { BranchIcon, CloseIcon, CommitIcon, FolderIcon, Logo, RefreshIcon } from "./Icons";
+import {
+  BranchIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CloseIcon,
+  CommitIcon,
+  FetchIcon,
+  FolderIcon,
+  Logo,
+  PullIcon,
+  PushIcon,
+  RefreshIcon,
+  SearchIcon,
+} from "./Icons";
+
+export type RemoteAction = "fetch" | "pull" | "push";
+
+export interface SearchState {
+  query: string;
+  /** How many commits match. */
+  total: number;
+  /** 1-based position of the selected commit among the matches, or 0. */
+  current: number;
+}
 
 interface Props {
   snapshot: RepoSnapshot;
   refreshing: boolean;
+  /** The remote action that is running, if any. */
+  running: RemoteAction | null;
+  /** Commits the checked-out branch has that its upstream doesn't, and the other way round. */
+  ahead: number;
+  behind: number;
+  search: SearchState;
+  searchInput: RefObject<HTMLInputElement | null>;
+  onSearch: (query: string) => void;
+  onSearchStep: (step: 1 | -1) => void;
+  onRemote: (action: RemoteAction) => void;
+  /** Open the push menu (with force push) under the given element. */
+  onPushMenu: (anchor: HTMLElement) => void;
   onRefresh: () => void;
   onPick: () => void;
   onClose: () => void;
 }
 
-export function Toolbar({ snapshot, refreshing, onRefresh, onPick, onClose }: Props) {
+export function Toolbar(props: Props) {
+  const { snapshot, refreshing, running, ahead, behind, search, searchInput } = props;
+  const pushMenuButton = useRef<HTMLButtonElement>(null);
+  const commitCount = snapshot.commits.filter((c) => c.kind === "commit").length;
+
+  const hasRemotes = snapshot.remotes.length > 0 && !snapshot.bare;
+  const onBranch = snapshot.headBranch !== null && !snapshot.bare;
+  const fetchDisabled = running !== null || !hasRemotes;
+  const pullDisabled = running !== null || !onBranch || !snapshot.upstream;
+  const pushDisabled = running !== null || !onBranch || !hasRemotes;
+  const pullTitle = !onBranch
+    ? "Check out a branch to pull"
+    : !snapshot.upstream
+      ? `${snapshot.headBranch} has no upstream branch yet. Push it first.`
+      : `Pull ${snapshot.upstream.name} into ${snapshot.headBranch}`;
+  const pushTitle = !onBranch
+    ? "Check out a branch to push"
+    : !hasRemotes
+      ? "This repository has no remotes"
+      : snapshot.upstream
+        ? `Push ${snapshot.headBranch} to ${snapshot.upstream.name}`
+        : `Push ${snapshot.headBranch} and set its upstream`;
+
   return (
     <header className="toolbar">
       <div className="toolbar-repo">
         <Logo size={22} outline="#1a1d24" />
-        <span className="repo-name">{snapshot.name}</span>
-        <span className="repo-path" title={snapshot.path}>
-          {snapshot.path}
+        <span className="repo-name" title={snapshot.path}>
+          {snapshot.name}
         </span>
-      </div>
-
-      <div className="toolbar-info">
         {snapshot.headBranch ? (
           <span className="head-chip" title="Checked out branch">
             <BranchIcon size={14} />
-            {snapshot.headBranch}
+            <span className="head-chip-name">{snapshot.headBranch}</span>
           </span>
         ) : snapshot.headCommit ? (
           <span className="head-chip detached" title="HEAD is detached">
             <CommitIcon size={14} />
-            detached at {shortId(snapshot.headCommit)}
+            <span className="head-chip-name">detached at {shortId(snapshot.headCommit)}</span>
           </span>
         ) : null}
-        <span className="commit-count">
-          {plural(snapshot.commits.filter((c) => c.kind === "commit").length, "commit")}
-          {snapshot.truncated ? "+" : ""}
-        </span>
+      </div>
+
+      <div className="search" role="search">
+        <SearchIcon size={14} />
+        <input
+          ref={searchInput}
+          value={search.query}
+          onChange={(event) => props.onSearch(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === "ArrowDown" || event.key === "ArrowUp") {
+              event.preventDefault();
+              props.onSearchStep(event.key === "ArrowUp" || (event.key === "Enter" && event.shiftKey) ? -1 : 1);
+            } else if (event.key === "Escape") {
+              event.stopPropagation();
+              if (search.query) props.onSearch("");
+              else event.currentTarget.blur();
+            }
+          }}
+          placeholder={`Search ${plural(commitCount, "commit")}${snapshot.truncated ? "+" : ""}`}
+          title={`Message, author, branch, tag or SHA (${modKey}F)`}
+          spellCheck={false}
+          aria-label="Search commits"
+        />
+        {search.query && (
+          <>
+            <span className="search-count" title={snapshot.truncated ? "Only the loaded commits are searched" : undefined}>
+              {search.total === 0
+                ? "No matches"
+                : search.current > 0
+                  ? `${search.current} of ${search.total}`
+                  : plural(search.total, "match", "matches")}
+            </span>
+            <button
+              className="icon-button small"
+              onClick={() => props.onSearchStep(-1)}
+              disabled={search.total === 0}
+              title="Previous match (Shift+Enter)"
+              aria-label="Previous match"
+            >
+              <ChevronUpIcon size={14} />
+            </button>
+            <button
+              className="icon-button small"
+              onClick={() => props.onSearchStep(1)}
+              disabled={search.total === 0}
+              title="Next match (Enter)"
+              aria-label="Next match"
+            >
+              <ChevronDownIcon size={14} />
+            </button>
+            <button
+              className="icon-button small"
+              onClick={() => props.onSearch("")}
+              title="Clear search (Esc)"
+              aria-label="Clear search"
+            >
+              <CloseIcon size={13} />
+            </button>
+          </>
+        )}
       </div>
 
       <div className="toolbar-actions">
-        <button className="tool-button" onClick={onRefresh} disabled={refreshing} title={`Refresh (${modKey}R)`}>
+        <button
+          className="tool-button"
+          onClick={() => props.onRemote("fetch")}
+          disabled={fetchDisabled}
+          title={hasRemotes ? "Fetch from all remotes" : "This repository has no remotes"}
+        >
+          <FetchIcon className={running === "fetch" ? "pulse" : undefined} />
+          <span className="label">Fetch</span>
+        </button>
+        <button className="tool-button" onClick={() => props.onRemote("pull")} disabled={pullDisabled} title={pullTitle}>
+          <PullIcon className={running === "pull" ? "pulse" : undefined} />
+          <span className="label">Pull</span>
+          {behind > 0 && <span className="count">{behind}</span>}
+        </button>
+        <div className="split-button">
+          <button className="tool-button" onClick={() => props.onRemote("push")} disabled={pushDisabled} title={pushTitle}>
+            <PushIcon className={running === "push" ? "pulse" : undefined} />
+            <span className="label">Push</span>
+            {ahead > 0 && <span className="count">{ahead}</span>}
+          </button>
+          <button
+            ref={pushMenuButton}
+            className="tool-button menu-toggle"
+            onClick={() => pushMenuButton.current && props.onPushMenu(pushMenuButton.current)}
+            disabled={pushDisabled}
+            title="More push options"
+            aria-label="More push options"
+          >
+            <ChevronDownIcon size={14} />
+          </button>
+        </div>
+
+        <span className="toolbar-divider" />
+
+        <button
+          className="icon-button"
+          onClick={props.onRefresh}
+          disabled={refreshing}
+          title={`Refresh (${modKey}R)`}
+          aria-label="Refresh"
+        >
           <RefreshIcon className={refreshing ? "spin" : undefined} />
-          Refresh
         </button>
-        <button className="tool-button" onClick={onPick} title={`Open another repository (${modKey}O)`}>
+        <button
+          className="icon-button"
+          onClick={props.onPick}
+          title={`Open another repository (${modKey}O)`}
+          aria-label="Open another repository"
+        >
           <FolderIcon />
-          Open
         </button>
-        <button className="icon-button" onClick={onClose} title="Close repository" aria-label="Close repository">
+        <button className="icon-button" onClick={props.onClose} title="Close repository" aria-label="Close repository">
           <CloseIcon />
         </button>
       </div>

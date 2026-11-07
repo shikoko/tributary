@@ -48,6 +48,6 @@ export function shortId(id: string): string {
   return id.slice(0, 7);
 }
 
-export function plural(count: number, word: string): string {
-  return `${count.toLocaleString()} ${word}${count === 1 ? "" : "s"}`;
+export function plural(count: number, word: string, pluralWord = `${word}s`): string {
+  return `${count.toLocaleString()} ${count === 1 ? word : pluralWord}`;
 }

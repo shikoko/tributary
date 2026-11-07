@@ -51,6 +51,10 @@ export interface RepoSnapshot {
   /** True for a repository without a working tree. */
   bare: boolean;
   headBranch: string | null;
+  /** The remote branch the checked-out branch pulls from, if it has one. */
+  upstream: Upstream | null;
+  /** Names of the configured remotes, like "origin". */
+  remotes: string[];
   headCommit: string | null;
   /** Commits, plus rows for uncommitted changes and stashes. */
   commits: CommitRow[];
@@ -59,6 +63,13 @@ export interface RepoSnapshot {
   laneCount: number;
   /** True when the repository has more commits than were loaded. */
   truncated: boolean;
+}
+
+export interface Upstream {
+  /** Like "origin/main". */
+  name: string;
+  /** Where it points, or null if it hasn't been fetched yet. */
+  commit: string | null;
 }
 
 export interface Person {
@@ -105,9 +116,20 @@ export function openRepository(path: string, limit = PAGE_SIZE, includeStatus = 
   return invoke<RepoSnapshot>("open_repository", { path, limit, includeStatus });
 }
 
-/** `git reset --hard <id>` on the checked-out branch. Runs the installed git. */
-export function resetHard(path: string, id: string): Promise<void> {
-  return invoke<void>("reset_hard", { path, id });
+/** Something that changes the repository. These run the installed git. */
+export type Action =
+  | { kind: "resetHard"; id: string }
+  | { kind: "checkoutBranch"; name: string }
+  | { kind: "checkoutRemoteBranch"; name: string }
+  | { kind: "checkoutCommit"; id: string }
+  | { kind: "createBranch"; name: string; id: string; checkout: boolean }
+  | { kind: "fetch" }
+  | { kind: "pull" }
+  | { kind: "push"; force: boolean };
+
+/** Run `action`; resolves to a short message saying what happened. */
+export function runAction(path: string, action: Action): Promise<string> {
+  return invoke<string>("run_action", { path, action });
 }
 
 export function commitDetails(path: string, id: string): Promise<CommitDetails> {

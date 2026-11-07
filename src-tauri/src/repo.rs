@@ -26,6 +26,10 @@ pub struct RepoSnapshot {
     pub bare: bool,
     /// The checked out branch, or `None` when HEAD is detached or unborn.
     pub head_branch: Option<String>,
+    /// The remote branch the checked-out branch pulls from, if it has one.
+    pub upstream: Option<Upstream>,
+    /// Names of the configured remotes, like `origin`.
+    pub remotes: Vec<String>,
     pub head_commit: Option<String>,
     /// Commits, plus a row for uncommitted changes and one for each stash.
     pub commits: Vec<CommitRow>,
@@ -51,6 +55,15 @@ pub struct CommitRow {
     pub parents: Vec<String>,
     pub refs: Vec<RefLabel>,
     pub graph: GraphRow,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Upstream {
+    /// Like `origin/main`.
+    pub name: String,
+    /// Where it points, or `None` if it hasn't been fetched yet.
+    pub commit: Option<String>,
 }
 
 /// The id of the row that stands for uncommitted changes.
@@ -305,6 +318,14 @@ pub fn load(path: &Path, limit: usize, include_status: bool) -> Result<RepoSnaps
         path: location.display().to_string(),
         name,
         bare: repo.workdir().is_none(),
+        upstream: head_branch
+            .as_deref()
+            .and_then(|branch| upstream(&repo, branch)),
+        remotes: repo
+            .remote_names()
+            .iter()
+            .map(|name| name.to_str_lossy().into_owned())
+            .collect(),
         head_branch,
         head_commit: head_commit.map(|id| id.to_string()),
         commits,
@@ -323,6 +344,28 @@ struct Walked {
     author_name: String,
     author_email: String,
     time: i64,
+}
+
+/// The remote-tracking branch that `branch` pulls from, like `origin/main`.
+fn upstream(repo: &gix::Repository, branch: &str) -> Option<Upstream> {
+    let full_name: gix::refs::FullName = format!("refs/heads/{branch}").try_into().ok()?;
+    let tracking = repo
+        .branch_remote_tracking_ref_name(full_name.as_ref(), gix::remote::Direction::Fetch)?
+        .ok()?;
+    let name = tracking.as_bstr().to_str_lossy();
+    let commit = repo
+        .try_find_reference(tracking.as_ref())
+        .ok()
+        .flatten()
+        .and_then(|mut reference| reference.peel_to_id().ok())
+        .map(|id| id.to_string());
+    Some(Upstream {
+        name: name
+            .strip_prefix("refs/remotes/")
+            .unwrap_or(&name)
+            .to_owned(),
+        commit,
+    })
 }
 
 fn now() -> i64 {

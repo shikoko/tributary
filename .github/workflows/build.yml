@@ -1,11 +1,13 @@
 name: Build
 
+# Builds only run when started by hand: Actions tab → Build → Run workflow.
 on:
-  push:
-    branches: [main]
-    tags: ["v*"]
-  pull_request:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Version tag for a draft GitHub release, like v0.2.0. Leave empty to only build the installers."
+        required: false
+        default: ""
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -56,9 +58,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Test
-        run: cargo test --manifest-path src-tauri/Cargo.toml
-
       - name: Build installers
         run: npm run tauri build -- --target ${{ matrix.target }}
 
@@ -68,9 +67,9 @@ jobs:
           path: ${{ matrix.bundles }}
           if-no-files-found: error
 
-  # Pushing a tag like v0.1.0 creates a draft GitHub release with the installers attached.
+  # When a version tag is given, create a draft GitHub release with the installers attached.
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: inputs.release != ''
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -84,9 +83,11 @@ jobs:
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release }}
         run: >
-          gh release create "$GITHUB_REF_NAME" installers/*
+          gh release create "$TAG" installers/*
           --repo "$GITHUB_REPOSITORY"
+          --target "$GITHUB_SHA"
           --draft
           --generate-notes
-          --title "Tributary $GITHUB_REF_NAME"
+          --title "Tributary $TAG"

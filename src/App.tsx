@@ -4,25 +4,49 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
   openRepository,
   PAGE_SIZE,
+  runAction,
+  type Action,
   type CommitDetails,
   type CommitRow,
   type RepoSnapshot,
 } from "./api";
-import { forgetRepo, loadRecent, rememberRepo } from "./lib/recent";
 import { copyText } from "./lib/clipboard";
+import { ancestors, countMissing } from "./lib/graph";
+import { forgetRepo, loadRecent, rememberRepo } from "./lib/recent";
+import { findMatches } from "./lib/search";
 import { CommitDetailsPanel } from "./components/CommitDetails";
 import { CommitList } from "./components/CommitList";
 import { ContextMenu, type MenuItem } from "./components/ContextMenu";
-import { CloseIcon, CopyIcon, ResetIcon } from "./components/Icons";
+import { ForcePushDialog } from "./components/ForcePushDialog";
+import {
+  BranchIcon,
+  BranchPlusIcon,
+  CloseIcon,
+  CloudIcon,
+  CommitIcon,
+  CopyIcon,
+  PushIcon,
+  ResetIcon,
+} from "./components/Icons";
+import { NewBranchDialog } from "./components/NewBranchDialog";
 import { ResetDialog } from "./components/ResetDialog";
-import { Toolbar } from "./components/Toolbar";
+import { Toast } from "./components/Toast";
+import { Toolbar, type RemoteAction } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
 import { WorktreeDetailsPanel } from "./components/WorktreeDetails";
 
 type Busy = { kind: "open"; path: string } | { kind: "refresh" } | { kind: "more" } | null;
 
+type OpenDialog =
+  | { kind: "reset"; target: CommitRow }
+  | { kind: "newBranch"; target: CommitRow }
+  | { kind: "forcePush" }
+  | null;
+
 /** Don't refresh on window focus more often than this, in milliseconds. */
 const FOCUS_REFRESH_INTERVAL = 2000;
+/** At most this many "Check out …" entries in a commit's menu. */
+const MAX_CHECKOUT_ITEMS = 6;
 
 function setWindowTitle(title: string) {
   document.title = title;
@@ -43,9 +67,14 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const [recent, setRecent] = useState(loadRecent);
-  const [menu, setMenu] = useState<{ commit: CommitRow; x: number; y: number } | null>(null);
-  const [resetTarget, setResetTarget] = useState<CommitRow | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);
+  const [dialog, setDialog] = useState<OpenDialog>(null);
+  /** The git action that is running, if any. */
+  const [running, setRunning] = useState<RemoteAction | "other" | null>(null);
+  const [query, setQuery] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
   const detailsCache = useRef(new Map<string, CommitDetails>());
   /** Increases with every load, so answers to older loads can be ignored. */
   const loadCount = useRef(0);
@@ -77,6 +106,7 @@ export default function App() {
         const next = await openRepository(path, limit, false);
         if (!current()) return;
         detailsCache.current = new Map();
+        setQuery("");
         show(next);
         setRecent(rememberRepo(next.path, next.name));
         setWindowTitle(`${next.name} — Tributary`);
@@ -124,9 +154,74 @@ export default function App() {
     setSelectedId(null);
     setError(null);
     setBusy(null);
+    setQuery("");
     blockFocusRefresh.current = false;
     setWindowTitle("Tributary");
   }, []);
+
+  /** Run a git action, reload, then show what happened. */
+  const act = useCallback(
+    async (action: Action, kind: RemoteAction | "other") => {
+      if (!snapshot) return;
+      setRunning(kind);
+      setError(null);
+      blockFocusRefresh.current = true;
+      let message: string | null = null;
+      let failure: string | null = null;
+      try {
+        message = await runAction(snapshot.path, action);
+      } catch (e) {
+        failure = String(e);
+      }
+      setRunning(null);
+      // Reload even after a failure (a pull with conflicts still changes things), and
+      // only then show the result, since reloading clears old errors.
+      await load(snapshot.path, "refresh", Math.max(PAGE_SIZE, snapshot.commits.length));
+      if (failure) setError(failure);
+      else setToast(message);
+    },
+    [snapshot, load],
+  );
+
+  /** A dialog finished its action: show what happened and reload. */
+  const finishDialog = useCallback(
+    (message: string) => {
+      setDialog(null);
+      setToast(message);
+      refresh();
+    },
+    [refresh],
+  );
+  const hideToast = useCallback(() => setToast(null), []);
+
+  // Search: matching commits are highlighted, and Enter / Shift+Enter move between them.
+  const matches = useMemo(() => (snapshot ? findMatches(snapshot.commits, query) : []), [snapshot, query]);
+  const matchIds = useMemo(
+    () => (query.trim() && snapshot ? new Set(matches.map((index) => snapshot.commits[index].id)) : null),
+    [matches, query, snapshot],
+  );
+  const indexById = useMemo(
+    () => new Map((snapshot?.commits ?? []).map((commit, index) => [commit.id, index])),
+    [snapshot],
+  );
+  const selectedIndex = selectedId ? indexById.get(selectedId) : undefined;
+  const selected = selectedIndex !== undefined ? snapshot?.commits[selectedIndex] : undefined;
+
+  const search = (text: string) => {
+    setQuery(text);
+    // Jump to the first match as you type.
+    const first = snapshot ? findMatches(snapshot.commits, text)[0] : undefined;
+    if (snapshot && first !== undefined) setSelectedId(snapshot.commits[first].id);
+  };
+  const stepSearch = (step: 1 | -1) => {
+    if (!snapshot || matches.length === 0) return;
+    const from = selectedIndex ?? -1;
+    const next =
+      step > 0
+        ? (matches.find((index) => index > from) ?? matches[0])
+        : ([...matches].reverse().find((index) => index < from) ?? matches[matches.length - 1]);
+    setSelectedId(snapshot.commits[next].id);
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -138,6 +233,10 @@ export default function App() {
       } else if ((mod && key === "r") || event.key === "F5") {
         event.preventDefault();
         refresh();
+      } else if (mod && key === "f") {
+        event.preventDefault();
+        searchInput.current?.focus();
+        searchInput.current?.select();
       } else if (event.key === "Escape") {
         setSelectedId(null);
       }
@@ -150,7 +249,7 @@ export default function App() {
   // when coming back to the window.
   const onWindowFocus = useRef(() => {});
   onWindowFocus.current = () => {
-    if (!snapshot || resetTarget || blockFocusRefresh.current) return;
+    if (!snapshot || dialog || running || blockFocusRefresh.current) return;
     if (Date.now() - lastLoad.current < FOCUS_REFRESH_INTERVAL) return;
     refresh();
   };
@@ -179,12 +278,25 @@ export default function App() {
     };
   }, []);
 
-  const indexById = useMemo(
-    () => new Map((snapshot?.commits ?? []).map((commit, index) => [commit.id, index])),
+  // How far the checked-out branch is ahead of / behind its upstream, among loaded commits.
+  const { ahead, behind } = useMemo(() => {
+    if (!snapshot?.upstream?.commit || !snapshot.headCommit) return { ahead: 0, behind: 0 };
+    const byId = new Map(snapshot.commits.map((commit) => [commit.id, commit]));
+    const local = ancestors(snapshot.headCommit, byId);
+    const remote = ancestors(snapshot.upstream.commit, byId);
+    return { ahead: countMissing(local, remote), behind: countMissing(remote, local) };
+  }, [snapshot]);
+
+  // Local branch names anywhere in the history, to know which remote branches can be checked out.
+  const localBranches = useMemo(
+    () =>
+      new Set(
+        (snapshot?.commits ?? []).flatMap((commit) =>
+          commit.refs.filter((ref) => ref.kind === "branch").map((ref) => ref.name),
+        ),
+      ),
     [snapshot],
   );
-  const selectedIndex = selectedId ? indexById.get(selectedId) : undefined;
-  const selected = selectedIndex !== undefined ? snapshot?.commits[selectedIndex] : undefined;
 
   if (!snapshot) {
     return (
@@ -200,23 +312,105 @@ export default function App() {
   }
 
   const branchLabel = snapshot.headBranch ?? "HEAD";
-  const menuItems = (commit: CommitRow): MenuItem[] => [
-    { label: "Copy SHA", icon: <CopyIcon />, onSelect: () => copyText(commit.id) },
-    {
-      label: `Hard reset ${branchLabel} to this commit…`,
-      icon: <ResetIcon />,
-      danger: true,
-      separated: true,
-      disabled: !canResetTo(snapshot, commit),
-      onSelect: () => setResetTarget(commit),
-    },
-  ];
+  const canChange = !snapshot.bare && running === null;
+
+  const commitMenu = (commit: CommitRow): MenuItem[] => {
+    const items: MenuItem[] = [{ label: "Copy SHA", icon: <CopyIcon />, onSelect: () => copyText(commit.id) }];
+    if (commit.kind !== "commit") return items;
+
+    const checkouts: MenuItem[] = [];
+    for (const ref of commit.refs) {
+      if (ref.kind === "branch" && !ref.current) {
+        checkouts.push({
+          label: `Check out ${ref.name}`,
+          icon: <BranchIcon />,
+          disabled: !canChange,
+          onSelect: () => act({ kind: "checkoutBranch", name: ref.name }, "other"),
+        });
+      } else if (ref.kind === "remote") {
+        const local = ref.name.slice(ref.name.indexOf("/") + 1);
+        if (localBranches.has(local)) continue;
+        checkouts.push({
+          label: `Check out ${local} (tracking ${ref.name})`,
+          icon: <CloudIcon />,
+          disabled: !canChange,
+          onSelect: () => act({ kind: "checkoutRemoteBranch", name: ref.name }, "other"),
+        });
+      }
+    }
+    const hasLocalBranch = commit.refs.some((ref) => ref.kind === "branch");
+    if (!hasLocalBranch && commit.id !== snapshot.headCommit) {
+      checkouts.push({
+        label: "Check out this commit (detached)",
+        icon: <CommitIcon />,
+        disabled: !canChange,
+        onSelect: () => act({ kind: "checkoutCommit", id: commit.id }, "other"),
+      });
+    }
+
+    items.push(...checkouts.slice(0, MAX_CHECKOUT_ITEMS).map((item, i) => ({ ...item, separated: i === 0 })));
+    items.push(
+      {
+        label: "New branch here…",
+        icon: <BranchPlusIcon />,
+        separated: checkouts.length === 0,
+        disabled: !canChange,
+        onSelect: () => setDialog({ kind: "newBranch", target: commit }),
+      },
+      {
+        label: `Hard reset ${branchLabel} to this commit…`,
+        icon: <ResetIcon />,
+        danger: true,
+        separated: true,
+        disabled: !canChange || !canResetTo(snapshot, commit),
+        onSelect: () => setDialog({ kind: "reset", target: commit }),
+      },
+    );
+    return items;
+  };
+
+  const pushMenu = (anchor: HTMLElement) => {
+    const rect = anchor.getBoundingClientRect();
+    setMenu({
+      x: rect.right - 220,
+      y: rect.bottom + 4,
+      items: [
+        { label: "Push", icon: <PushIcon />, onSelect: () => act({ kind: "push", force: false }, "push") },
+        {
+          label: "Force push…",
+          icon: <PushIcon />,
+          danger: true,
+          separated: true,
+          onSelect: () => setDialog({ kind: "forcePush" }),
+        },
+      ],
+    });
+  };
+
+  const remoteActions: Record<RemoteAction, Action> = {
+    fetch: { kind: "fetch" },
+    pull: { kind: "pull" },
+    push: { kind: "push", force: false },
+  };
 
   return (
     <div className="app">
       <Toolbar
         snapshot={snapshot}
         refreshing={busy !== null}
+        running={running === "other" ? null : running}
+        ahead={ahead}
+        behind={behind}
+        search={{
+          query,
+          total: matches.length,
+          current: selectedIndex !== undefined ? matches.indexOf(selectedIndex) + 1 : 0,
+        }}
+        searchInput={searchInput}
+        onSearch={search}
+        onSearchStep={stepSearch}
+        onRemote={(action) => act(remoteActions[action], action)}
+        onPushMenu={pushMenu}
         onRefresh={refresh}
         onPick={pick}
         onClose={close}
@@ -235,7 +429,8 @@ export default function App() {
           snapshot={snapshot}
           selectedId={selectedId}
           onSelect={setSelectedId}
-          onContextMenu={(commit, x, y) => commit.kind === "commit" && setMenu({ commit, x, y })}
+          matchIds={matchIds}
+          onContextMenu={(commit, x, y) => setMenu({ x, y, items: commitMenu(commit) })}
           onLoadMore={() => load(snapshot.path, "more", snapshot.commits.length + PAGE_SIZE)}
           loadingMore={busy?.kind === "more"}
         />
@@ -254,27 +449,39 @@ export default function App() {
             hasCommit={(id) => indexById.has(id)}
             onSelect={setSelectedId}
             onClose={() => setSelectedId(null)}
-            resetLabel={canResetTo(snapshot, selected) ? `Hard reset ${branchLabel} to this commit…` : undefined}
-            onReset={() => setResetTarget(selected)}
+            resetLabel={
+              canChange && canResetTo(snapshot, selected) ? `Hard reset ${branchLabel} to this commit…` : undefined
+            }
+            onReset={() => setDialog({ kind: "reset", target: selected })}
           />
         )}
       </main>
 
-      {menu && (
-        <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.commit)} onClose={() => setMenu(null)} />
-      )}
-      {resetTarget && (
+      {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+      {dialog?.kind === "reset" && (
         <ResetDialog
           snapshot={snapshot}
-          target={resetTarget}
-          onCancel={() => setResetTarget(null)}
-          onDone={() => {
-            setResetTarget(null);
-            setSelectedId(resetTarget.id);
-            refresh();
+          target={dialog.target}
+          onCancel={() => setDialog(null)}
+          onDone={(message) => {
+            setSelectedId(dialog.target.id);
+            finishDialog(message);
           }}
         />
       )}
+      {dialog?.kind === "newBranch" && (
+        <NewBranchDialog
+          repoPath={snapshot.path}
+          target={dialog.target}
+          canCheckout={!snapshot.bare}
+          onCancel={() => setDialog(null)}
+          onDone={finishDialog}
+        />
+      )}
+      {dialog?.kind === "forcePush" && (
+        <ForcePushDialog snapshot={snapshot} onCancel={() => setDialog(null)} onDone={finishDialog} />
+      )}
+      {toast && <Toast message={toast} onDone={hideToast} />}
     </div>
   );
 }

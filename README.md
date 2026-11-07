@@ -4,7 +4,7 @@ A fast, cross-platform git history graph viewer for macOS and Windows.
 
 ![Tributary showing the commit graph of a repository, with the details of a merge commit on the right](docs/screenshot.png)
 
-Open a repository and Tributary draws its history as a colourful commit graph, with branches and tags labelled. Click a commit to see its details. It never changes the repository unless you ask it to reset a branch.
+Open a repository and Tributary draws its history as a colourful commit graph, with branches and tags labelled. Click a commit to see its details. You can also check out and create branches, fetch, pull and push, and hard reset. It never changes the repository unless you ask it to.
 
 ## Features
 
@@ -12,9 +12,13 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 - **Uncommitted changes and stashes:** a row at the top shows your uncommitted changes, and clicking it lists the staged and unstaged files. Each stash appears as a small box joined to the commit it was made from.
 - **Always up to date:** changes made in a terminal or editor show up as soon as you switch back to Tributary.
 - **Commit details:** the full message, author and committer, parents (click one to jump to it) and the list of changed files.
+- **Search:** find commits by message, author, branch, tag or SHA. Matches are highlighted and you can jump between them.
+- **Branches:** right-click a commit to check out a branch on it, check out a remote branch (which creates a local branch that tracks it), check out the commit itself, or create a new branch there.
+- **Fetch, pull and push:** buttons in the toolbar, with the number of commits to pull and to push. The first push of a new branch sets its upstream. When a pull needs a merge and you haven't told git whether to merge or rebase, it merges.
+- **Force push:** from the menu next to Push, after a confirmation. It uses `--force-with-lease`, so it stops if someone else pushed in the meantime.
 - **Hard reset:** right-click a commit (or use the button in its details) to hard reset the checked-out branch to it. A confirmation shows exactly what will be lost first.
 - **Large repositories:** the 10,000 most recent commits load at once, and a button at the end of the list loads more. Only the visible rows are drawn, so scrolling stays smooth.
-- **No git install needed to browse:** history is read directly with [gitoxide](https://github.com/GitoxideLabs/gitoxide). Hard reset runs your installed git, so it behaves exactly like `git reset --hard`.
+- **No git install needed to browse:** history is read directly with [gitoxide](https://github.com/GitoxideLabs/gitoxide). Actions that change the repository (checkout, branches, fetch, pull, push, reset) run your installed git, so they behave exactly like the command line and use the credentials you already set up for it.
 - **Recent repositories:** the welcome screen lists the repositories you opened before.
 
 ### Keyboard shortcuts
@@ -23,17 +27,18 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 | --- | --- |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>O</kbd> | Open a repository |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>R</kbd> or <kbd>F5</kbd> | Refresh |
+| <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>F</kbd> | Search; <kbd>Enter</kbd> / <kbd>Shift</kbd>+<kbd>Enter</kbd> for the next / previous match |
 | <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Page Up</kbd> <kbd>Page Down</kbd> <kbd>Home</kbd> <kbd>End</kbd> | Move through commits |
 | <kbd>Esc</kbd> | Close the details panel |
 
 ## Download
 
-GitHub Actions builds the installers on every push to `main`. Download them from the **Artifacts** section of a run on the Actions tab:
+The installers are built by GitHub Actions, only when you start a build: open the **Actions** tab, choose **Build**, then **Run workflow**. When it finishes, download the installers from the **Artifacts** section of the run:
 
 - **macOS:** `.dmg` with a universal app (Apple Silicon and Intel)
 - **Windows:** `.msi` and `-setup.exe` installers (64-bit)
 
-Pushing a version tag such as `v0.1.0` also creates a draft GitHub release with the installers attached.
+To publish a release, type a version tag such as `v0.2.0` in the **release** box before starting the build. A draft GitHub release with the installers attached is created when it finishes. Update `version` in `src-tauri/tauri.conf.json` and `package.json` first, so the installer names match.
 
 The builds are not code-signed yet, so the first launch needs one extra step:
 
@@ -77,7 +82,7 @@ The installers end up in `src-tauri/target/release/bundle/`.
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-The integration tests create small repositories with the `git` command, so git needs to be installed to run them.
+The integration tests create small repositories with the `git` command, so git needs to be installed to run them. The tests don't run on GitHub Actions, so run them before you build.
 
 ### Project layout
 

@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use tributary_lib::actions;
+use tributary_lib::actions::{self, Action};
 use tributary_lib::repo::{self, FileChange, FileStatus, RefKind, RowKind};
 
 struct TempRepo {
@@ -13,20 +13,42 @@ struct TempRepo {
 }
 
 impl TempRepo {
-    fn new(name: &str) -> Self {
+    /// An empty folder, with an empty git config next to it.
+    fn empty(name: &str) -> Self {
         let dir =
             std::env::temp_dir().join(format!("tributary-test-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         // An empty global config keeps the developer's own settings (signing, hooks, …) out of the tests.
-        std::fs::write(dir.join(".test-gitconfig"), "").unwrap();
-        let repo = TempRepo {
+        std::fs::write(dir.with_extension("gitconfig"), "").unwrap();
+        TempRepo {
             dir,
             clock: 1_700_000_000,
-        };
+        }
+    }
+
+    fn new(name: &str) -> Self {
+        let repo = Self::empty(name);
         repo.git(&["init", "--quiet", "--initial-branch=main"]);
-        std::fs::write(repo.dir.join(".git/info/exclude"), ".test-gitconfig\n").unwrap();
         repo
+    }
+
+    /// A bare repository, to use as a remote.
+    fn bare(name: &str) -> Self {
+        let repo = Self::empty(name);
+        repo.git(&["init", "--quiet", "--bare", "--initial-branch=main"]);
+        repo
+    }
+
+    /// A clone of `remote`.
+    fn clone_of(name: &str, remote: &TempRepo) -> Self {
+        let repo = Self::empty(name);
+        repo.git(&["clone", "--quiet", remote.url(), "."]);
+        repo
+    }
+
+    fn url(&self) -> &str {
+        self.dir.to_str().unwrap()
     }
 
     fn git(&self, args: &[&str]) -> String {
@@ -38,7 +60,7 @@ impl TempRepo {
         let output = Command::new("git")
             .args(args)
             .current_dir(&self.dir)
-            .env("GIT_CONFIG_GLOBAL", self.dir.join(".test-gitconfig"))
+            .env("GIT_CONFIG_GLOBAL", self.dir.with_extension("gitconfig"))
             .env("GIT_CONFIG_NOSYSTEM", "1")
             .env("GIT_AUTHOR_NAME", "Test Author")
             .env("GIT_AUTHOR_EMAIL", "author@example.com")
@@ -73,6 +95,7 @@ impl TempRepo {
 impl Drop for TempRepo {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.dir);
+        let _ = std::fs::remove_file(self.dir.with_extension("gitconfig"));
     }
 }
 
@@ -312,6 +335,10 @@ fn stash_details_include_untracked_files() {
     );
 }
 
+fn run(repo: &TempRepo, action: Action) -> Result<String, String> {
+    actions::run(repo.path(), action)
+}
+
 #[test]
 fn hard_reset_moves_the_branch_and_discards_changes() {
     let mut repo = TempRepo::new("reset");
@@ -321,8 +348,9 @@ fn hard_reset_moves_the_branch_and_discards_changes() {
     std::fs::write(repo.path().join("a.txt"), "uncommitted").unwrap();
     std::fs::write(repo.path().join("untracked.txt"), "keep me").unwrap();
 
-    actions::reset_hard(repo.path(), &first).unwrap();
+    let message = run(&repo, Action::ResetHard { id: first.clone() }).unwrap();
 
+    assert_eq!(message, format!("Reset main to {}", &first[..7]));
     assert_eq!(repo.git(&["rev-parse", "HEAD"]), first);
     assert_eq!(repo.git(&["branch", "--show-current"]), "main");
     assert_eq!(
@@ -337,11 +365,207 @@ fn hard_reset_moves_the_branch_and_discards_changes() {
 }
 
 #[test]
-fn hard_reset_only_accepts_commit_ids() {
-    let mut repo = TempRepo::new("reset-invalid");
+fn actions_only_accept_full_ids_of_existing_commits() {
+    let mut repo = TempRepo::new("invalid-ids");
     repo.commit("a.txt", "First");
-    assert!(actions::reset_hard(repo.path(), "--hard").is_err());
-    assert!(actions::reset_hard(repo.path(), "HEAD~1").is_err());
     let missing = "0123456789012345678901234567890123456789";
-    assert!(actions::reset_hard(repo.path(), missing).is_err());
+    for id in ["--hard", "HEAD~1", "main", missing] {
+        assert!(
+            run(&repo, Action::ResetHard { id: id.into() }).is_err(),
+            "{id}"
+        );
+        assert!(
+            run(&repo, Action::CheckoutCommit { id: id.into() }).is_err(),
+            "{id}"
+        );
+    }
+}
+
+#[test]
+fn checks_out_branches_and_commits() {
+    let mut repo = TempRepo::new("checkout");
+    let first = repo.commit("a.txt", "First");
+    let second = repo.commit("a.txt", "Second");
+
+    let message = run(
+        &repo,
+        Action::CreateBranch {
+            name: "feature".into(),
+            id: first.clone(),
+            checkout: false,
+        },
+    )
+    .unwrap();
+    assert_eq!(message, "Created feature");
+    assert_eq!(repo.git(&["branch", "--show-current"]), "main");
+    assert_eq!(repo.git(&["rev-parse", "feature"]), first);
+
+    run(
+        &repo,
+        Action::CheckoutBranch {
+            name: "feature".into(),
+        },
+    )
+    .unwrap();
+    assert_eq!(repo.git(&["branch", "--show-current"]), "feature");
+    assert_eq!(repo.git(&["rev-parse", "HEAD"]), first);
+
+    let message = run(&repo, Action::CheckoutCommit { id: second.clone() }).unwrap();
+    assert_eq!(
+        message,
+        format!("Checked out {} (detached HEAD)", &second[..7])
+    );
+    assert_eq!(repo.git(&["branch", "--show-current"]), "");
+    assert_eq!(repo.git(&["rev-parse", "HEAD"]), second);
+
+    let message = run(
+        &repo,
+        Action::CreateBranch {
+            name: " topic ".into(),
+            id: first.clone(),
+            checkout: true,
+        },
+    )
+    .unwrap();
+    assert_eq!(message, "Created and checked out topic");
+    assert_eq!(repo.git(&["branch", "--show-current"]), "topic");
+}
+
+#[test]
+fn rejects_bad_branch_names() {
+    let mut repo = TempRepo::new("branch-names");
+    let id = repo.commit("a.txt", "First");
+    for name in ["", "-x", "has space", "two..dots", "main"] {
+        let action = Action::CreateBranch {
+            name: name.into(),
+            id: id.clone(),
+            checkout: false,
+        };
+        assert!(run(&repo, action).is_err(), "{name:?} should be rejected");
+    }
+    for name in ["--orphan", "missing"] {
+        assert!(run(&repo, Action::CheckoutBranch { name: name.into() }).is_err());
+        assert!(run(&repo, Action::CheckoutRemoteBranch { name: name.into() }).is_err());
+    }
+}
+
+#[test]
+fn pushes_fetches_and_pulls() {
+    let remote = TempRepo::bare("remote.git");
+    let mut alice = TempRepo::new("alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    let first = alice.commit("a.txt", "First");
+
+    // The first push sets the upstream.
+    assert_eq!(
+        run(&alice, Action::Push { force: false }).unwrap(),
+        "Pushed main to origin"
+    );
+    assert_eq!(remote.git(&["rev-parse", "main"]), first);
+    assert_eq!(
+        alice.git(&["rev-parse", "--abbrev-ref", "main@{upstream}"]),
+        "origin/main"
+    );
+    let snapshot = repo::load(alice.path(), 100, false).unwrap();
+    let upstream = snapshot.upstream.unwrap();
+    assert_eq!(upstream.name, "origin/main");
+    assert_eq!(upstream.commit.as_deref(), Some(first.as_str()));
+    assert_eq!(snapshot.remotes, vec!["origin".to_owned()]);
+
+    let bob = TempRepo::clone_of("bob", &remote);
+    let second = alice.commit("b.txt", "Second");
+    run(&alice, Action::Push { force: false }).unwrap();
+    assert_eq!(remote.git(&["rev-parse", "main"]), second);
+
+    run(&bob, Action::Fetch).unwrap();
+    assert_eq!(bob.git(&["rev-parse", "origin/main"]), second);
+    assert_eq!(
+        bob.git(&["rev-parse", "main"]),
+        first,
+        "fetch leaves main alone"
+    );
+    assert_eq!(run(&bob, Action::Pull).unwrap(), "Pulled main");
+    assert_eq!(bob.git(&["rev-parse", "main"]), second);
+
+    // Both sides commit: the branches diverge, and pulling still works.
+    let mut bob = bob;
+    bob.git(&["config", "user.name", "Bob"]);
+    bob.git(&["config", "user.email", "bob@example.com"]);
+    let from_bob = bob.commit("bob.txt", "From Bob");
+    let from_alice = alice.commit("alice.txt", "From Alice");
+    run(&alice, Action::Push { force: false }).unwrap();
+    run(&bob, Action::Pull).unwrap();
+    for id in [&from_bob, &from_alice] {
+        bob.git(&["merge-base", "--is-ancestor", id, "main"]);
+    }
+}
+
+#[test]
+fn force_push_replaces_the_remote_branch() {
+    let remote = TempRepo::bare("force-remote.git");
+    let mut alice = TempRepo::new("force-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "First");
+    alice.commit("a.txt", "Second");
+    run(&alice, Action::Push { force: false }).unwrap();
+
+    // Rewrite history: replace "Second" with something else.
+    alice.git(&["reset", "--quiet", "--hard", "HEAD~1"]);
+    let rewritten = alice.commit("a.txt", "Second, rewritten");
+    assert!(
+        run(&alice, Action::Push { force: false }).is_err(),
+        "a normal push is refused"
+    );
+
+    assert_eq!(
+        run(&alice, Action::Push { force: true }).unwrap(),
+        "Force pushed main to origin"
+    );
+    assert_eq!(remote.git(&["rev-parse", "main"]), rewritten);
+}
+
+#[test]
+fn checks_out_remote_branches_as_tracking_branches() {
+    let remote = TempRepo::bare("tracking-remote.git");
+    let mut alice = TempRepo::new("tracking-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "First");
+    alice.git(&["push", "--quiet", "origin", "main"]);
+    alice.git(&["switch", "--quiet", "--create", "feature"]);
+    let feature = alice.commit("b.txt", "Feature");
+    alice.git(&["push", "--quiet", "origin", "feature"]);
+
+    let bob = TempRepo::clone_of("tracking-bob", &remote);
+    let message = run(
+        &bob,
+        Action::CheckoutRemoteBranch {
+            name: "origin/feature".into(),
+        },
+    )
+    .unwrap();
+    assert_eq!(message, "Checked out feature, tracking origin/feature");
+    assert_eq!(bob.git(&["branch", "--show-current"]), "feature");
+    assert_eq!(bob.git(&["rev-parse", "HEAD"]), feature);
+    assert_eq!(
+        bob.git(&["rev-parse", "--abbrev-ref", "feature@{upstream}"]),
+        "origin/feature"
+    );
+}
+
+#[test]
+fn pull_and_push_need_a_branch() {
+    let mut repo = TempRepo::new("detached-actions");
+    let id = repo.commit("a.txt", "First");
+    repo.git(&["switch", "--quiet", "--detach", &id]);
+    assert!(run(&repo, Action::Pull).unwrap_err().contains("detached"));
+    assert!(
+        run(&repo, Action::Push { force: false })
+            .unwrap_err()
+            .contains("detached")
+    );
+    assert!(
+        run(&repo, Action::Fetch)
+            .unwrap_err()
+            .contains("no remotes")
+    );
 }

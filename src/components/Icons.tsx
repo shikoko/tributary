@@ -76,6 +76,53 @@ export const StashIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const SearchIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="7" cy="7" r="4.5" />
+    <path d="M10.5 10.5 14 14" />
+  </Icon>
+);
+
+export const ChevronDownIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 6l4 4 4-4" />
+  </Icon>
+);
+
+export const ChevronUpIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 10l4-4 4 4" />
+  </Icon>
+);
+
+/** A cloud with an arrow down. */
+export const FetchIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.5 11.5a3 3 0 0 1-.2-6A3.75 3.75 0 0 1 11.6 6a2.75 2.75 0 0 1 .4 5.5" />
+    <path d="M8 7.5v6M6 11.5l2 2 2-2" />
+  </Icon>
+);
+
+export const PullIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 2.5v8M4.5 7l3.5 3.5L11.5 7M3 13.5h10" />
+  </Icon>
+);
+
+export const PushIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 13.5v-8M4.5 9 8 5.5 11.5 9M3 2.5h10" />
+  </Icon>
+);
+
+export const BranchPlusIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="5" cy="3.5" r="1.5" />
+    <circle cx="5" cy="12.5" r="1.5" />
+    <path d="M5 5v6M11.5 2.5v5M9 5h5" />
+  </Icon>
+);
+
 /** An arrow going back, for resetting. */
 export const ResetIcon = (p: IconProps) => (
   <Icon {...p}>

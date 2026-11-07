@@ -31,11 +31,12 @@ async fn commit_details(path: String, id: String) -> Result<repo::CommitDetails,
         .map_err(|e| e.to_string())?
 }
 
-/// Hard reset the checked-out branch to a commit.
+/// Change the repository: reset, checkout, create a branch, fetch, pull or push.
+/// Returns a short message saying what happened.
 #[tauri::command]
-async fn reset_hard(path: String, id: String) -> Result<(), String> {
+async fn run_action(path: String, action: actions::Action) -> Result<String, String> {
     let path = PathBuf::from(path);
-    tauri::async_runtime::spawn_blocking(move || actions::reset_hard(&path, &id))
+    tauri::async_runtime::spawn_blocking(move || actions::run(&path, action))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -47,7 +48,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             open_repository,
             commit_details,
-            reset_hard
+            run_action
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

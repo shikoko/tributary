@@ -35,13 +35,16 @@ interface Props {
   snapshot: RepoSnapshot;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /** While searching: the ids of the matching commits. Other rows are dimmed. */
+  matchIds: Set<string> | null;
   /** Right-click on a row, at window coordinates (x, y). */
   onContextMenu: (commit: CommitRow, x: number, y: number) => void;
   onLoadMore: () => void;
   loadingMore: boolean;
 }
 
-export function CommitList({ snapshot, selectedId, onSelect, onContextMenu, onLoadMore, loadingMore }: Props) {
+export function CommitList(props: Props) {
+  const { snapshot, selectedId, onSelect, matchIds, onContextMenu, onLoadMore, loadingMore } = props;
   const { commits, headCommit } = snapshot;
   const scroller = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -170,6 +173,7 @@ export function CommitList({ snapshot, selectedId, onSelect, onContextMenu, onLo
         changes={commit.kind === "worktree" ? changeCounts : undefined}
         compact={compact}
         selected={index === selectedIndex}
+        dimmed={matchIds !== null && !matchIds.has(commit.id)}
         onSelect={onSelect}
         onContextMenu={onContextMenu}
       />,
@@ -233,12 +237,15 @@ interface RowProps {
   changes?: Counts;
   compact: boolean;
   selected: boolean;
+  /** Not a search match. */
+  dimmed: boolean;
   onSelect: (id: string) => void;
   onContextMenu: (commit: CommitRow, x: number, y: number) => void;
 }
 
 function Row(props: RowProps) {
-  const { commit, top, columns, refsWidth, graphWidth, changes, compact, selected, onSelect, onContextMenu } = props;
+  const { commit, top, columns, refsWidth, graphWidth, changes, compact, selected, dimmed, onSelect, onContextMenu } =
+    props;
   const color = laneColor(commit.graph.column);
   // A line from the label to the commit's node in the graph.
   const connectorStart = refsWidth - REFS_PADDING;
@@ -246,7 +253,7 @@ function Row(props: RowProps) {
   return (
     <div
       id={`commit-${commit.id}`}
-      className={`commit-row${selected ? " selected" : ""}`}
+      className={`commit-row${selected ? " selected" : ""}${dimmed ? " dimmed" : ""}`}
       style={{
         top,
         height: ROW_HEIGHT,

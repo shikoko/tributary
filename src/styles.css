@@ -207,6 +207,8 @@ button:disabled {
 
 .error-banner.inline span {
   flex: 1;
+  /* git's messages span several lines. */
+  white-space: pre-wrap;
 }
 
 /* Welcome screen */
@@ -346,36 +348,24 @@ button:disabled {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  flex: 1;
+  flex: 0 1 auto;
 }
 
 .repo-name {
+  min-width: 0;
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
-}
-
-.repo-path {
-  min-width: 0;
-  color: var(--text-faint);
-  font-size: 12px;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.toolbar-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: none;
 }
 
 .head-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  max-width: 260px;
+  min-width: 0;
+  max-width: 220px;
   height: 26px;
   padding: 0 10px;
   border-radius: 13px;
@@ -383,6 +373,14 @@ button:disabled {
   color: #8fd8ff;
   font-weight: 600;
   white-space: nowrap;
+  flex: none;
+}
+
+.head-chip svg {
+  flex: none;
+}
+
+.head-chip-name {
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -392,16 +390,127 @@ button:disabled {
   color: #ffd48a;
 }
 
-.commit-count {
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
 .toolbar-actions {
   display: flex;
   align-items: center;
   gap: 6px;
   flex: none;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--border-strong);
+}
+
+/* Search box */
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 240px;
+  min-width: 150px;
+  max-width: 460px;
+  height: 30px;
+  margin-left: auto;
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.search:focus-within {
+  border-color: var(--accent);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+.search input::placeholder {
+  color: var(--text-faint);
+}
+
+.search-count {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.icon-button.small {
+  width: 22px;
+  height: 22px;
+}
+
+.icon-button:disabled {
+  opacity: 0.4;
+  background: transparent;
+}
+
+.commit-row.dimmed > .cell {
+  opacity: 0.32;
+}
+
+/* Fetch / Pull / Push */
+
+.tool-button .count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #0d0f13;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+}
+
+.split-button {
+  display: flex;
+}
+
+.split-button .tool-button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.split-button .menu-toggle {
+  padding: 0 6px;
+  border-left: none;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.pulse {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* Narrow windows: icons only. */
+@media (max-width: 1180px) {
+  .tool-button .label {
+    display: none;
+  }
+
+  .toolbar .tool-button {
+    padding: 0 8px;
+  }
 }
 
 .workspace {
@@ -786,17 +895,33 @@ button:disabled {
 }
 
 .person-text {
+  flex: 1;
   min-width: 0;
 }
 
+/* Name and email on one line; long ones are cut short with "…" (hover shows them in full). */
 .person-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
   font-weight: 600;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+}
+
+.person-full-name {
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: none;
 }
 
 .person-email {
+  min-width: 0;
   color: var(--text-muted);
   font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .person-when {
@@ -1119,4 +1244,95 @@ button:disabled {
 
 .danger-outline-button:hover {
   background: rgba(255, 92, 108, 0.1);
+}
+
+/* Dialog forms */
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.text-input {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 13px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.text-input:focus {
+  border-color: var(--accent);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.checkbox input {
+  accent-color: var(--accent);
+}
+
+.primary-small-button {
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #1fb5ff, #4d7cff);
+  color: #fff;
+  font-weight: 600;
+}
+
+.primary-small-button:disabled {
+  opacity: 0.5;
+}
+
+.dialog .error-banner {
+  white-space: pre-wrap;
+}
+
+/* Toast */
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid rgba(54, 224, 124, 0.35);
+  border-radius: 8px;
+  background: #1b2a22;
+  color: #b8f5cf;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  transform: translateX(-50%);
+  animation: toast-in 0.18s ease-out;
 }
