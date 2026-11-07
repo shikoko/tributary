@@ -295,14 +295,24 @@ export function WorktreeDetailsPanel(props: Props) {
 
       <div className="commit-box">
         {props.messageTools}
-        <input
-          className="text-input"
-          value={draft.summary}
-          onChange={(event) => onDraft({ ...draft, summary: event.target.value })}
-          onKeyDown={onKeyDown}
-          placeholder="Commit summary"
-          aria-label="Commit summary"
-        />
+        <div className="summary-field">
+          <input
+            className="text-input"
+            value={draft.summary}
+            onChange={(event) => onDraft({ ...draft, summary: event.target.value })}
+            onKeyDown={onKeyDown}
+            placeholder="Commit summary"
+            aria-label="Commit summary"
+          />
+          {draft.summary.length > 0 && (
+            <span
+              className={`summary-count${draft.summary.length > 72 ? " over" : draft.summary.length > 50 ? " long" : ""}`}
+              title="Summaries up to 50 characters (72 at most) show in full in most places"
+            >
+              {draft.summary.length}
+            </span>
+          )}
+        </div>
         <textarea
           className="text-input"
           value={draft.description}

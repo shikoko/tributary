@@ -125,6 +125,7 @@ import { OperationBar } from "./components/OperationBar";
 import { ProgressStrip } from "./components/ProgressStrip";
 import { PruneDialog } from "./components/PruneDialog";
 import { RestoreDialog } from "./components/RestoreDialog";
+import { RecoverDialog } from "./components/RecoverDialog";
 import { NameList, SettingsDialog, type SettingsSection } from "./components/SettingsDialog";
 import { LfsStorageSummary, PruneLfsDialog } from "./components/LfsCleanup";
 import { UpdateDialog } from "./components/UpdateDialog";
@@ -1728,6 +1729,74 @@ export default function App() {
   const revealFile = (path: string) =>
     revealItemInDir(joinPath(snapshot.path, path)).catch(() => setToast({ text: `${baseName(path)} isn't in the working tree` }));
 
+  // Help with commit messages: your recent ones, and people to credit as co-authors.
+  const myEmail = user?.email?.toLowerCase() ?? null;
+  const recentMessages = snapshot.commits
+    .filter((commit) => commit.kind === "commit" && (myEmail ? commit.authorEmail.toLowerCase() === myEmail : commit.authorName === user?.name))
+    .filter((commit, index, list) => list.findIndex((other) => other.summary === commit.summary) === index)
+    .slice(0, 12);
+  const people = (() => {
+    const counts = new Map<string, { name: string; email: string; count: number }>();
+    for (const commit of snapshot.commits) {
+      if (commit.kind !== "commit" || !commit.authorEmail) continue;
+      const email = commit.authorEmail.toLowerCase();
+      // You, and bots like Dependabot, aren't co-authors.
+      if (email === myEmail || email.includes("[bot]") || commit.authorName.endsWith("[bot]")) continue;
+      const known = counts.get(email);
+      if (known) known.count += 1;
+      else counts.set(email, { name: commit.authorName, email: commit.authorEmail, count: 1 });
+    }
+    return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, 12);
+  })();
+  const reuseMessage = async (commit: CommitRow) => {
+    const details = await loadDetails(commit.id).catch(() => null);
+    setDraft((current) => ({ ...current, summary: details?.summary ?? commit.summary, description: details?.body ?? "" }));
+  };
+  const addCoAuthor = (person: { name: string; email: string }) =>
+    setDraft((current) => {
+      const trailer = `Co-authored-by: ${person.name} <${person.email}>`;
+      if (current.description.includes(trailer)) return current;
+      const description = current.description.trimEnd();
+      const lines = description.split("\n");
+      // Trailers go together at the end, after a blank line.
+      const endsWithTrailer = /^[\w-]+: /.test(lines[lines.length - 1] ?? "");
+      return { ...current, description: description ? `${description}${endsWithTrailer ? "\n" : "\n\n"}${trailer}` : trailer };
+    });
+  const messageTools = (
+    <div className="message-tools">
+      <button
+        className="message-tool"
+        disabled={recentMessages.length === 0}
+        onClick={(event) =>
+          menuUnder(
+            event.currentTarget,
+            recentMessages.map((commit) => ({ label: commit.summary, icon: <HistoryIcon />, onSelect: () => reuseMessage(commit) })),
+            360,
+          )
+        }
+        title="Start from one of your recent commit messages"
+      >
+        <HistoryIcon size={12} />
+        Recent messages
+      </button>
+      <button
+        className="message-tool"
+        disabled={people.length === 0}
+        onClick={(event) =>
+          menuUnder(
+            event.currentTarget,
+            people.map((person) => ({ label: `${person.name} <${person.email}>`, icon: <UserIcon />, onSelect: () => addCoAuthor(person) })),
+            360,
+          )
+        }
+        title="Credit someone who worked on this with you"
+      >
+        <UserIcon size={12} />
+        Add co-author
+      </button>
+    </div>
+  );
+
   /** Right-click on a file in a commit or in the uncommitted changes. */
   const fileMenu = (file: FileChange, x: number, y: number, where: "worktree" | "commit") => {
     const folder = file.path.endsWith("/");
@@ -2216,6 +2285,7 @@ export default function App() {
                   onFileMenu={(file, x, y) => fileMenu(file, x, y, "worktree")}
                   checks={checks}
                   canLock={Boolean(lfs.locks)}
+                  messageTools={messageTools}
                 />
               ) : (
                 <CommitDetailsPanel
@@ -2463,6 +2533,24 @@ export default function App() {
             working on it, their changes and yours will clash, and one of you will lose work. Check with them first.
           </p>
         </ConfirmDialog>
+      )}
+      {dialog?.kind === "recover" && (
+        <RecoverDialog
+          repoPath={snapshot.path}
+          isLoaded={(id) => byId.has(id)}
+          truncated={snapshot.truncated}
+          onCancel={() => setDialog(null)}
+          onShow={(id) => {
+            setDialog(null);
+            select(id);
+          }}
+          onCreateBranch={(entry) =>
+            setDialog({
+              kind: "newBranch",
+              target: { id: entry.id, summary: entry.summary, kind: "commit", refs: [], parents: [] } as unknown as CommitRow,
+            })
+          }
+        />
       )}
       {dialog?.kind === "pruneLfs" && (
         <PruneLfsDialog repoPath={snapshot.path} onCancel={() => setDialog(null)} onDone={(message) => finishDialog(message)} />

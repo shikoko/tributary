@@ -3978,3 +3978,145 @@ textarea.text-input {
   box-shadow: 0 0 6px rgba(31, 181, 255, 0.7);
   flex: none;
 }
+
+/* Recover commits (reflog) */
+
+.recover-list {
+  max-height: min(52vh, 460px);
+  margin: 12px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  list-style: none;
+}
+
+.recover-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+}
+
+.recover-row + .recover-row {
+  border-top: 1px solid var(--border);
+}
+
+.recover-row.lost {
+  background: rgba(255, 173, 31, 0.04);
+}
+
+.recover-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.recover-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.recover-action {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+  flex: none;
+}
+
+.recover-detail {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recover-when {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 12px;
+  white-space: nowrap;
+  flex: none;
+}
+
+.recover-commit {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recover-lost {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 173, 31, 0.12);
+  color: #ffc966;
+  font-size: 11px;
+}
+
+/* Commit message help */
+
+.message-tools {
+  display: flex;
+  gap: 12px;
+  margin-bottom: -2px;
+}
+
+.message-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.message-tool:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.message-tool:disabled {
+  opacity: 0.4;
+}
+
+.summary-field {
+  position: relative;
+  display: flex;
+}
+
+.summary-field .text-input {
+  flex: 1;
+  padding-right: 40px;
+}
+
+.summary-count {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.summary-count.long {
+  color: #ffad1f;
+}
+
+.summary-count.over {
+  color: #ff5c6c;
+}
