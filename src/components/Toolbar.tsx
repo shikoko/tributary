@@ -180,13 +180,21 @@ export function Toolbar(props: Props) {
         <button className="tool-button" onClick={() => props.onRemote("pull")} disabled={pullDisabled} title={pullTitle}>
           <PullIcon className={running === "pull" ? "pulse" : undefined} />
           <span className="label">Pull</span>
-          {behind > 0 && <span className="count">{behind}</span>}
+          {behind > 0 && (
+            <span className="count">
+              <span>{behind}</span>
+            </span>
+          )}
         </button>
         <div className="split-button">
           <button className="tool-button" onClick={() => props.onRemote("push")} disabled={pushDisabled} title={pushTitle}>
             <PushIcon className={running === "push" ? "pulse" : undefined} />
             <span className="label">Push</span>
-            {ahead > 0 && <span className="count">{ahead}</span>}
+            {ahead > 0 && (
+              <span className="count">
+                <span>{ahead}</span>
+              </span>
+            )}
           </button>
           <button
             ref={pushMenuButton}

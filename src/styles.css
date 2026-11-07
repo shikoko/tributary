@@ -336,7 +336,8 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 16px;
-  height: 48px;
+  /* 48px inside the 1px border, so the buttons sit on whole pixels. */
+  height: 49px;
   padding: 0 10px 0 14px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
@@ -489,15 +490,28 @@ button:disabled {
 /* Fetch / Pull / Push */
 
 .tool-button .count {
+  /* A circle, or a pill for two digits or more. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   min-width: 18px;
+  height: 18px;
   padding: 0 5px;
   border-radius: 9px;
   background: var(--accent);
   color: #0d0f13;
   font-size: 11px;
   font-weight: 700;
-  line-height: 17px;
-  text-align: center;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.tool-button .count > span {
+  display: block;
+  /* Trims the line box to the top of the digits and the baseline, so centring
+     the box centres the digits themselves. */
+  text-box: trim-both cap alphabetic;
 }
 
 .split-button {
@@ -1956,14 +1970,18 @@ body.resizing * {
   border-bottom-color: rgba(255, 173, 31, 0.3);
 }
 
-.operation-title strong {
-  color: #ffd48a;
-}
-
-.operation-help {
+.operation-text {
   flex: 1;
   min-width: 200px;
   color: var(--text-secondary);
+}
+
+.operation-title {
+  color: var(--text);
+}
+
+.operation-text strong {
+  color: #ffd48a;
 }
 
 .operation-buttons {

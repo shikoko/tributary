@@ -28,11 +28,11 @@ export function OperationBar({ operation, branch, conflicts, busy, onContinue, o
   const next = operation.kind === "merge" ? "commit" : "continue";
   return (
     <div className="operation-bar" role="status">
-      <span className="operation-title">
-        {operation.kind === "merge" ? "Merging into" : `${name[0].toUpperCase()}${name.slice(1)} in progress on`}{" "}
-        <strong>{branch}</strong>
-      </span>
-      <span className="operation-help">
+      <span className="operation-text">
+        <span className="operation-title">
+          {operation.kind === "merge" ? "Merging into" : `${name[0].toUpperCase()}${name.slice(1)} in progress on`}{" "}
+          <strong>{branch}</strong>.
+        </span>{" "}
         {conflicts > 0 ? (
           <>
             <button className="link-button" onClick={onShowFiles}>
