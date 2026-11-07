@@ -148,6 +148,7 @@ export function CommitDetailsPanel(props: Props) {
                 key={action.label}
                 className={action.danger ? "danger-outline-button" : "outline-button"}
                 onClick={action.onClick}
+                title={action.label}
               >
                 {action.icon}
                 <span className="button-label">{action.label}</span>

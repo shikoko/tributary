@@ -222,7 +222,8 @@ button:disabled {
   padding: 32px;
   background:
     radial-gradient(circle at 20% 15%, rgba(255, 79, 154, 0.09), transparent 40%),
-    radial-gradient(circle at 80% 20%, rgba(140, 224, 74, 0.07), transparent 40%),
+    /* The logo's colours: pink, amber and blue. */
+    radial-gradient(circle at 80% 20%, rgba(255, 173, 31, 0.07), transparent 40%),
     radial-gradient(circle at 50% 90%, rgba(31, 181, 255, 0.1), transparent 45%),
     var(--bg);
 }
@@ -1312,9 +1313,26 @@ button:disabled {
 }
 
 /* A button's text, trimmed to its capital letters, so an icon next to it lines up with the
-   letters rather than with the font's line box (which differs from font to font). */
+   letters rather than with the font's line box (which differs from font to font). It stays
+   on one line and ends in "…" when it doesn't fit. Clipped sideways only: the trimmed box
+   is as tall as the capitals, and letters like "p" reach below it. */
 .button-label {
+  min-width: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-box: trim-both cap alphabetic;
+}
+
+.details-actions .outline-button,
+.details-actions .danger-outline-button {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.details-actions svg {
+  flex: none;
 }
 
 /* Dialog forms */
