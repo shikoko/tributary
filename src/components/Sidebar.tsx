@@ -6,6 +6,7 @@ import { useStoredState } from "../lib/settings";
 import {
   BranchIcon,
   BroomIcon,
+  LockIcon,
   CheckIcon,
   ChevronDownIcon,
   CloudIcon,
@@ -39,6 +40,8 @@ interface Props {
   onShowAll: () => void;
   /** Open the prune branches dialog (null while that can't be done). */
   onPrune: (() => void) | null;
+  /** Protected branch names, shown with a padlock. */
+  protectedBranches: string[];
   /** For local branches that track a remote branch: commits to push and to pull. */
   aheadBehind: Map<string, { ahead: number; behind: number }>;
 }
@@ -136,6 +139,11 @@ export function Sidebar(props: Props) {
         >
           <span className="sidebar-icon">{entry.current ? <CheckIcon size={13} /> : icon}</span>
           <span className="sidebar-name">{label}</span>
+          {entry.kind === "branch" && props.protectedBranches.includes(entry.name) && (
+            <span className="sidebar-lock" title={`${entry.name} is protected: it can't be deleted, and rewriting it needs its name typed`}>
+              <LockIcon size={11} />
+            </span>
+          )}
           {counts && (counts.ahead > 0 || counts.behind > 0) && (
             <span
               className="sidebar-counts"

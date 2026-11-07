@@ -9,6 +9,8 @@ interface Props {
   fetchFirst: boolean;
   /** Full names of the refs pinned in the sidebar: never offered. */
   pinned: string[];
+  /** Protected branch names: never offered. */
+  protectedNames: string[];
   onCancel: () => void;
   onDelete: (branches: BranchTip[]) => void;
 }
@@ -23,7 +25,7 @@ function remoteOf(candidate: PruneCandidate): string {
  * requests) and those merged into the main branch. Branches whose commits are all in the
  * main branch are ticked; the others are listed, unticked, with what would be lost.
  */
-export function PruneDialog({ repoPath, fetchFirst, pinned, onCancel, onDelete }: Props) {
+export function PruneDialog({ repoPath, fetchFirst, pinned, protectedNames, onCancel, onDelete }: Props) {
   const [stage, setStage] = useState<"fetching" | "reading" | "ready">(fetchFirst ? "fetching" : "reading");
   const [info, setInfo] = useState<PruneInfo | null>(null);
   const [offline, setOffline] = useState(false);
@@ -45,7 +47,9 @@ export function PruneDialog({ repoPath, fetchFirst, pinned, onCancel, onDelete }
       try {
         const found = await pruneCandidates(repoPath);
         if (!live) return;
-        const candidates = found.candidates.filter((candidate) => !pinned.includes(`refs/heads/${candidate.name}`));
+        const candidates = found.candidates.filter(
+          (candidate) => !pinned.includes(`refs/heads/${candidate.name}`) && !protectedNames.includes(candidate.name),
+        );
         setInfo({ ...found, candidates });
         setChosen(new Set(candidates.filter((candidate) => candidate.merged).map((candidate) => candidate.name)));
       } catch (e) {
@@ -108,7 +112,7 @@ export function PruneDialog({ repoPath, fetchFirst, pinned, onCancel, onDelete }
         !error && (
           <p className="hint">
             Nothing to prune: no local branches are merged into {base} or gone from their remote. The checked-out branch,
-            long-lived ones like main, and pinned branches are never offered.
+            long-lived ones like main, and protected or pinned branches are never offered.
           </p>
         )
       ) : (

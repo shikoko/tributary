@@ -3,17 +3,22 @@ import { runAction, type CommitRow, type RepoSnapshot } from "../api";
 import { ancestors, countMissing } from "../lib/graph";
 import { plural, shortId } from "../lib/format";
 import { Dialog } from "./Dialog";
+import { TypeToConfirm } from "./Safety";
 
 interface Props {
   snapshot: RepoSnapshot;
   target: CommitRow;
+  /** The checked-out branch, when it's protected: its name must be typed to go ahead. */
+  protectedName?: string | null;
   onCancel: () => void;
   /** Called with git's result message once the reset worked. */
   onDone: (message: string) => void;
 }
 
 /** Asks for confirmation before `git reset --hard`, saying exactly what will be lost. */
-export function ResetDialog({ snapshot, target, onCancel, onDone }: Props) {
+export function ResetDialog({ snapshot, target, protectedName, onCancel, onDone }: Props) {
+  const [typed, setTyped] = useState("");
+  const confirmed = !protectedName || typed.trim() === protectedName;
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const branch = snapshot.headBranch ?? "HEAD";
@@ -49,10 +54,10 @@ export function ResetDialog({ snapshot, target, onCancel, onDone }: Props) {
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running} autoFocus>
+          <button className="secondary-button" onClick={onCancel} disabled={running} autoFocus={!protectedName}>
             Cancel
           </button>
-          <button className="danger-button" onClick={reset} disabled={running}>
+          <button className="danger-button" onClick={reset} disabled={running || !confirmed}>
             {running ? (discardOnly ? "Discarding…" : "Resetting…") : discardOnly ? "Discard changes" : `Reset ${branch}`}
           </button>
         </>
@@ -87,6 +92,7 @@ export function ResetDialog({ snapshot, target, onCancel, onDone }: Props) {
         {untrackedFiles > 0 && <li>Untracked files are kept.</li>}
         {leaving === 0 && lostFiles === 0 && <li>No commits or uncommitted changes will be lost.</li>}
       </ul>
+      {protectedName && <TypeToConfirm name={protectedName} value={typed} onChange={setTyped} />}
     </Dialog>
   );
 }

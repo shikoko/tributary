@@ -99,6 +99,24 @@ async fn prune_candidates(path: String) -> Result<actions::PruneInfo, String> {
         .map_err(|e| e.to_string())?
 }
 
+/// Where branches were before Tributary deleted, reset, rebased or force-pushed them.
+#[tauri::command]
+async fn branch_backups(path: String) -> Result<Vec<actions::Backup>, String> {
+    tauri::async_runtime::spawn_blocking(move || actions::backups(&PathBuf::from(path)))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Commits that deleting a branch would lose.
+#[tauri::command]
+async fn lost_commits(path: String, reference: String) -> Result<actions::LostCommits, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        actions::lost_commits(&PathBuf::from(path), &reference)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Stop the fetch, pull, push or clone that is running.
 #[tauri::command]
 fn cancel_action() -> bool {
@@ -131,6 +149,8 @@ pub fn run() {
             clone_repository,
             init_repository,
             prune_candidates,
+            branch_backups,
+            lost_commits,
             cancel_action,
             activity_log
         ])

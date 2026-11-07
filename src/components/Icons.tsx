@@ -141,6 +141,23 @@ export const TrashIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A padlock: a protected branch. */
+export const LockIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+    <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+  </Icon>
+);
+
+/** A clock with an arrow going back: restore an earlier version. */
+export const HistoryIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9" />
+    <path d="M2.5 2.5v2.5H5" />
+    <path d="M8 5v3l2 1.5" />
+  </Icon>
+);
+
 /** A broom, for cleaning up (pruning branches). */
 export const BroomIcon = (p: IconProps) => (
   <Icon {...p}>

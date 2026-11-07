@@ -3248,3 +3248,141 @@ textarea.text-input {
   background: rgba(255, 173, 31, 0.18);
   opacity: 1;
 }
+
+/* Branch safety: protected branches, what a delete would lose, restoring backups. */
+
+.sidebar-lock {
+  display: inline-flex;
+  color: var(--text-faint);
+  flex: none;
+}
+
+.type-to-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.type-to-confirm strong {
+  color: var(--text);
+}
+
+.safe-note {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(140, 224, 74, 0.08);
+  color: #b5e88f;
+  font-size: 12px;
+}
+
+.lost-commits p {
+  margin: 0;
+}
+
+.lost-commits ul {
+  margin: 6px 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.lost-commits li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lost-commits li .mono {
+  color: #ffc966;
+}
+
+.restore-list {
+  max-height: min(52vh, 460px);
+  margin: 12px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  list-style: none;
+}
+
+.restore-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.restore-row + .restore-row {
+  border-top: 1px solid var(--border);
+}
+
+.restore-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.restore-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.restore-name {
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.restore-event {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.restore-event.deleted,
+.restore-event.deletedFromRemote {
+  background: rgba(255, 92, 108, 0.12);
+  color: #ff97a1;
+}
+
+.restore-event.forcePushed,
+.restore-event.reset,
+.restore-event.rebased {
+  background: rgba(255, 173, 31, 0.12);
+  color: #ffc966;
+}
+
+.restore-when {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.restore-commit {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.restore-outcome {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.restore-remove {
+  flex: none;
+}

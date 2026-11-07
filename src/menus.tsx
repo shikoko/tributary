@@ -6,6 +6,7 @@ import { branchUrl, commitUrl, newPullRequestUrl, siteName, webRemote } from "./
 import type { MenuItem } from "./components/ContextMenu";
 import {
   BranchIcon,
+  LockIcon,
   BranchPlusIcon,
   CherryIcon,
   CloudIcon,
@@ -48,6 +49,10 @@ export type OpenDialog =
   | { kind: "clone" }
   /** Clean up local branches that are gone from the remote or merged. */
   | { kind: "prune" }
+  /** Put back a branch from a backup. */
+  | { kind: "restore" }
+  /** A change to the protected, checked-out branch: type its name to go ahead. */
+  | { kind: "protectedAction"; action: Action; branch: string }
   /** `commits`: the commits after `onto`, newest first. */
   | { kind: "interactiveRebase"; onto: CommitRow; commits: CommitRow[] }
   | null;
@@ -74,6 +79,9 @@ export interface MenuContext {
   /** Pinned refs in the sidebar (full names). */
   pins: string[];
   togglePin: (name: string) => void;
+  /** Protected branch names: they can't be deleted, and rewriting them needs their name typed. */
+  protectedBranches: string[];
+  toggleProtected: (name: string) => void;
   /** The commits after `commit` on the checked-out branch, newest first, or why they can't be rewritten. */
   rewritable: (commit: CommitRow) => CommitRow[] | string;
   openUrl: (url: string) => void;
@@ -479,10 +487,15 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
         onSelect: () => ctx.open({ kind: "rename", branch: pill.name }),
       },
       {
-        label: `Delete ${pill.name}…`,
+        label: ctx.protectedBranches.includes(pill.name) ? `Unprotect ${pill.name}` : `Protect ${pill.name}`,
+        icon: <LockIcon />,
+        onSelect: () => ctx.toggleProtected(pill.name),
+      },
+      {
+        label: ctx.protectedBranches.includes(pill.name) ? `Delete ${pill.name} (protected)` : `Delete ${pill.name}…`,
         icon: <TrashIcon />,
         danger: true,
-        disabled: !canChange || pill.current,
+        disabled: !canChange || pill.current || ctx.protectedBranches.includes(pill.name),
         onSelect: () => ctx.open({ kind: "deleteBranch", branch: pill.name, commitId: commit.id }),
       },
     );
@@ -501,12 +514,13 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
   const remoteNames = pill.local ? pill.remotes.map((remote) => `${remote}/${pill.name}`) : [pill.name];
   remoteNames.forEach((name, i) => {
     const { remote, branch } = splitRemoteBranch(name, snapshot.remotes);
+    const guarded = ctx.protectedBranches.includes(branch);
     items.push({
-      label: `Delete ${branch} from ${remote}…`,
+      label: guarded ? `Delete ${branch} from ${remote} (protected)` : `Delete ${branch} from ${remote}…`,
       icon: <TrashIcon />,
       danger: true,
       separated: i === 0,
-      disabled: !canChange,
+      disabled: !canChange || guarded,
       onSelect: () => ctx.open({ kind: "deleteRemoteBranch", name }),
     });
   });

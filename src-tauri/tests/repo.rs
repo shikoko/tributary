@@ -1886,3 +1886,200 @@ fn prunes_gone_and_merged_branches_and_restores_them() {
         .is_err()
     );
 }
+
+fn restore(repo: &TempRepo, reference: &str) -> Result<String, String> {
+    run(
+        repo,
+        Action::RestoreBackup {
+            reference: reference.into(),
+        },
+    )
+}
+
+fn find_backup(repo: &TempRepo, event: &str) -> actions::Backup {
+    actions::backups(repo.path())
+        .unwrap()
+        .into_iter()
+        .find(|b| b.event == event)
+        .unwrap_or_else(|| panic!("no {event} backup"))
+}
+
+/// Deleting, resetting, rebasing and force-pushing keep a backup of where the branch was
+/// (out of the graph), which can be put back without overwriting anything; deleting says
+/// what would be lost; deleting from the remote can be undone.
+#[test]
+fn keeps_backups_of_changed_branches_and_restores_them() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("backup-remote.git");
+    let mut alice = TempRepo::new("backup-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    let first = alice.commit("a.txt", "First");
+    alice.git(&["push", "--quiet", "-u", "origin", "main"]);
+    alice.git(&["switch", "--quiet", "-c", "feat/x"]);
+    let x = alice.commit("x.txt", "X work");
+    alice.git(&["switch", "--quiet", "main"]);
+
+    // What deleting would lose: feat/x's own commit; nothing for main, which is on origin.
+    let lost = actions::lost_commits(alice.path(), "refs/heads/feat/x").unwrap();
+    assert_eq!(lost.count, 1);
+    assert_eq!(
+        (
+            lost.commits[0].id.as_str(),
+            lost.commits[0].summary.as_str()
+        ),
+        (x.as_str(), "X work")
+    );
+    assert_eq!(
+        actions::lost_commits(alice.path(), "refs/heads/main")
+            .unwrap()
+            .count,
+        0
+    );
+
+    // Deleting keeps a backup, which isn't drawn in the graph and can be restored.
+    run(
+        &alice,
+        Action::DeleteBranch {
+            name: "feat/x".into(),
+            force: true,
+        },
+    )
+    .unwrap();
+    let snapshot = repo::load(alice.path(), 100, false).unwrap();
+    assert!(
+        snapshot.commits.iter().all(|c| c.id != x),
+        "backups stay out of the graph"
+    );
+    let backups = actions::backups(alice.path()).unwrap();
+    assert_eq!(backups.len(), 1);
+    let deleted = &backups[0];
+    assert_eq!(
+        (
+            deleted.event.as_str(),
+            deleted.name.as_str(),
+            deleted.remote,
+            deleted.id.as_str()
+        ),
+        ("deleted", "feat/x", false, x.as_str())
+    );
+    assert_eq!(
+        (deleted.summary.as_str(), deleted.current.as_deref()),
+        ("X work", None)
+    );
+    assert_eq!(
+        restore(&alice, &deleted.reference).unwrap(),
+        "Restored feat/x"
+    );
+    assert_eq!(alice.git(&["rev-parse", "feat/x"]), x);
+    assert_eq!(
+        restore(&alice, &deleted.reference).unwrap(),
+        "feat/x is already there, as it was"
+    );
+
+    // A hard reset keeps the old tip; restoring puts it beside the moved branch.
+    let second = alice.commit("b.txt", "Second");
+    run(&alice, Action::ResetHard { id: first.clone() }).unwrap();
+    let reset = find_backup(&alice, "reset");
+    assert_eq!(
+        (
+            reset.name.as_str(),
+            reset.id.as_str(),
+            reset.current.as_deref()
+        ),
+        ("main", second.as_str(), Some(first.as_str()))
+    );
+    assert_eq!(
+        restore(&alice, &reset.reference).unwrap(),
+        "main has changed since, so its earlier version is now the branch main-restored"
+    );
+    assert_eq!(alice.git(&["rev-parse", "main-restored"]), second);
+
+    // A force push keeps what it replaced on the remote.
+    alice.git(&["push", "--quiet", "origin", "main-restored:main"]);
+    alice.git(&["fetch", "--quiet"]);
+    run(&alice, Action::Push { force: true }).unwrap();
+    assert_eq!(remote.git(&["rev-parse", "main"]), first);
+    let pushed = find_backup(&alice, "forcePushed");
+    assert_eq!(
+        (pushed.name.as_str(), pushed.remote, pushed.id.as_str()),
+        ("origin/main", true, second.as_str())
+    );
+    assert_eq!(
+        restore(&alice, &pushed.reference).unwrap(),
+        "The earlier version of origin/main is now the local branch main-before-force-push"
+    );
+    assert_eq!(alice.git(&["rev-parse", "main-before-force-push"]), second);
+
+    // A rebase keeps the branch's old tip.
+    alice.git(&["switch", "--quiet", "-c", "feat/y"]);
+    let y = alice.commit("y.txt", "Y work");
+    alice.git(&["switch", "--quiet", "main"]);
+    alice.commit("c.txt", "Third");
+    alice.git(&["switch", "--quiet", "feat/y"]);
+    run(
+        &alice,
+        Action::Rebase {
+            onto: "main".into(),
+        },
+    )
+    .unwrap();
+    let rebased = find_backup(&alice, "rebased");
+    assert_eq!(
+        (rebased.name.as_str(), rebased.id.as_str()),
+        ("feat/y", y.as_str())
+    );
+
+    // Deleting from the remote: undo pushes it back, and so does its backup.
+    alice.git(&["push", "--quiet", "origin", "feat/x"]);
+    alice.git(&["fetch", "--quiet"]);
+    assert_eq!(
+        actions::lost_commits(alice.path(), "refs/remotes/origin/feat/x")
+            .unwrap()
+            .count,
+        0,
+        "feat/x is still a local branch"
+    );
+    run(
+        &alice,
+        Action::DeleteRemoteBranch {
+            name: "origin/feat/x".into(),
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        run(
+            &alice,
+            Action::RestoreRemoteBranch {
+                name: "origin/feat/x".into(),
+                id: x.clone()
+            }
+        )
+        .unwrap(),
+        "Pushed feat/x back to origin"
+    );
+    assert_eq!(remote.git(&["rev-parse", "feat/x"]), x);
+    run(
+        &alice,
+        Action::DeleteRemoteBranch {
+            name: "origin/feat/x".into(),
+        },
+    )
+    .unwrap();
+    let from_remote = find_backup(&alice, "deletedFromRemote");
+    assert_eq!(
+        restore(&alice, &from_remote.reference).unwrap(),
+        "Pushed feat/x back to origin"
+    );
+    assert_eq!(remote.git(&["rev-parse", "feat/x"]), x);
+
+    // Backups can be removed.
+    let count = actions::backups(alice.path()).unwrap().len();
+    run(
+        &alice,
+        Action::RemoveBackup {
+            reference: from_remote.reference,
+        },
+    )
+    .unwrap();
+    assert_eq!(actions::backups(alice.path()).unwrap().len(), count - 1);
+}

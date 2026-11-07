@@ -70,6 +70,7 @@ import {
   EyeOffIcon,
   FetchIcon,
   FolderIcon,
+  HistoryIcon,
   KeyboardIcon,
   MergeIcon,
   NewRepoIcon,
@@ -95,6 +96,9 @@ import { NewBranchDialog } from "./components/NewBranchDialog";
 import { OperationBar } from "./components/OperationBar";
 import { ProgressStrip } from "./components/ProgressStrip";
 import { PruneDialog } from "./components/PruneDialog";
+import { RestoreDialog } from "./components/RestoreDialog";
+import { DEFAULT_PROTECTED, ProtectedActionDialog } from "./components/Safety";
+import { DeleteBranchDialog, DeleteRemoteBranchDialog } from "./components/DeleteBranchDialogs";
 import { RenameBranchDialog } from "./components/RenameBranchDialog";
 import { ResetDialog } from "./components/ResetDialog";
 import { ResizeHandle } from "./components/ResizeHandle";
@@ -233,6 +237,19 @@ export default function App() {
   // Remembered for each repository.
   const [visibility, setVisibility] = useRepoSetting<Visibility>("visibility", snapshot?.path ?? null, NO_VISIBILITY);
   const [pins, setPins] = useRepoSetting<string[]>("pins", snapshot?.path ?? null, []);
+  // Protected branches can't be deleted, and rewriting them (rebase, hard reset, force push)
+  // needs their name typed first.
+  const [protectedBranches, setProtectedBranches] = useRepoSetting<string[]>(
+    "protectedBranches",
+    snapshot?.path ?? null,
+    DEFAULT_PROTECTED,
+  );
+  const toggleProtected = (name: string) =>
+    setProtectedBranches(
+      protectedBranches.includes(name) ? protectedBranches.filter((other) => other !== name) : [...protectedBranches, name],
+    );
+  /** The checked-out branch, if it's protected. */
+  const protectedHead = snapshot?.headBranch && protectedBranches.includes(snapshot.headBranch) ? snapshot.headBranch : null;
   // "3 branches gone from origin · Clean up", until they're pruned or the hint is
   // dismissed (for those branches: it comes back when another one goes).
   const [pruneHintDismissed, setPruneHintDismissed] = useRepoSetting<string>("pruneHintDismissed", snapshot?.path ?? null, "");
@@ -485,8 +502,13 @@ export default function App() {
 
   /** Run a git action, reload, then show what happened. Resolves to true when it worked. */
   const act = useCallback(
-    async (action: Action, kind: Running = "other", options: { quiet?: boolean } = {}): Promise<boolean> => {
+    async (action: Action, kind: Running = "other", options: { quiet?: boolean; confirmed?: boolean } = {}): Promise<boolean> => {
       if (!snapshot) return false;
+      // Rewriting the protected, checked-out branch: type its name first.
+      if (!options.confirmed && protectedHead && (action.kind === "rebase" || action.kind === "interactiveRebase")) {
+        setDialog({ kind: "protectedAction", action, branch: protectedHead });
+        return false;
+      }
       const before = snapshot;
       setRunning(kind);
       setError(null);
@@ -538,19 +560,19 @@ export default function App() {
         setToast({ text: message ?? "Pushed", action: { label: "Create pull request", onClick: () => openInBrowser(url) } });
       } else if (!options.quiet && message) {
         const undo = undoFor(action, before);
-        setToast({ text: message, action: undo ? { label: "Undo", onClick: () => act(undo) } : undefined });
+        setToast({ text: message, action: undo ? { label: "Undo", onClick: () => act(undo, "other", { confirmed: true }) } : undefined });
       }
       return true;
     },
     // undoFor only reads its arguments.
-    [snapshot, load],
+    [snapshot, load, protectedHead],
   );
 
   /** A dialog finished its action: reload and show what happened, with an optional undo. */
   const finishDialog = useCallback(
     (message: string, undo?: Action) => {
       setDialog(null);
-      setToast({ text: message, action: undo ? { label: "Undo", onClick: () => act(undo) } : undefined });
+      setToast({ text: message, action: undo ? { label: "Undo", onClick: () => act(undo, "other", { confirmed: true }) } : undefined });
       refresh();
     },
     [refresh, act],
@@ -1012,6 +1034,7 @@ export default function App() {
           { id: "new-branch", label: "New Branch…", icon: <BranchIcon />, enabled: Boolean(head) && canChange, run: () => head && setDialog({ kind: "newBranch", target: head }) },
           { id: "new-tag", label: "New Tag…", icon: <TagIcon />, enabled: Boolean(head) && canChange, run: () => head && setDialog({ kind: "tag", target: head }) },
           { id: "prune", label: "Prune Branches…", icon: <BroomIcon />, enabled: canChange, run: () => setDialog({ kind: "prune" }) },
+          { id: "restore", label: "Restore Branch…", icon: <HistoryIcon />, enabled: canChange, run: () => setDialog({ kind: "restore" }) },
           "-",
           ...(remote
             ? [
@@ -1190,6 +1213,8 @@ export default function App() {
     solo,
     pins,
     togglePin,
+    protectedBranches,
+    toggleProtected,
     rewritable,
     openUrl: openInBrowser,
   };
@@ -1499,6 +1524,7 @@ export default function App() {
               }}
               onShowAll={showAllBranches}
               onPrune={canChange ? () => setDialog({ kind: "prune" }) : null}
+              protectedBranches={protectedBranches}
             />
             <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
           </>
@@ -1613,6 +1639,7 @@ export default function App() {
         <ResetDialog
           snapshot={snapshot}
           target={dialog.target}
+          protectedName={dialog.target.id === snapshot.headCommit ? null : protectedHead}
           onCancel={() => setDialog(null)}
           onDone={(message) => {
             const before = snapshot.headCommit;
@@ -1657,6 +1684,7 @@ export default function App() {
           repoPath={snapshot.path}
           fetchFirst={snapshot.remotes.length > 0}
           pinned={pins}
+          protectedNames={protectedBranches}
           onCancel={() => setDialog(null)}
           onDelete={(branches) => {
             setDialog(null);
@@ -1664,8 +1692,36 @@ export default function App() {
           }}
         />
       )}
+      {dialog?.kind === "restore" && (
+        <RestoreDialog
+          repoPath={snapshot.path}
+          onCancel={() => setDialog(null)}
+          onRestore={(backup) => {
+            setDialog(null);
+            act({ kind: "restoreBackup", reference: backup.reference }, "other", { quiet: false });
+          }}
+        />
+      )}
+      {dialog?.kind === "protectedAction" && (
+        <ProtectedActionDialog
+          branch={dialog.branch}
+          title={`Rewrite ${dialog.branch}?`}
+          explanation={`${dialog.action.kind === "interactiveRebase" ? "This interactive rebase" : "Rebasing"} rewrites ${dialog.branch}'s history: its commits get new ids, so anyone who already has them will have to reconcile. Tributary keeps a backup of where it was.`}
+          confirmLabel={dialog.action.kind === "interactiveRebase" ? "Start rebase" : `Rebase ${dialog.branch}`}
+          onCancel={() => setDialog(null)}
+          onConfirm={() => {
+            setDialog(null);
+            act(dialog.action, "other", { confirmed: true });
+          }}
+        />
+      )}
       {dialog?.kind === "forcePush" && (
-        <ForcePushDialog snapshot={snapshot} onCancel={() => setDialog(null)} onDone={(message) => finishDialog(message)} />
+        <ForcePushDialog
+          snapshot={snapshot}
+          protectedName={protectedHead}
+          onCancel={() => setDialog(null)}
+          onDone={(message) => finishDialog(message)}
+        />
       )}
       {dialog?.kind === "stash" && snapshot.worktree && (
         <StashDialog
@@ -1686,41 +1742,41 @@ export default function App() {
         />
       )}
       {dialog?.kind === "deleteBranch" && (
-        <ConfirmDialog
+        <DeleteBranchDialog
           repoPath={snapshot.path}
-          title={`Delete ${dialog.branch}?`}
-          confirmLabel="Delete branch"
-          busyLabel="Deleting…"
-          danger
-          action={{ kind: "deleteBranch", name: dialog.branch, force: false }}
+          branch={dialog.branch}
           retryFor={deleteAnyway(dialog.branch)}
           onCancel={() => setDialog(null)}
-          onDone={(message) =>
-            finishDialog(message, { kind: "createBranch", name: dialog.branch, id: dialog.commitId, checkout: false })
-          }
-        >
-          <p>
-            The branch label goes away. If its commits aren't on any other branch, git will ask you to confirm
-            again.
-          </p>
-        </ConfirmDialog>
+          onDone={(message) => {
+            // Undo puts it back as it was, tracking the same remote branch.
+            const label = byId.get(dialog.commitId)?.refs.find((ref) => ref.kind === "branch" && ref.name === dialog.branch);
+            const upstream = label?.upstream ? splitRemoteBranch(label.upstream, snapshot.remotes) : null;
+            finishDialog(message, {
+              kind: "restoreBranches",
+              branches: [
+                {
+                  name: dialog.branch,
+                  id: dialog.commitId,
+                  remote: upstream?.remote ?? null,
+                  merge: upstream ? `refs/heads/${upstream.branch}` : null,
+                },
+              ],
+            });
+          }}
+        />
       )}
       {dialog?.kind === "deleteRemoteBranch" && (
-        <ConfirmDialog
+        <DeleteRemoteBranchDialog
           repoPath={snapshot.path}
-          title={`Delete ${splitRemoteBranch(dialog.name, snapshot.remotes).branch} from ${splitRemoteBranch(dialog.name, snapshot.remotes).remote}?`}
-          confirmLabel="Delete from remote"
-          busyLabel="Deleting…"
-          danger
-          action={{ kind: "deleteRemoteBranch", name: dialog.name }}
+          name={dialog.name}
+          remote={splitRemoteBranch(dialog.name, snapshot.remotes).remote}
+          branch={splitRemoteBranch(dialog.name, snapshot.remotes).branch}
           onCancel={() => setDialog(null)}
-          onDone={(message) => finishDialog(message)}
-        >
-          <p>
-            <strong>{dialog.name}</strong> will be removed from the remote, for everyone who uses it. Local branches
-            are kept.
-          </p>
-        </ConfirmDialog>
+          onDone={(message) => {
+            const commit = snapshot.commits.find((c) => c.refs.some((ref) => ref.kind === "remote" && ref.name === dialog.name));
+            finishDialog(message, commit ? { kind: "restoreRemoteBranch", name: dialog.name, id: commit.id } : undefined);
+          }}
+        />
       )}
       {dialog?.kind === "deleteTag" && (
         <ConfirmDialog

@@ -228,6 +228,10 @@ export type Action =
   /** Prune: delete these branches, each only if it still points at `id`. */
   | { kind: "deleteBranches"; branches: BranchTip[] }
   | { kind: "restoreBranches"; branches: BranchTip[] }
+  /** Push a deleted remote branch (like "origin/feat/x") back, at `id`. */
+  | { kind: "restoreRemoteBranch"; name: string; id: string }
+  | { kind: "restoreBackup"; reference: string }
+  | { kind: "removeBackup"; reference: string }
   | { kind: "renameBranch"; name: string; newName: string }
   | { kind: "merge"; target: string }
   | { kind: "rebase"; onto: string }
@@ -348,6 +352,47 @@ export interface PruneInfo {
   /** What "merged" means: merged into this, like "origin/main". */
   base: string | null;
   candidates: PruneCandidate[];
+}
+
+/** What happened to a branch that Tributary kept a backup of. */
+export type BackupEvent = "deleted" | "deletedFromRemote" | "forcePushed" | "reset" | "rebased";
+
+/** Where a branch was before Tributary deleted, reset, rebased or force-pushed it. */
+export interface Backup {
+  reference: string;
+  event: BackupEvent;
+  /** "feat/x", or "origin/feat/x" for a remote branch. */
+  name: string;
+  remote: boolean;
+  id: string;
+  summary: string;
+  /** When the backup was made (seconds). */
+  time: number;
+  /** Where the branch points now, or null if it's gone. */
+  current: string | null;
+}
+
+/** Backups from the last 30 days, newest first. */
+export function branchBackups(path: string): Promise<Backup[]> {
+  return invoke<Backup[]>("branch_backups", { path });
+}
+
+export interface CommitBrief {
+  id: string;
+  summary: string;
+  time: number;
+}
+
+/** Commits on a branch that are on no other branch, remote branch or tag. */
+export interface LostCommits {
+  count: number;
+  /** The newest few. */
+  commits: CommitBrief[];
+}
+
+/** What deleting `reference` ("refs/heads/…" or "refs/remotes/…") would lose. */
+export function lostCommits(path: string, reference: string): Promise<LostCommits> {
+  return invoke<LostCommits>("lost_commits", { path, reference });
 }
 
 /** Local branches that could be pruned: gone from the remote, or merged. Changes nothing. */

@@ -88,6 +88,12 @@ pub enum Action {
     DeleteBranches { branches: Vec<BranchTip> },
     /// Put back deleted branches, with the upstream they had (undoing a prune).
     RestoreBranches { branches: Vec<BranchTip> },
+    /// Push a deleted remote branch like `origin/feature` back, at commit `id` (undo).
+    RestoreRemoteBranch { name: String, id: String },
+    /// Put back what a backup kept (see [`backups`]).
+    RestoreBackup { reference: String },
+    /// Forget a backup.
+    RemoveBackup { reference: String },
     /// Rename a local branch.
     RenameBranch {
         name: String,
@@ -147,6 +153,44 @@ pub struct BranchTip {
     pub remote: Option<String>,
     #[serde(default)]
     pub merge: Option<String>,
+}
+
+/// Where a branch was before Tributary deleted, reset, rebased or force-pushed it, kept
+/// for [`BACKUP_DAYS`] days so it can be put back.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Backup {
+    /// The backup's own ref, under `refs/tributary/backups/`.
+    pub reference: String,
+    /// "deleted", "deletedFromRemote", "forcePushed", "reset" or "rebased".
+    pub event: String,
+    /// The branch, like `feat/x`, or `origin/feat/x` for a remote one.
+    pub name: String,
+    pub remote: bool,
+    /// The commit it pointed to, its summary, and when the backup was made.
+    pub id: String,
+    pub summary: String,
+    pub time: i64,
+    /// Where the branch points now, if it still exists.
+    pub current: Option<String>,
+}
+
+/// Commits that would be lost with a branch: on it, and on no other branch, remote
+/// branch or tag.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LostCommits {
+    pub count: u32,
+    /// The newest few.
+    pub commits: Vec<CommitBrief>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitBrief {
+    pub id: String,
+    pub summary: String,
+    pub time: i64,
 }
 
 /// A local branch that could be pruned: its remote branch is gone, or it's merged.
@@ -254,12 +298,14 @@ pub fn on_activity(listener: impl Fn(&LogEntry) + Send + Sync + 'static) {
 }
 
 /// Read-only helpers that would only clutter the log.
-const UNLOGGED: [&str; 5] = [
+/// Reading commands, and Tributary's own backups (see [`back_up`]), stay out of the log.
+const UNLOGGED: [&str; 6] = [
     "rev-parse",
     "rev-list",
     "check-ref-format",
     "merge-base",
     "for-each-ref",
+    "update-ref",
 ];
 
 fn record(
@@ -444,7 +490,12 @@ fn perform(
         Action::ResetHard { id } => {
             let id = commit_id(&repo, &id)?;
             let branch = current_branch(&repo).unwrap_or_else(|_| "HEAD".into());
+            let full_name = format!("refs/heads/{branch}");
+            let before = ref_id(&repo, &full_name);
             git.run(&["reset", "--hard", "--quiet", &id.to_string()])?;
+            if let Some(before) = before.filter(|before| *before != id) {
+                back_up(&repo, &git, &full_name, "reset", before);
+            }
             Ok(format!("Reset {branch} to {}", id.to_hex_with_len(7)))
         }
         Action::CheckoutBranch { name } => {
@@ -525,8 +576,14 @@ fn perform(
             if force {
                 args.push("--force-with-lease".into());
             }
+            // What a force push replaces on the remote, to keep a backup of.
+            let mut replaced = None;
             let remote = match push_target(&repo, &branch) {
                 Some((remote, remote_branch)) => {
+                    if force && let Some(leaf) = remote_branch.strip_prefix("refs/heads/") {
+                        let tracking = format!("refs/remotes/{remote}/{leaf}");
+                        replaced = ref_id(&repo, &tracking).map(|id| (tracking, id));
+                    }
                     args.extend([remote.clone(), format!("HEAD:{remote_branch}")]);
                     remote
                 }
@@ -538,6 +595,11 @@ fn perform(
             };
             let args: Vec<&str> = args.iter().map(String::as_str).collect();
             let output = git.run_progress(&args, on_progress)?;
+            if let Some((tracking, id)) = replaced
+                && ref_id(&repo, "HEAD") != Some(id)
+            {
+                back_up(&repo, &git, &tracking, "forcePushed", id);
+            }
             *pull_request = links::pull_request_url(&output.messages);
             Ok(format!(
                 "{} {branch} to {remote}",
@@ -684,7 +746,12 @@ fn perform(
                     "{name} is checked out. Check out another branch first."
                 ));
             }
+            let full_name = format!("refs/heads/{name}");
+            let before = ref_id(&repo, &full_name);
             git.run(&["branch", if force { "-D" } else { "-d" }, &name])?;
+            if let Some(id) = before {
+                back_up(&repo, &git, &full_name, "deleted", id);
+            }
             Ok(format!("Deleted branch {name}"))
         }
         Action::DeleteBranches { branches } => {
@@ -708,7 +775,11 @@ fn perform(
                     }
                     // The commits were checked against the base branch (which may be a
                     // remote one, where `-d` only knows about the checked-out branch).
-                    git.run(&["branch", "-D", &tip.name]).map(|_| ())
+                    git.run(&["branch", "-D", &tip.name])?;
+                    if let Ok(id) = ObjectId::from_hex(tip.id.as_bytes()) {
+                        back_up(&repo, &git, &full_name, "deleted", id);
+                    }
+                    Ok(())
                 })();
                 match result {
                     Ok(()) => deleted.push(tip.name.clone()),
@@ -787,7 +858,12 @@ fn perform(
             if !is_remote || branch.starts_with('-') {
                 return Err(format!("{name} isn't a remote branch."));
             }
+            let full_name = format!("refs/remotes/{name}");
+            let before = ref_id(&repo, &full_name);
             git.run(&["push", "--quiet", remote, "--delete", branch])?;
+            if let Some(id) = before {
+                back_up(&repo, &git, &full_name, "deletedFromRemote", id);
+            }
             Ok(format!("Deleted {branch} from {remote}"))
         }
         Action::RenameBranch { name, new_name } => {
@@ -806,7 +882,10 @@ fn perform(
         Action::Rebase { onto } => {
             let branch = current_branch(&repo)?;
             let onto = revision_name(&repo, &onto)?;
-            git.run(&["rebase", &onto])?;
+            let before = ref_id(&repo, &format!("refs/heads/{branch}"));
+            let result = git.run(&["rebase", &onto]);
+            back_up_rewrite(&repo, &git, &branch, before);
+            result?;
             Ok(format!("Rebased {branch} onto {}", short(&onto)))
         }
         Action::CherryPick { id } => {
@@ -882,7 +961,34 @@ fn perform(
             git.run(&args.iter().map(String::as_str).collect::<Vec<_>>())?;
             Ok(format!("Reverted {}", count(ids.len(), "commit")))
         }
-        Action::InteractiveRebase { onto, steps } => interactive_rebase(&repo, &git, &onto, &steps),
+        Action::InteractiveRebase { onto, steps } => {
+            let branch = current_branch(&repo).ok();
+            let before = branch
+                .as_ref()
+                .and_then(|branch| ref_id(&repo, &format!("refs/heads/{branch}")));
+            let result = interactive_rebase(&repo, &git, &onto, &steps);
+            if let Some(branch) = branch {
+                back_up_rewrite(&repo, &git, &branch, before);
+            }
+            result
+        }
+        Action::RestoreRemoteBranch { name, id } => {
+            let (remote, branch) = split_remote_branch(&repo, &name)?;
+            let id = commit_id(&repo, &id)?;
+            if ref_id(&repo, &format!("refs/remotes/{name}")).is_some() {
+                return Err(format!("{name} exists again, so it wasn't pushed back."));
+            }
+            let refspec = format!("{id}:refs/heads/{branch}");
+            git.run_progress(&["push", "--progress", &remote, &refspec], on_progress)?;
+            Ok(format!("Pushed {branch} back to {remote}"))
+        }
+        Action::RestoreBackup { reference } => restore_backup(&repo, &git, &reference, on_progress),
+        Action::RemoveBackup { reference } => {
+            let (_, _, _, name) =
+                parse_backup(&reference).ok_or_else(|| format!("{reference} isn't a backup."))?;
+            git.run(&["update-ref", "-d", &reference])?;
+            Ok(format!("Removed the backup of {name}"))
+        }
         Action::CreateTag { name, id, message } => {
             let name = name.trim().to_owned();
             check_new_tag_name(&repo, &git, &name)?;
@@ -943,6 +1049,272 @@ fn perform(
 }
 
 /// Create a repository in an existing folder.
+/// Where backups of branches are kept.
+const BACKUPS: &str = "refs/tributary/backups/";
+/// How long a backup is kept.
+pub const BACKUP_DAYS: i64 = 30;
+
+/// The commit a ref points at now, if it exists.
+fn ref_id(repo: &gix::Repository, full_name: &str) -> Option<ObjectId> {
+    repo.try_find_reference(full_name)
+        .ok()
+        .flatten()
+        .and_then(|mut reference| reference.peel_to_id().ok())
+        .map(|id| id.detach())
+}
+
+fn now_millis() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+/// Keep `id`, where `full_name` (`refs/heads/…` or `refs/remotes/…`) pointed before
+/// `event`, as `refs/tributary/backups/<when>/<event>/<heads|remotes>/<name>`. That also
+/// keeps its commits from garbage collection. Old backups are dropped. Never fails the
+/// action it's part of.
+fn back_up(repo: &gix::Repository, git: &Git, full_name: &str, event: &str, id: ObjectId) {
+    let Some(rest) = full_name.strip_prefix("refs/") else {
+        return;
+    };
+    let backup = format!("{BACKUPS}{}/{event}/{rest}", now_millis());
+    let _ = git.run(&["update-ref", &backup, &id.to_string()]);
+    let cutoff = now_millis() - BACKUP_DAYS * 24 * 3600 * 1000;
+    for (reference, (millis, ..)) in backup_refs(repo) {
+        if millis < cutoff {
+            let _ = git.run(&["update-ref", "-d", &reference]);
+        }
+    }
+}
+
+/// After a rebase: if the branch moved, or the rebase stopped part way (the branch only
+/// moves at the end), keep where it was.
+fn back_up_rewrite(repo: &gix::Repository, git: &Git, branch: &str, before: Option<ObjectId>) {
+    let Some(before) = before else {
+        return;
+    };
+    let full_name = format!("refs/heads/{branch}");
+    let stopped = gix::open(repo.git_dir())
+        .ok()
+        .and_then(|fresh| fresh.state())
+        .is_some();
+    if stopped || ref_id(repo, &full_name) != Some(before) {
+        back_up(repo, git, &full_name, "rebased", before);
+    }
+}
+
+/// `refs/tributary/backups/<millis>/<event>/<heads|remotes>/<name>` → its parts.
+fn parse_backup(reference: &str) -> Option<(i64, String, bool, String)> {
+    let rest = reference.strip_prefix(BACKUPS)?;
+    let (millis, rest) = rest.split_once('/')?;
+    let (event, rest) = rest.split_once('/')?;
+    let (remote, name) = match rest.split_once('/')? {
+        ("heads", name) => (false, name),
+        ("remotes", name) => (true, name),
+        _ => return None,
+    };
+    Some((
+        millis.parse().ok()?,
+        event.to_owned(),
+        remote,
+        name.to_owned(),
+    ))
+}
+
+type BackupParts = (i64, String, bool, String);
+
+/// Every backup ref, with its parts.
+fn backup_refs(repo: &gix::Repository) -> Vec<(String, BackupParts)> {
+    let Ok(platform) = repo.references() else {
+        return Vec::new();
+    };
+    let Ok(all) = platform.all() else {
+        return Vec::new();
+    };
+    all.flatten()
+        .filter_map(|reference| {
+            let name = reference.name().as_bstr().to_str_lossy().into_owned();
+            let parts = parse_backup(&name)?;
+            Some((name, parts))
+        })
+        .collect()
+}
+
+fn summary_of(repo: &gix::Repository, id: ObjectId) -> (String, i64) {
+    repo.find_commit(id)
+        .ok()
+        .map(|commit| {
+            let summary = commit
+                .message()
+                .map(|m| m.summary().to_str_lossy().into_owned())
+                .unwrap_or_default();
+            (summary, commit.time().map(|t| t.seconds).unwrap_or(0))
+        })
+        .unwrap_or_default()
+}
+
+/// The backups kept in the last [`BACKUP_DAYS`] days, newest first.
+pub fn backups(path: &Path) -> Result<Vec<Backup>, Error> {
+    let repo = gix::discover(path)
+        .map_err(|e| format!("{} is not a git repository ({e})", path.display()))?;
+    let cutoff = now_millis() - BACKUP_DAYS * 24 * 3600 * 1000;
+    let mut list: Vec<Backup> = backup_refs(&repo)
+        .into_iter()
+        .filter(|(_, (millis, ..))| *millis >= cutoff)
+        .filter_map(|(reference, (millis, event, remote, name))| {
+            let id = ref_id(&repo, &reference)?;
+            let kind = if remote { "remotes" } else { "heads" };
+            let current = ref_id(&repo, &format!("refs/{kind}/{name}")).map(|id| id.to_string());
+            Some(Backup {
+                reference,
+                event,
+                name,
+                remote,
+                id: id.to_string(),
+                summary: summary_of(&repo, id).0,
+                time: millis / 1000,
+                current,
+            })
+        })
+        .collect();
+    list.sort_by(|a, b| b.time.cmp(&a.time).then_with(|| a.name.cmp(&b.name)));
+    Ok(list)
+}
+
+/// `base`, or `base-2`, `base-3`… if that branch exists.
+fn free_branch_name(repo: &gix::Repository, base: &str) -> String {
+    let taken = |name: &str| ref_id(repo, &format!("refs/heads/{name}")).is_some();
+    if !taken(base) {
+        return base.to_owned();
+    }
+    (2..)
+        .map(|n| format!("{base}-{n}"))
+        .find(|name| !taken(name))
+        .unwrap_or_default()
+}
+
+/// `origin/feat/x` → (`origin`, `feat/x`), for a remote that exists.
+fn split_remote_branch(repo: &gix::Repository, name: &str) -> Result<(String, String), Error> {
+    repo.remote_names()
+        .iter()
+        .map(|remote| remote.to_str_lossy().into_owned())
+        .filter_map(|remote| {
+            let branch = name.strip_prefix(&format!("{remote}/"))?.to_owned();
+            Some((remote, branch))
+        })
+        .max_by_key(|(remote, _)| remote.len())
+        .filter(|(remote, branch)| !remote.starts_with('-') && !branch.is_empty())
+        .ok_or_else(|| format!("{name} isn't a branch of a remote here."))
+}
+
+/// Put back what a backup kept. Never overwrites anything: when the branch has changed
+/// since, the earlier version becomes a new branch beside it.
+fn restore_backup(
+    repo: &gix::Repository,
+    git: &Git,
+    reference: &str,
+    on_progress: &dyn Fn(Progress),
+) -> Result<String, Error> {
+    let (_, event, remote, name) =
+        parse_backup(reference).ok_or_else(|| format!("{reference} isn't a backup."))?;
+    let id = ref_id(repo, reference).ok_or("That backup is gone.")?;
+    let new_branch = |base: &str| -> Result<String, Error> {
+        let branch = free_branch_name(repo, base);
+        check_new_branch_name(repo, git, &branch)?;
+        git.run(&["branch", &branch, &id.to_string()])?;
+        Ok(branch)
+    };
+    if !remote {
+        return match ref_id(repo, &format!("refs/heads/{name}")) {
+            None => {
+                check_new_branch_name(repo, git, &name)?;
+                git.run(&["branch", &name, &id.to_string()])?;
+                Ok(format!("Restored {name}"))
+            }
+            Some(current) if current == id => Ok(format!("{name} is already there, as it was")),
+            Some(_) => {
+                let branch = new_branch(&format!("{name}-restored"))?;
+                Ok(format!(
+                    "{name} has changed since, so its earlier version is now the branch {branch}"
+                ))
+            }
+        };
+    }
+    let (remote_name, branch) = split_remote_branch(repo, &name)?;
+    if event == "deletedFromRemote" && ref_id(repo, &format!("refs/remotes/{name}")).is_none() {
+        let refspec = format!("{id}:refs/heads/{branch}");
+        git.run_progress(&["push", "--progress", &remote_name, &refspec], on_progress)?;
+        return Ok(format!("Pushed {branch} back to {remote_name}"));
+    }
+    let suffix = if event == "forcePushed" {
+        "before-force-push"
+    } else {
+        "restored"
+    };
+    let local = new_branch(&format!("{branch}-{suffix}"))?;
+    Ok(format!(
+        "The earlier version of {name} is now the local branch {local}"
+    ))
+}
+
+/// Commits that deleting `reference` (`refs/heads/…` or `refs/remotes/…`) would lose: on it,
+/// and on no other branch, remote branch or tag.
+pub fn lost_commits(path: &Path, reference: &str) -> Result<LostCommits, Error> {
+    let repo = gix::discover(path)
+        .map_err(|e| format!("{} is not a git repository ({e})", path.display()))?;
+    let workdir = repo.workdir().unwrap_or(repo.git_dir()).to_owned();
+    let git = Git::find(workdir)?;
+    ref_id(&repo, reference).ok_or_else(|| format!("There is no {reference}."))?;
+    // `--exclude` takes a pattern: match the name exactly.
+    let exact = |name: &str| -> String {
+        name.chars()
+            .flat_map(|c| match c {
+                '*' | '?' | '[' | '\\' => vec!['\\', c],
+                _ => vec![c],
+            })
+            .collect()
+    };
+    let others: Vec<String> = if let Some(name) = reference.strip_prefix("refs/heads/") {
+        vec![
+            format!("--exclude={}", exact(name)),
+            "--branches".into(),
+            "--remotes".into(),
+            "--tags".into(),
+        ]
+    } else if let Some(name) = reference.strip_prefix("refs/remotes/") {
+        vec![
+            "--branches".into(),
+            format!("--exclude={}", exact(name)),
+            "--remotes".into(),
+            "--tags".into(),
+        ]
+    } else {
+        return Err(format!("{reference} isn't a branch."));
+    };
+    let mut range = vec![reference, "--not"];
+    range.extend(others.iter().map(String::as_str));
+    let count = git
+        .run(&[&["rev-list", "--count"][..], &range].concat())?
+        .trim()
+        .parse()
+        .unwrap_or(0);
+    let commits = git
+        .run(&[&["rev-list", "--max-count=5"][..], &range].concat())?
+        .lines()
+        .filter_map(|line| {
+            let id = ObjectId::from_hex(line.trim().as_bytes()).ok()?;
+            let (summary, time) = summary_of(&repo, id);
+            Some(CommitBrief {
+                id: id.to_string(),
+                summary,
+                time,
+            })
+        })
+        .collect();
+    Ok(LostCommits { count, commits })
+}
+
 /// Local branches that could be pruned: those whose remote branch was deleted, and those
 /// merged into the main branch. Never the checked-out branch, one checked out in another
 /// worktree, or long-lived ones like main. Reads only; nothing is changed.

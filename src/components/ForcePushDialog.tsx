@@ -1,15 +1,20 @@
 import { useState } from "react";
 import { runAction, type RepoSnapshot } from "../api";
 import { Dialog } from "./Dialog";
+import { TypeToConfirm } from "./Safety";
 
 interface Props {
   snapshot: RepoSnapshot;
+  /** The checked-out branch, when it's protected: its name must be typed to go ahead. */
+  protectedName?: string | null;
   onCancel: () => void;
   onDone: (message: string) => void;
 }
 
 /** Asks for confirmation before `git push --force-with-lease`. */
-export function ForcePushDialog({ snapshot, onCancel, onDone }: Props) {
+export function ForcePushDialog({ snapshot, protectedName, onCancel, onDone }: Props) {
+  const [typed, setTyped] = useState("");
+  const confirmed = !protectedName || typed.trim() === protectedName;
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const branch = snapshot.headBranch ?? "HEAD";
@@ -34,10 +39,10 @@ export function ForcePushDialog({ snapshot, onCancel, onDone }: Props) {
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running} autoFocus>
+          <button className="secondary-button" onClick={onCancel} disabled={running} autoFocus={!protectedName}>
             Cancel
           </button>
-          <button className="danger-button" onClick={push} disabled={running}>
+          <button className="danger-button" onClick={push} disabled={running || !confirmed}>
             {running ? "Force pushing…" : "Force push"}
           </button>
         </>
@@ -53,6 +58,7 @@ export function ForcePushDialog({ snapshot, onCancel, onDone }: Props) {
           since you last fetched.
         </li>
       </ul>
+      {protectedName && <TypeToConfirm name={protectedName} value={typed} onChange={setTyped} />}
     </Dialog>
   );
 }
