@@ -1,5 +1,6 @@
 pub mod actions;
 pub mod graph;
+pub mod lfs;
 pub mod links;
 pub mod repo;
 

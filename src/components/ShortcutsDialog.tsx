@@ -5,7 +5,7 @@ const SHORTCUTS: [string, string][] = [
   [`${modKey}K`, "Command palette"],
   [`${modKey}F`, "Search commits (Enter / Shift+Enter: next / previous match)"],
   [`${modKey}O`, "Open a repository"],
-  [`${modKey}T`, "Open a repository in a new tab"],
+  [`${modKey}T`, "New tab: open, clone or create a repository, or pick a recent one"],
   [`${modKey}W`, "Close the tab"],
   [`${modKey}1 … ${modKey}9`, "Switch to a tab"],
   [`${modKey}R or F5`, "Refresh"],

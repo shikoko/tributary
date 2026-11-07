@@ -64,8 +64,9 @@ interface PillProps {
 
 function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }: PillProps) {
   const revision = revisionOf(pill);
-  const style = pill.current
-    ? { background: color, borderColor: color, color: "#0d0f13" }
+  const style: React.CSSProperties = pill.current
+    ? // --pill-glow: the glow it gets in the commit list.
+      ({ background: color, borderColor: color, color: "#0d0f13", "--pill-glow": withAlpha(color, 0.5) } as React.CSSProperties)
     : pill.kind === "tag" || pill.kind === "stash"
       ? { background: withAlpha(color, 0.08), borderColor: withAlpha(color, 0.45) }
       : // Branches other than the checked-out one: a tint, no outline.

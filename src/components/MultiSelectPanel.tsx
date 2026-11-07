@@ -33,18 +33,20 @@ export function MultiSelectPanel({ commits, branch, canChange, onCherryPick, onR
         <div className="details-actions">
           <button className="outline-button" onClick={onCherryPick} disabled={disabled}>
             <CherryIcon size={14} />
-            Cherry-pick {commits.length} onto {branch ?? "HEAD"}
+            <span className="button-label">
+              Cherry-pick {commits.length} onto {branch ?? "HEAD"}
+            </span>
           </button>
           <button className="outline-button" onClick={onRevert} disabled={disabled}>
             <RevertIcon size={14} />
-            Revert {commits.length}
+            <span className="button-label">Revert {commits.length}</span>
           </button>
           <button
             className="outline-button"
             onClick={() => copyText(commits.map((commit) => commit.id).join("\n"))}
           >
             <CopyIcon size={14} />
-            Copy SHAs
+            <span className="button-label">Copy SHAs</span>
           </button>
         </div>
         {blocked && <p className="hint">{blocked}</p>}

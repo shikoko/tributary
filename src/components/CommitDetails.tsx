@@ -150,7 +150,7 @@ export function CommitDetailsPanel(props: Props) {
                 onClick={action.onClick}
               >
                 {action.icon}
-                {action.label}
+                <span className="button-label">{action.label}</span>
               </button>
             ))}
           </div>

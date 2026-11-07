@@ -279,6 +279,8 @@ export interface Progress {
   /** Like "Receiving objects". */
   phase: string;
   percent: number | null;
+  /** More about it, like "2 of 5 files · 56 MB of 80 MB · 12 MB/s". */
+  detail?: string;
 }
 
 /** Stop the fetch, pull, push or clone that is running. */

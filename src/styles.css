@@ -659,6 +659,26 @@ button:disabled {
   max-width: none;
 }
 
+/* The checked-out branch glows; the other labels stay in the background until their row is
+   hovered or selected. The labels shrink to fit, so only the glow reaches past the cell. */
+.refs-cell {
+  overflow: visible;
+}
+
+.refs-cell .ref-pill.current {
+  box-shadow: 0 3px 12px var(--pill-glow);
+}
+
+.refs-cell .ref-pill:not(.current) {
+  opacity: 0.5;
+  transition: opacity 120ms;
+}
+
+.commit-row:hover .refs-cell .ref-pill,
+.commit-row.selected .refs-cell .ref-pill {
+  opacity: 1;
+}
+
 /* Faint by default; full strength on the hovered or selected row. */
 .ref-connector {
   position: absolute;
@@ -1291,6 +1311,12 @@ button:disabled {
   background: rgba(255, 92, 108, 0.1);
 }
 
+/* A button's text, trimmed to its capital letters, so an icon next to it lines up with the
+   letters rather than with the font's line box (which differs from font to font). */
+.button-label {
+  text-box: trim-both cap alphabetic;
+}
+
 /* Dialog forms */
 
 .dialog-form {
@@ -1882,9 +1908,11 @@ body.resizing * {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  align-self: center;
+  /* Level with the tabs, which sit on the bar's bottom edge: centred on their middle. */
+  align-self: flex-end;
   width: 26px;
   height: 26px;
+  margin-bottom: 2px;
   margin-left: 4px;
   padding: 0;
   border: none;
@@ -1927,11 +1955,19 @@ body.resizing * {
 }
 
 .progress-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.progress-detail {
+  color: var(--text-muted);
 }
 
 .progress-track {
   flex: 1;
+  min-width: 120px;
   height: 4px;
   border-radius: 2px;
   background: var(--bg-raised);

@@ -17,7 +17,7 @@ use gix::ObjectId;
 use gix::bstr::ByteSlice;
 use serde::{Deserialize, Serialize};
 
-use crate::links;
+use crate::{lfs, links};
 
 type Error = String;
 
@@ -257,6 +257,9 @@ pub struct Progress {
     pub phase: String,
     /// None until git reports a percentage.
     pub percent: Option<u8>,
+    /// More about it, like "2 of 5 files · 56 MB of 80 MB · 12 MB/s".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
 }
 
 /// A fetch, pull or push that is running, so it can be cancelled.
@@ -279,8 +282,9 @@ pub fn cancel() -> bool {
     !running.is_empty()
 }
 
-/// "Receiving objects:  45% (450/1000)" → ("Receiving objects", 45).
-pub fn parse_progress(line: &str) -> Option<(String, u8)> {
+/// "Receiving objects:  45% (450/1000), 1.2 MiB | 2.0 MiB/s" → "Receiving objects", 45%,
+/// "1.2 MiB · 2.0 MiB/s". Also reads the lines Git LFS writes when its progress is forced on.
+pub fn parse_progress(line: &str) -> Option<Progress> {
     let line = line.trim();
     let line = line.strip_prefix("remote:").unwrap_or(line).trim();
     let (phase, rest) = line.split_once(':')?;
@@ -292,7 +296,44 @@ pub fn parse_progress(line: &str) -> Option<(String, u8)> {
     if digits.is_empty() || !rest[digits.len()..].starts_with('%') {
         return None;
     }
-    Some((phase.trim().to_owned(), digits.parse::<u8>().ok()?.min(100)))
+    let percent = digits.parse::<u8>().ok()?.min(100);
+
+    // What follows: "(450/1000), 1.2 MiB | 2.0 MiB/s", "(3/3), done." or nothing.
+    let after = rest[digits.len() + 1..].trim();
+    let after = after
+        .trim_end_matches('.')
+        .trim_end_matches(", done")
+        .trim();
+    let (counts, amounts) = match after.split_once("), ") {
+        Some((counts, amounts)) => (counts.trim_start_matches('('), Some(amounts)),
+        None => (after.trim_start_matches('(').trim_end_matches(')'), None),
+    };
+    let lfs = phase.contains("LFS") || phase == "Filtering content";
+    let mut detail = Vec::new();
+    if lfs && let Some((done, total)) = counts.split_once('/') {
+        detail.push(format!("{done} of {total} files"));
+    }
+    for amount in amounts.into_iter().flat_map(|amounts| amounts.split(" | ")) {
+        let amount = amount.trim();
+        // Transfers to a folder on this computer report no bytes at all.
+        let nothing =
+            amount == "0 B" || amount.starts_with("0 B/") || amount.starts_with("0 bytes");
+        if !amount.is_empty() && !nothing {
+            detail.push(amount.to_owned());
+        }
+    }
+    let phase = match phase.trim() {
+        "Uploading LFS objects" => "Uploading LFS files",
+        "Downloading LFS objects" => "Downloading LFS files",
+        // git's progress while Git LFS fills in the files it checks out.
+        "Filtering content" => "Checking out LFS files",
+        other => other,
+    };
+    Some(Progress {
+        phase: phase.to_owned(),
+        percent: Some(percent),
+        detail: (!detail.is_empty()).then(|| detail.join(" · ")),
+    })
 }
 
 /// Progress chatter that doesn't belong in an error message, like "remote: Total 3 (delta 0)".
@@ -1268,7 +1309,16 @@ impl Git {
         on_progress(Progress {
             phase: "Connecting".into(),
             percent: None,
+            detail: None,
         });
+        let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
+        // Git LFS keeps quiet about its transfers unless it's writing to a terminal. Ask it
+        // to log them to a file instead (byte by byte), and to print its own summary lines
+        // anyway, for transfers the file doesn't cover.
+        let lfs_log =
+            std::env::temp_dir().join(format!("tributary-lfs-{}-{id}.log", std::process::id()));
+        let _ = std::fs::remove_file(&lfs_log);
+        let mut lfs = lfs::ProgressLog::new(lfs_log.clone());
         let mut child = command(&self.executable)
             .arg("-C")
             .arg(&self.workdir)
@@ -1276,47 +1326,44 @@ impl Git {
             .env("GIT_TERMINAL_PROMPT", "0")
             .env("GIT_EDITOR", "true")
             .env("GIT_MERGE_AUTOEDIT", "no")
+            .env("GIT_LFS_PROGRESS", &lfs_log)
+            .env("GIT_LFS_FORCE_PROGRESS", "1")
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| format!("Could not run git: {e}"))?;
-        let mut stderr = child.stderr.take().ok_or("Could not read git's output")?;
+        let stderr = child.stderr.take().ok_or("Could not read git's output")?;
         let stdout = child.stdout.take().ok_or("Could not read git's output")?;
 
         // git's helper processes share its output pipes and can outlive it when it's
         // cancelled, so the pipes are read on their own threads and never waited for
         // once git itself has exited.
         let (lines, received) = channel::<String>();
+        let progress_lines = lines.clone();
         std::thread::spawn(move || {
-            let mut line = Vec::new();
-            let mut chunk = [0u8; 4096];
-            while let Ok(read) = stderr.read(&mut chunk) {
-                if read == 0 {
-                    break;
-                }
-                for &byte in &chunk[..read] {
-                    // git redraws its progress with carriage returns, so split on those too.
-                    if byte == b'\r' || byte == b'\n' {
-                        let _ = lines.send(String::from_utf8_lossy(&line).into_owned());
-                        line.clear();
-                    } else {
-                        line.push(byte);
-                    }
-                }
-            }
-            let _ = lines.send(String::from_utf8_lossy(&line).into_owned());
+            read_lines(stderr, |line| {
+                let _ = lines.send(line);
+            })
         });
         let (output, output_received) = channel::<String>();
         std::thread::spawn(move || {
+            // Hooks write to standard output, and Git LFS's upload before a push (a hook)
+            // reports its progress there, so progress is picked out of it as it comes.
             let mut text = String::new();
-            let _ = std::io::BufReader::new(stdout).read_to_string(&mut text);
-            let _ = output.send(text);
+            read_lines(stdout, |line| {
+                if is_progress_noise(&line) {
+                    let _ = progress_lines.send(line);
+                } else {
+                    text.push_str(&line);
+                    text.push('\n');
+                }
+            });
+            let _ = output.send(text.trim_end().to_owned());
         });
 
         let child = Arc::new(Mutex::new(child));
         let cancelled = Arc::new(AtomicBool::new(false));
-        let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
         RUNNING
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -1327,15 +1374,22 @@ impl Git {
             });
 
         let mut messages = String::new();
-        let mut last: Option<(String, u8)> = None;
-        let mut handle = |text: String| {
+        let mut last: Option<Progress> = None;
+        let mut report = |progress: Progress| {
+            if last.as_ref() != Some(&progress) {
+                on_progress(progress.clone());
+                last = Some(progress);
+            }
+        };
+        let mut handle = |text: String, lfs: &mut lfs::ProgressLog| {
+            if let Some(progress) = lfs.poll() {
+                report(progress);
+            }
             if let Some(progress) = parse_progress(&text) {
-                if last.as_ref() != Some(&progress) {
-                    on_progress(Progress {
-                        phase: progress.0.clone(),
-                        percent: Some(progress.1),
-                    });
-                    last = Some(progress);
+                // Git LFS's own lines only count files; its log, when there is one, is better.
+                let from_lfs = progress.phase.contains("LFS");
+                if !(from_lfs && lfs.active()) {
+                    report(progress);
                 }
             } else if !text.trim().is_empty() && !is_progress_noise(&text) {
                 messages.push_str(text.trim_end());
@@ -1351,8 +1405,9 @@ impl Git {
         };
         let status = loop {
             match received.recv_timeout(Duration::from_millis(50)) {
-                Ok(text) => handle(text),
+                Ok(text) => handle(text, &mut lfs),
                 Err(RecvTimeoutError::Timeout) => {
+                    handle(String::new(), &mut lfs);
                     if let Some(status) = exited(&child)? {
                         break status;
                     }
@@ -1369,6 +1424,7 @@ impl Git {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .retain(|run| run.id != id);
+        let _ = std::fs::remove_file(&lfs_log);
         if cancelled.load(Ordering::SeqCst) {
             record(self, args, started, took, false, "Cancelled.");
             return Err("Cancelled.".into());
@@ -1376,7 +1432,7 @@ impl Git {
 
         // Whatever git wrote just before exiting.
         while let Ok(text) = received.recv_timeout(Duration::from_millis(200)) {
-            handle(text);
+            handle(text, &mut lfs);
         }
         let stdout = output_received
             .recv_timeout(Duration::from_secs(2))
@@ -1387,6 +1443,29 @@ impl Git {
             return Ok(ProgressOutput { messages });
         }
         Err(error_message(args, &status, &stdout, &messages))
+    }
+}
+
+/// Read `reader` to the end, a line at a time. git redraws its progress with carriage
+/// returns, so those end lines too.
+fn read_lines(mut reader: impl Read, mut each: impl FnMut(String)) {
+    let mut line = Vec::new();
+    let mut chunk = [0u8; 4096];
+    while let Ok(read) = reader.read(&mut chunk) {
+        if read == 0 {
+            break;
+        }
+        for &byte in &chunk[..read] {
+            if byte == b'\r' || byte == b'\n' {
+                each(String::from_utf8_lossy(&line).into_owned());
+                line.clear();
+            } else {
+                line.push(byte);
+            }
+        }
+    }
+    if !line.is_empty() {
+        each(String::from_utf8_lossy(&line).into_owned());
     }
 }
 
@@ -1440,13 +1519,51 @@ mod tests {
 
     #[test]
     fn reads_progress_lines() {
+        let progress = |phase: &str, percent: u8, detail: Option<&str>| Progress {
+            phase: phase.into(),
+            percent: Some(percent),
+            detail: detail.map(Into::into),
+        };
         assert_eq!(
             parse_progress("Receiving objects:  45% (450/1000), 1.2 MiB | 2.0 MiB/s"),
-            Some(("Receiving objects".into(), 45))
+            Some(progress(
+                "Receiving objects",
+                45,
+                Some("1.2 MiB · 2.0 MiB/s")
+            ))
         );
         assert_eq!(
             parse_progress("remote: Compressing objects: 100% (3/3), done."),
-            Some(("Compressing objects".into(), 100))
+            Some(progress("Compressing objects", 100, None))
+        );
+        assert_eq!(
+            parse_progress("Writing objects: 100% (6/6), 916 bytes | 916.00 KiB/s, done."),
+            Some(progress(
+                "Writing objects",
+                100,
+                Some("916 bytes · 916.00 KiB/s")
+            ))
+        );
+        // Git LFS, with its progress forced on.
+        assert_eq!(
+            parse_progress("Uploading LFS objects:  67% (2/3), 56 MB | 30 MB/s          "),
+            Some(progress(
+                "Uploading LFS files",
+                67,
+                Some("2 of 3 files · 56 MB · 30 MB/s")
+            ))
+        );
+        assert_eq!(
+            parse_progress("Uploading LFS objects: 100% (2/2), 0 B | 0 B/s, done."),
+            Some(progress("Uploading LFS files", 100, Some("2 of 2 files")))
+        );
+        assert_eq!(
+            parse_progress("Filtering content:  50% (1/2), 15 MB | 7.5 MB/s"),
+            Some(progress(
+                "Checking out LFS files",
+                50,
+                Some("1 of 2 files · 15 MB · 7.5 MB/s")
+            ))
         );
         assert_eq!(parse_progress("To github.com:someone/repo.git"), None);
         assert_eq!(

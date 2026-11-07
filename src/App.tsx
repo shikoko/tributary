@@ -28,7 +28,7 @@ import { involvesUntrackedFiles, isLocalChangesError } from "./lib/errors";
 import { ancestors, countMissing } from "./lib/graph";
 import { setNativeMenu, type NativeMenu } from "./lib/nativeMenu";
 import { loadPlace, savePlace } from "./lib/place";
-import { isMac, modKey } from "./lib/platform";
+import { isMac } from "./lib/platform";
 import { forgetRepo, loadRecent, noteBranch, pinRepo, rememberRepo } from "./lib/recent";
 import { stashIndexOf, type RefEntry } from "./lib/refs";
 import { NO_VISIBILITY, readVisibility, useRepoSetting } from "./lib/repoPrefs";
@@ -401,6 +401,29 @@ export default function App() {
     [tabs, setTabs, snapshot, rememberPlace, load, showWelcome],
   );
 
+  /**
+   * The "New tab" start screen: the welcome screen (open, clone, new, recent repositories)
+   * in a tab of its own. Opening anything from it, or going to another tab, replaces it.
+   * `returnTo` is the tab it was opened from, to go back to if it's closed.
+   */
+  const [startTab, setStartTab] = useState<{ returnTo: string } | null>(null);
+  const newTab = useCallback(() => {
+    // Without a repository open, the start screen is already showing.
+    if (!snapshot) return;
+    rememberPlace();
+    setStartTab({ returnTo: snapshot.path });
+    showWelcome();
+  }, [snapshot, rememberPlace, showWelcome]);
+  const closeStartTab = useCallback(() => {
+    const back = startTab && tabs.find((tab) => tab.path === startTab.returnTo);
+    setStartTab(null);
+    const next = back ?? tabs[tabs.length - 1];
+    if (next) load(next.path, "open");
+  }, [startTab, tabs, load]);
+  useEffect(() => {
+    if (snapshot) setStartTab(null);
+  }, [snapshot]);
+
   // Save your place a moment after you stop moving around.
   useEffect(() => {
     const timer = setTimeout(rememberPlace, 400);
@@ -672,12 +695,16 @@ export default function App() {
       if (mod && key === "k") {
         event.preventDefault();
         setPaletteOpen((open) => !open);
-      } else if (mod && (key === "o" || key === "t") && !event.shiftKey) {
+      } else if (mod && key === "o" && !event.shiftKey) {
         event.preventDefault();
         pick();
+      } else if (mod && key === "t" && !event.shiftKey) {
+        event.preventDefault();
+        newTab();
       } else if (mod && key === "w") {
         event.preventDefault();
         if (snapshot) closeTab(snapshot.path);
+        else if (startTab) closeStartTab();
       } else if (mod && /^[1-9]$/.test(key)) {
         event.preventDefault();
         const tab = tabs[Number(key) - 1];
@@ -721,7 +748,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [pick, refresh, zoomBy, setSidebarOpen, setActivityOpen, closeTab, switchTab]);
+  }, [pick, refresh, zoomBy, setSidebarOpen, setActivityOpen, closeTab, switchTab, newTab, startTab, closeStartTab]);
 
   // Reopen your tabs (or the last repository) on launch.
   useEffect(() => {
@@ -889,29 +916,6 @@ export default function App() {
     setMenu({ x: Math.max(4, Math.min(rect.left, rect.right - width)), y: rect.bottom + 4, items });
   };
 
-  const newTabMenu = (anchor: HTMLElement) => {
-    const others = recent.filter((repo) => !tabs.some((tab) => tab.path === repo.path)).slice(0, 8);
-    const rect = anchor.getBoundingClientRect();
-    setMenu({
-      x: rect.left,
-      y: rect.bottom + 4,
-      items: [
-        ...others.map((repo) => ({
-          label: repo.name,
-          // The end of the path tells repositories with the same name apart.
-          shortcut: repo.path.length > 36 ? `…${repo.path.slice(-35)}` : repo.path,
-          onSelect: () => {
-            rememberPlace();
-            load(repo.path, "open");
-          },
-        })),
-        { label: "Open repository…", icon: <FolderIcon />, shortcut: `${modKey}T`, separated: others.length > 0, onSelect: pick },
-        { label: "Clone repository…", icon: <CloneIcon />, onSelect: () => setDialog({ kind: "clone" }) },
-        { label: "New repository…", icon: <NewRepoIcon />, onSelect: createRepository },
-      ],
-    });
-  };
-
   // Commands that work with or without an open repository.
   const fileCommands: AppCommand[] = [
     { id: "open", label: "Open Repository…", icon: <FolderIcon />, keys: "CmdOrCtrl+O", run: pick },
@@ -952,7 +956,7 @@ export default function App() {
       {
         label: "File",
         entries: [
-          { id: "new-tab", label: "New Tab…", keys: "CmdOrCtrl+T", icon: <PlusIcon />, run: pick },
+          { id: "new-tab", label: "New Tab", keys: "CmdOrCtrl+T", icon: <PlusIcon />, run: newTab },
           ...fileCommands,
           "-",
           { id: "close-tab", label: "Close Tab", keys: "CmdOrCtrl+W", icon: <CloseIcon />, run: () => closeTab(snapshot.path) },
@@ -1107,7 +1111,16 @@ export default function App() {
     return withProfilePictures(
       <div className="app">
         {(tabs.length > 0 || !isMac) && (
-          <TabBar tabs={tabs} activePath={null} onSelect={(path) => load(path, "open")} onClose={closeTab} onNew={newTabMenu} menuBar={menuBar} />
+          <TabBar
+            tabs={tabs}
+            activePath={null}
+            startTab={startTab !== null}
+            onSelect={(path) => load(path, "open")}
+            onClose={closeTab}
+            onCloseStart={closeStartTab}
+            onNew={newTab}
+            menuBar={menuBar}
+          />
         )}
         {tabs.length === 0 && isMac && <div className="window-drag-strip" data-tauri-drag-region />}
         <Welcome
@@ -1346,7 +1359,16 @@ export default function App() {
 
   return withProfilePictures(
     <div className="app">
-      <TabBar tabs={tabs} activePath={snapshot.path} onSelect={switchTab} onClose={closeTab} onNew={newTabMenu} menuBar={menuBar} />
+      <TabBar
+        tabs={tabs}
+        activePath={snapshot.path}
+        startTab={false}
+        onSelect={switchTab}
+        onClose={closeTab}
+        onCloseStart={closeStartTab}
+        onNew={newTab}
+        menuBar={menuBar}
+      />
       <Toolbar
         snapshot={snapshot}
         refreshing={busy !== null}

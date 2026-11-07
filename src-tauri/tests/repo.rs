@@ -1245,6 +1245,50 @@ fn reports_progress_and_remembers_upstreams() {
     assert_eq!(main.upstream.as_deref(), Some("origin/main"));
 }
 
+/// Git LFS uploads its files before git's own push, and says nothing about it unless it's
+/// writing to a terminal. The push reports those uploads too. Skipped without Git LFS.
+#[test]
+fn reports_git_lfs_uploads_while_pushing() {
+    let installed = Command::new("git")
+        .args(["lfs", "version"])
+        .output()
+        .is_ok_and(|output| output.status.success());
+    if !installed {
+        eprintln!("Git LFS isn't installed: skipped");
+        return;
+    }
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("lfs-remote.git");
+    let alice = TempRepo::new("lfs-alice");
+    alice.git(&["lfs", "install", "--local"]);
+    alice.git(&["lfs", "track", "*.bin"]);
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    std::fs::write(alice.path().join("video.bin"), vec![7u8; 3_000_000]).unwrap();
+    alice.git(&["add", ".gitattributes", "video.bin"]);
+    alice.git(&["commit", "--quiet", "-m", "Add a video"]);
+
+    let reports = std::cell::RefCell::new(Vec::new());
+    actions::run_with_progress(alice.path(), Action::Push { force: false }, &|progress| {
+        reports.borrow_mut().push(progress)
+    })
+    .unwrap();
+    let reports = reports.into_inner();
+    let uploads: Vec<_> = reports
+        .iter()
+        .filter(|progress| progress.phase == "Uploading LFS files")
+        .collect();
+    assert!(!uploads.is_empty(), "no LFS progress in {reports:?}");
+    assert_eq!(uploads.last().unwrap().percent, Some(100));
+    assert_eq!(
+        uploads.last().unwrap().detail.as_deref(),
+        Some("1 of 1 files")
+    );
+    assert!(
+        remote.path().join("lfs/objects").is_dir(),
+        "the file reached the remote"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn cancels_a_slow_fetch() {

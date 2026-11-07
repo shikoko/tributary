@@ -217,8 +217,8 @@ export const KeyboardIcon = (p: IconProps) => (
 /** An arrow going back, for resetting. */
 export const ResetIcon = (p: IconProps) => (
   <Icon {...p}>
-    <path d="M5.5 3.5 2.5 6.5l3 3" />
-    <path d="M2.5 6.5h7a4 4 0 0 1 0 8H7" />
+    <path d="M5.5 2.5 2.5 5.5l3 3" />
+    <path d="M2.5 5.5h7a4 4 0 0 1 0 8H7" />
   </Icon>
 );
 
