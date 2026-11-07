@@ -4,7 +4,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use tributary_lib::actions::{self, Action, BranchTip};
+use tributary_lib::actions::{self, Action, BranchTip, LockRef, Side};
+use tributary_lib::locks;
 use tributary_lib::repo::{
     self, FileChange, FileStatus, LoadOptions, OperationKind, RefKind, RowKind,
 };
@@ -2082,4 +2083,444 @@ fn keeps_backups_of_changed_branches_and_restores_them() {
     )
     .unwrap();
     assert_eq!(actions::backups(alice.path()).unwrap().len(), count - 1);
+}
+
+#[test]
+fn resolves_conflicts_by_keeping_one_side() {
+    let mut repo = TempRepo::new("resolve");
+    with_identity(&repo);
+    repo.commit("a.txt", "base");
+    // An asset both sides changed, and a file main deleted while the feature changed it.
+    std::fs::write(repo.path().join("hero.uasset"), [0u8, 1, 2, 3]).unwrap();
+    std::fs::write(repo.path().join("gone.txt"), "base").unwrap();
+    repo.git(&["add", "."]);
+    repo.git(&["commit", "--quiet", "-m", "Assets"]);
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+    std::fs::write(repo.path().join("a.txt"), "feature").unwrap();
+    std::fs::write(repo.path().join("hero.uasset"), [0u8, 9, 9, 9]).unwrap();
+    std::fs::write(repo.path().join("gone.txt"), "feature edit").unwrap();
+    repo.git(&["commit", "--quiet", "-am", "Feature edits"]);
+    repo.git(&["switch", "--quiet", "main"]);
+    std::fs::write(repo.path().join("a.txt"), "main").unwrap();
+    std::fs::write(repo.path().join("hero.uasset"), [0u8, 5, 5, 5]).unwrap();
+    repo.git(&["rm", "--quiet", "gone.txt"]);
+    repo.git(&["commit", "--quiet", "-am", "Main edits"]);
+
+    run(
+        &repo,
+        Action::Merge {
+            target: "feature".into(),
+        },
+    )
+    .unwrap_err();
+    let operation = repo::load(repo.path(), 100, false)
+        .unwrap()
+        .operation
+        .unwrap();
+    assert_eq!(operation.mine.as_deref(), Some("main"));
+    assert_eq!(operation.theirs.as_deref(), Some("feature"));
+
+    let resolve = |paths: &[&str], keep| {
+        run(
+            &repo,
+            Action::ResolveConflicts {
+                paths: paths.iter().map(|path| (*path).to_owned()).collect(),
+                keep,
+            },
+        )
+    };
+    assert_eq!(
+        resolve(&["hero.uasset"], Side::Mine).unwrap(),
+        "Kept your version of hero.uasset"
+    );
+    assert_eq!(
+        std::fs::read(repo.path().join("hero.uasset")).unwrap(),
+        [0u8, 5, 5, 5]
+    );
+    assert_eq!(
+        resolve(&["a.txt"], Side::Theirs).unwrap(),
+        "Took their version of a.txt"
+    );
+    assert_eq!(read(&repo, "a.txt"), "feature");
+    // Main deleted gone.txt, so keeping main's version deletes it.
+    resolve(&["gone.txt"], Side::Mine).unwrap();
+    assert!(!repo.path().join("gone.txt").exists());
+
+    let status = repo::load(repo.path(), 100, true)
+        .unwrap()
+        .worktree
+        .unwrap();
+    assert!(
+        status
+            .unstaged
+            .iter()
+            .all(|file| file.status != FileStatus::Conflicted),
+        "{status:?}"
+    );
+    assert_eq!(
+        resolve(&["a.txt"], Side::Mine).unwrap_err(),
+        "a.txt has no conflicts left."
+    );
+    run(&repo, Action::ContinueOperation).unwrap();
+    assert_eq!(parents(&repo, "HEAD"), 2);
+}
+
+#[test]
+fn keeping_your_version_during_a_rebase_keeps_the_rebased_branch() {
+    let mut repo = TempRepo::new("resolve-rebase");
+    with_identity(&repo);
+    repo.commit("a.txt", "base");
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+    repo.commit("a.txt", "feature");
+    repo.git(&["switch", "--quiet", "main"]);
+    let main = repo.commit("a.txt", "main");
+    repo.git(&["switch", "--quiet", "feature"]);
+
+    run(
+        &repo,
+        Action::Rebase {
+            onto: "main".into(),
+        },
+    )
+    .unwrap_err();
+    let operation = repo::load(repo.path(), 100, false)
+        .unwrap()
+        .operation
+        .unwrap();
+    assert_eq!(operation.mine.as_deref(), Some("feature"));
+    assert_eq!(operation.theirs.as_deref(), Some("main"));
+
+    // git calls the feature's side "theirs" while rebasing; "yours" is still the feature.
+    run(
+        &repo,
+        Action::ResolveConflicts {
+            paths: vec!["a.txt".into()],
+            keep: Side::Mine,
+        },
+    )
+    .unwrap();
+    assert_eq!(read(&repo, "a.txt"), "feature");
+    run(&repo, Action::ContinueOperation).unwrap();
+    assert_eq!(repo.git(&["rev-parse", "HEAD^"]), main);
+    assert_eq!(repo.git(&["show", "HEAD:a.txt"]), "feature");
+}
+
+#[test]
+fn lists_the_commits_that_changed_a_file_or_folder() {
+    let mut repo = TempRepo::new("history");
+    with_identity(&repo);
+    std::fs::create_dir_all(repo.path().join("Content")).unwrap();
+    let first = repo.commit("Content/hero.txt", "Hero v1");
+    let readme = repo.commit("readme.txt", "Readme");
+    let second = repo.commit("Content/hero.txt", "Hero v2");
+    repo.git(&["mv", "Content/hero.txt", "Content/main-hero.txt"]);
+    repo.git(&["commit", "--quiet", "-m", "Rename the hero"]);
+    let renamed = head(&repo);
+    // A change on another branch counts too: the graph shows every branch.
+    repo.git(&["switch", "--quiet", "--create", "side"]);
+    let side = repo.commit("Content/main-hero.txt", "Hero on a side branch");
+    repo.git(&["switch", "--quiet", "main"]);
+
+    let history = actions::file_history(repo.path(), "Content/main-hero.txt").unwrap();
+    assert!(!history.folder);
+    assert_eq!(
+        history.ids,
+        vec![side.clone(), renamed.clone(), second.clone(), first.clone()]
+    );
+    assert_eq!(
+        history.names,
+        vec!["Content/main-hero.txt", "Content/hero.txt"]
+    );
+
+    let folder = actions::file_history(repo.path(), "Content").unwrap();
+    assert!(folder.folder);
+    assert_eq!(folder.path, "Content");
+    assert_eq!(folder.ids, vec![side, renamed, second, first]);
+
+    // An absolute path inside the repository, as a file picker gives it.
+    let absolute = repo.path().join("readme.txt");
+    let history = actions::file_history(repo.path(), absolute.to_str().unwrap()).unwrap();
+    assert_eq!(history.path, "readme.txt");
+    assert_eq!(history.ids, vec![readme]);
+
+    // Names are taken literally, not as patterns.
+    assert!(
+        actions::file_history(repo.path(), "Content/*.txt")
+            .unwrap()
+            .ids
+            .is_empty()
+    );
+    let outside = std::env::temp_dir().join("somewhere-else.txt");
+    assert!(actions::file_history(repo.path(), outside.to_str().unwrap()).is_err());
+    assert!(actions::file_history(repo.path(), "../elsewhere").is_err());
+}
+
+/// A Git LFS server that only does locking, as `rosa` sees it from her side: every
+/// request comes from `maya`. Without `verify`, it can't tell whose locks are whose.
+struct LockServer {
+    url: String,
+}
+
+type ServerLocks = std::sync::Arc<std::sync::Mutex<Vec<(String, String, String)>>>;
+
+fn lock_server(verify: bool) -> LockServer {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/lfs", listener.local_addr().unwrap());
+    let locks: ServerLocks = std::sync::Arc::new(std::sync::Mutex::new(vec![(
+        "1".into(),
+        "Content/Map.umap".into(),
+        "rosa".into(),
+    )]));
+    std::thread::spawn(move || {
+        for stream in listener.incoming().flatten() {
+            let locks = locks.clone();
+            std::thread::spawn(move || serve_locks(stream, &locks, verify));
+        }
+    });
+    LockServer { url }
+}
+
+fn serve_locks(stream: std::net::TcpStream, locks: &ServerLocks, verify: bool) {
+    use std::io::{BufRead, Read, Write};
+    let mut writer = stream.try_clone().unwrap();
+    let mut reader = std::io::BufReader::new(stream);
+    loop {
+        let mut request = String::new();
+        if reader.read_line(&mut request).unwrap_or(0) == 0 {
+            return;
+        }
+        let mut length = 0;
+        loop {
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            let line = line.trim_end().to_ascii_lowercase();
+            if line.is_empty() {
+                break;
+            }
+            if let Some(value) = line.strip_prefix("content-length:") {
+                length = value.trim().parse().unwrap();
+            }
+        }
+        let mut body = vec![0; length];
+        reader.read_exact(&mut body).unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+        let mut words = request.split_whitespace();
+        let method = words.next().unwrap_or_default().to_owned();
+        let target = words.next().unwrap_or_default().to_owned();
+        let (path, query) = target.split_once('?').unwrap_or((&target, ""));
+        let path = path.to_owned();
+        // Listing can be narrowed to one path or id.
+        let filter: Vec<(String, String)> = query
+            .split('&')
+            .filter_map(|pair| pair.split_once('='))
+            .filter(|(key, value)| (*key == "path" || *key == "id") && !value.is_empty())
+            .map(|(key, value)| {
+                (
+                    key.to_owned(),
+                    value.replace("%2F", "/").replace("%2f", "/"),
+                )
+            })
+            .collect();
+
+        let json = |(id, path, owner): &(String, String, String)| serde_json::json!({ "id": id, "path": path, "owner": { "name": owner }, "locked_at": "2026-03-01T10:00:00Z" });
+        let mut list = locks.lock().unwrap();
+        let (status, reply) = if method == "GET" && path.ends_with("/locks") {
+            let all: Vec<_> = list
+                .iter()
+                .filter(|l| {
+                    filter.iter().all(|(key, value)| {
+                        if key == "path" {
+                            &l.1 == value
+                        } else {
+                            &l.0 == value
+                        }
+                    })
+                })
+                .map(json)
+                .collect();
+            (
+                "200 OK",
+                serde_json::json!({ "locks": all, "next_cursor": "" }),
+            )
+        } else if method == "POST" && path.ends_with("/locks/verify") {
+            if verify {
+                let ours: Vec<_> = list.iter().filter(|l| l.2 == "maya").map(json).collect();
+                let theirs: Vec<_> = list.iter().filter(|l| l.2 != "maya").map(json).collect();
+                (
+                    "200 OK",
+                    serde_json::json!({ "ours": ours, "theirs": theirs, "next_cursor": "" }),
+                )
+            } else {
+                (
+                    "404 Not Found",
+                    serde_json::json!({ "message": "Not found" }),
+                )
+            }
+        } else if method == "POST" && path.ends_with("/locks") {
+            let file = body["path"].as_str().unwrap_or_default().to_owned();
+            if let Some(existing) = list.iter().find(|l| l.1 == file) {
+                let existing = json(existing);
+                (
+                    "409 Conflict",
+                    serde_json::json!({ "lock": existing, "message": "already created lock" }),
+                )
+            } else {
+                let lock = ((list.len() + 10).to_string(), file, "maya".to_owned());
+                let reply = serde_json::json!({ "lock": json(&lock) });
+                list.push(lock);
+                ("201 Created", reply)
+            }
+        } else if method == "POST" && path.ends_with("/unlock") {
+            let id = path
+                .trim_end_matches("/unlock")
+                .rsplit('/')
+                .next()
+                .unwrap()
+                .to_owned();
+            let force = body["force"].as_bool().unwrap_or(false);
+            match list.iter().position(|l| l.0 == id) {
+                Some(index) if list[index].2 == "maya" || force => {
+                    let lock = list.remove(index);
+                    ("200 OK", serde_json::json!({ "lock": json(&lock) }))
+                }
+                Some(_) => (
+                    "403 Forbidden",
+                    serde_json::json!({ "message": "You must have admin access to force delete a lock" }),
+                ),
+                None => (
+                    "404 Not Found",
+                    serde_json::json!({ "message": "unable to find lock" }),
+                ),
+            }
+        } else {
+            (
+                "404 Not Found",
+                serde_json::json!({ "message": "Not found" }),
+            )
+        };
+        drop(list);
+        let reply = reply.to_string();
+        write!(
+            writer,
+            "HTTP/1.1 {status}\r\nContent-Type: application/vnd.git-lfs+json\r\nContent-Length: {}\r\n\r\n{reply}",
+            reply.len()
+        )
+        .unwrap();
+    }
+}
+
+fn lfs_installed() -> bool {
+    Command::new("git")
+        .args(["lfs", "version"])
+        .output()
+        .is_ok_and(|output| output.status.success())
+}
+
+#[test]
+fn locks_and_unlocks_files_with_git_lfs() {
+    if !lfs_installed() {
+        eprintln!("Git LFS isn't installed: skipped");
+        return;
+    }
+    // Without LFS, no server is asked.
+    let mut plain = TempRepo::new("locks-plain");
+    plain.commit("a.txt", "First");
+    let none = locks::locks(plain.path()).unwrap();
+    assert!(!none.supported);
+
+    for verify in [true, false] {
+        let server = lock_server(verify);
+        let mut repo = TempRepo::new(if verify { "locks" } else { "locks-noverify" });
+        with_identity(&repo);
+        repo.git(&["config", "lfs.url", &server.url]);
+        std::fs::create_dir_all(repo.path().join("Content")).unwrap();
+        repo.commit(".gitattributes", "*.uasset lockable\n*.umap lockable\n");
+        repo.commit("Content/Hero.uasset", "hero");
+
+        let listed = locks::locks(repo.path()).unwrap();
+        assert!(listed.supported, "{listed:?}");
+        assert_eq!(listed.error, None);
+        assert_eq!(listed.locks.len(), 1);
+        assert_eq!(listed.locks[0].path, "Content/Map.umap");
+        assert_eq!(listed.locks[0].owner, "rosa");
+        assert!(!listed.locks[0].mine);
+
+        assert_eq!(
+            run(
+                &repo,
+                Action::LockFiles {
+                    paths: vec!["Content/Hero.uasset".into()]
+                }
+            )
+            .unwrap(),
+            "Locked Hero.uasset"
+        );
+        let listed = locks::locks(repo.path()).unwrap();
+        let paths: Vec<_> = listed
+            .locks
+            .iter()
+            .map(|lock| (lock.path.as_str(), lock.mine))
+            .collect();
+        // Yours first.
+        assert_eq!(
+            paths,
+            vec![("Content/Hero.uasset", true), ("Content/Map.umap", false)],
+            "verify: {verify}"
+        );
+
+        // Someone else's lock can't be taken, or removed without forcing.
+        let error = run(
+            &repo,
+            Action::LockFiles {
+                paths: vec!["Content/Map.umap".into()],
+            },
+        )
+        .unwrap_err();
+        assert!(error.starts_with("Couldn't lock Map.umap"), "{error}");
+        let lock_of = |path: &str| {
+            let lock = locks::locks(repo.path())
+                .unwrap()
+                .locks
+                .into_iter()
+                .find(|lock| lock.path == path)
+                .unwrap();
+            vec![LockRef {
+                id: lock.id,
+                path: lock.path,
+            }]
+        };
+        assert!(
+            run(
+                &repo,
+                Action::UnlockFiles {
+                    locks: lock_of("Content/Map.umap"),
+                    force: false
+                }
+            )
+            .is_err()
+        );
+
+        assert_eq!(
+            run(
+                &repo,
+                Action::UnlockFiles {
+                    locks: lock_of("Content/Hero.uasset"),
+                    force: false
+                }
+            )
+            .unwrap(),
+            "Unlocked Hero.uasset"
+        );
+        assert_eq!(locks::locks(repo.path()).unwrap().locks.len(), 1);
+        // Map.umap isn't even in this working tree: locks are released by id.
+        let forced = run(
+            &repo,
+            Action::UnlockFiles {
+                locks: lock_of("Content/Map.umap"),
+                force: true,
+            },
+        );
+        assert_eq!(forced, Ok("Unlocked Map.umap".to_owned()));
+        assert!(locks::locks(repo.path()).unwrap().locks.is_empty());
+    }
 }

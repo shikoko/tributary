@@ -2,6 +2,7 @@ pub mod actions;
 pub mod graph;
 pub mod lfs;
 pub mod links;
+pub mod locks;
 pub mod repo;
 
 use std::path::PathBuf;
@@ -117,6 +118,22 @@ async fn lost_commits(path: String, reference: String) -> Result<actions::LostCo
     .map_err(|e| e.to_string())?
 }
 
+/// The files locked with Git LFS, and who locked them.
+#[tauri::command]
+async fn lfs_locks(path: String) -> Result<locks::Locks, String> {
+    tauri::async_runtime::spawn_blocking(move || locks::locks(&PathBuf::from(path)))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// The commits that changed a file or folder.
+#[tauri::command]
+async fn file_history(path: String, file: String) -> Result<actions::FileHistory, String> {
+    tauri::async_runtime::spawn_blocking(move || actions::file_history(&PathBuf::from(path), &file))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 /// Stop the fetch, pull, push or clone that is running.
 #[tauri::command]
 fn cancel_action() -> bool {
@@ -151,6 +168,8 @@ pub fn run() {
             prune_candidates,
             branch_backups,
             lost_commits,
+            lfs_locks,
+            file_history,
             cancel_action,
             activity_log
         ])

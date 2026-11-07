@@ -141,6 +141,36 @@ pub enum Action {
     },
     /// Delete a tag from a remote.
     DeleteRemoteTag { name: String, remote: String },
+    /// Resolve conflicted files by taking one side's version of each whole file: yours
+    /// (the checked-out branch, or the branch being rebased) or theirs. A side that
+    /// deleted the file deletes it. For files that can't be merged, like game assets.
+    ResolveConflicts { paths: Vec<String>, keep: Side },
+    /// Lock files with Git LFS, so nobody else can push changes to them.
+    LockFiles { paths: Vec<String> },
+    /// Release Git LFS locks, by id (the file may not exist here). `force` releases
+    /// someone else's lock.
+    UnlockFiles {
+        locks: Vec<LockRef>,
+        #[serde(default)]
+        force: bool,
+    },
+}
+
+/// A Git LFS lock: its id, and the file it's on (for messages).
+#[derive(Debug, Clone, Deserialize)]
+pub struct LockRef {
+    pub id: String,
+    pub path: String,
+}
+
+/// Which version of a conflicted file to keep.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Side {
+    /// The checked-out branch's version (for a rebase, the branch being rebased).
+    Mine,
+    /// The version being merged, picked or rebased onto.
+    Theirs,
 }
 
 /// A local branch, the commit it points to and, to restore it as it was, its upstream
@@ -191,6 +221,21 @@ pub struct CommitBrief {
     pub id: String,
     pub summary: String,
     pub time: i64,
+}
+
+/// The commits that changed a file or folder.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileHistory {
+    /// Relative to the repository's root, with forward slashes, without a trailing slash.
+    pub path: String,
+    pub folder: bool,
+    /// Newest first, from every branch, remote branch and tag.
+    pub ids: Vec<String>,
+    /// For a file: every path it had, following renames, newest first.
+    pub names: Vec<String>,
+    /// More commits changed it than were listed.
+    pub truncated: bool,
 }
 
 /// A local branch that could be pruned: its remote branch is gone, or it's merged.
@@ -299,13 +344,15 @@ pub fn on_activity(listener: impl Fn(&LogEntry) + Send + Sync + 'static) {
 
 /// Read-only helpers that would only clutter the log.
 /// Reading commands, and Tributary's own backups (see [`back_up`]), stay out of the log.
-const UNLOGGED: [&str; 6] = [
+const UNLOGGED: [&str; 8] = [
     "rev-parse",
     "rev-list",
     "check-ref-format",
     "merge-base",
     "for-each-ref",
     "update-ref",
+    "ls-files",
+    "log",
 ];
 
 fn record(
@@ -318,6 +365,7 @@ fn record(
 ) {
     if args.first().is_some_and(|first| UNLOGGED.contains(first))
         || args.starts_with(&["worktree", "list"])
+        || args.starts_with(&["lfs", "locks"])
     {
         return;
     }
@@ -1045,7 +1093,207 @@ fn perform(
             ])?;
             Ok(format!("Deleted tag {name} from {remote}"))
         }
+        Action::ResolveConflicts { paths, keep } => resolve_conflicts(&repo, &git, &paths, keep),
+        Action::LockFiles { paths } => {
+            let paths = check_file_paths(&paths)?;
+            each_file(&paths, "lock", |path| {
+                let output = git.run(&["lfs", "lock", "--json", "--", path])?;
+                if let Some(owner) = crate::locks::owner_of_new_lock(&output) {
+                    crate::locks::remember_owner(&git.workdir, &owner);
+                }
+                Ok(())
+            })
+        }
+        Action::UnlockFiles { locks, force } => {
+            if locks.is_empty() {
+                return Err("No files given.".into());
+            }
+            let paths: Vec<&str> = locks.iter().map(|lock| lock.path.as_str()).collect();
+            each_file(&paths, "unlock", |path| {
+                let lock = locks.iter().find(|lock| lock.path == path).unwrap();
+                if lock.id.is_empty() || lock.id.starts_with('-') {
+                    return Err(format!("Unknown lock {}", lock.id));
+                }
+                let id = format!("--id={}", lock.id);
+                // Git LFS makes a file read-only again once it's unlocked, and gives up
+                // when the file isn't in this working tree (deleted, or on another branch).
+                let missing = !Path::new(&git.workdir).join(&lock.path).exists();
+                let mut args = if missing {
+                    vec![
+                        "-c",
+                        "lfs.setlockablereadonly=false",
+                        "lfs",
+                        "unlock",
+                        id.as_str(),
+                    ]
+                } else {
+                    vec!["lfs", "unlock", id.as_str()]
+                };
+                if force {
+                    args.push("--force");
+                }
+                git.run(&args).map(|_| ())
+            })
+        }
     }
+}
+
+/// Paths of files in the working tree, relative to its root.
+fn check_file_paths(paths: &[String]) -> Result<Vec<&str>, Error> {
+    let paths = check_paths(paths)?;
+    if let Some(bad) = paths
+        .iter()
+        .find(|path| path.is_empty() || path.starts_with('-') || Path::new(path).is_absolute())
+    {
+        return Err(format!("{bad} isn't a file in this repository."));
+    }
+    Ok(paths)
+}
+
+/// The name of a file, without its folders.
+fn file_name(path: &str) -> &str {
+    path.trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .unwrap_or(path)
+}
+
+/// "Barber.uasset" for one file, "3 files" for more.
+fn describe_files(paths: &[&str]) -> String {
+    match paths {
+        [one] => file_name(one).to_owned(),
+        _ => count(paths.len(), "file"),
+    }
+}
+
+/// Lock or unlock files one by one: Git LFS takes one path at a time. Reports the ones
+/// that failed, after doing the rest.
+fn each_file(
+    paths: &[&str],
+    verb: &str,
+    mut run: impl FnMut(&str) -> Result<(), Error>,
+) -> Result<String, Error> {
+    let mut done = Vec::new();
+    let mut failed = Vec::new();
+    for &path in paths {
+        match run(path) {
+            Ok(()) => done.push(path),
+            Err(error) => failed.push(format!("{}: {}", file_name(path), error.trim())),
+        }
+    }
+    let past = if verb == "lock" { "Locked" } else { "Unlocked" };
+    if failed.is_empty() {
+        return Ok(format!("{past} {}", describe_files(&done)));
+    }
+    let failures = failed.join("\n");
+    if done.is_empty() {
+        return Err(if paths.len() == 1 {
+            format!("Couldn't {verb} {failures}")
+        } else {
+            format!("Couldn't {verb} these files:\n{failures}")
+        });
+    }
+    Err(format!(
+        "{past} {}, but couldn't {verb} these:\n{failures}",
+        describe_files(&done)
+    ))
+}
+
+/// Long lists of paths are passed to git in batches, to stay under the command line
+/// length limit (about 32,000 characters on Windows).
+fn in_batches<'a>(paths: &'a [&'a str]) -> impl Iterator<Item = &'a [&'a str]> {
+    const MAX_CHARS: usize = 20_000;
+    let mut start = 0;
+    std::iter::from_fn(move || {
+        if start >= paths.len() {
+            return None;
+        }
+        let mut end = start;
+        let mut chars = 0;
+        while end < paths.len() && (end == start || chars + paths[end].len() < MAX_CHARS) {
+            chars += paths[end].len() + 1;
+            end += 1;
+        }
+        let batch = &paths[start..end];
+        start = end;
+        Some(batch)
+    })
+}
+
+/// Paths are taken literally, never as patterns: a file can be called `a*.png`.
+const LITERAL: [(&str, &str); 1] = [("GIT_LITERAL_PATHSPECS", "1")];
+
+fn resolve_conflicts(
+    repo: &gix::Repository,
+    git: &Git,
+    paths: &[String],
+    keep: Side,
+) -> Result<String, Error> {
+    use gix::state::InProgress;
+    let paths = check_file_paths(paths)?;
+    let rebasing = matches!(
+        repo.state(),
+        Some(InProgress::Rebase | InProgress::RebaseInteractive | InProgress::ApplyMailboxRebase)
+    );
+    // While rebasing, git's "ours" is the branch being rebased onto, and "theirs" is your
+    // own commit being replayed on top of it.
+    let ours = (keep == Side::Mine) != rebasing;
+    let (flag, stage) = if ours {
+        ("--ours", '2')
+    } else {
+        ("--theirs", '3')
+    };
+
+    // Which versions each conflicted file has: "<mode> <id> <stage>\t<path>" records.
+    let mut stages: std::collections::HashMap<String, Vec<char>> = Default::default();
+    for batch in in_batches(&paths) {
+        let mut args = vec!["ls-files", "--unmerged", "-z", "--"];
+        args.extend(batch);
+        for record in git.run_with_env(&args, &LITERAL)?.split('\0') {
+            let Some((info, path)) = record.split_once('\t') else {
+                continue;
+            };
+            if let Some(number) = info.split(' ').nth(2).and_then(|s| s.chars().next()) {
+                stages.entry(path.to_owned()).or_default().push(number);
+            }
+        }
+    }
+    let mut take = Vec::new();
+    let mut delete = Vec::new();
+    for &path in &paths {
+        match stages.get(path) {
+            None => {}
+            Some(found) if found.contains(&stage) => take.push(path),
+            // That side deleted the file.
+            Some(_) => delete.push(path),
+        }
+    }
+    if take.is_empty() && delete.is_empty() {
+        return Err(if paths.len() == 1 {
+            format!("{} has no conflicts left.", file_name(paths[0]))
+        } else {
+            "These files have no conflicts left.".into()
+        });
+    }
+    for batch in in_batches(&take) {
+        let mut args = vec!["checkout", flag, "--"];
+        args.extend(batch);
+        git.run_with_env(&args, &LITERAL)?;
+        let mut args = vec!["add", "--"];
+        args.extend(batch);
+        git.run_with_env(&args, &LITERAL)?;
+    }
+    for batch in in_batches(&delete) {
+        let mut args = vec!["rm", "--quiet", "--"];
+        args.extend(batch);
+        git.run_with_env(&args, &LITERAL)?;
+    }
+    let mut resolved = take;
+    resolved.extend(delete);
+    Ok(match keep {
+        Side::Mine => format!("Kept your version of {}", describe_files(&resolved)),
+        Side::Theirs => format!("Took their version of {}", describe_files(&resolved)),
+    })
 }
 
 /// Create a repository in an existing folder.
@@ -1256,6 +1504,106 @@ fn restore_backup(
     Ok(format!(
         "The earlier version of {name} is now the local branch {local}"
     ))
+}
+
+/// At most this many commits are listed for a file's history.
+const HISTORY_LIMIT: usize = 5000;
+
+/// The commits that changed `file` (a path in the repository, or an absolute path inside
+/// it), following renames for a file. For a folder, those that changed anything in it.
+pub fn file_history(path: &Path, file: &str) -> Result<FileHistory, Error> {
+    let repo = gix::discover(path)
+        .map_err(|e| format!("{} is not a git repository ({e})", path.display()))?;
+    let workdir = repo
+        .workdir()
+        .ok_or("This repository has no working tree.")?
+        .to_owned();
+    let relative = repo_relative(&workdir, file)?;
+    let folder = file.ends_with('/') || file.ends_with('\\') || workdir.join(&relative).is_dir();
+    let git = Git::find(workdir)?;
+
+    let limit = format!("--max-count={}", HISTORY_LIMIT + 1);
+    let mut args = vec!["log", "--format=%x1e%H", &limit];
+    if !folder {
+        args.extend(["--follow", "--name-only"]);
+    }
+    // The same commits the graph shows: everything reachable from branches, remote
+    // branches and tags (and HEAD, which may be detached), but not stashes or backups.
+    args.extend(["--branches", "--remotes", "--tags"]);
+    if repo.head_id().is_ok() {
+        args.push("HEAD");
+    }
+    args.extend(["--", &relative]);
+    let output = git.run_with_env(&args, &LITERAL)?;
+
+    let mut ids = Vec::new();
+    let mut names: Vec<String> = Vec::new();
+    for record in output
+        .split('\u{1e}')
+        .map(str::trim)
+        .filter(|r| !r.is_empty())
+    {
+        let mut lines = record
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty());
+        let Some(id) = lines.next() else { continue };
+        ids.push(id.to_owned());
+        for name in lines {
+            if !names.iter().any(|known| known == name) {
+                names.push(name.to_owned());
+            }
+        }
+    }
+    let truncated = ids.len() > HISTORY_LIMIT;
+    ids.truncate(HISTORY_LIMIT);
+    if !folder && names.is_empty() {
+        names.push(relative.clone());
+    }
+    Ok(FileHistory {
+        path: relative,
+        folder,
+        ids,
+        names,
+        truncated,
+    })
+}
+
+/// `file` relative to the working tree's root, with forward slashes: as given, or cut
+/// from an absolute path inside the working tree.
+fn repo_relative(workdir: &Path, file: &str) -> Result<String, Error> {
+    let trimmed = file.trim().trim_end_matches(['/', '\\']);
+    let given = Path::new(trimmed);
+    let relative = if given.is_absolute() {
+        let canonical =
+            |path: &Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_owned());
+        let root = canonical(workdir);
+        let inside = canonical(given);
+        inside
+            .strip_prefix(&root)
+            .or_else(|_| given.strip_prefix(workdir))
+            .map(Path::to_owned)
+            .map_err(|_| format!("{file} isn't in this repository."))?
+    } else {
+        given.to_owned()
+    };
+    let parts: Vec<String> = relative
+        .components()
+        .map(|part| match part {
+            std::path::Component::Normal(name) => Ok(name.to_string_lossy().into_owned()),
+            std::path::Component::CurDir => Ok(String::new()),
+            _ => Err(format!("{file} isn't in this repository.")),
+        })
+        .collect::<Result<_, _>>()?;
+    let joined = parts
+        .into_iter()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("/");
+    if joined.is_empty() {
+        return Err("Choose a file or a folder inside the repository.".into());
+    }
+    Ok(joined)
 }
 
 /// Commits that deleting `reference` (`refs/heads/…` or `refs/remotes/…`) would lose: on it,
@@ -1889,11 +2237,11 @@ fn default_remote(repo: &gix::Repository) -> Result<String, Error> {
 }
 
 /// The `git` executable, run inside one working tree.
-struct Git {
+pub(crate) struct Git {
     executable: PathBuf,
-    workdir: PathBuf,
+    pub(crate) workdir: PathBuf,
     /// Running on Tributary's own initiative, not because the user asked (for the log).
-    background: bool,
+    pub(crate) background: bool,
 }
 
 /// What a fetch, pull or push printed.
@@ -1905,7 +2253,7 @@ struct ProgressOutput {
 impl Git {
     /// Apps started from the macOS Finder don't get the shell's `PATH`, so common
     /// install locations are tried as well.
-    fn find(workdir: PathBuf) -> Result<Self, Error> {
+    pub(crate) fn find(workdir: PathBuf) -> Result<Self, Error> {
         let candidates = [
             "git",
             "/opt/homebrew/bin/git",
@@ -1930,11 +2278,15 @@ impl Git {
     }
 
     /// Run git with `args`, returning its output, or its error message.
-    fn run(&self, args: &[&str]) -> Result<String, Error> {
+    pub(crate) fn run(&self, args: &[&str]) -> Result<String, Error> {
         self.run_with_env(args, &[])
     }
 
-    fn run_with_env(&self, args: &[&str], env: &[(&str, &str)]) -> Result<String, Error> {
+    pub(crate) fn run_with_env(
+        &self,
+        args: &[&str],
+        env: &[(&str, &str)],
+    ) -> Result<String, Error> {
         let (started, took) = (SystemTime::now(), Instant::now());
         let output = command(&self.executable)
             .arg("-C")
