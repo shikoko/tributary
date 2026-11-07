@@ -1,0 +1,156 @@
+//! Tributary's commands without a window, for the browser preview (`tools/preview`) and
+//! for scripts. It reads one request per line on stdin:
+//!
+//! ```json
+//! {"id": 1, "command": "open_repository", "args": {"path": "/some/repo"}}
+//! ```
+//!
+//! and writes one line of JSON per reply, `{"id": 1, "ok": …}` or `{"id": 1, "err": "…"}`,
+//! and per event, `{"event": "activity", "payload": …}`. The commands and their arguments
+//! are the ones the frontend sends to the app (see `src/commands.rs`). Each request runs
+//! on its own thread, so a slow fetch doesn't hold up the rest.
+//!
+//! ```sh
+//! cargo run --example headless
+//! ```
+
+use std::io::{BufRead, Write};
+use std::path::PathBuf;
+
+use serde::Deserialize;
+use serde::de::DeserializeOwned;
+use serde_json::{Value, json};
+use tributary_lib::actions::{self, Action};
+use tributary_lib::error::{Error, Result};
+use tributary_lib::{git, github, locks, repo};
+
+/// How many commits to load when a request doesn't say.
+const DEFAULT_LIMIT: usize = 10_000;
+
+#[derive(Deserialize)]
+struct Request {
+    id: Value,
+    command: String,
+    #[serde(default)]
+    args: Value,
+}
+
+fn main() {
+    git::on_activity(|entry| send(&json!({ "event": "activity", "payload": entry })));
+    std::thread::scope(|scope| {
+        for line in std::io::stdin().lock().lines() {
+            let Ok(line) = line else { break };
+            if !line.trim().is_empty() {
+                scope.spawn(move || respond(&line));
+            }
+        }
+    });
+}
+
+/// Write one line of JSON to stdout. Lines from different threads never mix.
+fn send(message: &Value) {
+    let mut out = std::io::stdout().lock();
+    let _ = writeln!(out, "{message}");
+    let _ = out.flush();
+}
+
+fn respond(line: &str) {
+    let reply = match serde_json::from_str::<Request>(line) {
+        Ok(request) => match handle(&request.command, &request.args) {
+            Ok(value) => json!({ "id": request.id, "ok": value }),
+            Err(error) => json!({ "id": request.id, "err": error.to_string() }),
+        },
+        Err(error) => json!({ "id": null, "err": format!("That isn't a request: {error}") }),
+    };
+    send(&reply);
+}
+
+/// An argument the command needs.
+fn arg<T: DeserializeOwned>(args: &Value, name: &str) -> Result<T> {
+    let value = args.get(name).cloned().unwrap_or(Value::Null);
+    serde_json::from_value(value).map_err(|e| Error::Message(format!("Bad argument {name}: {e}")))
+}
+
+/// An argument the command can do without.
+fn optional<T: DeserializeOwned>(args: &Value, name: &str) -> Result<Option<T>> {
+    match args.get(name) {
+        None | Some(Value::Null) => Ok(None),
+        Some(_) => arg(args, name).map(Some),
+    }
+}
+
+fn to_json<T: serde::Serialize>(value: T) -> Result<Value> {
+    serde_json::to_value(value).map_err(|e| Error::Message(e.to_string()))
+}
+
+/// Report fetch, pull, push and clone progress the way the app does.
+fn progress(progress: git::Progress) {
+    send(&json!({ "event": "action-progress", "payload": progress }));
+}
+
+fn handle(command: &str, args: &Value) -> Result<Value> {
+    let path = || arg::<PathBuf>(args, "path");
+    match command {
+        "open_repository" => {
+            let options = repo::LoadOptions {
+                limit: optional(args, "limit")?.unwrap_or(DEFAULT_LIMIT),
+                include_status: optional(args, "includeStatus")?.unwrap_or(true),
+                first_parent: optional(args, "firstParent")?.unwrap_or(false),
+                hidden: optional(args, "hidden")?.unwrap_or_default(),
+                solo: optional(args, "solo")?.unwrap_or_default(),
+            };
+            to_json(repo::load_with(&path()?, options)?)
+        }
+        "commit_details" => to_json(repo::details(&path()?, &arg::<String>(args, "id")?)?),
+        "run_action" => {
+            let action: Action = arg(args, "action")?;
+            to_json(actions::run_with_progress(&path()?, action, &progress)?)
+        }
+        "clone_repository" => {
+            let url: String = arg(args, "url")?;
+            let parent: PathBuf = arg(args, "parent")?;
+            let name: String = arg(args, "name")?;
+            let folder = actions::clone_repository(&url, &parent, &name, &progress)?;
+            to_json(folder.display().to_string())
+        }
+        "init_repository" => to_json(actions::init_repository(&path()?)?),
+        "prune_candidates" => to_json(actions::prune_candidates(&path()?)?),
+        "branch_backups" => to_json(actions::backups(&path()?)?),
+        "lost_commits" => {
+            let reference: String = arg(args, "reference")?;
+            to_json(actions::lost_commits(&path()?, &reference)?)
+        }
+        "lfs_locks" => to_json(locks::locks(&path()?)?),
+        "file_history" => {
+            let file: String = arg(args, "file")?;
+            to_json(actions::file_history(&path()?, &file)?)
+        }
+        "file_checks" => {
+            let files: Vec<String> = arg(args, "files")?;
+            let threshold: u64 = arg(args, "threshold")?;
+            to_json(actions::file_checks(&path()?, &files, threshold)?)
+        }
+        "lfs_storage" => to_json(actions::lfs_storage_of(&path()?)?),
+        "pull_requests" => {
+            let path = path()?;
+            to_json(tauri::async_runtime::block_on(github::pull_requests(
+                &path,
+            ))?)
+        }
+        "reflog" => {
+            let limit = optional(args, "limit")?.unwrap_or(300);
+            to_json(repo::reflog(&path()?, limit)?)
+        }
+        "remote_state" => to_json(repo::remote_state(&path()?)?),
+        "commits_between" => {
+            let from: String = arg(args, "from")?;
+            let to: String = arg(args, "to")?;
+            to_json(repo::commits_between(&path()?, &from, &to)?)
+        }
+        "cancel_action" => to_json(git::cancel()),
+        "activity_log" => to_json(git::activity()),
+        other => Err(Error::Message(format!(
+            "The headless app has no command {other}."
+        ))),
+    }
+}
