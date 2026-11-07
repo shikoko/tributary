@@ -1,6 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+// JetBrains Mono for commit ids, the activity log and other code-like text. Bundled, so it
+// works offline and looks the same whatever fonts are installed.
+import "@fontsource-variable/jetbrains-mono";
 import "./styles.css";
 import { isMac } from "./lib/platform";
 

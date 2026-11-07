@@ -68,7 +68,8 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
     ? { background: color, borderColor: color, color: "#0d0f13" }
     : pill.kind === "tag" || pill.kind === "stash"
       ? { background: withAlpha(color, 0.08), borderColor: withAlpha(color, 0.45) }
-      : { background: withAlpha(color, 0.2), borderColor: withAlpha(color, 0.65) };
+      : // Branches other than the checked-out one: a tint, no outline.
+        { background: withAlpha(color, 0.22), borderColor: "transparent" };
 
   return (
     <span
