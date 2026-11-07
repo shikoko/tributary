@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { RepoSnapshot } from "../api";
 import { relativeTime } from "../lib/format";
 import { isMac } from "../lib/platform";
-import { ActivityIcon, BranchIcon, CloudIcon, CommitIcon, EyeOffIcon, FolderIcon } from "./Icons";
+import { ActivityIcon, BranchIcon, BroomIcon, CloseIcon, CloudIcon, CommitIcon, EyeOffIcon, FolderIcon } from "./Icons";
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -20,6 +20,10 @@ interface Props {
   activityFailed: boolean;
   onToggleActivity: () => void;
   onReveal: () => void;
+  /** Local branches gone from the remote, to offer cleaning up. */
+  pruneHint: { count: number; remote: string } | null;
+  onPrune: (() => void) | null;
+  onDismissPruneHint: () => void;
 }
 
 /** A thin bar at the bottom of the window: where the branch stands, and the repository's folder. */
@@ -60,6 +64,22 @@ export function StatusBar(props: Props) {
         ) : (
           <span className="status-item muted">{fetched}</span>
         ))}
+      {props.pruneHint && props.onPrune && (
+        <span className="status-item status-hint">
+          <button
+            className="status-button"
+            onClick={props.onPrune}
+            title="Their remote branches were deleted, usually because their pull requests were merged"
+          >
+            <BroomIcon size={12} />
+            {props.pruneHint.count} {props.pruneHint.count === 1 ? "branch" : "branches"} gone from {props.pruneHint.remote}
+            <span className="status-hint-action">Clean up</span>
+          </button>
+          <button className="status-hint-close" onClick={props.onDismissPruneHint} aria-label="Hide this" title="Hide this until another branch goes">
+            <CloseIcon size={10} />
+          </button>
+        </span>
+      )}
       {running && <span className="status-item running">{running}…</span>}
       {snapshot.operation && (
         <span className="status-item warning">

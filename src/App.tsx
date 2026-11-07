@@ -60,6 +60,7 @@ import { ForcePushDialog } from "./components/ForcePushDialog";
 import {
   ActivityIcon,
   BranchIcon,
+  BroomIcon,
   CloneIcon,
   CloseIcon,
   CloudIcon,
@@ -93,6 +94,7 @@ import { MultiSelectPanel } from "./components/MultiSelectPanel";
 import { NewBranchDialog } from "./components/NewBranchDialog";
 import { OperationBar } from "./components/OperationBar";
 import { ProgressStrip } from "./components/ProgressStrip";
+import { PruneDialog } from "./components/PruneDialog";
 import { RenameBranchDialog } from "./components/RenameBranchDialog";
 import { ResetDialog } from "./components/ResetDialog";
 import { ResizeHandle } from "./components/ResizeHandle";
@@ -231,6 +233,14 @@ export default function App() {
   // Remembered for each repository.
   const [visibility, setVisibility] = useRepoSetting<Visibility>("visibility", snapshot?.path ?? null, NO_VISIBILITY);
   const [pins, setPins] = useRepoSetting<string[]>("pins", snapshot?.path ?? null, []);
+  // "3 branches gone from origin · Clean up", until they're pruned or the hint is
+  // dismissed (for those branches: it comes back when another one goes).
+  const [pruneHintDismissed, setPruneHintDismissed] = useRepoSetting<string>("pruneHintDismissed", snapshot?.path ?? null, "");
+  const goneSignature = snapshot?.goneBranches.join("\n") ?? "";
+  const pruneHint =
+    snapshot && snapshot.goneBranches.length > 0 && goneSignature !== pruneHintDismissed
+      ? { count: snapshot.goneBranches.length, remote: snapshot.remotes.length === 1 ? snapshot.remotes[0] : "the remote" }
+      : null;
 
   const searchInput = useRef<HTMLInputElement>(null);
   const detailsCache = useRef(new Map<string, CommitDetails>());
@@ -458,6 +468,9 @@ export default function App() {
         return before.headCommit ? { kind: "resetHard", id: before.headCommit } : null;
       case "commit":
         return before.headCommit ? { kind: "resetSoft", id: before.headCommit } : null;
+      case "deleteBranches":
+        // Branches that weren't deleted are skipped when restoring.
+        return { kind: "restoreBranches", branches: action.branches };
       case "stashAndRetry": {
         // Undo the same way: put the changes aside, undo, and put them back.
         const inner = undoFor(action.action, before);
@@ -998,6 +1011,7 @@ export default function App() {
           "-",
           { id: "new-branch", label: "New Branch…", icon: <BranchIcon />, enabled: Boolean(head) && canChange, run: () => head && setDialog({ kind: "newBranch", target: head }) },
           { id: "new-tag", label: "New Tag…", icon: <TagIcon />, enabled: Boolean(head) && canChange, run: () => head && setDialog({ kind: "tag", target: head }) },
+          { id: "prune", label: "Prune Branches…", icon: <BroomIcon />, enabled: canChange, run: () => setDialog({ kind: "prune" }) },
           "-",
           ...(remote
             ? [
@@ -1484,6 +1498,7 @@ export default function App() {
                 setHidden([name], shown);
               }}
               onShowAll={showAllBranches}
+              onPrune={canChange ? () => setDialog({ kind: "prune" }) : null}
             />
             <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
           </>
@@ -1585,6 +1600,9 @@ export default function App() {
         activityFailed={activityFailed}
         onToggleActivity={() => setActivityOpen(!activityOpen)}
         onReveal={reveal}
+        pruneHint={pruneHint}
+        onPrune={canChange ? () => setDialog({ kind: "prune" }) : null}
+        onDismissPruneHint={() => setPruneHintDismissed(goneSignature)}
       />
 
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
@@ -1631,6 +1649,18 @@ export default function App() {
           onStart={(steps) => {
             setDialog(null);
             act({ kind: "interactiveRebase", onto: dialog.onto.id, steps });
+          }}
+        />
+      )}
+      {dialog?.kind === "prune" && (
+        <PruneDialog
+          repoPath={snapshot.path}
+          fetchFirst={snapshot.remotes.length > 0}
+          pinned={pins}
+          onCancel={() => setDialog(null)}
+          onDelete={(branches) => {
+            setDialog(null);
+            act({ kind: "deleteBranches", branches });
           }}
         />
       )}

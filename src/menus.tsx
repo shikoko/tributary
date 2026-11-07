@@ -46,6 +46,8 @@ export type OpenDialog =
   | { kind: "deleteTag"; name: string; restoreId: string }
   | { kind: "deleteRemoteTag"; name: string; remote: string }
   | { kind: "clone" }
+  /** Clean up local branches that are gone from the remote or merged. */
+  | { kind: "prune" }
   /** `commits`: the commits after `onto`, newest first. */
   | { kind: "interactiveRebase"; onto: CommitRow; commits: CommitRow[] }
   | null;

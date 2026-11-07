@@ -83,6 +83,11 @@ pub enum Action {
     DeleteBranch { name: String, force: bool },
     /// Delete a branch like `origin/feature` from its remote.
     DeleteRemoteBranch { name: String },
+    /// Delete several local branches (pruning), each only if it still points at the
+    /// commit given. The ones that can't be deleted are reported; the rest still go.
+    DeleteBranches { branches: Vec<BranchTip> },
+    /// Put back deleted branches, with the upstream they had (undoing a prune).
+    RestoreBranches { branches: Vec<BranchTip> },
     /// Rename a local branch.
     RenameBranch {
         name: String,
@@ -130,6 +135,49 @@ pub enum Action {
     },
     /// Delete a tag from a remote.
     DeleteRemoteTag { name: String, remote: String },
+}
+
+/// A local branch, the commit it points to and, to restore it as it was, its upstream
+/// (`branch.<name>.remote` and `branch.<name>.merge`).
+#[derive(Debug, Clone, Deserialize)]
+pub struct BranchTip {
+    pub name: String,
+    pub id: String,
+    #[serde(default)]
+    pub remote: Option<String>,
+    #[serde(default)]
+    pub merge: Option<String>,
+}
+
+/// A local branch that could be pruned: its remote branch is gone, or it's merged.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PruneCandidate {
+    pub name: String,
+    pub id: String,
+    /// Its last commit's summary and commit time.
+    pub summary: String,
+    pub time: i64,
+    /// The remote branch it tracked, like `origin/feat/x`.
+    pub upstream: Option<String>,
+    /// Its remote branch was deleted (usually: its pull request was merged).
+    pub gone: bool,
+    /// All its commits are in the base branch (or the local branch of that name).
+    pub merged: bool,
+    /// How many of its commits aren't in the base branch (0 when merged).
+    pub unmerged: u32,
+    /// Its upstream configuration, to put back if the prune is undone.
+    pub remote: Option<String>,
+    pub merge: Option<String>,
+}
+
+/// What [`prune_candidates`] found.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PruneInfo {
+    /// What "merged" is measured against, like `origin/main`.
+    pub base: Option<String>,
+    pub candidates: Vec<PruneCandidate>,
 }
 
 /// One commit in an interactive rebase.
@@ -206,7 +254,13 @@ pub fn on_activity(listener: impl Fn(&LogEntry) + Send + Sync + 'static) {
 }
 
 /// Read-only helpers that would only clutter the log.
-const UNLOGGED: [&str; 4] = ["rev-parse", "rev-list", "check-ref-format", "merge-base"];
+const UNLOGGED: [&str; 5] = [
+    "rev-parse",
+    "rev-list",
+    "check-ref-format",
+    "merge-base",
+    "for-each-ref",
+];
 
 fn record(
     git: &Git,
@@ -216,7 +270,9 @@ fn record(
     success: bool,
     output: &str,
 ) {
-    if args.first().is_some_and(|first| UNLOGGED.contains(first)) {
+    if args.first().is_some_and(|first| UNLOGGED.contains(first))
+        || args.starts_with(&["worktree", "list"])
+    {
         return;
     }
     static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -631,6 +687,94 @@ fn perform(
             git.run(&["branch", if force { "-D" } else { "-d" }, &name])?;
             Ok(format!("Deleted branch {name}"))
         }
+        Action::DeleteBranches { branches } => {
+            let current = current_branch(&repo).ok();
+            let mut deleted = Vec::new();
+            let mut failed = Vec::new();
+            for tip in &branches {
+                let result = (|| {
+                    let full_name = format!("refs/heads/{}", tip.name);
+                    require_ref(&repo, &full_name, &tip.name)?;
+                    if current.as_deref() == Some(tip.name.as_str()) {
+                        return Err("it's checked out".to_owned());
+                    }
+                    let now = repo
+                        .find_reference(full_name.as_str())
+                        .ok()
+                        .and_then(|mut reference| reference.peel_to_id().ok())
+                        .map(|id| id.to_string());
+                    if now.as_deref() != Some(tip.id.as_str()) {
+                        return Err("it has new commits since".to_owned());
+                    }
+                    // The commits were checked against the base branch (which may be a
+                    // remote one, where `-d` only knows about the checked-out branch).
+                    git.run(&["branch", "-D", &tip.name]).map(|_| ())
+                })();
+                match result {
+                    Ok(()) => deleted.push(tip.name.clone()),
+                    Err(error) => failed.push(format!("{} ({})", tip.name, error.trim())),
+                }
+            }
+            if deleted.is_empty() {
+                return Err(format!("Couldn't delete {}", failed.join(", ")));
+            }
+            let mut message = match deleted.as_slice() {
+                [one] => format!("Deleted branch {one}"),
+                _ => format!("Deleted {} branches", deleted.len()),
+            };
+            if !failed.is_empty() {
+                message.push_str(&format!(". Couldn't delete {}", failed.join(", ")));
+            }
+            Ok(message)
+        }
+        Action::RestoreBranches { branches } => {
+            let mut restored = 0;
+            let mut failed = Vec::new();
+            for tip in &branches {
+                // Already there, as it was (it was never deleted): nothing to do.
+                let existing = repo
+                    .try_find_reference(format!("refs/heads/{}", tip.name).as_str())
+                    .ok()
+                    .flatten()
+                    .and_then(|mut reference| reference.peel_to_id().ok())
+                    .map(|id| id.to_string());
+                if existing.as_deref() == Some(tip.id.as_str()) {
+                    continue;
+                }
+                let result = (|| {
+                    check_new_branch_name(&repo, &git, &tip.name)?;
+                    let id = commit_id(&repo, &tip.id)?;
+                    git.run(&["branch", &tip.name, &id.to_string()])?;
+                    if let (Some(remote), Some(merge)) = (&tip.remote, &tip.merge)
+                        && !remote.starts_with('-')
+                        && merge.starts_with("refs/")
+                    {
+                        git.run(&["config", &format!("branch.{}.remote", tip.name), remote])?;
+                        git.run(&["config", &format!("branch.{}.merge", tip.name), merge])?;
+                    }
+                    Ok::<(), Error>(())
+                })();
+                match result {
+                    Ok(()) => restored += 1,
+                    Err(error) => failed.push(format!("{} ({})", tip.name, error.trim())),
+                }
+            }
+            if restored == 0 {
+                if failed.is_empty() {
+                    return Ok("Nothing to restore: the branches are all there".into());
+                }
+                return Err(format!("Couldn't restore {}", failed.join(", ")));
+            }
+            let mut message = if restored == 1 {
+                format!("Restored branch {}", branches[0].name)
+            } else {
+                format!("Restored {restored} branches")
+            };
+            if !failed.is_empty() {
+                message.push_str(&format!(". Couldn't restore {}", failed.join(", ")));
+            }
+            Ok(message)
+        }
         Action::DeleteRemoteBranch { name } => {
             require_ref(&repo, &format!("refs/remotes/{name}"), &name)?;
             let (remote, branch) = name
@@ -799,6 +943,151 @@ fn perform(
 }
 
 /// Create a repository in an existing folder.
+/// Local branches that could be pruned: those whose remote branch was deleted, and those
+/// merged into the main branch. Never the checked-out branch, one checked out in another
+/// worktree, or long-lived ones like main. Reads only; nothing is changed.
+pub fn prune_candidates(path: &Path) -> Result<PruneInfo, Error> {
+    let repo = gix::discover(path)
+        .map_err(|e| format!("{} is not a git repository ({e})", path.display()))?;
+    let workdir = repo
+        .workdir()
+        .ok_or("This repository has no working tree, so this can't be done here.")?
+        .to_owned();
+    let git = Git::find(workdir)?;
+    let current = current_branch(&repo).ok();
+
+    // What "merged" is measured against: the remote's default branch (where pull requests
+    // land), and the local branch of the same name.
+    let base = prune_base(&repo);
+    let default_name = base
+        .as_ref()
+        .map(|(_, full)| full.rsplit('/').next().unwrap_or_default().to_owned());
+    let mut merged_into: Vec<String> = base.iter().map(|(_, full)| full.clone()).collect();
+    if let Some(name) = &default_name {
+        let local = format!("refs/heads/{name}");
+        if repo
+            .try_find_reference(local.as_str())
+            .ok()
+            .flatten()
+            .is_some()
+            && !merged_into.contains(&local)
+        {
+            merged_into.push(local);
+        }
+    }
+    let mut merged = std::collections::HashSet::new();
+    for target in &merged_into {
+        let listing = git.run(&[
+            "for-each-ref",
+            &format!("--merged={target}"),
+            "--format=%(refname:short)",
+            "refs/heads",
+        ])?;
+        merged.extend(listing.lines().map(str::to_owned));
+    }
+    // git won't delete a branch that's checked out in any worktree.
+    let checked_out: std::collections::HashSet<String> = git
+        .run(&["worktree", "list", "--porcelain"])
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|line| line.strip_prefix("branch refs/heads/"))
+        .map(str::to_owned)
+        .collect();
+
+    let listing = git.run(&[
+        "for-each-ref",
+        "--format=%(refname:short)%00%(objectname)%00%(upstream:short)%00%(upstream:track)%00%(committerdate:unix)%00%(contents:subject)",
+        "refs/heads",
+    ])?;
+    let config = repo.config_snapshot();
+    let mut candidates = Vec::new();
+    for line in listing.lines() {
+        let fields: Vec<&str> = line.split('\0').collect();
+        let [name, id, upstream, track, time, summary] = fields[..] else {
+            continue;
+        };
+        let gone = track == "[gone]";
+        let is_merged = merged.contains(name);
+        if !(gone || is_merged)
+            || current.as_deref() == Some(name)
+            || checked_out.contains(name)
+            || crate::repo::is_long_lived_branch(name)
+            || default_name.as_deref() == Some(name)
+        {
+            continue;
+        }
+        let unmerged = match (&base, is_merged) {
+            (Some((_, full)), false) => git
+                .run(&["rev-list", "--count", &format!("{full}..{id}")])
+                .ok()
+                .and_then(|count| count.trim().parse().ok())
+                .unwrap_or(0),
+            _ => 0,
+        };
+        let setting = |key: &str| {
+            config
+                .string(format!("branch.{name}.{key}").as_str())
+                .map(|value| value.to_str_lossy().into_owned())
+        };
+        candidates.push(PruneCandidate {
+            name: name.to_owned(),
+            id: id.to_owned(),
+            summary: summary.to_owned(),
+            time: time.parse().unwrap_or(0),
+            upstream: (!upstream.is_empty()).then(|| upstream.to_owned()),
+            gone,
+            merged: is_merged,
+            unmerged,
+            remote: setting("remote"),
+            merge: setting("merge"),
+        });
+    }
+    // Gone ones first, then the most recently worked on.
+    candidates.sort_by(|a, b| b.gone.cmp(&a.gone).then(b.time.cmp(&a.time)));
+    Ok(PruneInfo {
+        base: base.map(|(display, _)| display),
+        candidates,
+    })
+}
+
+/// The branch pruning measures "merged" against, as (`origin/main`, `refs/remotes/origin/main`):
+/// the default remote's default branch, or a local main, master, develop or trunk.
+fn prune_base(repo: &gix::Repository) -> Option<(String, String)> {
+    let usual = ["main", "master", "develop", "trunk"];
+    let exists = |full: &str| repo.try_find_reference(full).ok().flatten().is_some();
+    if let Ok(remote) = default_remote(repo) {
+        // What the remote calls its default branch, as recorded by clone or `remote set-head`.
+        let head = repo
+            .try_find_reference(format!("refs/remotes/{remote}/HEAD").as_str())
+            .ok()
+            .flatten()
+            .and_then(|reference| match reference.target() {
+                gix::refs::TargetRef::Symbolic(name) => {
+                    Some(name.as_bstr().to_str_lossy().into_owned())
+                }
+                gix::refs::TargetRef::Object(_) => None,
+            })
+            .filter(|full| exists(full));
+        let found = head.or_else(|| {
+            usual
+                .iter()
+                .map(|name| format!("refs/remotes/{remote}/{name}"))
+                .find(|full| exists(full))
+        });
+        if let Some(full) = found {
+            let display = full
+                .strip_prefix("refs/remotes/")
+                .unwrap_or(&full)
+                .to_owned();
+            return Some((display, full));
+        }
+    }
+    usual
+        .iter()
+        .find(|name| exists(&format!("refs/heads/{name}")))
+        .map(|name| (name.to_string(), format!("refs/heads/{name}")))
+}
+
 pub fn init_repository(path: &Path) -> Result<String, Error> {
     if !path.is_dir() {
         return Err(format!("{} isn't a folder.", path.display()));

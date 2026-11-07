@@ -99,6 +99,8 @@ export interface RepoSnapshot {
   user: { name: string | null; email: string | null } | null;
   /** When the repository was last fetched from, in seconds since the Unix epoch. */
   lastFetched: number | null;
+  /** Local branches whose remote branch was deleted (usually merged pull requests). */
+  goneBranches: string[];
 }
 
 export interface HiddenRef {
@@ -223,6 +225,9 @@ export type Action =
   | { kind: "resetSoft"; id: string }
   | { kind: "deleteBranch"; name: string; force: boolean }
   | { kind: "deleteRemoteBranch"; name: string }
+  /** Prune: delete these branches, each only if it still points at `id`. */
+  | { kind: "deleteBranches"; branches: BranchTip[] }
+  | { kind: "restoreBranches"; branches: BranchTip[] }
   | { kind: "renameBranch"; name: string; newName: string }
   | { kind: "merge"; target: string }
   | { kind: "rebase"; onto: string }
@@ -311,6 +316,43 @@ export function cloneRepository(url: string, parent: string, name: string): Prom
 /** Create a repository in an existing folder. */
 export function initRepository(path: string): Promise<string> {
   return invoke<string>("init_repository", { path });
+}
+
+/** A local branch, where it points, and (to restore it) its upstream configuration. */
+export interface BranchTip {
+  name: string;
+  id: string;
+  remote?: string | null;
+  merge?: string | null;
+}
+
+/** A local branch that could be pruned. */
+export interface PruneCandidate {
+  name: string;
+  id: string;
+  summary: string;
+  time: number;
+  /** Like "origin/feat/x". */
+  upstream: string | null;
+  /** Its remote branch was deleted. */
+  gone: boolean;
+  /** All its commits are in the base branch. */
+  merged: boolean;
+  /** Commits not in the base branch. */
+  unmerged: number;
+  remote: string | null;
+  merge: string | null;
+}
+
+export interface PruneInfo {
+  /** What "merged" means: merged into this, like "origin/main". */
+  base: string | null;
+  candidates: PruneCandidate[];
+}
+
+/** Local branches that could be pruned: gone from the remote, or merged. Changes nothing. */
+export function pruneCandidates(path: string): Promise<PruneInfo> {
+  return invoke<PruneInfo>("prune_candidates", { path });
 }
 
 /** The git commands Tributary ran recently, oldest first. */

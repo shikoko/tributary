@@ -141,6 +141,15 @@ export const TrashIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A broom, for cleaning up (pruning branches). */
+export const BroomIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M13.5 2.5 8.6 7.4" />
+    <path d="M6.6 6.6 9.4 9.4 7 13.5H3.6c-.6-1.4-.9-3-.5-4.4z" />
+    <path d="M5.2 13.5 6.4 11M3.6 11.2l2-1.4" />
+  </Icon>
+);
+
 export const PencilIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M10.5 2.5 13.5 5.5 6 13H3v-3z" />

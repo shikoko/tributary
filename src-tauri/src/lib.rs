@@ -91,6 +91,14 @@ async fn init_repository(path: String) -> Result<String, String> {
         .map_err(|e| e.to_string())?
 }
 
+/// Local branches that could be pruned (gone from the remote, or merged).
+#[tauri::command]
+async fn prune_candidates(path: String) -> Result<actions::PruneInfo, String> {
+    tauri::async_runtime::spawn_blocking(move || actions::prune_candidates(&PathBuf::from(path)))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 /// Stop the fetch, pull, push or clone that is running.
 #[tauri::command]
 fn cancel_action() -> bool {
@@ -122,6 +130,7 @@ pub fn run() {
             run_action,
             clone_repository,
             init_repository,
+            prune_candidates,
             cancel_action,
             activity_log
         ])

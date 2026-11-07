@@ -3064,3 +3064,187 @@ textarea.text-input {
   padding: 0 2px;
   font-size: inherit;
 }
+
+/* Prune branches */
+
+.prune-list {
+  max-height: min(52vh, 460px);
+  margin: 12px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  list-style: none;
+}
+
+.prune-row + .prune-row {
+  border-top: 1px solid var(--border);
+}
+
+.prune-row label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.prune-row:hover {
+  background: var(--bg-hover);
+}
+
+.prune-row input {
+  margin-top: 3px;
+  accent-color: #e5484d;
+  flex: none;
+}
+
+.prune-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.prune-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.prune-name {
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.prune-row:not(.chosen) .prune-name {
+  color: var(--text-secondary);
+}
+
+.prune-tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.prune-tag.gone {
+  background: rgba(255, 173, 31, 0.12);
+  color: #ffc966;
+}
+
+.prune-tag.merged {
+  background: rgba(140, 224, 74, 0.12);
+  color: #a9e57b;
+}
+
+.prune-tag.unmerged {
+  background: rgba(255, 92, 108, 0.12);
+  color: #ff97a1;
+}
+
+.prune-summary {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prune-when {
+  color: var(--text-faint);
+  font-size: 12px;
+  white-space: nowrap;
+  flex: none;
+}
+
+.dialog-note-line {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* A small button at the end of a sidebar heading (prune branches). */
+.sidebar-heading-row {
+  position: relative;
+}
+
+.sidebar-heading-row:has(.sidebar-heading-action) .sidebar-heading {
+  padding-right: 32px;
+}
+
+.sidebar-heading-action {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-faint);
+  opacity: 0;
+}
+
+.sidebar-heading-row:hover .sidebar-heading-action,
+.sidebar-heading-action:focus-visible {
+  opacity: 1;
+}
+
+.sidebar-heading-action:hover {
+  background: var(--bg-raised);
+  color: var(--text);
+}
+
+/* "3 branches gone from origin · Clean up" in the status bar. */
+.status-hint {
+  gap: 0;
+  padding: 0;
+  color: #ffc966;
+}
+
+.status-hint .status-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px 0 0 4px;
+  background: rgba(255, 173, 31, 0.1);
+  color: inherit;
+  font: inherit;
+}
+
+.status-hint-action {
+  margin-left: 4px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.status-hint-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  background: rgba(255, 173, 31, 0.1);
+  color: inherit;
+  opacity: 0.7;
+}
+
+.status-hint-close:hover,
+.status-hint .status-button:hover {
+  background: rgba(255, 173, 31, 0.18);
+  opacity: 1;
+}

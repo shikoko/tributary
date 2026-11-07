@@ -53,6 +53,9 @@ pub struct RepoSnapshot {
     pub user: Option<Identity>,
     /// When the repository was last fetched from (seconds since the Unix epoch).
     pub last_fetched: Option<i64>,
+    /// Local branches whose remote branch was deleted (typically merged pull requests),
+    /// apart from the checked-out branch and long-lived ones like main.
+    pub gone_branches: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -485,6 +488,7 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
             .map(|v| v.to_str_lossy().into_owned()),
     };
     let user = (identity.name.is_some() || identity.email.is_some()).then_some(identity);
+    let gone = gone_branches(&repo, head_branch.as_deref());
     Ok(RepoSnapshot {
         path: location.display().to_string(),
         name,
@@ -509,7 +513,40 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
         web_remotes: web_remotes(&repo),
         user,
         last_fetched: last_fetched(&repo),
+        gone_branches: gone,
     })
+}
+
+/// Branches that live on, and are never offered for pruning.
+pub fn is_long_lived_branch(name: &str) -> bool {
+    matches!(
+        name,
+        "main" | "master" | "develop" | "development" | "dev" | "trunk"
+    )
+}
+
+/// Local branches that track a remote branch which no longer exists.
+fn gone_branches(repo: &gix::Repository, head_branch: Option<&str>) -> Vec<String> {
+    let Ok(platform) = repo.references() else {
+        return Vec::new();
+    };
+    let Ok(branches) = platform.local_branches() else {
+        return Vec::new();
+    };
+    let mut gone: Vec<String> = branches
+        .flatten()
+        .filter_map(|reference| {
+            let full_name = reference.name().as_bstr().to_str_lossy().into_owned();
+            let name = full_name.strip_prefix("refs/heads/")?.to_owned();
+            if Some(name.as_str()) == head_branch || is_long_lived_branch(&name) {
+                return None;
+            }
+            let upstream = upstream(repo, &name)?;
+            upstream.commit.is_none().then_some(name)
+        })
+        .collect();
+    gone.sort();
+    gone
 }
 
 /// The web pages of the remotes that have one.

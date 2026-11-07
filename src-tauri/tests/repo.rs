@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use tributary_lib::actions::{self, Action};
+use tributary_lib::actions::{self, Action, BranchTip};
 use tributary_lib::repo::{
     self, FileChange, FileStatus, LoadOptions, OperationKind, RefKind, RowKind,
 };
@@ -1759,4 +1759,130 @@ fn logs_the_git_commands_it_runs() {
     assert_eq!(mine[0].args, vec!["add", "--all"]);
     assert!(mine[0].success);
     assert!(!mine[0].background);
+}
+
+/// Pruning offers local branches whose remote branch is gone or that are merged, never
+/// the checked-out branch or long-lived ones, deletes only what still points where it did,
+/// and can put them all back, upstreams included.
+#[test]
+fn prunes_gone_and_merged_branches_and_restores_them() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("prune-remote.git");
+    let mut alice = TempRepo::new("prune-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "First");
+    alice.git(&["push", "--quiet", "-u", "origin", "main"]);
+
+    // Merged, then deleted on the remote: a merged pull request.
+    alice.git(&["switch", "--quiet", "-c", "feat/merged"]);
+    alice.commit("merged.txt", "Merged work");
+    alice.git(&["push", "--quiet", "-u", "origin", "feat/merged"]);
+    // Pushed, then deleted on the remote without being merged here: a squash merge.
+    alice.git(&["switch", "--quiet", "-c", "feat/squashed", "main"]);
+    alice.commit("squashed.txt", "Squashed work");
+    alice.git(&["push", "--quiet", "-u", "origin", "feat/squashed"]);
+    // Merged locally, never pushed.
+    alice.git(&["switch", "--quiet", "-c", "feat/local", "main"]);
+    alice.commit("local.txt", "Local work");
+    // Still being worked on.
+    alice.git(&["switch", "--quiet", "-c", "feat/active", "main"]);
+    alice.commit("active.txt", "Active work");
+    alice.git(&["push", "--quiet", "-u", "origin", "feat/active"]);
+    alice.git(&["switch", "--quiet", "main"]);
+    alice.git(&["merge", "--quiet", "--no-edit", "feat/merged"]);
+    alice.git(&["merge", "--quiet", "--no-edit", "feat/local"]);
+    alice.git(&["branch", "develop"]);
+    alice.git(&["push", "--quiet", "origin", "main"]);
+    remote.git(&["branch", "-D", "feat/merged", "feat/squashed"]);
+    alice.git(&["fetch", "--quiet", "--prune"]);
+
+    let snapshot = repo::load(alice.path(), 100, false).unwrap();
+    assert_eq!(snapshot.gone_branches, ["feat/merged", "feat/squashed"]);
+
+    let info = actions::prune_candidates(alice.path()).unwrap();
+    assert_eq!(info.base.as_deref(), Some("origin/main"));
+    let found: Vec<(&str, bool, bool, u32)> = info
+        .candidates
+        .iter()
+        .map(|c| (c.name.as_str(), c.gone, c.merged, c.unmerged))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("feat/squashed", true, false, 1),
+            ("feat/merged", true, true, 0),
+            ("feat/local", false, true, 0),
+        ],
+        "gone first, newest first; not main, develop or feat/active"
+    );
+    let squashed = &info.candidates[0];
+    assert_eq!(squashed.upstream.as_deref(), Some("origin/feat/squashed"));
+    assert_eq!(squashed.remote.as_deref(), Some("origin"));
+    assert_eq!(squashed.merge.as_deref(), Some("refs/heads/feat/squashed"));
+
+    let tips: Vec<BranchTip> = info
+        .candidates
+        .iter()
+        .map(|c| BranchTip {
+            name: c.name.clone(),
+            id: c.id.clone(),
+            remote: c.remote.clone(),
+            merge: c.merge.clone(),
+        })
+        .collect();
+    // A branch that moved since it was listed is left alone; the others still go.
+    let mut stale = tips.clone();
+    stale[2].id = alice.git(&["rev-parse", "main~1"]);
+    let message = run(&alice, Action::DeleteBranches { branches: stale }).unwrap();
+    assert_eq!(
+        message,
+        "Deleted 2 branches. Couldn't delete feat/local (it has new commits since)"
+    );
+    let left = alice.git(&["branch", "--format=%(refname:short)"]);
+    assert_eq!(
+        left.lines().collect::<Vec<_>>(),
+        ["develop", "feat/active", "feat/local", "main"]
+    );
+
+    assert_eq!(
+        run(
+            &alice,
+            Action::RestoreBranches {
+                branches: tips[..2].to_vec()
+            }
+        )
+        .unwrap(),
+        "Restored 2 branches"
+    );
+    assert_eq!(alice.git(&["rev-parse", "feat/squashed"]), squashed.id);
+    assert_eq!(
+        alice.git(&["config", "branch.feat/squashed.remote"]),
+        "origin"
+    );
+    assert_eq!(
+        alice.git(&["config", "branch.feat/squashed.merge"]),
+        "refs/heads/feat/squashed"
+    );
+    // Undoing the whole prune skips the branch that was never deleted.
+    assert_eq!(
+        run(
+            &alice,
+            Action::RestoreBranches {
+                branches: tips.clone()
+            }
+        )
+        .unwrap(),
+        "Nothing to restore: the branches are all there"
+    );
+    // Restoring over a branch that has since moved is refused.
+    alice.git(&["branch", "--force", "feat/local", "main~1"]);
+    assert!(
+        run(
+            &alice,
+            Action::RestoreBranches {
+                branches: tips[2..].to_vec()
+            }
+        )
+        .is_err()
+    );
 }

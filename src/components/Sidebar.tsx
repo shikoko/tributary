@@ -5,6 +5,7 @@ import { collectRefs, type RefEntry } from "../lib/refs";
 import { useStoredState } from "../lib/settings";
 import {
   BranchIcon,
+  BroomIcon,
   CheckIcon,
   ChevronDownIcon,
   CloudIcon,
@@ -36,6 +37,8 @@ interface Props {
   onToggleVisible: (entry: RefEntry) => void;
   /** Show every branch again. */
   onShowAll: () => void;
+  /** Open the prune branches dialog (null while that can't be done). */
+  onPrune: (() => void) | null;
   /** For local branches that track a remote branch: commits to push and to pull. */
   aheadBehind: Map<string, { ahead: number; behind: number }>;
 }
@@ -199,14 +202,17 @@ export function Sidebar(props: Props) {
     return <ul>{render(group(entries.map((entry) => ({ entry, label: labelOf(entry) }))), 0)}</ul>;
   };
 
-  const section = (key: string, title: string, count: number, children: ReactNode) =>
+  const section = (key: string, title: string, count: number, children: ReactNode, action?: ReactNode) =>
     (count > 0 || !needle) && (
       <section className="sidebar-section" key={key}>
-        <button className="sidebar-heading" onClick={() => toggle(key)} aria-expanded={isOpen(key)}>
-          <ChevronDownIcon size={12} className={isOpen(key) ? undefined : "collapsed"} />
-          <span>{title}</span>
-          <span className="sidebar-count">{count}</span>
-        </button>
+        <div className="sidebar-heading-row">
+          <button className="sidebar-heading" onClick={() => toggle(key)} aria-expanded={isOpen(key)}>
+            <ChevronDownIcon size={12} className={isOpen(key) ? undefined : "collapsed"} />
+            <span>{title}</span>
+            <span className="sidebar-count">{count}</span>
+          </button>
+          {action}
+        </div>
         {isOpen(key) && (count > 0 ? children : <div className="sidebar-empty">None</div>)}
       </section>
     );
@@ -259,7 +265,17 @@ export function Sidebar(props: Props) {
               {pinned.map((entry) => item(entry, entry.name, <PinIcon size={13} />, 0, `pin:${entry.kind}:${entry.name}`))}
             </ul>,
           )}
-        {section("branches", "Branches", branches.length, tree("branches", branches, (e) => e.name, <BranchIcon size={13} />))}
+        {section(
+          "branches",
+          "Branches",
+          branches.length,
+          tree("branches", branches, (e) => e.name, <BranchIcon size={13} />),
+          props.onPrune && (
+            <button className="sidebar-heading-action" onClick={props.onPrune} title="Prune branches: clean up merged ones and ones gone from the remote" aria-label="Prune branches">
+              <BroomIcon size={13} />
+            </button>
+          ),
+        )}
         {section(
           "remotes",
           "Remotes",
