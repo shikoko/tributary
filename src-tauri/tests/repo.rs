@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use tributary_lib::actions::{self, Action, BranchTip, LockRef, Side};
+use tributary_lib::actions::{self, Action, BranchTip, LockRef, MergeMode, Side};
 use tributary_lib::locks;
 use tributary_lib::repo::{
     self, FileChange, FileStatus, LoadOptions, OperationKind, RefKind, RowKind,
@@ -605,6 +605,7 @@ fn stashes_apply_pop_and_drop() {
         Action::StashPush {
             message: Some("Half done".into()),
             include_untracked: false,
+            paths: vec![],
         },
     )
     .unwrap();
@@ -616,6 +617,7 @@ fn stashes_apply_pop_and_drop() {
         Action::StashPush {
             message: None,
             include_untracked: false,
+            paths: vec![],
         },
     )
     .unwrap_err();
@@ -650,6 +652,7 @@ fn stashes_apply_pop_and_drop() {
         Action::StashPush {
             message: None,
             include_untracked: false,
+            paths: vec![],
         },
     )
     .unwrap();
@@ -986,6 +989,7 @@ fn merges_branches() {
         &repo,
         Action::Merge {
             target: "feature".into(),
+            mode: MergeMode::Default,
         },
     )
     .unwrap();
@@ -996,7 +1000,8 @@ fn merges_branches() {
         run(
             &repo,
             Action::Merge {
-                target: "--abort".into()
+                target: "--abort".into(),
+                mode: MergeMode::Default
             }
         )
         .is_err()
@@ -1005,7 +1010,8 @@ fn merges_branches() {
         run(
             &repo,
             Action::Merge {
-                target: "missing".into()
+                target: "missing".into(),
+                mode: MergeMode::Default
             }
         )
         .is_err()
@@ -1026,6 +1032,7 @@ fn stops_a_merge_on_conflicts_then_continues_or_aborts() {
         &repo,
         Action::Merge {
             target: "feature".into(),
+            mode: MergeMode::Default,
         },
     )
     .unwrap_err();
@@ -1069,6 +1076,7 @@ fn stops_a_merge_on_conflicts_then_continues_or_aborts() {
         &repo,
         Action::Merge {
             target: "feature".into(),
+            mode: MergeMode::Default,
         },
     )
     .unwrap_err();
@@ -2110,6 +2118,7 @@ fn resolves_conflicts_by_keeping_one_side() {
         &repo,
         Action::Merge {
             target: "feature".into(),
+            mode: MergeMode::Default,
         },
     )
     .unwrap_err();
@@ -2559,4 +2568,318 @@ fn locks_and_unlocks_files_with_git_lfs() {
         assert_eq!(forced, Ok("Unlocked Map.umap".to_owned()));
         assert!(locks::locks(repo.path()).unwrap().locks.is_empty());
     }
+}
+
+fn outcome(repo: &TempRepo, action: Action) -> actions::Outcome {
+    actions::run_with_progress(repo.path(), action, &|_| {}).unwrap()
+}
+
+#[test]
+fn checks_changed_files_for_size_and_locking() {
+    let mut repo = TempRepo::new("file-checks");
+    repo.commit(
+        ".gitattributes",
+        "*.uasset lockable\n*.psd filter=lfs diff=lfs merge=lfs -text\n",
+    );
+    std::fs::write(repo.path().join("big.wav"), vec![1u8; 3000]).unwrap();
+    std::fs::write(repo.path().join("art.psd"), vec![1u8; 3000]).unwrap();
+    std::fs::write(repo.path().join("hero.uasset"), vec![1u8; 100]).unwrap();
+    std::fs::write(repo.path().join("small.txt"), "small").unwrap();
+    let files: Vec<String> = ["big.wav", "art.psd", "hero.uasset", "small.txt", "gone/"]
+        .iter()
+        .map(|f| (*f).to_owned())
+        .collect();
+    let checks = actions::file_checks(repo.path(), &files, 1000).unwrap();
+    // art.psd is big too, but it goes to Git LFS.
+    let large: Vec<_> = checks
+        .large
+        .iter()
+        .map(|f| (f.path.as_str(), f.size))
+        .collect();
+    assert_eq!(large, vec![("big.wav", 3000)]);
+    assert_eq!(checks.lockable, vec!["hero.uasset"]);
+    assert!(checks.uses_lfs);
+}
+
+#[test]
+fn moves_staged_files_into_git_lfs() {
+    if !lfs_installed() {
+        eprintln!("Git LFS isn't installed: skipped");
+        return;
+    }
+    let mut repo = TempRepo::new("track-lfs");
+    with_identity(&repo);
+    repo.commit("a.txt", "First");
+    std::fs::write(repo.path().join("level.umap"), vec![7u8; 5000]).unwrap();
+    repo.git(&["add", "level.umap"]);
+    assert_eq!(
+        run(
+            &repo,
+            Action::TrackWithLfs {
+                patterns: vec!["*.umap".into()],
+                paths: vec!["level.umap".into()],
+            },
+        )
+        .unwrap(),
+        "Now storing *.umap with Git LFS"
+    );
+    // The index now holds a small pointer to the LFS file, and .gitattributes is staged.
+    let staged = repo.git(&["show", ":level.umap"]);
+    assert!(staged.starts_with("version https://git-lfs"), "{staged}");
+    assert!(
+        repo.git(&["show", ":.gitattributes"])
+            .contains("*.umap filter=lfs")
+    );
+    let files = vec!["level.umap".to_owned()];
+    assert!(
+        actions::file_checks(repo.path(), &files, 1000)
+            .unwrap()
+            .large
+            .is_empty()
+    );
+}
+
+#[test]
+fn discards_files_and_puts_them_back() {
+    let mut repo = TempRepo::new("discard");
+    with_identity(&repo);
+    repo.commit("a.txt", "original");
+    repo.commit("keep.txt", "keep");
+    std::fs::write(repo.path().join("a.txt"), "edited").unwrap();
+    std::fs::write(repo.path().join("keep.txt"), "also edited").unwrap();
+    std::fs::write(repo.path().join("new.log"), "new").unwrap();
+
+    let discarded = outcome(
+        &repo,
+        Action::DiscardFiles {
+            paths: vec!["a.txt".into(), "new.log".into()],
+        },
+    );
+    assert_eq!(discarded.message, "Discarded the changes to 2 files");
+    assert_eq!(read(&repo, "a.txt"), "original");
+    assert!(!repo.path().join("new.log").exists());
+    // Other changes stay, and the stash list isn't touched.
+    assert_eq!(read(&repo, "keep.txt"), "also edited");
+    assert_eq!(stash_count(&repo), 0);
+
+    let reference = discarded.backup.expect("kept for undo");
+    assert!(reference.starts_with("refs/tributary/discarded/"));
+    assert_eq!(
+        run(
+            &repo,
+            Action::RestoreDiscarded {
+                reference: reference.clone()
+            }
+        )
+        .unwrap(),
+        "Put the discarded changes back"
+    );
+    assert_eq!(read(&repo, "a.txt"), "edited");
+    assert_eq!(read(&repo, "new.log"), "new");
+    assert!(run(&repo, Action::RestoreDiscarded { reference }).is_err());
+    assert!(
+        run(
+            &repo,
+            Action::DiscardFiles {
+                paths: vec!["unchanged.txt".into()]
+            }
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn ignores_files_and_stops_ignoring_them() {
+    let mut repo = TempRepo::new("ignore");
+    repo.commit("a.txt", "First");
+    std::fs::write(repo.path().join("debug.log"), "noise").unwrap();
+    std::fs::create_dir_all(repo.path().join("Saved")).unwrap();
+    std::fs::write(repo.path().join("Saved/autosave.uasset"), "noise").unwrap();
+    let untracked = |repo: &TempRepo| repo.git(&["status", "--porcelain", "--untracked-files=all"]);
+    assert!(untracked(&repo).contains("debug.log"));
+
+    run(
+        &repo,
+        Action::IgnorePaths {
+            patterns: vec!["*.log".into(), "Saved/".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(read(&repo, ".gitignore"), "*.log\nSaved/\n");
+    assert_eq!(untracked(&repo), "?? .gitignore");
+    // Already there: not added twice.
+    run(
+        &repo,
+        Action::IgnorePaths {
+            patterns: vec!["*.log".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(read(&repo, ".gitignore"), "*.log\nSaved/\n");
+
+    run(
+        &repo,
+        Action::UnignorePaths {
+            patterns: vec!["*.log".into(), "Saved/".into()],
+        },
+    )
+    .unwrap();
+    assert!(!repo.path().join(".gitignore").exists());
+}
+
+#[test]
+fn merges_with_a_merge_commit_or_squashed() {
+    let mut repo = TempRepo::new("merge-modes");
+    with_identity(&repo);
+    let base = repo.commit("a.txt", "base");
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+    repo.commit("b.txt", "Add the menu");
+    repo.commit("c.txt", "Add prices");
+    repo.git(&["switch", "--quiet", "main"]);
+
+    // main could fast-forward, but gets a merge commit.
+    run(
+        &repo,
+        Action::Merge {
+            target: "feature".into(),
+            mode: MergeMode::NoFastForward,
+        },
+    )
+    .unwrap();
+    assert_eq!(parents(&repo, "HEAD"), 2);
+
+    repo.git(&["reset", "--quiet", "--hard", &base]);
+    let message = run(
+        &repo,
+        Action::Merge {
+            target: "feature".into(),
+            mode: MergeMode::Squash,
+        },
+    )
+    .unwrap();
+    assert!(
+        message.starts_with("Squashed feature into main"),
+        "{message}"
+    );
+    assert_eq!(head(&repo), base, "nothing is committed yet");
+    let status = repo::load(repo.path(), 100, true)
+        .unwrap()
+        .worktree
+        .unwrap();
+    assert_eq!(
+        files(&status.staged),
+        vec![("b.txt", FileStatus::Added), ("c.txt", FileStatus::Added)]
+    );
+    let prepared = std::fs::read_to_string(repo.path().join(".git/SQUASH_MSG")).unwrap();
+    assert_eq!(
+        prepared,
+        "Squash merge feature\n\n- Add the menu\n- Add prices\n"
+    );
+    let snapshot = repo::load(repo.path(), 100, false).unwrap();
+    assert_eq!(
+        snapshot.squash_message.as_deref(),
+        Some("Squash merge feature\n\n- Add the menu\n- Add prices")
+    );
+}
+
+#[test]
+fn stashes_only_the_chosen_files() {
+    let mut repo = TempRepo::new("stash-files");
+    repo.commit("a.txt", "a");
+    repo.commit("b.txt", "b");
+    std::fs::write(repo.path().join("a.txt"), "a edited").unwrap();
+    std::fs::write(repo.path().join("b.txt"), "b edited").unwrap();
+    assert_eq!(
+        run(
+            &repo,
+            Action::StashPush {
+                message: None,
+                include_untracked: false,
+                paths: vec!["a.txt".into()],
+            },
+        )
+        .unwrap(),
+        "Stashed a.txt as stash@{0}"
+    );
+    assert_eq!(read(&repo, "a.txt"), "a");
+    assert_eq!(read(&repo, "b.txt"), "b edited");
+}
+
+#[test]
+fn lists_what_moved_head_and_what_arrived_on_branches() {
+    let mut repo = TempRepo::new("reflog");
+    with_identity(&repo);
+    let first = repo.commit("a.txt", "First");
+    let lost = repo.commit("b.txt", "Soon lost");
+    repo.git(&["reset", "--quiet", "--hard", &first]);
+
+    let entries = repo::reflog(repo.path(), 10).unwrap();
+    assert!(
+        entries[0].message.starts_with("reset: moving to"),
+        "{:?}",
+        entries[0]
+    );
+    assert_eq!(entries[0].previous.as_deref(), Some(lost.as_str()));
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry.id == lost && entry.summary == "Soon lost")
+    );
+    assert_eq!(repo::reflog(repo.path(), 1).unwrap().len(), 1);
+
+    // Commits between two points, for "new commits" notices.
+    let mut other = TempRepo::new("reflog-between");
+    with_identity(&other);
+    let start = other.commit("a.txt", "Start");
+    other.commit("b.txt", "One");
+    other.commit("c.txt", "Two");
+    let end = head(&other);
+    let news = repo::commits_between(other.path(), &start, &end).unwrap();
+    assert_eq!(news.count, 2);
+    assert_eq!(news.authors, vec!["Test Author"]);
+}
+
+#[test]
+fn reports_where_remote_branches_are() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("state-remote.git");
+    let mut alice = TempRepo::new("state-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    let tip = alice.commit("a.txt", "First");
+    alice.git(&["push", "--quiet", "-u", "origin", "main"]);
+    let state = repo::remote_state(alice.path()).unwrap();
+    assert_eq!(state.tips.get("origin/main"), Some(&tip));
+    assert_eq!(state.upstream.as_deref(), Some("origin/main"));
+    assert_eq!(state.remotes, vec!["origin"]);
+}
+
+#[test]
+fn measures_and_prunes_local_git_lfs_files() {
+    if !lfs_installed() {
+        eprintln!("Git LFS isn't installed: skipped");
+        return;
+    }
+    let repo = TempRepo::new("lfs-prune");
+    with_identity(&repo);
+    repo.git(&["lfs", "install", "--local"]);
+    repo.git(&["lfs", "track", "*.bin"]);
+    std::fs::write(repo.path().join("video.bin"), vec![3u8; 20_000]).unwrap();
+    repo.git(&["add", ".gitattributes", "video.bin"]);
+    repo.git(&["commit", "--quiet", "-m", "Add a video"]);
+    let storage = actions::lfs_storage_of(repo.path())
+        .unwrap()
+        .expect("uses LFS");
+    assert!(storage.bytes >= 20_000, "{storage:?}");
+    assert_eq!(storage.files, 1);
+    // The checked-out file's copy is kept.
+    let message = run(&repo, Action::PruneLfs).unwrap();
+    assert!(message.starts_with("Freed "), "{message}");
+    assert_eq!(
+        actions::lfs_storage_of(repo.path()).unwrap().unwrap().files,
+        1
+    );
+    // Without LFS, there's nothing to measure.
+    let mut plain = TempRepo::new("lfs-prune-plain");
+    plain.commit("a.txt", "First");
+    assert!(actions::lfs_storage_of(plain.path()).unwrap().is_none());
 }

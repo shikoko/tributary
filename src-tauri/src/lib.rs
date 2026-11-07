@@ -1,4 +1,5 @@
 pub mod actions;
+pub mod github;
 pub mod graph;
 pub mod lfs;
 pub mod links;
@@ -135,6 +136,66 @@ async fn file_history(path: String, file: String) -> Result<actions::FileHistory
         .map_err(|e| e.to_string())?
 }
 
+/// Which changed files are big and not in Git LFS, and which are lockable.
+#[tauri::command]
+async fn file_checks(
+    path: String,
+    files: Vec<String>,
+    threshold: u64,
+) -> Result<actions::FileChecks, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        actions::file_checks(&PathBuf::from(path), &files, threshold)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// How much space the local copies of Git LFS files take.
+#[tauri::command]
+async fn lfs_storage(path: String) -> Result<Option<actions::LfsStorage>, String> {
+    tauri::async_runtime::spawn_blocking(move || actions::lfs_storage_of(&PathBuf::from(path)))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// The open pull requests on the repository's GitHub remote.
+#[tauri::command]
+async fn pull_requests(path: String) -> Result<Vec<github::PullRequest>, String> {
+    github::pull_requests(&PathBuf::from(path)).await
+}
+
+/// HEAD's reflog, newest first.
+#[tauri::command]
+async fn reflog(path: String, limit: Option<usize>) -> Result<Vec<repo::ReflogEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        repo::reflog(&PathBuf::from(path), limit.unwrap_or(300))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Where the remote branches point, and which one the checked-out branch tracks.
+#[tauri::command]
+async fn remote_state(path: String) -> Result<repo::RemoteState, String> {
+    tauri::async_runtime::spawn_blocking(move || repo::remote_state(&PathBuf::from(path)))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// The commits reachable from `to` but not from `from`.
+#[tauri::command]
+async fn commits_between(
+    path: String,
+    from: String,
+    to: String,
+) -> Result<repo::NewCommits, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        repo::commits_between(&PathBuf::from(path), &from, &to)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// A newer version of Tributary, if there is one.
 #[tauri::command]
 async fn check_for_update(app: AppHandle) -> Result<Option<updates::UpdateInfo>, String> {
@@ -187,6 +248,12 @@ pub fn run() {
             lost_commits,
             lfs_locks,
             file_history,
+            file_checks,
+            lfs_storage,
+            pull_requests,
+            reflog,
+            remote_state,
+            commits_between,
             check_for_update,
             install_update,
             cancel_action,

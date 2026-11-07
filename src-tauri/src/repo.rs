@@ -56,6 +56,8 @@ pub struct RepoSnapshot {
     /// Local branches whose remote branch was deleted (typically merged pull requests),
     /// apart from the checked-out branch and long-lived ones like main.
     pub gone_branches: Vec<String>,
+    /// After a squash merge: the message prepared for committing it.
+    pub squash_message: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -240,7 +242,7 @@ pub enum FileStatus {
 
 type Error = String;
 
-fn open(path: &Path) -> Result<gix::Repository, Error> {
+pub(crate) fn open(path: &Path) -> Result<gix::Repository, Error> {
     let mut repo = gix::discover(path)
         .map_err(|e| format!("{} is not a git repository ({e})", path.display()))?;
     // Commits are looked up more than once while walking; a cache makes that cheap.
@@ -494,6 +496,18 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
     };
     let user = (identity.name.is_some() || identity.email.is_some()).then_some(identity);
     let gone = gone_branches(&repo, head_branch.as_deref());
+    // After `git merge --squash`, the changes wait to be committed with this message.
+    let squash_message = std::fs::read_to_string(repo.git_dir().join("SQUASH_MSG"))
+        .ok()
+        .map(|text| {
+            text.lines()
+                .filter(|line| !line.starts_with('#'))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .trim()
+                .to_owned()
+        })
+        .filter(|message| !message.is_empty());
     Ok(RepoSnapshot {
         path: location.display().to_string(),
         name,
@@ -519,6 +533,7 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
         user,
         last_fetched: last_fetched(&repo),
         gone_branches: gone,
+        squash_message,
     })
 }
 
@@ -555,7 +570,7 @@ fn gone_branches(repo: &gix::Repository, head_branch: Option<&str>) -> Vec<Strin
 }
 
 /// The web pages of the remotes that have one.
-fn web_remotes(repo: &gix::Repository) -> Vec<WebRemote> {
+pub(crate) fn web_remotes(repo: &gix::Repository) -> Vec<WebRemote> {
     repo.remote_names()
         .iter()
         .filter_map(|name| {
@@ -1195,4 +1210,156 @@ fn file_change(change: &ChangeDetached) -> FileChange {
             },
         },
     }
+}
+
+/// One entry of HEAD's reflog: something that moved HEAD (a commit, checkout, reset, …).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReflogEntry {
+    /// Where HEAD went.
+    pub id: String,
+    /// Where it was before (empty for the first entry).
+    pub previous: Option<String>,
+    /// What happened, as git wrote it, like "reset: moving to HEAD~2".
+    pub message: String,
+    /// When, in seconds since the Unix epoch.
+    pub time: i64,
+    /// The summary of the commit it went to.
+    pub summary: String,
+    pub author_name: String,
+}
+
+/// The most recent `limit` entries of HEAD's reflog, newest first: git's record of
+/// everything that moved HEAD, which can bring back commits that are on no branch.
+pub fn reflog(path: &Path, limit: usize) -> Result<Vec<ReflogEntry>, Error> {
+    let repo = open(path)?;
+    let reference = repo
+        .find_reference("HEAD")
+        .map_err(|e| format!("Couldn't read HEAD ({e})"))?;
+    let mut log = reference.log_iter();
+    let Ok(Some(lines)) = log.rev() else {
+        return Ok(Vec::new());
+    };
+    let mut entries = Vec::new();
+    for line in lines.flatten().take(limit) {
+        if line.new_oid.is_null() {
+            continue;
+        }
+        let (summary, author_name) = repo
+            .find_commit(line.new_oid)
+            .ok()
+            .map(|commit| {
+                let summary = commit
+                    .message()
+                    .map(|m| m.summary().to_str_lossy().into_owned())
+                    .unwrap_or_default();
+                let author = commit
+                    .author()
+                    .map(|a| a.name.to_str_lossy().trim().to_owned())
+                    .unwrap_or_default();
+                (summary, author)
+            })
+            .unwrap_or_default();
+        entries.push(ReflogEntry {
+            id: line.new_oid.to_string(),
+            previous: (!line.previous_oid.is_null()).then(|| line.previous_oid.to_string()),
+            message: line.message.to_str_lossy().trim().to_owned(),
+            time: line.signature.time.seconds,
+            summary,
+            author_name,
+        });
+    }
+    Ok(entries)
+}
+
+/// Where the remote branches point, and which one the checked-out branch tracks: enough
+/// to tell, after a fetch, what's new.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteState {
+    /// Like "origin/main" → its commit.
+    pub tips: HashMap<String, String>,
+    /// Like "origin/main".
+    pub upstream: Option<String>,
+    pub remotes: Vec<String>,
+}
+
+pub fn remote_state(path: &Path) -> Result<RemoteState, Error> {
+    let repo = open(path)?;
+    let mut tips = HashMap::new();
+    if let Ok(references) = repo.references()
+        && let Ok(remotes) = references.remote_branches()
+    {
+        for mut reference in remotes.flatten() {
+            let name = reference.name().as_bstr().to_str_lossy().into_owned();
+            let Some(short) = name.strip_prefix("refs/remotes/") else {
+                continue;
+            };
+            if short.ends_with("/HEAD") {
+                continue;
+            }
+            if let Ok(id) = reference.peel_to_id() {
+                tips.insert(short.to_owned(), id.to_string());
+            }
+        }
+    }
+    let head_branch = repo.head_name().ok().flatten().and_then(|name| {
+        name.as_bstr()
+            .to_str()
+            .ok()?
+            .strip_prefix("refs/heads/")
+            .map(str::to_owned)
+    });
+    Ok(RemoteState {
+        tips,
+        upstream: head_branch
+            .as_deref()
+            .and_then(|branch| upstream(&repo, branch))
+            .map(|upstream| upstream.name),
+        remotes: repo
+            .remote_names()
+            .iter()
+            .map(|name| name.to_str_lossy().into_owned())
+            .collect(),
+    })
+}
+
+/// Commits that arrived on a branch.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewCommits {
+    pub count: usize,
+    /// Who wrote them, most commits first.
+    pub authors: Vec<String>,
+}
+
+/// The commits reachable from `to` but not from `from` (at most a thousand are counted).
+pub fn commits_between(path: &Path, from: &str, to: &str) -> Result<NewCommits, Error> {
+    let repo = open(path)?;
+    let id = |hex: &str| {
+        ObjectId::from_hex(hex.as_bytes()).map_err(|_| format!("Invalid commit id {hex}"))
+    };
+    let walk = repo
+        .rev_walk([id(to)?])
+        .with_hidden([id(from)?])
+        .all()
+        .map_err(|e| e.to_string())?;
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    let mut count = 0;
+    for info in walk.flatten().take(1000) {
+        count += 1;
+        if let Ok(commit) = info.object()
+            && let Ok(author) = commit.author()
+        {
+            *counts
+                .entry(author.name.to_str_lossy().trim().to_owned())
+                .or_default() += 1;
+        }
+    }
+    let mut authors: Vec<(String, usize)> = counts.into_iter().collect();
+    authors.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    Ok(NewCommits {
+        count,
+        authors: authors.into_iter().map(|(name, _)| name).collect(),
+    })
 }

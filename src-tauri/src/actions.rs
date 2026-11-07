@@ -60,6 +60,9 @@ pub enum Action {
         message: Option<String>,
         #[serde(default, rename = "includeUntracked")]
         include_untracked: bool,
+        /// Only these files (all changes when empty).
+        #[serde(default)]
+        paths: Vec<String>,
     },
     /// Apply `stash@{index}`, which must be the stash commit `id`, and keep it.
     StashApply { index: usize, id: String },
@@ -101,7 +104,11 @@ pub enum Action {
         new_name: String,
     },
     /// Merge a branch, tag or commit into the checked-out branch.
-    Merge { target: String },
+    Merge {
+        target: String,
+        #[serde(default)]
+        mode: MergeMode,
+    },
     /// Rebase the checked-out branch onto a branch, tag or commit.
     Rebase { onto: String },
     /// Apply the changes of a commit on top of the checked-out branch.
@@ -149,6 +156,24 @@ pub enum Action {
     RecreateConflicts { paths: Vec<String> },
     /// Lock files with Git LFS, so nobody else can push changes to them.
     LockFiles { paths: Vec<String> },
+    /// Store files matching `patterns` (like `*.psd`) with Git LFS from now on, and turn
+    /// the staged `paths` among them into LFS files.
+    TrackWithLfs {
+        patterns: Vec<String>,
+        #[serde(default)]
+        paths: Vec<String>,
+    },
+    /// Throw away the changes to files (untracked ones are deleted). What they were is
+    /// kept for [`BACKUP_DAYS`] days, to undo with [`Action::RestoreDiscarded`].
+    DiscardFiles { paths: Vec<String> },
+    /// Put back changes thrown away by [`Action::DiscardFiles`].
+    RestoreDiscarded { reference: String },
+    /// Add patterns (like `*.log` or `Saved/`) to the repository's `.gitignore`.
+    IgnorePaths { patterns: Vec<String> },
+    /// Take patterns out of `.gitignore` again (undo).
+    UnignorePaths { patterns: Vec<String> },
+    /// Delete local copies of Git LFS files that aren't needed any more (`git lfs prune`).
+    PruneLfs,
     /// Release Git LFS locks, by id (the file may not exist here). `force` releases
     /// someone else's lock.
     UnlockFiles {
@@ -163,6 +188,19 @@ pub enum Action {
 pub struct LockRef {
     pub id: String,
     pub path: String,
+}
+
+/// How to merge.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MergeMode {
+    /// Like `git merge`: fast-forward when possible, otherwise a merge commit.
+    #[default]
+    Default,
+    /// Always make a merge commit (`--no-ff`).
+    NoFastForward,
+    /// Put all the changes together, staged, to commit as one commit (`--squash`).
+    Squash,
 }
 
 /// Which version of a conflicted file to keep.
@@ -303,6 +341,16 @@ pub struct Outcome {
     /// After pushing a new branch: the page the remote suggested for opening a pull request.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pull_request: Option<String>,
+    /// Where what the action threw away was kept, to undo it (like discarded changes).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub backup: Option<String>,
+}
+
+/// What an action reports besides its message.
+#[derive(Default)]
+struct Extra {
+    pull_request: Option<String>,
+    backup: Option<String>,
 }
 
 /// A git command Tributary ran, for the activity log.
@@ -346,7 +394,8 @@ pub fn on_activity(listener: impl Fn(&LogEntry) + Send + Sync + 'static) {
 
 /// Read-only helpers that would only clutter the log.
 /// Reading commands, and Tributary's own backups (see [`back_up`]), stay out of the log.
-const UNLOGGED: [&str; 8] = [
+const UNLOGGED: [&str; 9] = [
+    "check-attr",
     "rev-parse",
     "rev-list",
     "check-ref-format",
@@ -514,11 +563,12 @@ pub fn run_with_progress(
     action: Action,
     on_progress: &dyn Fn(Progress),
 ) -> Result<Outcome, Error> {
-    let mut pull_request = None;
-    let message = perform(path, action, on_progress, &mut pull_request)?;
+    let mut extra = Extra::default();
+    let message = perform(path, action, on_progress, &mut extra)?;
     Ok(Outcome {
         message,
-        pull_request,
+        pull_request: extra.pull_request,
+        backup: extra.backup,
     })
 }
 
@@ -526,7 +576,7 @@ fn perform(
     path: &Path,
     action: Action,
     on_progress: &dyn Fn(Progress),
-    pull_request: &mut Option<String>,
+    extra: &mut Extra,
 ) -> Result<String, Error> {
     let repo = gix::discover(path)
         .map_err(|e| format!("{} is not a git repository ({e})", path.display()))?;
@@ -650,7 +700,7 @@ fn perform(
             {
                 back_up(&repo, &git, &tracking, "forcePushed", id);
             }
-            *pull_request = links::pull_request_url(&output.messages);
+            extra.pull_request = links::pull_request_url(&output.messages);
             Ok(format!(
                 "{} {branch} to {remote}",
                 if force { "Force pushed" } else { "Pushed" }
@@ -677,9 +727,9 @@ fn perform(
             git.run(&args)?;
             if stash_top(&git) == before {
                 // Nothing was stashed after all.
-                return perform(path, *action, on_progress, pull_request);
+                return perform(path, *action, on_progress, extra);
             }
-            match perform(path, *action, on_progress, pull_request) {
+            match perform(path, *action, on_progress, extra) {
                 Err(error) => match pop_stash(&git) {
                     Ok(()) => Err(error),
                     Err(_) => Err(format!(
@@ -698,6 +748,7 @@ fn perform(
         Action::StashPush {
             message,
             include_untracked,
+            paths,
         } => {
             let before = stash_top(&git);
             let mut args = vec!["stash", "push", "--quiet"];
@@ -710,11 +761,24 @@ fn perform(
             if let Some(message) = &message {
                 args.extend(["--message", message]);
             }
-            git.run(&args)?;
+            let paths = if paths.is_empty() {
+                Vec::new()
+            } else {
+                check_file_paths(&paths)?
+            };
+            if !paths.is_empty() {
+                args.push("--");
+                args.extend(&paths);
+            }
+            git.run_with_env(&args, &LITERAL)?;
             if stash_top(&git) == before {
                 return Err("There are no changes to stash.".into());
             }
-            Ok("Stashed your changes as stash@{0}".into())
+            Ok(if paths.is_empty() {
+                "Stashed your changes as stash@{0}".into()
+            } else {
+                format!("Stashed {} as stash@{{0}}", describe_files(&paths))
+            })
         }
         Action::StashApply { index, id } => {
             let name = stash_name(&git, index, &id)?;
@@ -923,11 +987,40 @@ fn perform(
             git.run(&["branch", "--move", &name, new_name])?;
             Ok(format!("Renamed {name} to {new_name}"))
         }
-        Action::Merge { target } => {
+        Action::Merge { target, mode } => {
             let branch = current_branch(&repo)?;
             let target = revision_name(&repo, &target)?;
-            git.run(&["merge", "--no-edit", &target])?;
-            Ok(format!("Merged {} into {branch}", short(&target)))
+            match mode {
+                MergeMode::Default => {
+                    git.run(&["merge", "--no-edit", &target])?;
+                    Ok(format!("Merged {} into {branch}", short(&target)))
+                }
+                MergeMode::NoFastForward => {
+                    git.run(&["merge", "--no-edit", "--no-ff", &target])?;
+                    Ok(format!(
+                        "Merged {} into {branch} with a merge commit",
+                        short(&target)
+                    ))
+                }
+                MergeMode::Squash => {
+                    // The summaries of the commits being squashed, for the message.
+                    let range = format!("HEAD..{target}");
+                    let summaries = git
+                        .run(&["log", "--format=%s", "--reverse", &range])
+                        .unwrap_or_default();
+                    git.run(&["merge", "--squash", "--quiet", &target])?;
+                    let mut message = format!("Squash merge {}\n\n", short(&target));
+                    for summary in summaries.lines().filter(|line| !line.trim().is_empty()) {
+                        message.push_str(&format!("- {summary}\n"));
+                    }
+                    // git commit offers this message (git status and the commit box show it).
+                    let _ = std::fs::write(repo.git_dir().join("SQUASH_MSG"), message);
+                    Ok(format!(
+                        "Squashed {} into {branch}'s staged changes: review them and commit",
+                        short(&target)
+                    ))
+                }
+            }
         }
         Action::Rebase { onto } => {
             let branch = current_branch(&repo)?;
@@ -1096,6 +1189,145 @@ fn perform(
             Ok(format!("Deleted tag {name} from {remote}"))
         }
         Action::ResolveConflicts { paths, keep } => resolve_conflicts(&repo, &git, &paths, keep),
+        Action::TrackWithLfs { patterns, paths } => {
+            let patterns: Vec<&str> = patterns
+                .iter()
+                .map(|pattern| pattern.trim())
+                .filter(|pattern| !pattern.is_empty())
+                .collect();
+            if patterns.is_empty()
+                || patterns
+                    .iter()
+                    .any(|p| p.starts_with('-') || p.contains('\n'))
+            {
+                return Err("Choose which files to track with Git LFS.".into());
+            }
+            // Without Git LFS's filters set up, files would still go into git itself.
+            if git.run(&["config", "--get", "filter.lfs.clean"]).is_err() {
+                git.run(&["lfs", "install", "--local"])?;
+            }
+            let mut args = vec!["lfs", "track", "--"];
+            args.extend(&patterns);
+            git.run(&args)?;
+            git.run(&["add", "--", ".gitattributes"])?;
+            let paths = if paths.is_empty() {
+                Vec::new()
+            } else {
+                check_file_paths(&paths)?
+            };
+            // Staged files are added again, as LFS files this time.
+            for batch in in_batches(&paths) {
+                let mut args = vec!["add", "--renormalize", "--"];
+                args.extend(batch);
+                git.run_with_env(&args, &LITERAL)?;
+            }
+            Ok(format!(
+                "{} {} with Git LFS",
+                if paths.is_empty() {
+                    "Tracking"
+                } else {
+                    "Now storing"
+                },
+                patterns.join(", ")
+            ))
+        }
+        Action::DiscardFiles { paths } => {
+            let paths = check_file_paths(&paths)?;
+            let before = stash_top(&git);
+            // A stash keeps the changes (untracked files too) and removes them in one go.
+            let mut args = vec![
+                "stash",
+                "push",
+                "--quiet",
+                "--include-untracked",
+                "--message",
+                "Tributary: discarded changes",
+                "--",
+            ];
+            args.extend(&paths);
+            git.run_with_env(&args, &LITERAL)?;
+            let Some(stash) = stash_top(&git).filter(|top| Some(top) != before.as_ref()) else {
+                return Err("There were no changes to discard.".into());
+            };
+            // Keep it out of the stash list, where it would only be in the way.
+            let reference = format!("{DISCARDED}{}", now_millis());
+            git.run(&["update-ref", &reference, stash.trim()])?;
+            git.run(&["stash", "drop", "--quiet"])?;
+            forget_old_discards(&repo, &git);
+            extra.backup = Some(reference);
+            Ok(format!(
+                "Discarded the changes to {}",
+                describe_files(&paths)
+            ))
+        }
+        Action::RestoreDiscarded { reference } => {
+            if !reference.starts_with(DISCARDED) || ref_id(&repo, &reference).is_none() {
+                return Err("Those changes aren't kept any more.".into());
+            }
+            match git.run(&["stash", "apply", "--quiet", "--index", &reference]) {
+                Err(error) if error.contains("--index") || error.contains("index") => {
+                    git.run(&["stash", "apply", "--quiet", &reference])?;
+                }
+                result => {
+                    result?;
+                }
+            }
+            git.run(&["update-ref", "-d", &reference])?;
+            Ok("Put the discarded changes back".into())
+        }
+        Action::IgnorePaths { patterns } => {
+            let patterns = check_patterns(&patterns)?;
+            let file = Path::new(&git.workdir).join(".gitignore");
+            let mut text = std::fs::read_to_string(&file).unwrap_or_default();
+            let existing: Vec<String> = text.lines().map(|line| line.trim().to_owned()).collect();
+            let new: Vec<&str> = patterns
+                .iter()
+                .copied()
+                .filter(|pattern| !existing.iter().any(|line| line == pattern))
+                .collect();
+            if !new.is_empty() {
+                if !text.is_empty() && !text.ends_with('\n') {
+                    text.push('\n');
+                }
+                for pattern in &new {
+                    text.push_str(pattern);
+                    text.push('\n');
+                }
+                std::fs::write(&file, text)
+                    .map_err(|e| format!("Couldn't write .gitignore: {e}"))?;
+            }
+            Ok(format!("Ignoring {}", patterns.join(", ")))
+        }
+        Action::UnignorePaths { patterns } => {
+            let patterns = check_patterns(&patterns)?;
+            let file = Path::new(&git.workdir).join(".gitignore");
+            let text = std::fs::read_to_string(&file).unwrap_or_default();
+            let mut lines: Vec<&str> = text.lines().collect();
+            for pattern in &patterns {
+                // The last time it's listed: the one that was just added.
+                if let Some(index) = lines.iter().rposition(|line| line.trim() == *pattern) {
+                    lines.remove(index);
+                }
+            }
+            if lines.iter().all(|line| line.trim().is_empty()) {
+                let _ = std::fs::remove_file(&file);
+            } else {
+                let mut text = lines.join("\n");
+                text.push('\n');
+                std::fs::write(&file, text)
+                    .map_err(|e| format!("Couldn't write .gitignore: {e}"))?;
+            }
+            Ok(format!("No longer ignoring {}", patterns.join(", ")))
+        }
+        Action::PruneLfs => {
+            let before = lfs_storage(&git).map(|storage| storage.bytes).unwrap_or(0);
+            git.run(&["lfs", "prune"])?;
+            let after = lfs_storage(&git).map(|storage| storage.bytes).unwrap_or(0);
+            Ok(format!(
+                "Freed {} of Git LFS files",
+                crate::lfs::format_bytes(before.saturating_sub(after))
+            ))
+        }
         Action::RecreateConflicts { paths } => {
             let paths = check_file_paths(&paths)?;
             in_progress(&repo)?;
@@ -1183,6 +1415,42 @@ fn check_file_paths(paths: &[String]) -> Result<Vec<&str>, Error> {
         return Err(format!("{bad} isn't a file in this repository."));
     }
     Ok(paths)
+}
+
+/// Where discarded changes are kept.
+const DISCARDED: &str = "refs/tributary/discarded/";
+
+/// Remove discarded changes kept longer than [`BACKUP_DAYS`] days.
+fn forget_old_discards(repo: &gix::Repository, git: &Git) {
+    let cutoff = now_millis() - BACKUP_DAYS * 24 * 3600 * 1000;
+    let Ok(references) = repo.references() else {
+        return;
+    };
+    let Ok(found) = references.prefixed(DISCARDED) else {
+        return;
+    };
+    for reference in found.flatten() {
+        let name = reference.name().as_bstr().to_str_lossy().into_owned();
+        let millis = name
+            .strip_prefix(DISCARDED)
+            .and_then(|millis| millis.parse::<i64>().ok());
+        if millis.is_some_and(|millis| millis < cutoff) {
+            let _ = git.run(&["update-ref", "-d", &name]);
+        }
+    }
+}
+
+/// `.gitignore` patterns: one line each.
+fn check_patterns(patterns: &[String]) -> Result<Vec<&str>, Error> {
+    let patterns: Vec<&str> = patterns
+        .iter()
+        .map(|pattern| pattern.trim())
+        .filter(|pattern| !pattern.is_empty())
+        .collect();
+    if patterns.is_empty() || patterns.iter().any(|pattern| pattern.contains('\n')) {
+        return Err("Nothing to ignore.".into());
+    }
+    Ok(patterns)
 }
 
 /// The name of a file, without its folders.
@@ -1549,6 +1817,143 @@ fn restore_backup(
     Ok(format!(
         "The earlier version of {name} is now the local branch {local}"
     ))
+}
+
+/// Changed files to look at before committing.
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileChecks {
+    /// Big files that aren't stored with Git LFS: committed like this, everyone who
+    /// clones the repository downloads them forever.
+    pub large: Vec<LargeFile>,
+    /// Files marked `lockable` in `.gitattributes`.
+    pub lockable: Vec<String>,
+    /// The repository uses Git LFS.
+    pub uses_lfs: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LargeFile {
+    pub path: String,
+    /// In bytes.
+    pub size: u64,
+}
+
+/// Look at changed `files` (paths in the repository): which are at least `threshold`
+/// bytes and not in Git LFS, and which are lockable.
+pub fn file_checks(path: &Path, files: &[String], threshold: u64) -> Result<FileChecks, Error> {
+    let repo = gix::discover(path)
+        .map_err(|e| format!("{} is not a git repository ({e})", path.display()))?;
+    let Some(workdir) = repo.workdir().map(Path::to_owned) else {
+        return Ok(FileChecks::default());
+    };
+    let uses_lfs = crate::locks::uses_lfs(&workdir);
+    let files: Vec<&str> = files
+        .iter()
+        .map(String::as_str)
+        .filter(|file| !file.is_empty() && !file.ends_with('/') && !file.starts_with('-'))
+        .collect();
+    if files.is_empty() {
+        return Ok(FileChecks {
+            uses_lfs,
+            ..FileChecks::default()
+        });
+    }
+    let git = Git::find(workdir.clone())?;
+    let mut in_lfs = std::collections::HashSet::new();
+    let mut lockable = Vec::new();
+    for batch in in_batches(&files) {
+        let mut args = vec!["check-attr", "-z", "filter", "lockable", "--"];
+        args.extend(batch);
+        let output = git.run(&args)?;
+        // "<path>\0<attribute>\0<value>\0" for each path and attribute.
+        let parts: Vec<&str> = output.split('\0').collect();
+        for record in parts.chunks(3) {
+            if let [file, attribute, value] = record {
+                match (*attribute, *value) {
+                    ("filter", "lfs") => {
+                        in_lfs.insert(file.to_string());
+                    }
+                    ("lockable", "set") => lockable.push(file.to_string()),
+                    _ => {}
+                }
+            }
+        }
+    }
+    let large = files
+        .iter()
+        .filter(|file| !in_lfs.contains(**file))
+        .filter_map(|file| {
+            let size = std::fs::metadata(workdir.join(file)).ok()?.len();
+            (size >= threshold).then(|| LargeFile {
+                path: (*file).to_owned(),
+                size,
+            })
+        })
+        .collect();
+    Ok(FileChecks {
+        large,
+        lockable,
+        uses_lfs,
+    })
+}
+
+/// The Git LFS files kept on this computer.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LfsStorage {
+    pub bytes: u64,
+    pub files: u64,
+    /// Where they are.
+    pub folder: String,
+}
+
+/// How much space the local copies of Git LFS files take, if the repository uses LFS.
+pub fn lfs_storage_of(path: &Path) -> Result<Option<LfsStorage>, Error> {
+    let repo = gix::discover(path)
+        .map_err(|e| format!("{} is not a git repository ({e})", path.display()))?;
+    let Some(workdir) = repo.workdir().map(Path::to_owned) else {
+        return Ok(None);
+    };
+    if !crate::locks::uses_lfs(&workdir) {
+        return Ok(None);
+    }
+    Ok(lfs_storage(&Git::find(workdir)?))
+}
+
+fn lfs_storage(git: &Git) -> Option<LfsStorage> {
+    let env = git.run(&["lfs", "env"]).ok()?;
+    let folder = env
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("LocalMediaDir="))?
+        .trim()
+        .to_owned();
+    fn walk(dir: &Path, total: &mut (u64, u64)) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let Ok(kind) = entry.file_type() else {
+                continue;
+            };
+            if kind.is_dir() {
+                walk(&entry.path(), total);
+            } else if kind.is_file()
+                && let Ok(metadata) = entry.metadata()
+            {
+                total.0 += metadata.len();
+                total.1 += 1;
+            }
+        }
+    }
+    let mut total = (0, 0);
+    walk(Path::new(&folder), &mut total);
+    Some(LfsStorage {
+        bytes: total.0,
+        files: total.1,
+        folder,
+    })
 }
 
 /// At most this many commits are listed for a file's history.
