@@ -19,6 +19,9 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 - **Branch sidebar:** every branch, remote branch, tag and stash, with a filter. Names that share a prefix, like `feature/…`, are grouped into folders, and you can pin the ones you use most to the top. Each branch shows how many commits it is ahead of (↑) and behind (↓) its upstream. Click one to jump to its commit; double-click a branch to check it out.
 - **Hide or solo branches:** the eye next to a branch in the sidebar hides it (and the commits only it has) from the graph. Right-click a branch and choose **Show only…** to see just that branch and the checked-out one. Tributary remembers this for each repository; **Show all** brings everything back.
 - **Merge and rebase:** drag a branch label (from the graph or the sidebar) onto another commit or branch, then choose **Merge** or **Rebase**. You can also right-click a branch or commit. Both act on the checked-out branch. If git stops because of conflicts, a bar at the top shows how many files conflict, with **Continue** (or **Commit merge**), **Skip commit** and **Abort**. The commit message is filled in for you.
+- **Keep mine or take theirs:** files that can't be merged, like game assets, are resolved by picking a whole version. The uncommitted changes panel lists conflicted files with **Mine** and **Theirs** buttons (named after the branches when you hover), and the conflict bar has **Keep all mine** and **Take all theirs**. If one side deleted the file, picking it deletes the file. During a rebase, "mine" is still your branch (git calls it "theirs" then). **Undo** puts the conflicts back.
+- **Git LFS file locks:** in repositories that use Git LFS, the sidebar lists the locked files and who locked them, and changed files show a padlock. Lock a file from its right-click menu or with **Lock Files…** in the Repository menu, unlock your own, or force-unlock someone else's after a warning. If you've changed a file someone else has locked, the changes panel says so before you try to push.
+- **File history:** right-click a file in a commit or in your changes and choose **Show this file's history** (or its folder's). The commits that changed it stay bright, renames included, the bar at the top steps through them, and the file stands out in each commit's file list. **File History…** and **Folder History…** in the Repository menu let you pick any file or folder.
 - **Cherry-pick and revert:** right-click a commit to copy it onto the checked-out branch, or to add a commit that undoes it. Shift-click or <kbd>⌘</kbd>/<kbd>Ctrl</kbd>-click to select several commits and cherry-pick or revert them all at once.
 - **Interactive rebase:** right-click a commit on the checked-out branch and choose **Interactive rebase** to rewrite the commits after it: drag them into a new order, reword their messages, squash or fix them up into the commit below, or drop them.
 - **Prune branches:** clean up local branches whose remote branch was deleted (usually merged pull requests) and branches merged into the main branch, from the Repository menu, the broom on the sidebar's Branches heading, or the status bar when a fetch finds some. Branches with commits that aren't in the main branch are listed but left unticked, the checked-out branch and long-lived ones like main are never offered, and **Undo** puts them all back.
@@ -32,7 +35,7 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 - **Hover previews:** rest the mouse on a commit for a moment to see its full message and changed files without opening it. You can turn this off in the View menu.
 - **Command palette:** <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>K</kbd> lists the commands and branches, so you can check out, merge, highlight or run almost anything by typing a few letters. Press <kbd>?</kbd> to see all keyboard shortcuts.
 - **Undo:** after a checkout, commit, merge, rebase, interactive rebase, cherry-pick, revert, hard reset, rename, new tag, or branch or tag deletion, the confirmation message has an **Undo** button.
-- **Fetch, pull and push:** buttons in the toolbar, with the number of commits to pull and to push. A progress bar shows how far along they are, with a **Cancel** button, including Git LFS uploads and downloads (files, megabytes and speed). Tributary also fetches by itself every 5 minutes, so the numbers stay current (you can turn this off in the View menu). The first push of a new branch sets its upstream, and when the remote suggests opening a pull request, a **Create pull request** button takes you there. When a pull needs a merge and you haven't told git whether to merge or rebase, it merges.
+- **Fetch, pull and push:** buttons in the toolbar, with the number of commits to pull and to push. A progress bar shows how far along they are, with a **Cancel** button, including Git LFS uploads and downloads (files, megabytes and speed). Tributary also fetches by itself every few minutes, so the numbers stay current. When that finds new commits on main or on the branch yours tracks, it tells you who pushed what, with a **Pull** button (in Settings you can choose how often to fetch, turn the messages off, or also get a system notification while Tributary is in the background). The first push of a new branch sets its upstream, and when the remote suggests opening a pull request, a **Create pull request** button takes you there. When a pull needs a merge and you haven't told git whether to merge or rebase, it merges.
 - **Force push:** from the menu next to Push, after a confirmation. It uses `--force-with-lease`, so it stops if someone else pushed in the meantime.
 - **Hard reset:** right-click a commit (or use the button in its details) to hard reset the checked-out branch to it. A confirmation shows exactly what will be lost first.
 - **Large repositories:** the 10,000 most recent commits load at once, and a button at the end of the list loads more. Only the visible rows are drawn, so scrolling stays smooth.
@@ -42,7 +45,9 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 - **No git install needed to browse:** history is read directly with [gitoxide](https://github.com/GitoxideLabs/gitoxide). Actions that change the repository (cloning, committing, stashing, branches, tags, merge, rebase, cherry-pick, revert, fetch, pull, push, reset) run your installed git, so they behave exactly like the command line and use the credentials you already set up for it.
 - **Open, clone or create:** open a repository, clone one from its address (with progress and **Cancel**), create a new one in a folder, or drop a folder onto the window. The welcome screen lists recent repositories with the branch you were on; pin the ones you use most, or type to find one.
 - **Tabs:** open several repositories at once, each in its own tab. Tributary reopens your tabs when it starts, and each tab remembers the selected commit, where you scrolled to and your unfinished commit message. The **+** button opens a new tab with the start screen: open, clone or create a repository, or pick a recent one.
-- **Menu bar:** File, View, Repository and Help menus with every command and its shortcut: in the macOS menu bar, and next to the tabs on Windows.
+- **Menu bar:** File, View, Repository and Help menus with every command and its shortcut: in the macOS menu bar, and next to the tabs on Windows. On Windows the tab bar is the title bar, with the minimize, maximize and close buttons at its right.
+- **Settings:** <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>,</kbd> opens every setting in one place: background fetching and notifications, updates, how the commit list looks, and the open repository's protected branches.
+- **Automatic updates:** Tributary checks its GitHub releases now and then, and an **Update** button appears in the tab bar when there's a new version. It shows what changed, then downloads, installs and restarts. Updates are signed, and installed only when the signature matches. (When the GitHub repository is private, it signs in with the GitHub account git already uses on your computer.)
 - **Profile pictures (optional):** turn on **Profile pictures** in the View menu to show authors' Gravatar or GitHub pictures instead of initials. It is off by default, because it sends a hash of each author's email address to Gravatar (or the GitHub username, for GitHub `noreply` addresses).
 - **Your layout:** drag the edges of the sidebar, the details panel and the Branch / Tag and Graph columns (double-click to reset). Right-click the column headings to show or hide Author, Date and SHA, and to show exact dates or commit dates instead of "3 hours ago". The View menu has compact rows and zoom. All of it is remembered. On macOS the toolbar sits in the title bar, next to the window buttons.
 
@@ -52,6 +57,7 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 | --- | --- |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>K</kbd> | Command palette |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>O</kbd> | Open a repository |
+| <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>,</kbd> | Settings |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>T</kbd> | New tab, with the start screen |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>W</kbd> | Close the tab |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>1</kbd> … <kbd>9</kbd>, <kbd>Ctrl</kbd> + <kbd>Tab</kbd> | Switch tabs |
@@ -75,7 +81,15 @@ The installers are built by GitHub Actions, only when you start a build: open th
 - **macOS:** `.dmg` with a universal app (Apple Silicon and Intel)
 - **Windows:** `.msi` and `-setup.exe` installers (64-bit)
 
-To publish a release, type a version tag such as `v0.2.0` in the **release** box before starting the build. A draft GitHub release with the installers attached is created when it finishes. Update `version` in `src-tauri/tauri.conf.json` and `package.json` first, so the installer names match.
+To publish a release, type a version tag such as `v0.2.0` in the **release** box before starting the build. The app gets that version, and a draft GitHub release with the installers attached is created when it finishes. Publish the draft, and Tributary offers the update to everyone running an older version.
+
+For updates, the installers are signed with a key kept in the repository's `TAURI_SIGNING_PRIVATE_KEY` secret (and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, if it has a password); the matching public key is `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. Without the secret, builds still work, but they can't be installed as updates. To make a new key pair:
+
+```bash
+npm run tauri signer generate -- -w ~/.tauri/tributary.key
+```
+
+Then save the private key as the secret (`gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/tributary.key`) and put the public key in `tauri.conf.json`. Apps signed with the old key can't install updates signed with a new one, so they need to be reinstalled by hand once.
 
 The builds are not code-signed yet, so the first launch needs one extra step:
 
@@ -119,7 +133,13 @@ The installers end up in `src-tauri/target/release/bundle/`.
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-The integration tests create small repositories with the `git` command, so git needs to be installed to run them. The tests don't run on GitHub Actions, so run them before you build.
+The integration tests create small repositories with the `git` command, so git needs to be installed to run them (and Git LFS, for the LFS tests; they're skipped without it). The interface's own logic has tests too:
+
+```bash
+npm test
+```
+
+The tests don't run on GitHub Actions, so run them before you build.
 
 ### Project layout
 
@@ -131,6 +151,8 @@ The integration tests create small repositories with the `git` command, so git n
 | `src-tauri/src/links.rs` | Turns remote addresses into web pages (GitHub, GitLab, …) |
 | `src-tauri/src/actions.rs` | Runs git for everything that changes the repository, with progress and cancel |
 | `src-tauri/src/lfs.rs` | Follows Git LFS's progress log during a push, pull, fetch or clone |
+| `src-tauri/src/locks.rs` | Lists Git LFS file locks, telling yours from everyone else's |
+| `src-tauri/src/updates.rs` | Finds, downloads and installs new versions from the GitHub releases |
 | `src/components/CommitList.tsx` | The commit list, which only renders the rows on screen |
 | `src/components/graphPainter.ts` | Draws the graph for the visible rows on a canvas |
 | `src/components/CommitDetails.tsx` | The details panel |

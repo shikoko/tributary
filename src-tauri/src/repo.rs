@@ -775,7 +775,7 @@ fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> {
     use gix::status::index_worktree::iter::Summary;
 
     repo.workdir()?;
-    let iter = repo
+    let mut iter = repo
         .status(gix::progress::Discard)
         .ok()?
         .untracked_files(gix::status::UntrackedFiles::Collapsed)
@@ -785,7 +785,7 @@ fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> {
 
     let mut status = WorktreeStatus::default();
     let lossy = |path: &gix::bstr::BStr| path.to_str_lossy().into_owned();
-    for item in iter.flatten() {
+    for item in iter.by_ref().flatten() {
         match item {
             gix::status::Item::TreeIndex(change) => {
                 let (path, old_path, file_status) = match &change {
@@ -860,6 +860,14 @@ fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> {
         }
     }
 
+    // Files that are unchanged but have new timestamps had to be read to tell.
+    if iter
+        .into_outcome()
+        .is_some_and(|outcome| outcome.has_changes())
+    {
+        refresh_index(repo);
+    }
+
     // Conflicts where one side deleted the file don't show up as conflicts above (the
     // file can even look untracked), so take every unmerged path from the index itself.
     if let Ok(index) = repo.index_or_empty() {
@@ -893,6 +901,41 @@ fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> {
     status.staged.sort_by(|a, b| a.path.cmp(&b.path));
     status.unstaged.sort_by(|a, b| a.path.cmp(&b.path));
     Some(status)
+}
+
+/// Files whose timestamps changed but whose content didn't (after a tool touched them, or
+/// a copy) have to be read again on every status, which takes seconds for big assets.
+/// `git status` stores their new timestamps in the index, like it does on the command
+/// line, so that only happens once. It runs in the background, and only takes the
+/// index's lock if nobody else holds it.
+fn refresh_index(repo: &gix::Repository) {
+    static REFRESHING: std::sync::LazyLock<std::sync::Mutex<HashSet<std::path::PathBuf>>> =
+        std::sync::LazyLock::new(Default::default);
+    let Some(workdir) = repo.workdir().map(Path::to_owned) else {
+        return;
+    };
+    if !REFRESHING
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(workdir.clone())
+    {
+        return;
+    }
+    std::thread::spawn(move || {
+        if let Ok(mut git) = crate::actions::Git::find(workdir.clone()) {
+            git.background = true;
+            let _ = git.run(&[
+                "status",
+                "--porcelain",
+                "--untracked-files=no",
+                "--ignore-submodules",
+            ]);
+        }
+        REFRESHING
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&workdir);
+    });
 }
 
 /// Group local branches, remote branches and tags by the commit they point to.
