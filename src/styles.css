@@ -3797,3 +3797,112 @@ textarea.text-input {
 .update-progress {
   margin-top: 14px;
 }
+
+/* Warnings about changed files: big ones outside Git LFS, lockable ones nobody holds */
+
+.file-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.file-warning > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.file-warning.large {
+  background: rgba(255, 92, 108, 0.1);
+  color: #ffb3bb;
+}
+
+.file-warning.large strong {
+  color: #ffd2d7;
+}
+
+.file-warning.lockable {
+  background: rgba(31, 181, 255, 0.08);
+  color: #a9dcf7;
+}
+
+.file-warning.lockable strong {
+  color: #d6efff;
+}
+
+.file-warning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.outline-button.small,
+.danger-outline-button.small {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.file-warning .outline-button.small {
+  border-color: currentColor;
+  color: inherit;
+}
+
+.commit-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: rgba(255, 92, 108, 0.1);
+  color: #ffb3bb;
+  font-size: 12px;
+}
+
+.commit-warning span {
+  flex: 1;
+}
+
+.settings-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-value {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.stash-files {
+  max-height: 220px;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.stash-files li .checkbox {
+  height: 26px;
+  min-width: 0;
+}
+
+.stash-file-name {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.stash-file-dir {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

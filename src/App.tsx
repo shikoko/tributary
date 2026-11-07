@@ -8,6 +8,7 @@ import {
   activityLog,
   cancelAction,
   commitDetails,
+  fileChecks,
   fileHistory,
   fullRefName,
   initRepository,
@@ -22,6 +23,7 @@ import {
   type CommitDetails,
   type CommitRow,
   type FileChange,
+  type FileChecks,
   type Lock,
   type LogEntry,
   type Progress,
@@ -90,6 +92,7 @@ import {
   FolderIcon,
   GearIcon,
   HistoryIcon,
+  IgnoreIcon,
   KeyboardIcon,
   LockIcon,
   MergeIcon,
@@ -99,6 +102,7 @@ import {
   PullRequestIcon,
   PushIcon,
   RebaseIcon,
+  RecoverIcon,
   RefreshIcon,
   ResetIcon,
   SearchIcon,
@@ -119,6 +123,7 @@ import { ProgressStrip } from "./components/ProgressStrip";
 import { PruneDialog } from "./components/PruneDialog";
 import { RestoreDialog } from "./components/RestoreDialog";
 import { NameList, SettingsDialog, type SettingsSection } from "./components/SettingsDialog";
+import { LfsStorageSummary, PruneLfsDialog } from "./components/LfsCleanup";
 import { UpdateDialog } from "./components/UpdateDialog";
 import { DEFAULT_PROTECTED, ProtectedActionDialog } from "./components/Safety";
 import { DeleteBranchDialog, DeleteRemoteBranchDialog } from "./components/DeleteBranchDialogs";
@@ -134,7 +139,7 @@ import { TagDialog } from "./components/TagDialog";
 import { Toast, type ToastMessage } from "./components/Toast";
 import { Toolbar, type RemoteAction } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
-import { conflictSides, EMPTY_DRAFT, WorktreeDetailsPanel, type CommitDraft } from "./components/WorktreeDetails";
+import { conflictSides, EMPTY_DRAFT, lfsPattern, WorktreeDetailsPanel, type CommitDraft } from "./components/WorktreeDetails";
 
 type Busy = { kind: "open"; path: string } | { kind: "refresh" } | { kind: "more" } | null;
 type Running = RemoteAction | "other" | null;
@@ -264,6 +269,10 @@ export default function App() {
   /** New commits found by a background fetch: not mentioned, a message in the window, or a system notification too. */
   const [newCommitNotices, setNewCommitNotices] = useStoredState<"off" | "app" | "system">("notify.newCommits", "app");
   const [autoUpdate, setAutoUpdate] = useStoredState("updates.auto", true);
+  /** Warn about files at least this big (in MB) that aren't in Git LFS. */
+  const [largeFileMB, setLargeFileMB] = useStoredState("files.largeMB", 10);
+  /** Lock lockable files as soon as you change them. */
+  const [autoLock, setAutoLock] = useStoredState("locks.auto", false);
   const updates = useUpdates(autoUpdate);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
@@ -530,6 +539,8 @@ export default function App() {
         return { kind: "restoreBranches", branches: action.branches };
       case "resolveConflicts":
         return { kind: "recreateConflicts", paths: action.paths };
+      case "ignorePaths":
+        return { kind: "unignorePaths", patterns: action.patterns };
       case "stashAndRetry": {
         // Undo the same way: put the changes aside, undo, and put them back.
         const inner = undoFor(action.action, before);
@@ -572,9 +583,10 @@ export default function App() {
 
       let message: string | null = null;
       let pullRequest: string | undefined;
+      let backup: string | undefined;
       let failure: string | null = null;
       try {
-        ({ message, pullRequest } = await runActionFor(before.path, action));
+        ({ message, pullRequest, backup } = await runActionFor(before.path, action));
       } catch (e) {
         failure = String(e);
       }
@@ -600,11 +612,13 @@ export default function App() {
         setError({ message: failure, retry });
         return false;
       }
+      // A squash merge waits to be committed: show it.
+      if (action.kind === "merge" && action.mode === "squash") setSelectedId(WORKTREE_ID);
       if (pullRequest) {
         const url = pullRequest;
         setToast({ text: message ?? "Pushed", action: { label: "Create pull request", onClick: () => openInBrowser(url) } });
       } else if (!options.quiet && message) {
-        const undo = undoFor(action, before);
+        const undo: Action | null = backup && action.kind === "discardFiles" ? { kind: "restoreDiscarded", reference: backup } : undoFor(action, before);
         setToast({ text: message, action: undo ? { label: "Undo", onClick: () => act(undo, "other", { confirmed: true }) } : undefined });
       }
       return true;
@@ -1052,6 +1066,46 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshot]);
 
+  // Changed files: which are big and not in Git LFS, and which are lockable.
+  const [checks, setChecks] = useState<FileChecks | null>(null);
+  const changedFiles = useMemo(
+    () =>
+      snapshot?.worktree
+        ? [...snapshot.worktree.staged, ...snapshot.worktree.unstaged]
+            .filter((file) => file.status !== "deleted" && file.status !== "conflicted")
+            .map((file) => file.path)
+        : [],
+    [snapshot],
+  );
+  const changedSignature = changedFiles.join("\n");
+  useEffect(() => {
+    if (!repoPath || changedFiles.length === 0) {
+      setChecks(null);
+      return;
+    }
+    let live = true;
+    fileChecks(repoPath, changedFiles, Math.max(1, largeFileMB) * 1_000_000)
+      .then((found) => live && setChecks(found))
+      .catch(() => live && setChecks(null));
+    return () => {
+      live = false;
+    };
+    // The signature stands for the list of files.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repoPath, changedSignature, largeFileMB]);
+
+  // With "lock when I change them" on: lock lockable files you've changed that nobody holds.
+  const autoLocked = useRef(new Set<string>());
+  useEffect(() => {
+    if (!autoLock || !snapshot || !lfs.locks || running || !checks) return;
+    const toLock = checks.lockable.filter((path) => !lfs.byPath.has(path) && !autoLocked.current.has(`${snapshot.path}\n${path}`));
+    if (toLock.length === 0) return;
+    // Try each file once per session, even if locking fails.
+    for (const path of toLock) autoLocked.current.add(`${snapshot.path}\n${path}`);
+    act({ kind: "lockFiles", paths: toLock });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLock, checks, lfs.locks]);
+
   // The "only this branch" setting changed: reload.
   const firstParentLoaded = snapshot?.firstParent;
   useEffect(() => {
@@ -1200,6 +1254,10 @@ export default function App() {
           { id: "file-history", label: "File History…", icon: <FileHistoryIcon />, run: () => pickHistory(false) },
           { id: "folder-history", label: "Folder History…", icon: <FolderIcon />, run: () => pickHistory(true) },
           ...(lfs.locks ? [{ id: "lock-files", label: "Lock Files…", icon: <LockIcon />, enabled: canChange, run: pickFilesToLock }] : []),
+          ...(lfs.locks || checks?.usesLfs
+            ? [{ id: "prune-lfs", label: "Clean Up Git LFS Files…", icon: <BroomIcon />, enabled: canChange, run: () => setDialog({ kind: "pruneLfs" }) }]
+            : []),
+          { id: "recover", label: "Recover Commits…", icon: <RecoverIcon />, run: () => setDialog({ kind: "recover" }) },
           "-",
           ...(remote
             ? [
@@ -1355,6 +1413,26 @@ export default function App() {
         ],
       },
       {
+        title: "Large files and Git LFS",
+        rows: [
+          {
+            kind: "select",
+            label: "Warn about big files outside Git LFS",
+            hint: "Committed into git itself, they stay in every clone forever.",
+            value: String(largeFileMB),
+            options: [1, 5, 10, 25, 50, 100].map((mb) => ({ value: String(mb), label: `Bigger than ${mb} MB` })),
+            set: (value) => setLargeFileMB(Number(value)),
+          },
+          {
+            kind: "toggle",
+            label: "Lock files when I change them",
+            hint: "Lockable files (like .uasset), as soon as you change one that nobody has locked.",
+            value: autoLock,
+            set: setAutoLock,
+          },
+        ],
+      },
+      {
         title: "Commit list",
         rows: [
           { kind: "toggle", label: "Compact rows", value: dense, set: setDense },
@@ -1426,6 +1504,20 @@ export default function App() {
             label: "Protected branches",
             hint: "Can't be deleted; rebasing, hard resetting or force pushing them needs their name typed.",
             content: <NameList names={protectedBranches} onChange={setProtectedBranches} placeholder="Add a branch" />,
+          },
+          {
+            kind: "custom",
+            label: "Git LFS files on this computer",
+            hint: "Copies of every version you've downloaded. Cleaning up keeps what you still need.",
+            content: (
+              <LfsStorageSummary
+                repoPath={snapshot.path}
+                onCleanUp={() => {
+                  setSettingsOpen(false);
+                  setDialog({ kind: "pruneLfs" });
+                }}
+              />
+            ),
           },
         ],
       });
@@ -1581,6 +1673,54 @@ export default function App() {
     });
     if (dir) items.push({ label: `Show the history of ${dir}/`, icon: <FolderIcon />, onSelect: () => showHistory(`${dir}/`) });
     if (lfs.locks && !folder) items.push(...lockItems(path, lfs.byPath.get(path), true));
+    if (where === "worktree" && file.status !== "conflicted") {
+      const paths = file.oldPath ? [file.oldPath, path] : [path];
+      const big = checks?.large.some((large) => large.path === file.path);
+      if (big) {
+        const pattern = lfsPattern(file.path);
+        const staged = snapshot.worktree?.staged.some((staged) => staged.path === file.path);
+        items.push({
+          label: `Track ${pattern} with Git LFS`,
+          icon: <CloudIcon />,
+          separated: true,
+          disabled: !canChange,
+          onSelect: () => act({ kind: "trackWithLfs", patterns: [pattern], paths: staged ? [file.path] : [] }),
+        });
+      }
+      if (file.status === "untracked") {
+        const name = baseName(path);
+        const pattern = lfsPattern(path);
+        items.push({
+          label: folder ? `Ignore the folder ${name}/` : `Ignore ${name}`,
+          icon: <IgnoreIcon />,
+          separated: !big,
+          disabled: !canChange,
+          onSelect: () => act({ kind: "ignorePaths", patterns: [folder ? `/${path}/` : `/${path}`] }),
+        });
+        if (!folder && pattern !== path) {
+          items.push({ label: `Ignore all ${pattern} files`, icon: <IgnoreIcon />, disabled: !canChange, onSelect: () => act({ kind: "ignorePaths", patterns: [pattern] }) });
+        }
+        if (dir) {
+          items.push({ label: `Ignore the folder ${dir}/`, icon: <IgnoreIcon />, disabled: !canChange, onSelect: () => act({ kind: "ignorePaths", patterns: [`/${dir}/`] }) });
+        }
+      }
+      items.push(
+        {
+          label: "Stash this file…",
+          icon: <StashIcon />,
+          separated: true,
+          disabled: !canChange,
+          onSelect: () => setDialog({ kind: "stash", paths }),
+        },
+        {
+          label: folder ? "Delete this folder" : file.status === "untracked" ? "Delete this file" : "Discard changes",
+          icon: <TrashIcon />,
+          danger: true,
+          disabled: !canChange,
+          onSelect: () => act({ kind: "discardFiles", paths }),
+        },
+      );
+    }
     items.push({ label: "Copy path", icon: <CopyIcon />, separated: true, onSelect: () => copyText(path) });
     if (where === "worktree" && file.status !== "deleted") {
       items.push({ label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, onSelect: () => revealFile(path) });
@@ -1997,6 +2137,8 @@ export default function App() {
                   onClose={() => select(null)}
                   lockOf={(path) => lfs.byPath.get(path)}
                   onFileMenu={(file, x, y) => fileMenu(file, x, y, "worktree")}
+                  checks={checks}
+                  canLock={Boolean(lfs.locks)}
                 />
               ) : (
                 <CommitDetailsPanel
@@ -2142,6 +2284,7 @@ export default function App() {
         <StashDialog
           repoPath={snapshot.path}
           status={snapshot.worktree}
+          paths={dialog.paths}
           onCancel={() => setDialog(null)}
           onDone={(message) => finishDialog(message)}
         />
@@ -2243,6 +2386,9 @@ export default function App() {
             working on it, their changes and yours will clash, and one of you will lose work. Check with them first.
           </p>
         </ConfirmDialog>
+      )}
+      {dialog?.kind === "pruneLfs" && (
+        <PruneLfsDialog repoPath={snapshot.path} onCancel={() => setDialog(null)} onDone={(message) => finishDialog(message)} />
       )}
       {dialog?.kind === "dropStash" && (
         <ConfirmDialog

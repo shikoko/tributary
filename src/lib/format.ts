@@ -69,3 +69,16 @@ export function shortId(id: string): string {
 export function plural(count: number, word: string, pluralWord = `${word}s`): string {
   return `${count.toLocaleString()} ${count === 1 ? word : pluralWord}`;
 }
+
+/** "48 MB", like Git LFS shows sizes (powers of 1000). */
+export function formatBytes(bytes: number): string {
+  const units = ["bytes", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1000 && unit < units.length - 1) {
+    value /= 1000;
+    unit += 1;
+  }
+  if (unit === 0) return `${bytes} ${bytes === 1 ? "byte" : "bytes"}`;
+  return `${value >= 100 ? Math.round(value) : value.toFixed(1).replace(/\.0$/, "")} ${units[unit]}`;
+}

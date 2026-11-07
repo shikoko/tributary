@@ -12,6 +12,7 @@ import {
   CloudIcon,
   EyeIcon,
   MergeIcon,
+  SquashIcon,
   RebaseIcon,
   RevertIcon,
   CommitIcon,
@@ -37,7 +38,8 @@ export type OpenDialog =
   | { kind: "reset"; target: CommitRow }
   | { kind: "newBranch"; target: CommitRow }
   | { kind: "forcePush" }
-  | { kind: "stash" }
+  /** `paths`: the files to start with (all of them when left out). */
+  | { kind: "stash"; paths?: string[] }
   | { kind: "rename"; branch: string }
   | { kind: "deleteBranch"; branch: string; commitId: string }
   | { kind: "deleteRemoteBranch"; name: string }
@@ -57,6 +59,10 @@ export type OpenDialog =
   | { kind: "interactiveRebase"; onto: CommitRow; commits: CommitRow[] }
   /** Release someone else's Git LFS lock. */
   | { kind: "forceUnlock"; lock: Lock }
+  /** Clean up the local copies of Git LFS files. */
+  | { kind: "pruneLfs" }
+  /** HEAD's reflog: get back commits that are on no branch. */
+  | { kind: "recover" }
   | null;
 
 /** What the menus need from the app. */
@@ -205,6 +211,18 @@ function mergeItems(ctx: MenuContext, revision: string, label: string): MenuItem
       separated: true,
       disabled,
       onSelect: () => ctx.run({ kind: "merge", target: revision }),
+    },
+    {
+      label: `Merge ${label} with a merge commit`,
+      icon: <MergeIcon />,
+      disabled,
+      onSelect: () => ctx.run({ kind: "merge", target: revision, mode: "noFastForward" }),
+    },
+    {
+      label: `Squash ${label} into ${branch ?? "HEAD"}`,
+      icon: <SquashIcon />,
+      disabled,
+      onSelect: () => ctx.run({ kind: "merge", target: revision, mode: "squash" }),
     },
     {
       label: `Rebase ${branch ?? "HEAD"} onto ${label}`,

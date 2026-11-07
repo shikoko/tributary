@@ -101,6 +101,8 @@ export interface RepoSnapshot {
   lastFetched: number | null;
   /** Local branches whose remote branch was deleted (usually merged pull requests). */
   goneBranches: string[];
+  /** After a squash merge: the message prepared for committing it. */
+  squashMessage: string | null;
 }
 
 export interface HiddenRef {
@@ -220,7 +222,8 @@ export type Action =
   | { kind: "push"; force: boolean }
   /** Stash uncommitted changes, run `action`, then put the changes back. */
   | { kind: "stashAndRetry"; action: Action; includeUntracked: boolean }
-  | { kind: "stashPush"; message: string | null; includeUntracked: boolean }
+  /** `paths`: only these files (all changes when left out). */
+  | { kind: "stashPush"; message: string | null; includeUntracked: boolean; paths?: string[] }
   | { kind: "stashApply"; index: number; id: string }
   | { kind: "stashPop"; index: number; id: string }
   | { kind: "stashDrop"; index: number; id: string }
@@ -240,7 +243,8 @@ export type Action =
   | { kind: "restoreBackup"; reference: string }
   | { kind: "removeBackup"; reference: string }
   | { kind: "renameBranch"; name: string; newName: string }
-  | { kind: "merge"; target: string }
+  /** `mode`: "noFastForward" always makes a merge commit; "squash" stages the changes to commit as one. */
+  | { kind: "merge"; target: string; mode?: "default" | "noFastForward" | "squash" }
   | { kind: "rebase"; onto: string }
   | { kind: "cherryPick"; id: string }
   | { kind: "revert"; id: string }
@@ -263,6 +267,14 @@ export type Action =
   /** Undo resolveConflicts: put the conflicts back. */
   | { kind: "recreateConflicts"; paths: string[] }
   | { kind: "lockFiles"; paths: string[] }
+  /** Store files matching `patterns` with Git LFS, turning the staged `paths` into LFS files. */
+  | { kind: "trackWithLfs"; patterns: string[]; paths?: string[] }
+  /** Throw away changes to files; the outcome's `backup` brings them back. */
+  | { kind: "discardFiles"; paths: string[] }
+  | { kind: "restoreDiscarded"; reference: string }
+  | { kind: "ignorePaths"; patterns: string[] }
+  | { kind: "unignorePaths"; patterns: string[] }
+  | { kind: "pruneLfs" }
   | { kind: "unlockFiles"; locks: { id: string; path: string }[]; force?: boolean };
 
 export type StepAction = "pick" | "reword" | "squash" | "fixup" | "drop";
@@ -279,6 +291,8 @@ export interface Outcome {
   message: string;
   /** After pushing a new branch: the page the remote suggested for opening a pull request. */
   pullRequest?: string;
+  /** Where what the action threw away was kept, to undo it (like discarded changes). */
+  backup?: string;
 }
 
 /** A git command Tributary ran. */
@@ -468,4 +482,78 @@ export interface FileHistory {
 /** `file` is relative to the repository's root, or an absolute path inside it. */
 export function fileHistory(path: string, file: string): Promise<FileHistory> {
   return invoke<FileHistory>("file_history", { path, file });
+}
+
+/** Changed files to look at before committing. */
+export interface FileChecks {
+  /** Big files that aren't stored with Git LFS. */
+  large: { path: string; size: number }[];
+  /** Files marked lockable. */
+  lockable: string[];
+  usesLfs: boolean;
+}
+
+export function fileChecks(path: string, files: string[], threshold: number): Promise<FileChecks> {
+  return invoke<FileChecks>("file_checks", { path, files, threshold });
+}
+
+/** The Git LFS files kept on this computer. */
+export interface LfsStorage {
+  bytes: number;
+  files: number;
+  folder: string;
+}
+
+/** Null when the repository doesn't use Git LFS. */
+export function lfsStorage(path: string): Promise<LfsStorage | null> {
+  return invoke<LfsStorage | null>("lfs_storage", { path });
+}
+
+/** An open pull request on GitHub. */
+export interface PullRequest {
+  number: number;
+  title: string;
+  url: string;
+  /** Like "origin". */
+  remote: string;
+  /** Its branch on that remote, like "feat/menu". */
+  branch: string;
+  draft: boolean;
+  author: string;
+  checks: "success" | "failure" | "pending" | null;
+}
+
+export function pullRequests(path: string): Promise<PullRequest[]> {
+  return invoke<PullRequest[]>("pull_requests", { path });
+}
+
+/** Something that moved HEAD: a commit, checkout, reset, rebase, … */
+export interface ReflogEntry {
+  id: string;
+  previous: string | null;
+  /** As git wrote it, like "reset: moving to HEAD~2". */
+  message: string;
+  /** Seconds since the Unix epoch. */
+  time: number;
+  summary: string;
+  authorName: string;
+}
+
+export function reflog(path: string, limit?: number): Promise<ReflogEntry[]> {
+  return invoke<ReflogEntry[]>("reflog", { path, limit });
+}
+
+/** Where the remote branches point, and which one the checked-out branch tracks. */
+export interface RemoteState {
+  tips: Record<string, string>;
+  upstream: string | null;
+  remotes: string[];
+}
+
+export function remoteState(path: string): Promise<RemoteState> {
+  return invoke<RemoteState>("remote_state", { path });
+}
+
+export function commitsBetween(path: string, from: string, to: string): Promise<{ count: number; authors: string[] }> {
+  return invoke("commits_between", { path, from, to });
 }

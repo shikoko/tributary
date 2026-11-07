@@ -467,3 +467,37 @@ export const CloseGlyph = () => (
     <path d="M0.5 0.5l9 9M9.5 0.5l-9 9" />
   </svg>
 );
+
+/** A triangle with an exclamation mark. */
+export const WarningIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 2.2 14.2 13H1.8z" />
+    <path d="M8 6.5v3" />
+    <path d="M8 11.4v.1" />
+  </Icon>
+);
+
+/** A curved arrow going back: undo, recover. */
+export const RecoverIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 6.5h6a3.5 3.5 0 0 1 0 7H6" />
+    <path d="M6.5 4 4 6.5 6.5 9" />
+  </Icon>
+);
+
+/** A crossed-out eye-less circle: ignore a file. */
+export const IgnoreIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="8" r="5.5" />
+    <path d="m4.2 11.8 7.6-7.6" />
+  </Icon>
+);
+
+/** Several lines pressed into one: a squash merge. */
+export const SquashIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 2.5 8 6l4-3.5" />
+    <path d="M4 13.5 8 10l4 3.5" />
+    <path d="M3 8h10" />
+  </Icon>
+);
