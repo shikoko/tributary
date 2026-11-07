@@ -13,7 +13,7 @@ import { laneX, paintGraph, type GraphMetrics } from "./graphPainter";
 import { RefPills } from "./RefPills";
 import { ResizeHandle } from "./ResizeHandle";
 
-const ROW_HEIGHT = 30;
+const ROW_HEIGHT = 34;
 const DENSE_ROW_HEIGHT = 24;
 const LANE_WIDTH = 20;
 const GRAPH_PADDING = 10;
