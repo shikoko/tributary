@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baseName, folderOf, joinPath, relativeTo } from "./paths";
+import { baseName, folderOf, joinPath, parentFolder, relativeTo } from "./paths";
 
 describe("relativeTo", () => {
   it("makes paths relative to the repository", () => {
@@ -29,5 +29,14 @@ describe("names", () => {
   it("joins with the separator the folder uses", () => {
     expect(joinPath("C:\\Projects\\Feast", "Content/Hero.uasset")).toBe("C:\\Projects\\Feast\\Content\\Hero.uasset");
     expect(joinPath("/work/feast/", "Content/Hero.uasset")).toBe("/work/feast/Content/Hero.uasset");
+  });
+});
+
+describe("parentFolder", () => {
+  it("works with either separator", () => {
+    expect(parentFolder("/work/notebook")).toBe("/work");
+    expect(parentFolder("/work/notebook/")).toBe("/work");
+    expect(parentFolder("C:\\work\\notebook")).toBe("C:\\work");
+    expect(parentFolder("/notebook")).toBe("/");
   });
 });

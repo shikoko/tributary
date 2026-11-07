@@ -1208,8 +1208,14 @@ body:not(.resizing) .commit-list:not(.graph-growing) .list-header {
   white-space: nowrap;
 }
 
-.menu-item:hover:not(:disabled) {
+.menu-item:hover:not(:disabled),
+.menu-item:focus-visible {
   background: #2d3341;
+}
+
+.menu-item:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .menu-item.danger {
@@ -1252,6 +1258,10 @@ body:not(.resizing) .commit-list:not(.graph-growing) .list-header {
   justify-content: center;
   padding: 24px;
   background: rgba(8, 9, 12, 0.6);
+}
+
+.dialog:focus-visible {
+  outline: none;
 }
 
 .dialog {
@@ -1304,6 +1314,21 @@ body:not(.resizing) .commit-list:not(.graph-growing) .list-header {
 
 .clone-options-toggle {
   align-self: flex-start;
+}
+
+.sign-in-browser {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+
+.sign-in-browser .hint {
+  margin: 0;
+}
+
+.dialog .hint.warning {
+  color: #f3d29b;
 }
 
 .diagnostics-text {
@@ -4208,4 +4233,16 @@ textarea.text-input {
 
 .summary-count.over {
   color: #ff5c6c;
+}
+
+/* People who ask for less motion get none: no spinners, pulses or sliding panels. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

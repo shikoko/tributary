@@ -147,6 +147,36 @@ pub async fn pull_requests(path: String) -> Result<Vec<github::PullRequest>> {
     github::pull_requests(&PathBuf::from(path)).await
 }
 
+/// Who's signed in to GitHub (going by the token git keeps), and how one can sign in.
+#[tauri::command]
+pub async fn github_status() -> Result<github::account::GitHubStatus> {
+    github::account::status().await
+}
+
+/// Sign in to GitHub with a personal access token, kept by git's credential helper.
+#[tauri::command]
+pub async fn github_sign_in(token: String) -> Result<github::account::Account> {
+    github::account::sign_in_with_token(&token).await
+}
+
+/// Sign in to GitHub in the browser, with Git Credential Manager.
+#[tauri::command]
+pub async fn github_sign_in_with_browser() -> Result<github::account::Account> {
+    github::account::sign_in_with_browser().await
+}
+
+/// Forget the GitHub token git keeps.
+#[tauri::command]
+pub async fn github_sign_out() -> Result<()> {
+    blocking(github::account::sign_out).await
+}
+
+/// The repository's working trees: the main one and the linked ones.
+#[tauri::command]
+pub async fn worktrees(path: String) -> Result<Vec<repo::Worktree>> {
+    blocking(move || repo::worktrees(&PathBuf::from(path))).await
+}
+
 /// HEAD's reflog, newest first.
 #[tauri::command]
 pub async fn reflog(path: String, limit: Option<usize>) -> Result<Vec<repo::ReflogEntry>> {

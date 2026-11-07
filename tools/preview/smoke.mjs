@@ -185,6 +185,46 @@ try {
     });
   }
 
+  await step("opens a branch in a new worktree", async () => {
+    await page.locator(".tab", { hasText: "notebook" }).first().dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".head-chip", { hasText: "main" }).waitFor({ timeout: 10_000 });
+    await page.locator(".ref-pill", { hasText: "feature/themes" }).first().click({ button: "right" });
+    await page.locator(".menu-item", { hasText: "Open in a new worktree" }).click();
+    await page.getByRole("button", { name: "Create worktree" }).click();
+    await page.locator(".head-chip", { hasText: "feature/themes" }).waitFor({ timeout: 15_000 });
+    await page.locator(".tab.active", { hasText: "notebook-feature-themes" }).waitFor({ timeout: 5000 });
+    const entries = await page.locator(".sidebar-worktree").count();
+    expect(entries === 2, `${entries} worktrees in the sidebar`);
+    await dismissToast();
+  });
+
+  await step("works the menus from the keyboard", async () => {
+    await page.locator("body").press("F10");
+    const focused = () => page.evaluate(() => document.activeElement?.textContent?.trim() ?? "");
+    await page.locator(".context-menu").waitFor();
+    const first = await focused();
+    await page.keyboard.press("ArrowDown");
+    const second = await focused();
+    await page.keyboard.press("ArrowRight");
+    const nextMenu = await focused();
+    await page.keyboard.press("Escape");
+    await page.locator(".context-menu").waitFor({ state: "detached" });
+    expect(first && second && first !== second && nextMenu !== second, `focus went ${first} → ${second} → ${nextMenu}`);
+  });
+
+  await step("signs in to GitHub with a token", async () => {
+    await page.evaluate(() => (window.__PREVIEW__.github = { account: null }));
+    await page.keyboard.press("Control+Comma");
+    await page.getByRole("button", { name: "Sign in…" }).click();
+    await page.getByPlaceholder(/ghp_/).fill("ghp_example");
+    await page.locator(".dialog").getByRole("button", { name: "Sign in", exact: true }).click();
+    const text = await toast();
+    expect(text.includes("Signed in to GitHub as maya-chen"), `toast "${text}"`);
+    await page.getByText("Signed in as maya-chen").waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await dismissToast();
+  });
+
   await step("shows diagnostics to copy", async () => {
     await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
     await page.locator(".menu-item", { hasText: "Copy Diagnostics" }).click();

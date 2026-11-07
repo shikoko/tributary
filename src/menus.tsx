@@ -1,4 +1,4 @@
-import type { Action, CommitRow, Lock, RepoSnapshot, Visibility } from "./api";
+import type { Action, CommitRow, Lock, RepoSnapshot, Visibility, Worktree } from "./api";
 import { copyText } from "./lib/clipboard";
 import { isNotMergedError } from "./lib/errors";
 import { stashIndexOf, type RefEntry, type RefPill } from "./lib/refs";
@@ -11,6 +11,7 @@ import {
   CherryIcon,
   CloudIcon,
   EyeIcon,
+  FolderIcon,
   MergeIcon,
   SquashIcon,
   RebaseIcon,
@@ -63,6 +64,8 @@ export type OpenDialog =
   | { kind: "pruneLfs" }
   /** HEAD's reflog: get back commits that are on no branch. */
   | { kind: "recover" }
+  | { kind: "newWorktree"; branch?: string; start: CommitRow }
+  | { kind: "removeWorktree"; worktree: Worktree }
   | null;
 
 /** What the menus need from the app. */
@@ -93,6 +96,15 @@ export interface MenuContext {
   /** The commits after `commit` on the checked-out branch, newest first, or why they can't be rewritten. */
   rewritable: (commit: CommitRow) => CommitRow[] | string;
   openUrl: (url: string) => void;
+  /** The repository's working trees, to know which branches are checked out elsewhere. */
+  worktrees: Worktree[];
+  /** Open a working tree in a tab. */
+  openWorktree: (path: string) => void;
+}
+
+/** The other working tree that has `branch` checked out, if one does. */
+export function worktreeOf(ctx: MenuContext, branch: string): Worktree | undefined {
+  return ctx.worktrees.find((worktree) => !worktree.current && worktree.branch === branch);
 }
 
 /** The full names of the refs a label stands for: a local branch and its remote copies, a remote branch, or a tag. */
@@ -274,12 +286,17 @@ export function commitMenu(ctx: MenuContext, commit: CommitRow): MenuItem[] {
   const checkouts: MenuItem[] = [];
   for (const ref of commit.refs) {
     if (ref.kind === "branch" && !ref.current) {
-      checkouts.push({
-        label: `Check out ${ref.name}`,
-        icon: <BranchIcon />,
-        disabled: !canChange,
-        onSelect: () => ctx.run({ kind: "checkoutBranch", name: ref.name }),
-      });
+      const elsewhere = worktreeOf(ctx, ref.name);
+      checkouts.push(
+        elsewhere
+          ? { label: `Open ${ref.name}'s worktree`, icon: <FolderIcon />, onSelect: () => ctx.openWorktree(elsewhere.path) }
+          : {
+              label: `Check out ${ref.name}`,
+              icon: <BranchIcon />,
+              disabled: !canChange,
+              onSelect: () => ctx.run({ kind: "checkoutBranch", name: ref.name }),
+            },
+      );
     } else if (ref.kind === "remote") {
       const { branch } = splitRemoteBranch(ref.name, snapshot.remotes);
       if (ctx.localBranches.has(branch)) continue;
@@ -300,6 +317,13 @@ export function commitMenu(ctx: MenuContext, commit: CommitRow): MenuItem[] {
     });
   }
   items.push(...checkouts.slice(0, 6).map((item, i) => ({ ...item, separated: i === 0 })));
+  items.push({
+    label: "New worktree here…",
+    icon: <FolderIcon />,
+    separated: checkouts.length === 0,
+    disabled: !canChange || snapshot.bare,
+    onSelect: () => ctx.open({ kind: "newWorktree", start: commit }),
+  });
   const busy = !canChange || snapshot.operation !== null;
   const isHead = commit.id === snapshot.headCommit;
   items.push(
@@ -493,13 +517,26 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
 
   const items: MenuItem[] = [];
   if (pill.local) {
+    const elsewhere = worktreeOf(ctx, pill.name);
     items.push(
-      {
-        label: pill.current ? `${pill.name} is checked out` : `Check out ${pill.name}`,
-        icon: <BranchIcon />,
-        disabled: !canChange || pill.current,
-        onSelect: () => checkout && ctx.run(checkout),
-      },
+      elsewhere
+        ? { label: `Open ${pill.name}'s worktree`, icon: <FolderIcon />, onSelect: () => ctx.openWorktree(elsewhere.path) }
+        : {
+            label: pill.current ? `${pill.name} is checked out` : `Check out ${pill.name}`,
+            icon: <BranchIcon />,
+            disabled: !canChange || pill.current,
+            onSelect: () => checkout && ctx.run(checkout),
+          },
+      ...(elsewhere || pill.current
+        ? []
+        : [
+            {
+              label: "Open in a new worktree…",
+              icon: <FolderIcon />,
+              disabled: !canChange,
+              onSelect: () => ctx.open({ kind: "newWorktree", branch: pill.name, start: commit }),
+            },
+          ]),
       {
         label: `Rename ${pill.name}…`,
         icon: <PencilIcon />,

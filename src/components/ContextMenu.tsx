@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { stepFocus, usingKeyboard } from "../lib/inputMode";
 import { CheckIcon } from "./Icons";
 
 export interface MenuItem {
@@ -20,10 +21,16 @@ interface Props {
   y: number;
   items: MenuItem[];
   onClose: () => void;
+  /** For a menu bar's menu: ← and → open the menu next to it. */
+  onSideways?: (step: 1 | -1) => void;
 }
 
-/** A right-click menu at (x, y), kept inside the window. */
-export function ContextMenu({ x, y, items, onClose }: Props) {
+/**
+ * A right-click menu at (x, y), kept inside the window. The keyboard works as in a
+ * system menu: ↑ ↓ Home End move, a letter jumps to the next item starting with it,
+ * Enter picks, Esc and Tab close.
+ */
+export function ContextMenu({ x, y, items, onClose, onSideways }: Props) {
   const menu = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ left: x, top: y });
 
@@ -34,8 +41,12 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
       left: Math.max(4, Math.min(x, window.innerWidth - width - 4)),
       top: Math.max(4, Math.min(y, window.innerHeight - height - 4)),
     });
-    element.focus();
-  }, [x, y]);
+    // Opened from the keyboard: start on the first item. With the mouse: nothing highlighted.
+    const first = element.querySelector<HTMLButtonElement>(".menu-item:not(:disabled)");
+    (usingKeyboard() && first ? first : element).focus();
+  }, [x, y, items]);
+
+  const buttons = () => [...(menu.current?.querySelectorAll<HTMLButtonElement>(".menu-item:not(:disabled)") ?? [])];
 
   return (
     <div
@@ -54,9 +65,34 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
         tabIndex={-1}
         onMouseDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
-          if (event.key === "Escape") {
+          if (event.key === "Escape" || event.key === "Tab") {
+            event.preventDefault();
             event.stopPropagation();
             onClose();
+            return;
+          }
+          if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && onSideways) {
+            event.preventDefault();
+            onSideways(event.key === "ArrowRight" ? 1 : -1);
+            return;
+          }
+          const all = buttons();
+          const current = all.find((button) => button === document.activeElement) ?? null;
+          const vertical = event.key === "ArrowLeft" || event.key === "ArrowRight" ? null : stepFocus(all, current, event.key);
+          if (vertical) {
+            event.preventDefault();
+            vertical.focus();
+            return;
+          }
+          // A letter: the next item starting with it.
+          if (event.key.length === 1 && /\S/.test(event.key) && !event.metaKey && !event.ctrlKey) {
+            const start = current ? all.indexOf(current) + 1 : 0;
+            const ordered = [...all.slice(start), ...all.slice(0, start)];
+            const match = ordered.find((button) => button.textContent?.trim().toLowerCase().startsWith(event.key.toLowerCase()));
+            if (match) {
+              event.preventDefault();
+              match.focus();
+            }
           }
         }}
       >

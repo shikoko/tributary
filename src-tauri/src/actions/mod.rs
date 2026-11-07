@@ -20,6 +20,7 @@ mod stash;
 mod support;
 mod tags;
 mod validate;
+mod worktrees;
 
 use std::path::Path;
 
@@ -196,6 +197,24 @@ pub enum Action {
     DownloadLfsFiles,
     /// Set git up to use Git LFS (`git lfs install`), then download its files.
     SetUpLfs,
+    /// Check out `branch` in a new working tree at `path` (an absolute folder that's new
+    /// or empty): an existing local branch, or with `create`, a new one at commit `start`.
+    AddWorktree {
+        path: String,
+        branch: String,
+        #[serde(default)]
+        create: bool,
+        #[serde(default)]
+        start: Option<String>,
+    },
+    /// Delete a linked working tree's folder. `force` throws away its uncommitted changes.
+    RemoveWorktree {
+        path: String,
+        #[serde(default)]
+        force: bool,
+    },
+    /// Forget working trees whose folders are gone.
+    PruneWorktrees,
     /// Release Git LFS locks, by id (the file may not exist here). `force` releases
     /// someone else's lock.
     UnlockFiles {
@@ -438,6 +457,16 @@ fn perform(
         Action::PruneLfs => lfs::prune_lfs(&git),
         Action::DownloadLfsFiles => lfs_health::download_lfs_files(&git, on_progress),
         Action::SetUpLfs => lfs_health::set_up_lfs(&git, on_progress),
+        Action::AddWorktree {
+            path,
+            branch,
+            create,
+            start,
+        } => worktrees::add_worktree(&repo, &git, path, branch, create, start),
+        Action::RemoveWorktree { path, force } => {
+            worktrees::remove_worktree(&repo, &git, path, force)
+        }
+        Action::PruneWorktrees => worktrees::prune_worktrees(&git),
         Action::UnlockFiles { locks, force } => lfs::unlock_files(&git, locks, force),
     }
 }

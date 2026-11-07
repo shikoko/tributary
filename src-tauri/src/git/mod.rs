@@ -2,18 +2,20 @@
 //! command line (line endings, LFS, hooks, credentials, …).
 
 mod activity;
+mod credentials;
 pub mod lfs_progress;
 mod progress;
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::time::{Instant, SystemTime};
 
 use self::activity::record;
 use crate::error::{Error, Result};
 
 pub use activity::{LogEntry, activity, on_activity};
+pub(crate) use credentials::Credential;
 pub use progress::{Progress, cancel, parse_progress};
 
 /// The `git` executable, run inside one working tree.
@@ -69,42 +71,6 @@ impl Git {
             workdir,
             background: false,
         })
-    }
-
-    /// The password (for GitHub, a token) git's credential helper keeps for `https://{host}`,
-    /// if it has one. Never prompts, and gives up after a few seconds.
-    pub(crate) fn stored_password(&self, host: &str) -> Option<String> {
-        use std::io::Write;
-        use std::time::Duration;
-        let mut child = command(&self.executable)
-            .args(["credential", "fill"])
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GCM_INTERACTIVE", "never")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .ok()?;
-        child
-            .stdin
-            .take()?
-            .write_all(format!("protocol=https\nhost={host}\n\n").as_bytes())
-            .ok()?;
-        let mut stdout = child.stdout.take()?;
-        let (sender, answer) = std::sync::mpsc::channel();
-        std::thread::spawn(move || {
-            let mut text = String::new();
-            let _ = stdout.read_to_string(&mut text);
-            let _ = sender.send(text);
-        });
-        let text = answer.recv_timeout(Duration::from_secs(10)).ok();
-        let _ = child.kill();
-        let _ = child.wait();
-        text?
-            .lines()
-            .find_map(|line| line.strip_prefix("password="))
-            .map(str::to_owned)
-            .filter(|password| !password.is_empty())
     }
 
     /// Run git with `args`, returning its output, or its error message.

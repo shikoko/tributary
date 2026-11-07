@@ -139,11 +139,20 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
                 &path,
             ))?)
         }
+        "github_status" => to_json(tauri::async_runtime::block_on(github::account::status())?),
+        "github_sign_in" => {
+            let token: String = arg(args, "token")?;
+            to_json(tauri::async_runtime::block_on(
+                github::account::sign_in_with_token(&token),
+            )?)
+        }
+        "github_sign_out" => to_json(github::account::sign_out()?),
         "reflog" => {
             let limit = optional(args, "limit")?.unwrap_or(300);
             to_json(repo::reflog(&path()?, limit)?)
         }
         "remote_state" => to_json(repo::remote_state(&path()?)?),
+        "worktrees" => to_json(repo::worktrees(&path()?)?),
         "commits_between" => {
             let from: String = arg(args, "from")?;
             let to: String = arg(args, "to")?;

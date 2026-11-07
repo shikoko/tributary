@@ -17,6 +17,8 @@ export interface ShortcutHandlers {
   toggleActivity: () => void;
   zoom: (step: 1 | -1 | 0) => void;
   showShortcuts: () => void;
+  /** F10: the menu bar's first menu. */
+  openMenuBar: () => void;
   /** Esc, outside text fields. */
   escape: () => void;
 }
@@ -37,6 +39,7 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
         event.preventDefault();
         handler();
       };
+      if (event.key === "F10" && !event.shiftKey && !mod) run(on.openMenuBar);
       if (mod && key === "k") run(on.togglePalette);
       else if (mod && key === ",") run(on.openSettings);
       else if (mod && key === "o" && !event.shiftKey) run(on.open);

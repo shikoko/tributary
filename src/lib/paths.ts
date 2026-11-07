@@ -24,8 +24,20 @@ export function folderOf(path: string): string {
   return slash < 0 ? "" : trimmed.slice(0, slash);
 }
 
+/** The folder a file system path is in, with either separator: "C:\\work\\app" → "C:\\work". */
+export function parentFolder(path: string): string {
+  const trimmed = path.replace(/[\\/]+$/, "");
+  const cut = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  return cut <= 0 ? trimmed.slice(0, cut + 1) : trimmed.slice(0, cut);
+}
+
 /** `path` joined onto the folder `root`, with the separators `root` uses. */
 export function joinPath(root: string, path: string): string {
   const separator = root.includes("\\") && !root.includes("/") ? "\\" : "/";
   return `${root.replace(/[\\/]+$/, "")}${separator}${path.split("/").join(separator)}`;
+}
+
+/** "feature/tags" → "feature-tags", for a folder name. */
+export function folderSlug(branch: string): string {
+  return branch.trim().replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "") || "worktree";
 }

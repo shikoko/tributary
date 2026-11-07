@@ -283,6 +283,9 @@ export type Action =
   | { kind: "pruneLfs" }
   | { kind: "downloadLfsFiles" }
   | { kind: "setUpLfs" }
+  | { kind: "addWorktree"; path: string; branch: string; create: boolean; start?: string | null }
+  | { kind: "removeWorktree"; path: string; force?: boolean }
+  | { kind: "pruneWorktrees" }
   | { kind: "unlockFiles"; locks: { id: string; path: string }[]; force?: boolean };
 
 export type StepAction = "pick" | "reword" | "squash" | "fixup" | "drop";
@@ -542,6 +545,57 @@ export interface LfsHealth {
 /** Null when the repository doesn't use Git LFS. */
 export function lfsHealth(path: string): Promise<LfsHealth | null> {
   return invoke<LfsHealth | null>("lfs_health", { path });
+}
+
+/** A working tree of the repository: the main one, or one linked with `git worktree add`. */
+export interface Worktree {
+  path: string;
+  /** The checked-out branch, or null when HEAD is detached. */
+  branch: string | null;
+  head: string | null;
+  main: boolean;
+  /** The one that's open. */
+  current: boolean;
+  locked: boolean;
+  /** Its folder is gone. */
+  prunable: boolean;
+}
+
+export function worktrees(path: string): Promise<Worktree[]> {
+  return invoke<Worktree[]>("worktrees", { path });
+}
+
+/** A GitHub user. */
+export interface GitHubAccount {
+  login: string;
+  name: string | null;
+}
+
+/** Who's signed in to GitHub, going by the token git keeps, and how one can sign in. */
+export interface GitHubStatus {
+  account: GitHubAccount | null;
+  /** Git keeps a token that GitHub no longer accepts. */
+  tokenRejected: boolean;
+  /** Git has a credential helper to keep a token in. */
+  canKeepToken: boolean;
+  /** Git Credential Manager can sign in in the browser. */
+  browserSignIn: boolean;
+}
+
+export function gitHubStatus(): Promise<GitHubStatus> {
+  return invoke<GitHubStatus>("github_status");
+}
+
+export function signInToGitHub(token: string): Promise<GitHubAccount> {
+  return invoke<GitHubAccount>("github_sign_in", { token });
+}
+
+export function signInToGitHubWithBrowser(): Promise<GitHubAccount> {
+  return invoke<GitHubAccount>("github_sign_in_with_browser");
+}
+
+export function signOutOfGitHub(): Promise<void> {
+  return invoke<void>("github_sign_out");
 }
 
 /** For reporting a problem: versions, the platform, and how the repository is set up. */

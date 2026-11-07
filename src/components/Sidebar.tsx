@@ -1,10 +1,12 @@
 import { useContext, useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { PullRequestsContext } from "../lib/pullRequests";
 import { PullRequestBadge } from "./RefPills";
-import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Visibility } from "../api";
+import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Visibility, type Worktree } from "../api";
 import { lockTitle } from "./CommitDetails";
 import { pressLabel } from "../lib/drag";
 import { collectRefs, type RefEntry } from "../lib/refs";
+import { stepFocus } from "../lib/inputMode";
+import { worktreeName, worktreeNote } from "../lib/worktrees";
 import { useStoredState } from "../lib/settings";
 import {
   BranchIcon,
@@ -55,6 +57,10 @@ interface Props {
   onLockMenu: (lock: Lock, x: number, y: number) => void;
   /** Lock files you choose (null while that can't be done). */
   onLockFiles: (() => void) | null;
+  /** The repository's working trees: shown when there's more than the main one. */
+  worktrees: Worktree[];
+  onOpenWorktree: (worktree: Worktree) => void;
+  onWorktreeMenu: (worktree: Worktree, x: number, y: number) => void;
 }
 
 /** An entry, or a folder of entries that share a prefix like "feature/". */
@@ -213,6 +219,13 @@ export function Sidebar(props: Props) {
               className="sidebar-item sidebar-folder"
               style={{ paddingLeft: 12 + depth * 14 }}
               onClick={() => toggle(key)}
+              onKeyDown={(event) => {
+                // → opens a folder, ← closes it.
+                if ((event.key === "ArrowRight" && !open) || (event.key === "ArrowLeft" && open)) {
+                  event.preventDefault();
+                  toggle(key);
+                }
+              }}
               aria-expanded={open}
             >
               <span className="sidebar-icon">
@@ -257,7 +270,23 @@ export function Sidebar(props: Props) {
   const hiddenCount = soloing ? visibility.solo.length : visibility.hidden.length;
 
   return (
-    <aside className="sidebar" style={{ width }} aria-label="Branches and tags">
+    <aside
+      className="sidebar"
+      style={{ width }}
+      aria-label="Branches and tags"
+      onKeyDown={(event) => {
+        // ↑ ↓ Home End move between the entries, across sections.
+        const target = event.target as HTMLElement;
+        if (!target.classList.contains("sidebar-item") || event.key === "ArrowLeft" || event.key === "ArrowRight") return;
+        const all = [...event.currentTarget.querySelectorAll<HTMLElement>(".sidebar-item")];
+        const next = stepFocus(all, target, event.key);
+        if (next) {
+          event.preventDefault();
+          next.focus();
+          next.scrollIntoView({ block: "nearest" });
+        }
+      }}
+    >
       <div className="sidebar-filter">
         <SearchIcon size={13} />
         <input
@@ -325,6 +354,39 @@ export function Sidebar(props: Props) {
           stashes.length,
           <ul>{stashes.map((e) => item(e, stashLabel(e), <StashIcon size={13} />))}</ul>,
         )}
+        {props.worktrees.length > 1 &&
+          section(
+            "worktrees",
+            "Worktrees",
+            props.worktrees.length,
+            <ul>
+              {props.worktrees.map((worktree) => (
+                <li key={worktree.path}>
+                  <div
+                    className={`sidebar-item sidebar-worktree${worktree.current ? " current" : ""}${worktree.prunable ? " hidden-ref" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    title={`${worktree.path}${worktree.prunable ? " (its folder is gone)" : worktree.current ? " (open)" : ""}`}
+                    onDoubleClick={() => props.onOpenWorktree(worktree)}
+                    onKeyDown={(event) => event.key === "Enter" && props.onOpenWorktree(worktree)}
+                    onClick={(event) =>
+                      worktree.prunable
+                        ? props.onWorktreeMenu(worktree, event.clientX, event.clientY)
+                        : worktree.head && props.onSelect(worktree.head)
+                    }
+                    onContextMenu={(event: MouseEvent) => {
+                      event.preventDefault();
+                      props.onWorktreeMenu(worktree, event.clientX, event.clientY);
+                    }}
+                  >
+                    <span className="sidebar-icon">{worktree.current ? <CheckIcon size={13} /> : <FolderIcon size={13} />}</span>
+                    <span className="sidebar-name">{worktreeName(worktree)}</span>
+                    {worktreeNote(worktree) && <span className="sidebar-lock-owner">{worktreeNote(worktree)}</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>,
+          )}
         {locks &&
           section(
             "locks",

@@ -1,13 +1,48 @@
 //! Open pull requests on GitHub, for the branch labels: their number, and whether their
-//! checks passed. GitHub is asked with the token git uses for github.com, when it has one.
+//! checks passed. GitHub is asked with the token git uses for github.com, when it has one
+//! (see [`account`] for signing in).
+
+pub mod account;
 
 use std::path::Path;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
 use crate::git::Git;
 use crate::links::Host;
+
+/// GitHub's host, for git's credential helper.
+pub(crate) const HOST: &str = "github.com";
+
+/// An HTTP client for GitHub's API.
+pub(crate) fn client() -> Result<reqwest::Client> {
+    if rustls::crypto::CryptoProvider::get_default().is_none() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    }
+    reqwest::Client::builder()
+        .user_agent("Tributary")
+        .timeout(Duration::from_secs(20))
+        .build()
+        .map_err(|e| Error::Message(e.to_string()))
+}
+
+/// A request to GitHub's API, with the token when there is one.
+pub(crate) fn api_request(
+    client: &reqwest::Client,
+    url: String,
+    token: Option<&str>,
+) -> reqwest::RequestBuilder {
+    let request = client
+        .get(url)
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2022-11-28");
+    match token {
+        Some(token) => request.bearer_auth(token),
+        None => request,
+    }
+}
 
 /// At most this many pull requests get their checks looked up.
 const MAX_CHECKED: usize = 25;
@@ -134,7 +169,7 @@ pub async fn pull_requests(path: &Path) -> Result<Vec<PullRequest>, Error> {
         let found = github_repository(&path)?;
         let token = found.as_ref().and_then(|_| {
             let git = Git::find(path.clone()).ok()?;
-            git.stored_password("github.com")
+            git.stored_password(HOST)
         });
         Ok::<_, Error>((found, token))
     })
@@ -144,24 +179,8 @@ pub async fn pull_requests(path: &Path) -> Result<Vec<PullRequest>, Error> {
         return Ok(Vec::new());
     };
 
-    if rustls::crypto::CryptoProvider::get_default().is_none() {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-    }
-    let client = reqwest::Client::builder()
-        .user_agent("Tributary")
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .map_err(|e| e.to_string())?;
-    let get = |url: String| {
-        let mut request = client
-            .get(url)
-            .header("Accept", "application/vnd.github+json")
-            .header("X-GitHub-Api-Version", "2022-11-28");
-        if let Some(token) = &token {
-            request = request.bearer_auth(token);
-        }
-        request.send()
-    };
+    let client = client()?;
+    let get = |url: String| api_request(&client, url, token.as_deref()).send();
 
     let response = get(format!(
         "https://api.github.com/repos/{full_name}/pulls?state=open&per_page=100"

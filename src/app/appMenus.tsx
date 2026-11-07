@@ -190,6 +190,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           { id: "new-tag", label: "New Tag…", icon: <TagIcon />, enabled: Boolean(head) && canChange, run: () => head && run.dialog({ kind: "tag", target: head }) },
           { id: "prune", label: "Prune Branches…", icon: <BroomIcon />, enabled: canChange, run: () => run.dialog({ kind: "prune" }) },
           { id: "restore", label: "Restore Branch…", icon: <HistoryIcon />, enabled: canChange, run: () => run.dialog({ kind: "restore" }) },
+          { id: "new-worktree", label: "New Worktree…", icon: <FolderIcon />, enabled: Boolean(head) && canChange, run: () => head && run.dialog({ kind: "newWorktree", start: head }) },
           "-",
           { id: "file-history", label: "File History…", icon: <FileHistoryIcon />, run: () => run.history(false) },
           { id: "folder-history", label: "Folder History…", icon: <FolderIcon />, run: () => run.history(true) },

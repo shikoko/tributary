@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { CloseIcon, Logo, PlusIcon } from "./Icons";
+import { stepFocus } from "../lib/inputMode";
 import { isWindows, modKey } from "../lib/platform";
 import { WindowControls } from "./WindowControls";
 
@@ -43,6 +44,23 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
             key={tab.path}
             role="tab"
             aria-selected={tab.path === activePath}
+            tabIndex={tab.path === activePath || (activePath === null && index === 0) ? 0 : -1}
+            onKeyDown={(event) => {
+              // ← → Home End move between tabs, Enter or Space switches, Delete closes.
+              const all = [...(event.currentTarget.parentElement?.querySelectorAll<HTMLElement>("[role=tab][data-path]") ?? [])];
+              const next = stepFocus(all, event.currentTarget, event.key === "ArrowUp" || event.key === "ArrowDown" ? "" : event.key);
+              if (next) {
+                event.preventDefault();
+                next.focus();
+              } else if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelect(tab.path);
+              } else if (event.key === "Delete") {
+                event.preventDefault();
+                onClose(tab.path);
+              }
+            }}
+            data-path={tab.path}
             className={`tab${tab.path === activePath ? " active" : ""}${news?.[tab.path] ? " has-news" : ""}`}
             title={`${tab.path}${index < 9 ? `  (${modKey}${index + 1})` : ""}${news?.[tab.path] ? `\n${news[tab.path]}` : ""}`}
             onMouseDown={(event) => {

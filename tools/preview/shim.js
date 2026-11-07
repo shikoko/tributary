@@ -7,6 +7,8 @@
 //                  without it, the picker asks with a prompt
 //   pullRequests   the pull requests to show, instead of asking GitHub
 //   update         an update to offer, like { version: "0.2.0", notes: "…", date: null }
+//   github         a stand-in GitHub sign-in, like { account: null, browserSignIn: true },
+//                  instead of git's real credential helper
 // and read what happened from it afterwards: opened (links and revealed files), notified.
 (() => {
   const preview = (window.__PREVIEW__ = {
@@ -65,6 +67,16 @@
       }, 300);
     });
 
+  /** Any token but "bad" signs in, as a made-up user, after a moment. */
+  const fakeSignIn = (token) =>
+    new Promise((resolve, reject) =>
+      setTimeout(() => {
+        if (token === "bad") return reject("GitHub didn't accept that token. Check that it was copied whole and hasn't expired.");
+        preview.github.account = { login: "maya-chen", name: "Maya Chen" };
+        resolve(preview.github.account);
+      }, 400),
+    );
+
   /** Commands that don't need the server, by name. */
   const local = {
     "plugin:event|listen": ({ event, handler }) => {
@@ -102,6 +114,13 @@
     check_for_update: () => preview.update,
     install_update: installUpdate,
     pull_requests: (args) => (preview.pullRequests !== undefined ? preview.pullRequests : server("pull_requests", args)),
+    github_status: () =>
+      preview.github
+        ? { account: preview.github.account ?? null, tokenRejected: false, canKeepToken: true, browserSignIn: Boolean(preview.github.browserSignIn) }
+        : server("github_status", {}),
+    github_sign_in: (args) => (preview.github ? fakeSignIn(args.token) : server("github_sign_in", args)),
+    github_sign_in_with_browser: () => (preview.github ? fakeSignIn("browser") : server("github_sign_in_with_browser", {})),
+    github_sign_out: () => (preview.github ? ((preview.github.account = null), null) : server("github_sign_out", {})),
   };
 
   window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };

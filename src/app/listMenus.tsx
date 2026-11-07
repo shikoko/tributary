@@ -1,8 +1,10 @@
-import type { Action, CommitRow, RepoSnapshot } from "../api";
+import type { Action, CommitRow, RepoSnapshot, Worktree } from "../api";
 import type { DetailsAction } from "../components/CommitDetails";
 import type { ColumnOptions } from "../components/CommitList";
 import type { MenuItem } from "../components/ContextMenu";
-import { ColumnsIcon, PushIcon, ResetIcon, StashIcon, TrashIcon } from "../components/Icons";
+import { BroomIcon, ColumnsIcon, CopyIcon, FolderIcon, PushIcon, ResetIcon, StashIcon, TrashIcon } from "../components/Icons";
+import { copyText } from "../lib/clipboard";
+import { isMac } from "../lib/platform";
 import { stashIndexOf } from "../lib/refs";
 import { canResetTo, type OpenDialog } from "../menus";
 
@@ -85,6 +87,36 @@ export function detailsActionsFor(
       icon: <ResetIcon size={14} />,
       danger: true,
       onClick: () => openDialog({ kind: "reset", target: commit }),
+    },
+  ];
+}
+
+/** What the menu of a working tree in the sidebar needs. */
+export interface WorktreeMenuContext {
+  canChange: boolean;
+  open: (path: string) => void;
+  reveal: (path: string) => void;
+  remove: (worktree: Worktree) => void;
+  /** Forget the working trees whose folders are gone. */
+  prune: () => void;
+}
+
+/** A working tree in the sidebar: open it, show its folder, or remove it. */
+export function worktreeMenuItems(worktree: Worktree, ctx: WorktreeMenuContext): MenuItem[] {
+  if (worktree.prunable) {
+    return [{ label: "Forget worktrees whose folders are gone", icon: <BroomIcon />, disabled: !ctx.canChange, onSelect: ctx.prune }];
+  }
+  return [
+    { label: worktree.current ? "This worktree is open" : "Open", icon: <FolderIcon />, disabled: worktree.current, onSelect: () => ctx.open(worktree.path) },
+    { label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, onSelect: () => ctx.reveal(worktree.path) },
+    { label: "Copy path", icon: <CopyIcon />, onSelect: () => copyText(worktree.path) },
+    {
+      label: worktree.main ? "The main worktree stays" : worktree.current ? "Remove (open another one first)" : "Remove worktree…",
+      icon: <TrashIcon />,
+      danger: true,
+      separated: true,
+      disabled: !ctx.canChange || worktree.main || worktree.current || worktree.locked,
+      onSelect: () => ctx.remove(worktree),
     },
   ];
 }

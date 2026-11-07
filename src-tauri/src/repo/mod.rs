@@ -1,5 +1,5 @@
 //! Reading a repository with gix (pure Rust, no git needed): its history, refs,
-//! uncommitted changes and per-commit details.
+//! uncommitted changes, per-commit details and working trees.
 
 mod details;
 mod operation;
@@ -8,6 +8,7 @@ mod refs;
 mod remotes;
 mod snapshot;
 mod status;
+mod worktrees;
 
 use std::path::Path;
 
@@ -24,6 +25,7 @@ pub use snapshot::{
     load_with,
 };
 pub use status::{FileChange, FileStatus, WorktreeStatus};
+pub use worktrees::{Worktree, worktrees};
 
 pub(crate) fn open(path: &Path) -> Result<gix::Repository, Error> {
     let mut repo = gix::discover(path).map_err(|e| Error::not_a_repository(path, e))?;

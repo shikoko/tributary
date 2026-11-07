@@ -12,6 +12,7 @@ import {
   openRepository,
   PAGE_SIZE,
   runActionFor,
+  signOutOfGitHub,
   WORKTREE_ID,
   type Action,
   type CommitDetails,
@@ -70,7 +71,9 @@ import { appMenus, helpCommandsFor, settingsCommand, startCommands, type MenuBar
 import { fileMenuItems, lockMenuItems, type FileMenuContext } from "./app/fileMenus";
 import { RepositoryDialogs } from "./app/Dialogs";
 import { needsAttention, useLfsHealth } from "./app/useLfsHealth";
-import { columnMenuItems, detailsActionsFor, pushMenuItems } from "./app/listMenus";
+import { useWorktrees } from "./app/useWorktrees";
+import { useGitHubStatus } from "./app/useGitHub";
+import { columnMenuItems, detailsActionsFor, pushMenuItems, worktreeMenuItems, type WorktreeMenuContext } from "./app/listMenus";
 import { paletteCommands } from "./app/paletteCommands";
 import { useNativeMenu } from "./app/useNativeMenu";
 import { settingsSections } from "./app/settingsSections";
@@ -106,6 +109,7 @@ import { Toolbar, type RemoteAction } from "./components/Toolbar";
 import { ViewBanner } from "./components/ViewBanner";
 import { LfsHealthBanner } from "./components/LfsHealthBanner";
 import { DiagnosticsDialog } from "./components/DiagnosticsDialog";
+import { GitHubSignInDialog } from "./components/GitHubSignInDialog";
 import { Welcome } from "./components/Welcome";
 import { conflictSides, EMPTY_DRAFT, WorktreeDetailsPanel, type CommitDraft } from "./components/WorktreeDetails";
 
@@ -119,10 +123,10 @@ export default function App() {
   /** When several commits are selected: all of them, in the order they were added. */
   const [selection, setSelection] = useState<string[] | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
-  const [error, setError] = useState<{ message: string; retry?: Action } | null>(null);
+  const [error, setError] = useState<{ message: string; retry?: Action; worktree?: string } | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [recent, setRecent] = useState(loadRecent);
-  const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[]; onSideways?: (step: 1 | -1) => void } | null>(null);
   const [dialog, setDialog] = useState<OpenDialog>(null);
   const [running, setRunning] = useState<Running>(null);
   const [progress, setProgress] = useState<{ label: string; value: Progress | null; visible: boolean } | null>(null);
@@ -146,6 +150,8 @@ export default function App() {
   const updates = useUpdates(autoUpdate);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [gitHubSignInOpen, setGitHubSignInOpen] = useState(false);
+  const github = useGitHubStatus(settingsOpen);
   const [updateOpen, setUpdateOpen] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
   useEffect(() => {
@@ -182,6 +188,7 @@ export default function App() {
   // Git LFS files that weren't downloaded, or Git LFS missing: say so until it's fixed,
   // or dismissed (it comes back if the problem changes).
   const lfsStatus = useLfsHealth(snapshot);
+  const worktreeList = useWorktrees(snapshot);
   const lfsSignature = lfsStatus.health
     ? `${lfsStatus.health.notInstalled}/${lfsStatus.health.notSetUp}/${lfsStatus.health.pointers}`
     : "";
@@ -450,7 +457,9 @@ export default function App() {
           RETRYABLE.has(action.kind) && isLocalChangesError(failure)
             ? { kind: "stashAndRetry", action, includeUntracked: involvesUntrackedFiles(failure) }
             : undefined;
-        setError({ message: failure, retry });
+        // The branch is checked out in another working tree: offer to open that.
+        const worktree = /already (?:used by worktree|checked out) at '([^']+)'/.exec(failure)?.[1];
+        setError({ message: failure, retry, worktree });
         return false;
       }
       // A squash merge waits to be committed: show it.
@@ -692,6 +701,8 @@ export default function App() {
     toggleActivity: () => setActivityOpen((open) => !open),
     zoom: zoomBy,
     showShortcuts: () => setShortcutsOpen(true),
+    // Windows and Linux: F10 opens the menu bar, as in other apps there.
+    openMenuBar: () => !isMac && openBarMenu(0),
     escape: () => {
       // Stop highlighting first, then drop a multiple selection, then close the details.
       if (focus) setFocus(null);
@@ -818,9 +829,21 @@ export default function App() {
   const menus = appMenus(menuBarContext);
   useNativeMenu(menus, { settings: () => setSettingsOpen(true) });
 
-  const menuBar = isMac ? undefined : (
-    <MenuBar menus={menus.map((m): AppMenu => ({ label: m.label, items: menuItems(m.entries) }))} onOpen={(m, anchor) => menuUnder(anchor, m.items, 280)} />
-  );
+  const barMenus = menus.map((m): AppMenu => ({ label: m.label, items: menuItems(m.entries) }));
+  /** Open the menu bar's `index`th menu; ← and → go to the ones beside it. */
+  const openBarMenu = (index: number) => {
+    const anchors = document.querySelectorAll<HTMLElement>(".menu-bar-item");
+    const anchor = anchors[index];
+    if (!anchor || !barMenus[index]) return;
+    const rect = anchor.getBoundingClientRect();
+    setMenu({
+      x: rect.left,
+      y: rect.bottom + 4,
+      items: barMenus[index].items,
+      onSideways: (step) => openBarMenu((index + step + barMenus.length) % barMenus.length),
+    });
+  };
+  const menuBar = isMac ? undefined : <MenuBar menus={barMenus} onOpen={(m) => openBarMenu(barMenus.indexOf(m))} />;
 
   const settingsDialog = settingsOpen && (
     <SettingsDialog
@@ -829,6 +852,16 @@ export default function App() {
         version,
         updates,
         onInstallUpdate: () => setUpdateOpen(true),
+        github: {
+          status: github.status,
+          error: github.error,
+          onSignIn: () => setGitHubSignInOpen(true),
+          onSignOut: () =>
+            signOutOfGitHub()
+              .then(() => setToast({ text: "Signed out of GitHub" }))
+              .catch((e) => setToast({ text: `Couldn't sign out: ${e}` }))
+              .finally(github.recheck),
+        },
         repository: snapshot && {
           name: snapshot.name,
           path: snapshot.path,
@@ -841,6 +874,18 @@ export default function App() {
         },
       })}
       onClose={() => setSettingsOpen(false)}
+    />
+  );
+  const gitHubSignInDialog = gitHubSignInOpen && (
+    <GitHubSignInDialog
+      status={github.status}
+      onCancel={() => setGitHubSignInOpen(false)}
+      onDone={(account) => {
+        setGitHubSignInOpen(false);
+        setToast({ text: `Signed in to GitHub as ${account.login}` });
+        github.recheck();
+        prs.refresh(true);
+      }}
     />
   );
   const diagnosticsDialog = diagnosticsOpen && (
@@ -923,8 +968,9 @@ export default function App() {
         {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
         {settingsDialog}
         {diagnosticsDialog}
+        {gitHubSignInDialog}
         {updateDialog}
-        {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+        {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onSideways={menu.onSideways} onClose={() => setMenu(null)} />}
         {dropOverlay}
         {toast && <Toast toast={toast} onDone={hideToast} />}
       </div>,
@@ -953,6 +999,8 @@ export default function App() {
     toggleProtected,
     rewritable: rewritableAfter,
     openUrl: openInBrowser,
+    worktrees: worktreeList,
+    openWorktree: switchTab,
   };
   const commitById = (id: string) => byId.get(id);
   const conflictedPaths = (snapshot.worktree?.unstaged ?? []).filter((file) => file.status === "conflicted").map((file) => file.path);
@@ -968,6 +1016,13 @@ export default function App() {
     checks,
     reveal: (path) =>
       revealItemInDir(joinPath(snapshot.path, path)).catch(() => setToast({ text: `${baseName(path)} isn't in the working tree` })),
+  };
+  const worktreeContext: WorktreeMenuContext = {
+    canChange,
+    open: switchTab,
+    reveal: (path) => revealItemInDir(path).catch(() => setToast({ text: `${path} isn't there any more` })),
+    remove: (worktree) => setDialog({ kind: "removeWorktree", worktree }),
+    prune: () => act({ kind: "pruneWorktrees" }),
   };
   const fileMenu = (file: FileChange, x: number, y: number, where: "worktree" | "commit") =>
     showMenu(x, y, fileMenuItems(fileMenuContext, file, where));
@@ -1108,6 +1163,11 @@ export default function App() {
               Stash changes and retry
             </button>
           )}
+          {error.worktree && (
+            <button className="error-action" onClick={() => switchTab(error.worktree!)}>
+              Open that worktree
+            </button>
+          )}
           <button className="icon-button" onClick={() => setError(null)} aria-label="Dismiss">
             <CloseIcon size={14} />
           </button>
@@ -1169,6 +1229,9 @@ export default function App() {
               locksError={lfs.locks?.error ?? null}
               onLockMenu={lockMenu}
               onLockFiles={canChange ? pickFilesToLock : null}
+              worktrees={worktreeList}
+              onOpenWorktree={(worktree) => !worktree.current && switchTab(worktree.path)}
+              onWorktreeMenu={(worktree, x, y) => showMenu(x, y, worktreeMenuItems(worktree, worktreeContext))}
             />
             <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
           </>
@@ -1283,11 +1346,12 @@ export default function App() {
         onDismissPruneHint={() => setPruneHintDismissed(goneSignature)}
       />
 
-      {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+      {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onSideways={menu.onSideways} onClose={() => setMenu(null)} />}
       {paletteOpen && <CommandPalette commands={commands()} onClose={() => setPaletteOpen(false)} />}
       {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
       {settingsDialog}
       {diagnosticsDialog}
+      {gitHubSignInDialog}
       {updateDialog}
       {cloneDialog}
       <RepositoryDialogs
@@ -1305,6 +1369,9 @@ export default function App() {
         onClose={() => setDialog(null)}
         onFinish={finishDialog}
         onLocksChanged={() => lfs.refresh(true)}
+        worktrees={worktreeList}
+        localBranches={[...localBranches]}
+        openWorktree={switchTab}
       />
       {dropOverlay}
       {toast && <Toast toast={toast} onDone={hideToast} />}

@@ -1,10 +1,11 @@
-import type { Action, CommitDetails, CommitRow, RepoSnapshot } from "../api";
+import type { Action, CommitDetails, CommitRow, RepoSnapshot, Worktree } from "../api";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DeleteBranchDialog, DeleteRemoteBranchDialog } from "../components/DeleteBranchDialogs";
 import { ForcePushDialog } from "../components/ForcePushDialog";
 import { InteractiveRebaseDialog } from "../components/InteractiveRebaseDialog";
 import { PruneLfsDialog } from "../components/LfsCleanup";
 import { NewBranchDialog } from "../components/NewBranchDialog";
+import { NewWorktreeDialog } from "../components/NewWorktreeDialog";
 import { PruneDialog } from "../components/PruneDialog";
 import { RecoverDialog } from "../components/RecoverDialog";
 import { RenameBranchDialog } from "../components/RenameBranchDialog";
@@ -37,11 +38,17 @@ interface Props {
   onFinish: (message: string, undo?: Action) => void;
   /** Locks were changed outside the usual actions. */
   onLocksChanged: () => void;
+  worktrees: Worktree[];
+  /** Local branch names. */
+  localBranches: string[];
+  /** Open a working tree in a tab. */
+  openWorktree: (path: string) => void;
 }
 
 /** The dialog that's open over a repository, if any. */
 export function RepositoryDialogs(props: Props) {
   const { dialog, snapshot, byId, branchLabel, protectedHead, protectedBranches, pins, loadDetails, run, select, open, onClose, onFinish, onLocksChanged } = props;
+  const { worktrees, localBranches, openWorktree } = props;
   return (
     <>
     {dialog?.kind === "reset" && (
@@ -272,6 +279,43 @@ export function RepositoryDialogs(props: Props) {
         onDone={(message) => onFinish(message)}
       >
         <p>The changes saved in this stash will be gone.</p>
+      </ConfirmDialog>
+    )}
+    {dialog?.kind === "newWorktree" && (
+      <NewWorktreeDialog
+        repoPath={snapshot.path}
+        repoName={snapshot.name}
+        branches={localBranches}
+        worktrees={worktrees}
+        branch={dialog.branch}
+        start={dialog.start}
+        onCancel={onClose}
+        onDone={(message, path, openIt) => {
+          onFinish(message);
+          if (openIt) openWorktree(path);
+        }}
+      />
+    )}
+    {dialog?.kind === "removeWorktree" && (
+      <ConfirmDialog
+        repoPath={snapshot.path}
+        title={`Remove the worktree of ${dialog.worktree.branch ?? "a detached HEAD"}?`}
+        confirmLabel="Remove worktree"
+        busyLabel="Removing…"
+        danger
+        action={{ kind: "removeWorktree", path: dialog.worktree.path }}
+        retryFor={(error) =>
+          error.includes("uncommitted changes")
+            ? { label: "Remove anyway", action: { kind: "removeWorktree", path: dialog.worktree.path, force: true } }
+            : null
+        }
+        onCancel={onClose}
+        onDone={(message) => onFinish(message)}
+      >
+        <p>
+          This deletes the folder <strong>{dialog.worktree.path}</strong>.
+          {dialog.worktree.branch ? <> The branch {dialog.worktree.branch} and its commits stay.</> : null}
+        </p>
       </ConfirmDialog>
     )}
     </>

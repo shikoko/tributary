@@ -2,6 +2,7 @@ import type { ColumnOptions } from "../components/CommitList";
 import { DownloadIcon } from "../components/Icons";
 import { LfsStorageSummary } from "../components/LfsCleanup";
 import { NameList, type SettingsSection } from "../components/SettingsDialog";
+import type { GitHubStatus } from "../api";
 import type { Updates } from "../lib/updates";
 import { FETCH_MINUTES, ZOOM_LEVELS } from "./constants";
 import type { NewCommitNotices, Preferences } from "./usePreferences";
@@ -12,6 +13,13 @@ interface Options {
   version: string | null;
   updates: Updates;
   onInstallUpdate: () => void;
+  /** Who's signed in to GitHub. */
+  github: {
+    status: GitHubStatus | null;
+    error: string | null;
+    onSignIn: () => void;
+    onSignOut: () => void;
+  };
   /** The open repository's own settings, if one is open. */
   repository: {
     name: string;
@@ -23,7 +31,7 @@ interface Options {
 }
 
 /** Everything in the Settings window. */
-export function settingsSections({ preferences, version, updates, onInstallUpdate, repository }: Options): SettingsSection[] {
+export function settingsSections({ preferences, version, updates, onInstallUpdate, github, repository }: Options): SettingsSection[] {
   const { reopenTabs, setReopenTabs, autoUpdate, setAutoUpdate, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { daySeparators, setDaySeparators, previews, setPreviews, profilePictures, setProfilePictures } = preferences;
@@ -52,6 +60,33 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
           ) : (
             <button className="outline-button" onClick={updates.check} disabled={updates.checking}>
               <span className="button-label">{updates.checking ? "Checking…" : "Check now"}</span>
+            </button>
+          ),
+        },
+      ],
+    },
+    {
+      title: "Accounts",
+      rows: [
+        {
+          kind: "custom",
+          label: "GitHub",
+          hint: github.error
+            ? `Couldn't check: ${github.error}`
+            : !github.status
+              ? "Checking…"
+              : github.status.account
+                ? `Signed in as ${github.status.account.login}${github.status.account.name ? ` (${github.status.account.name})` : ""}. Pull requests of private repositories show too.`
+                : github.status.tokenRejected
+                  ? "The token git keeps for GitHub doesn't work any more. Sign in again."
+                  : "Sign in to see pull requests of private repositories, and to push without being asked.",
+          content: github.status?.account ? (
+            <button className="outline-button" onClick={github.onSignOut}>
+              <span className="button-label">Sign out</span>
+            </button>
+          ) : (
+            <button className="outline-button" onClick={github.onSignIn} disabled={!github.status && !github.error}>
+              <span className="button-label">Sign in…</span>
             </button>
           ),
         },
