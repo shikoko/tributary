@@ -217,6 +217,12 @@ try {
     await view.locator(".diff-row.added mark").first().waitFor({ timeout: 10_000 });
     const stats = await view.locator(".diff-stats").innerText();
     expect(/^\+\d+ −\d+$/.test(stats.trim()), `stats "${stats}"`);
+    // Side by side: a removed line next to the line that replaced it, then back to one column.
+    await view.getByRole("button", { name: "Side by side" }).click();
+    await view.locator(".diff-split-row", { has: page.locator(".diff-half.removed") }).filter({ has: page.locator(".diff-half.added") }).first().waitFor({ timeout: 5000 });
+    expect((await view.locator(".diff-row").count()) === 0, "lines in one column while side by side");
+    await view.getByRole("button", { name: "Side by side" }).click();
+    await view.locator(".diff-row").first().waitFor({ timeout: 5000 });
     await page.keyboard.press("Escape");
     await view.waitFor({ state: "detached", timeout: 5000 });
     // Esc closed the changes, not the details.

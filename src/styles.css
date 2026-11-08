@@ -5299,6 +5299,32 @@ code {
   white-space: nowrap;
 }
 
+/* When the changes are narrow, the tool button shows only its icon (its name is in the tooltip). */
+.diff-header {
+  container: diff-header / inline-size;
+}
+
+@container diff-header (max-width: 760px) {
+  .diff-header .outline-button .button-label {
+    display: none;
+  }
+}
+
+/* Narrower still: the file's name and changes before where it is and which version. */
+@container diff-header (max-width: 560px) {
+  .diff-count,
+  .diff-header .diff-dir,
+  .diff-header .diff-source {
+    display: none;
+  }
+}
+
+@container diff-header (max-width: 420px) {
+  .diff-header .diff-option {
+    display: none;
+  }
+}
+
 .diff-body {
   flex: 1;
   min-height: 0;
@@ -5345,7 +5371,18 @@ code {
   align-items: center;
   gap: 6px;
   margin-left: auto;
+  /* Over the heading when it's long: the header's own colour, so the heading goes under. */
+  padding-left: 10px;
+  background: linear-gradient(rgb(var(--accent-rgb) / 0.06), rgb(var(--accent-rgb) / 0.06)) var(--bg);
+  box-shadow: -10px 0 8px -4px var(--bg);
   font-family: var(--font);
+}
+
+.diff-hunk-section {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hunk-button {
@@ -5503,6 +5540,99 @@ code {
 
 .diff-row.removed mark {
   background: rgb(var(--removed-rgb) / 0.32);
+}
+
+/* Side by side: before on the left, after on the right, long lines wrapping. */
+.diff-lines.split {
+  min-width: 0;
+}
+
+.diff-split-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.diff-half {
+  display: grid;
+  grid-template-columns: 52px 20px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.diff-half + .diff-half {
+  border-left: 1px solid var(--border);
+}
+
+.diff-half .diff-number {
+  position: static;
+  border-right: 1px solid var(--border);
+}
+
+.diff-half .diff-text {
+  padding-right: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diff-half.empty {
+  background: repeating-linear-gradient(-45deg, transparent 0 5px, rgb(var(--overlay-rgb) / 0.035) 5px 10px);
+}
+
+.diff-half.added {
+  background: rgb(var(--added-rgb) / 0.09);
+}
+
+.diff-half.added .diff-number {
+  background: rgb(var(--added-rgb) / 0.1);
+  color: var(--added-number);
+}
+
+.diff-half.added .diff-sign {
+  color: var(--added);
+}
+
+.diff-half.removed {
+  background: rgb(var(--removed-rgb) / 0.09);
+}
+
+.diff-half.removed .diff-number {
+  background: rgb(var(--removed-rgb) / 0.1);
+  color: var(--removed-number);
+}
+
+.diff-half.removed .diff-sign {
+  color: var(--removed);
+}
+
+.diff-half mark {
+  color: inherit;
+  border-radius: 2px;
+}
+
+.diff-half.added mark {
+  background: rgb(var(--added-rgb) / 0.3);
+}
+
+.diff-half.removed mark {
+  background: rgb(var(--removed-rgb) / 0.32);
+}
+
+.diff-lines.picking .diff-half.pickable .diff-number,
+.diff-lines.picking .diff-half.pickable .diff-sign {
+  cursor: pointer;
+}
+
+.diff-lines.picking .diff-half.pickable:hover .diff-number {
+  color: var(--text);
+}
+
+.diff-half.chosen {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.diff-half.chosen .diff-number,
+.diff-half.chosen .diff-sign {
+  background: rgb(var(--accent-rgb) / 0.22);
+  color: var(--text);
 }
 
 .diff-message {

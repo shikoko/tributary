@@ -35,6 +35,14 @@ export const BlameIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** Two columns: before and after, side by side. */
+export const SplitIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="1.75" y="2.5" width="12.5" height="11" rx="1.75" />
+    <path d="M8 2.5v11M3.75 6h2.5M3.75 9h2.5M9.75 6h2.5M9.75 9h2.5" />
+  </Icon>
+);
+
 /** Two arrows, one each way: comparing two things (and swapping them). */
 export const CompareIcon = (p: IconProps) => (
   <Icon {...p}>

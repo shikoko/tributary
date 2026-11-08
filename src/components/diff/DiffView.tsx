@@ -5,7 +5,7 @@ import { fileDiff, type Action, type FileDiff, type LineMode } from "../../api";
 import type { DiffTarget } from "../../lib/diffTargets";
 import { toolLabel, useDiffTools } from "../../lib/diffTools";
 import { useStoredState } from "../../lib/settings";
-import { BlameIcon, ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon } from "../Icons";
+import { BlameIcon, ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon, SplitIcon } from "../Icons";
 import { DiffBinary } from "./DiffBinary";
 import { DiffMedia } from "./DiffMedia";
 import { FileKindIcon } from "../FileKindIcon";
@@ -32,6 +32,9 @@ interface Props {
   onBlame: (target: DiffTarget) => void;
 }
 
+/** The narrowest the changes can be to show side by side. */
+const SPLIT_MIN_WIDTH = 640;
+
 /**
  * A file's changes over the commit list: text line by line, images side by side, other
  * files by their size. Esc closes, [ and ] go to the previous and next file.
@@ -39,6 +42,17 @@ interface Props {
 export function DiffView({ repoPath, targets, index, onIndex, onClose, run, version, onChooseTool, sides, onBlame }: Props) {
   const target = targets[index];
   const [ignoreWhitespace, setIgnoreWhitespace] = useStoredState("diff.ignoreWhitespace", false);
+  const [split, setSplit] = useStoredState("diff.sideBySide", false);
+  // Side by side needs room for two columns of code: narrower, the changes show in one.
+  const body = useRef<HTMLDivElement>(null);
+  const [roomy, setRoomy] = useState(true);
+  useEffect(() => {
+    const element = body.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setRoomy(element.clientWidth >= SPLIT_MIN_WIDTH));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const [loaded, setLoaded] = useState<{ key: string; diff: FileDiff | null; error: string | null } | null>(null);
   /** Your own changes, which change as you work (rather than a commit's, or between two). */
   const live = target.source.kind === "staged" || target.source.kind === "unstaged";
@@ -150,16 +164,16 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         <div className="diff-title" title={target.file.oldPath ? `${target.file.oldPath} → ${path}` : path}>
           <FileKindIcon path={path} size={14} className="file-kind diff-kind" />
           <span className="diff-name">{path.slice(slash + 1)}</span>
+          {diff && !whole && !conflicted && (
+            <span className="diff-stats">
+              <span className="added">+{diff.additions}</span> <span className="removed">−{diff.deletions}</span>
+            </span>
+          )}
           {slash > 0 && <span className="diff-dir">{path.slice(0, slash)}</span>}
           <span className="diff-source">{target.label}</span>
           {diff?.lfs && !diff.binary && !diff.tooLarge && (
             <span className="diff-source" title="Stored with Git LFS: these are the files' real contents">
               Git LFS
-            </span>
-          )}
-          {diff && !whole && !conflicted && (
-            <span className="diff-stats">
-              <span className="added">+{diff.additions}</span> <span className="removed">−{diff.deletions}</span>
             </span>
           )}
         </div>
@@ -183,16 +197,34 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           <button
             className="outline-button"
             onClick={openInTool}
-            title={
+            title={`${toolButton}: ${
               tools && !tool
-                ? "No tool is set up in git yet: choose one in Settings"
+                ? "no tool is set up in git yet, choose one in Settings"
                 : conflicted
-                  ? "Resolve it in the merge tool set up in git (merge.tool)"
-                  : "Compare it in the diff tool set up in git (diff.tool)"
-            }
+                  ? "resolve it in the merge tool set up in git (merge.tool)"
+                  : "compare it in the diff tool set up in git (diff.tool)"
+            }`}
+            aria-label={toolButton}
           >
             <ExternalLinkIcon size={13} />
             <span className="button-label">{toolButton}</span>
+          </button>
+        )}
+        {!whole && !conflicted && (
+          <button
+            className={`icon-button${split ? " active" : ""}`}
+            onClick={() => setSplit(!split)}
+            aria-pressed={split}
+            title={
+              split && !roomy
+                ? "Side by side (shown in one column until there's more room)"
+                : split
+                  ? "Show the changes in one column"
+                  : "Show before and after side by side"
+            }
+            aria-label="Side by side"
+          >
+            <SplitIcon size={15} />
           </button>
         )}
         {!whole && !conflicted && target.file.status !== "deleted" && target.file.status !== "untracked" && (
@@ -204,7 +236,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           <CloseIcon />
         </button>
       </header>
-      <div className="diff-body">
+      <div className="diff-body" ref={body}>
         {conflicted && live ? (
           <ConflictEditor repoPath={repoPath} path={path} mine={sides.mine} theirs={sides.theirs} version={version} run={run} />
         ) : error ? (
@@ -223,7 +255,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         ) : diff.hunks.length === 0 ? (
           <div className="diff-message muted">{ignoreWhitespace ? "Only whitespace changed." : "No changes to show (only the file's name or mode changed)."}</div>
         ) : (
-          <DiffLines hunks={diff.hunks} picking={picking} language={languageFor(path)} />
+          <DiffLines hunks={diff.hunks} picking={picking} language={languageFor(path)} split={split && roomy} />
         )}
       </div>
         {picking && selected.size > 0 && (

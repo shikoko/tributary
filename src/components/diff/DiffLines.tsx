@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { Hunk, LineMode } from "../../api";
 import { changedKeys, hunkKeys, keysBetween, lineKey } from "../../lib/lineSelection";
+import { splitRows } from "../../lib/sideBySide";
 import { highlightHunk, MAX_HIGHLIGHT_LINES, pieces, type Piece } from "../../lib/syntax";
 import { wordSegments } from "../../lib/wordDiff";
 
@@ -33,7 +34,18 @@ export function LineText({ parts }: { parts: Piece[] }) {
 }
 
 /** A text file's changes: each stretch of changed lines with its line numbers, the changed words marked. */
-export function DiffLines({ hunks, picking, language }: { hunks: Hunk[]; picking?: LinePicking; language?: string | null }) {
+export function DiffLines({
+  hunks,
+  picking,
+  language,
+  split = false,
+}: {
+  hunks: Hunk[];
+  picking?: LinePicking;
+  language?: string | null;
+  /** Before and after side by side, instead of in one column. */
+  split?: boolean;
+}) {
   const segments = useMemo(() => hunks.map((hunk) => wordSegments(hunk.lines)), [hunks]);
   const syntax = useMemo(() => {
     const total = hunks.reduce((sum, hunk) => sum + hunk.lines.length, 0);
@@ -80,7 +92,7 @@ export function DiffLines({ hunks, picking, language }: { hunks: Hunk[]; picking
   };
 
   return (
-    <div className={`diff-lines${picking ? " picking" : ""}`} role="table" aria-label="Changed lines">
+    <div className={`diff-lines${picking ? " picking" : ""}${split ? " split" : ""}`} role="table" aria-label="Changed lines">
       {hunks.map((hunk, hunkIndex) => {
         const keys = picking ? hunkKeys(hunk) : [];
         const chosenHere = picking ? keys.filter((key) => picking.selected.has(key)) : [];
@@ -114,7 +126,44 @@ export function DiffLines({ hunks, picking, language }: { hunks: Hunk[]; picking
                 </span>
               )}
             </div>
-            {hunk.lines.map((line, lineIndex) => {
+            {split &&
+              splitRows(hunk.lines).map(({ left, right }, rowIndex) => {
+                // One side of a row: the line before (left) or after (right) the change.
+                const half = (index: number | null, side: "left" | "right") => {
+                  if (index === null) return <div className="diff-half empty" aria-hidden />;
+                  const line = hunk.lines[index];
+                  const key = picking ? lineKey(line) : null;
+                  const chosen = key !== null && picking!.selected.has(key);
+                  const pick = key
+                    ? {
+                        onPointerDown: (event: React.PointerEvent) => press(key, event),
+                        onPointerEnter: () => enter(key),
+                        title: chosen ? "Chosen: click to leave it out" : "Click to choose this line (shift-click or drag for more)",
+                      }
+                    : undefined;
+                  const number = side === "left" ? line.old : line.new;
+                  return (
+                    <div className={`diff-half ${line.kind}${key ? " pickable" : ""}${chosen ? " chosen" : ""}`} aria-selected={key ? chosen : undefined}>
+                      <span className="diff-number" aria-label={number ? `Line ${number} ${side === "left" ? "before" : "after"}` : undefined} {...pick}>
+                        {number ?? ""}
+                      </span>
+                      <span className="diff-sign" aria-hidden {...pick}>
+                        {SIGNS[line.kind]}
+                      </span>
+                      <span className="diff-text">
+                        <LineText parts={pieces(line.text, syntax?.[hunkIndex][index] ?? null, segments[hunkIndex][index])} />
+                      </span>
+                    </div>
+                  );
+                };
+                return (
+                  <div key={rowIndex} className="diff-split-row" role="row">
+                    {half(left, "left")}
+                    {half(right, "right")}
+                  </div>
+                );
+              })}
+            {!split && hunk.lines.map((line, lineIndex) => {
               const parts = segments[hunkIndex][lineIndex];
               const key = picking ? lineKey(line) : null;
               const chosen = key !== null && picking!.selected.has(key);
