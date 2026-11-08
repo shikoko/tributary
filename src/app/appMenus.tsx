@@ -52,6 +52,8 @@ export interface MenuBarContext {
   /** Branches hidden from the graph (or, while soloing, shown). */
   hiddenCount: number;
   highlightingMine: boolean;
+  /** The team activity view is open. */
+  teamOpen: boolean;
   /** Whether the repository uses Git LFS locking, and Git LFS at all. */
   usesLocks: boolean;
   usesLfs: boolean;
@@ -70,6 +72,7 @@ export interface MenuBarContext {
     search: () => void;
     showAllBranches: () => void;
     highlightMine: () => void;
+    team: () => void;
     resetLayout: () => void;
     refresh: () => void;
     act: (action: Action, kind?: Exclude<Running, null>) => void;
@@ -164,6 +167,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           { id: "first-parent", label: `Only ${snapshot.headBranch ?? "HEAD"}'s Own History`, checked: firstParentOnly, run: () => setFirstParentOnly(!firstParentOnly) },
           { id: "show-all", label: "Show All Branches", enabled: ctx.hiddenCount > 0, run: run.showAllBranches },
           { id: "mine", label: "Highlight My Commits", checked: ctx.highlightingMine, enabled: Boolean(snapshot.user), run: run.highlightMine },
+          { id: "team", label: "Team Activity", checked: ctx.teamOpen, run: run.team },
           "-",
           { id: "day-separators", label: "Day Separators", checked: daySeparators, run: () => setDaySeparators(!daySeparators) },
           { id: "dense", label: "Compact Rows", checked: dense, run: () => setDense(!dense) },

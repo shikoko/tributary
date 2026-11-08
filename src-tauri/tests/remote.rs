@@ -381,3 +381,49 @@ fn clones_only_recent_history_or_some_folders() {
     assert!(actions::clone_repository(&url, parent.path(), "none", &nothing, &|_| {}).is_err());
     assert!(!parent.path().join("bad").exists() && !parent.path().join("none").exists());
 }
+
+#[test]
+fn sums_up_who_committed_where_lately() {
+    let _turn = remote_turn();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let remote = TempRepo::bare("team-remote.git");
+    let alice = TempRepo::new("team-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    std::fs::write(alice.path().join("a.txt"), "a\n").unwrap();
+    alice.git(&["add", "a.txt"]);
+    alice.git_at(&["commit", "-qm", "Start"], now - 3600 * 5);
+    alice.git(&["push", "-q", "-u", "origin", "main"]);
+
+    let bob = TempRepo::clone_of("team-bob", &remote);
+    bob.git(&["switch", "-q", "-c", "feature/export"]);
+    for (index, file) in ["export.txt", "zip.txt"].iter().enumerate() {
+        std::fs::write(bob.path().join(file), "x\n").unwrap();
+        bob.git(&["add", file]);
+        bob.git_at(&["commit", "-qm", file], now - 3600 * (3 - index as i64));
+    }
+    bob.git(&["push", "-q", "origin", "feature/export"]);
+    // An old branch doesn't count.
+    bob.git(&["switch", "-q", "-c", "old", "main"]);
+    std::fs::write(bob.path().join("old.txt"), "x\n").unwrap();
+    bob.git(&["add", "old.txt"]);
+    bob.git_at(&["commit", "-qm", "Long ago"], now - 3600 * 24 * 90);
+    bob.git(&["push", "-q", "origin", "old"]);
+
+    alice.git(&["fetch", "-q", "origin"]);
+    let team = tributary_lib::actions::team_activity(alice.path(), 30).unwrap();
+    assert_eq!(team.main, "origin/main");
+    assert_eq!(team.main_commits, 1);
+    let names: Vec<&str> = team.branches.iter().map(|b| b.name.as_str()).collect();
+    assert_eq!(names, ["origin/feature/export"]);
+    let export = &team.branches[0];
+    assert_eq!((export.ahead, export.behind, export.files), (2, 0, 2));
+    assert_eq!(export.people.len(), 1);
+    assert_eq!(export.people[0].commits, 2);
+    // Both test identities committed: the clone's commits and alice's.
+    assert!(!team.people.is_empty());
+    let total: usize = team.people.iter().map(|p| p.commits).sum();
+    assert_eq!(total, 3);
+}

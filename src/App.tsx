@@ -70,6 +70,9 @@ export default function App() {
   const hideToast = useCallback(() => setToast(null), []);
   /** The repository dialog that's open (the clone dialog shows on the start screen too). */
   const [dialog, setDialog] = useState<OpenDialog>(null);
+  /** The team activity view, over the commit list. */
+  const [teamOpen, setTeamOpen] = useState(false);
+  const closeTeam = useCallback(() => setTeamOpen(false), []);
   /** The Settings section to open at (like "Diff and merge"), or the first. */
   const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
 
@@ -239,6 +242,7 @@ export default function App() {
     preferences,
     hiddenCount: settings.hiddenCount,
     highlightingMine: highlight.highlightingMine,
+    teamOpen,
     usesLocks: Boolean(lfs.locks),
     usesLfs: Boolean(checks?.usesLfs),
     lfsPointers: lfsHealth.health?.pointers ?? 0,
@@ -255,6 +259,7 @@ export default function App() {
       search: search.focus,
       showAllBranches: settings.showAllBranches,
       highlightMine: highlight.highlightMine,
+      team: () => setTeamOpen((open) => !open),
       resetLayout: () => {
         preferences.setColumnWidths({ refs: null, graph: null });
         preferences.setColumnOptions(DEFAULT_COLUMNS);
@@ -383,6 +388,8 @@ export default function App() {
               lockFiles={lockFiles}
               openSettings={openSettings}
               notify={setToast}
+              teamOpen={teamOpen}
+              onCloseTeam={closeTeam}
             />
           ) : (
             <StartView repo={repo} tabBar={showTabBar} onClone={() => setDialog({ kind: "clone" })} />

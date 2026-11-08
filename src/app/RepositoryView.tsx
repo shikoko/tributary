@@ -18,6 +18,7 @@ import { DiffView } from "../components/diff/DiffView";
 import { conflictSides } from "../components/WorktreeDetails";
 import { ComparePanel } from "../components/ComparePanel";
 import { BlameView } from "../components/BlameView";
+import { TeamView } from "../components/TeamView";
 import { useComparison } from "./useComparison";
 import type { MenuItem } from "../components/ContextMenu";
 import { EyeIcon, PlusIcon } from "../components/Icons";
@@ -91,6 +92,9 @@ interface Props {
   /** Open Settings, at a section (like "Diff and merge"). */
   openSettings: (section?: string) => void;
   notify: (toast: ToastMessage) => void;
+  /** The team activity view (from the View menu). */
+  teamOpen: boolean;
+  onCloseTeam: () => void;
 }
 
 /** An open repository: the toolbar, the sidebar, the commit list and graph, the details, and the status bar. */
@@ -131,12 +135,14 @@ export function RepositoryView(props: Props) {
   }, [diffAt, shownDiff]);
   const showChanges = (file: FileChange, source: DiffSource) => {
     setBlameAt(null);
+    if (props.teamOpen) props.onCloseTeam();
     if (origin) setDiffAt({ origin, source, path: file.path });
   };
   // Who changed each line of a file: at a commit, or as it is in your working tree.
   const [blameAt, setBlameAt] = useState<{ path: string; at: string | null } | null>(null);
   const showBlame = (path: string, source: DiffSource) => {
     setDiffAt(null);
+    if (props.teamOpen) props.onCloseTeam();
     setBlameAt({ path, at: source.kind === "commit" ? source.id : source.kind === "range" ? source.to : null });
   };
   const closeBlame = useCallback(() => setBlameAt(null), []);
@@ -427,6 +433,28 @@ export function RepositoryView(props: Props) {
               onChooseTool={() => props.openSettings(DIFF_SECTION)}
               sides={conflictSides(snapshot)}
               onBlame={(target) => showBlame(target.file.path, target.source)}
+            />
+          )}
+          {props.teamOpen && (
+            <TeamView
+              repoPath={snapshot.path}
+              version={snapshot.commits}
+              user={snapshot.user}
+              locks={lfs.locks?.locks ?? null}
+              overlaps={props.overlaps}
+              onClose={props.onCloseTeam}
+              onShowBranch={(branch) => {
+                if (!byId.has(branch.tip)) {
+                  notLoaded();
+                  return;
+                }
+                highlight.highlightHistory(branch.name, branch.tip);
+                props.onCloseTeam();
+              }}
+              onShowPerson={(name, email) => {
+                highlight.highlightAuthor(name, email);
+                props.onCloseTeam();
+              }}
             />
           )}
           {blameAt && (

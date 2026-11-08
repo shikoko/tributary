@@ -439,6 +439,21 @@ try {
     await page.locator(".view-banner", { hasText: "art/barber-v2" }).waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("shows the team's activity, and highlights a branch from it", async () => {
+    await page.locator(".menu-bar-item", { hasText: "View" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Team Activity" }).click();
+    const view = page.locator(".team-view");
+    await view.locator(".team-person", { hasText: "Rosa Bell" }).waitFor({ timeout: 10_000 });
+    const barber = view.locator(".team-branch", { hasText: "art/barber-v2" });
+    await barber.locator(".team-overlap", { hasText: "1 of your files" }).waitFor({ timeout: 5000 });
+    await view.locator(".team-locks li", { hasText: "Tavern.umap" }).waitFor({ timeout: 10_000 });
+    await barber.click();
+    await view.waitFor({ state: "detached", timeout: 5000 });
+    await page.locator(".view-banner", { hasText: "art/barber-v2" }).waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await page.locator(".view-banner").waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("offers to release your locks after pushing", async () => {
     await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
     await page.getByRole("button", { name: "Unstage all" }).click();

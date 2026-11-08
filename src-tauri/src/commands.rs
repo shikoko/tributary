@@ -238,6 +238,12 @@ pub async fn search_commits(
     blocking(move || actions::search_commits(&PathBuf::from(path), mode, &query)).await
 }
 
+/// Who committed where in the last `days` days, on which branches.
+#[tauri::command]
+pub async fn team_activity(path: String, days: u32) -> Result<actions::TeamActivity> {
+    blocking(move || actions::team_activity(&PathBuf::from(path), days)).await
+}
+
 /// Who changed each line of a file last: in the working tree, or at commit `at`.
 #[tauri::command]
 pub async fn blame_file(path: String, file: String, at: Option<String>) -> Result<actions::Blame> {

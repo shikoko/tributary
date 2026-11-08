@@ -336,3 +336,40 @@ export interface Overlap {
 export function changedElsewhere(path: string, changed: string[]): Promise<Overlap[]> {
   return invoke<Overlap[]>("changed_elsewhere", { path, changed });
 }
+
+/** Who committed where lately: people, the branches they work on, and how far those are from the main branch. */
+export interface TeamActivity {
+  /** Since when (seconds since the Unix epoch). */
+  since: number;
+  /** The branch the others are compared with, like "origin/main". */
+  main: string;
+  people: TeamPerson[];
+  branches: BranchActivity[];
+  mainCommits: number;
+}
+
+export interface TeamPerson {
+  name: string;
+  email: string;
+  commits: number;
+  /** When they last committed. */
+  latest: number;
+  /** The branches they committed to (the main one included). */
+  branches: string[];
+}
+
+export interface BranchActivity {
+  name: string;
+  tip: string;
+  latest: number;
+  /** Commits it has that the main branch doesn't, and the other way round. */
+  ahead: number;
+  behind: number;
+  /** Files it changed since it split from the main branch. */
+  files: number;
+  people: { name: string; email: string; commits: number }[];
+}
+
+export function teamActivity(path: string, days: number): Promise<TeamActivity> {
+  return invoke<TeamActivity>("team_activity", { path, days });
+}

@@ -151,6 +151,7 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
                 ignore_whitespace,
             )?)
         }
+        "team_activity" => to_json(actions::team_activity(&path()?, arg(args, "days")?)?),
         "search_commits" => {
             let mode: actions::SearchMode = arg(args, "mode")?;
             let query: String = arg(args, "query")?;

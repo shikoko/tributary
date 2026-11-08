@@ -28,6 +28,7 @@ mod stash;
 mod submodules;
 mod support;
 mod tags;
+mod team;
 mod validate;
 mod worktrees;
 
@@ -59,6 +60,7 @@ pub use prune::{
 };
 pub use search::{SearchMode, SearchResult, search_commits};
 pub use submodules::{Submodule, SubmoduleState, submodules};
+pub use team::{BranchActivity, BranchPerson, TeamActivity, TeamPerson, team_activity};
 
 use self::stash::{pop_stash, stash_top};
 
