@@ -1,27 +1,20 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { usePresence } from "../lib/usePresence";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { fullRefName, PAGE_SIZE, WORKTREE_ID, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type PullRequest, type RepoSnapshot, type Worktree } from "../api";
-import { commitTargets, findTarget, highlightedFirst, isShown, rangeTargets, worktreeTargets, type DiffTarget, type ShownDiff } from "../lib/diffTargets";
+import { fullRefName, PAGE_SIZE, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type PullRequest, type RepoSnapshot, type Worktree } from "../api";
+import { isShown } from "../lib/diffTargets";
 import { withCoAuthor } from "../lib/commitMessage";
-import { rewritable } from "../lib/graph";
 import type { LfsLocks } from "../lib/locks";
-import { baseName, joinPath } from "../lib/paths";
 import type { RefEntry } from "../lib/refs";
-import { openInBrowser } from "../lib/weblinks";
-import { checkoutFor, commitMenu, dropMenu, pillForEntry, pillMenu, selectionMenu, type MenuContext, type OpenDialog } from "../menus";
+import { checkoutFor, commitMenu, dropMenu, pillForEntry, pillMenu, selectionMenu, type OpenDialog } from "../menus";
 import { ActivityPanel } from "../components/ActivityPanel";
 import { CommitList } from "../components/CommitList";
 import { ElsewherePanel } from "../components/ElsewherePanel";
 import { RepoSettingsDialog } from "../components/RepoSettingsDialog";
-import { DiffView } from "../components/diff/DiffView";
-import { conflictSides } from "../components/WorktreeDetails";
 import { ComparePanel } from "../components/ComparePanel";
-import { BlameView } from "../components/BlameView";
-import { TeamView } from "../components/TeamView";
-import { PullRequestView } from "../components/PullRequestView";
-import { PullRequestsContext } from "../lib/pullRequests";
-import { useComparison } from "./useComparison";
+import { useFileViews } from "./useFileViews";
+import { ListOverlays } from "./ListOverlays";
+import { useRepositoryMenus } from "./useRepositoryMenus";
 import type { MenuItem } from "../components/ContextMenu";
 import { BranchIcon, EyeIcon, PlusIcon, StashIcon, TagIcon } from "../components/Icons";
 import { MessageTools } from "../components/MessageTools";
@@ -33,10 +26,9 @@ import { Toolbar, type RemoteAction } from "../components/Toolbar";
 import { RUNNING_LABELS } from "./constants";
 import { DetailsPane } from "./DetailsPane";
 import { RepositoryDialogs } from "./Dialogs";
-import { fileMenuItems, lockMenuItems, type FileMenuContext } from "./fileMenus";
-import { columnMenuItems, detailsActionsFor, pushMenuItems, submoduleMenuItems, worktreeMenuItems, type SubmoduleMenuContext, type WorktreeMenuContext } from "./listMenus";
+import { fileMenuItems, lockMenuItems } from "./fileMenus";
+import { columnMenuItems, detailsActionsFor, pushMenuItems, submoduleMenuItems, worktreeMenuItems } from "./listMenus";
 import { RepositoryBanners } from "./RepositoryBanners";
-import { DIFF_SECTION } from "./settingsSections";
 import type { Actions } from "./useActions";
 import type { BranchCounts } from "./useBranchCounts";
 import type { CommitDetailsCache } from "./useCommitDetails";
@@ -116,103 +108,42 @@ export function RepositoryView(props: Props) {
   /** Sizes when a panel resize started. */
   const resizeStart = useRef({ sidebar: 0, details: 0 });
 
-  // Two commits or branches compared, in the details panel instead of a commit.
-  const comparing = useComparison(snapshot.path, selection.selectedId);
-  const { request: compareRequest, comparison } = comparing;
-  const compared = useMemo(
-    () => (compareRequest && comparison?.base ? { ...compareRequest, ...comparison, base: comparison.base } : null),
-    [compareRequest, comparison],
-  );
+  // A file's changes, who changed each line, and two commits compared.
+  const views = useFileViews({
+    snapshot,
+    selection,
+    details: props.details,
+    highlight,
+    byId,
+    closeOthers: () => {
+      if (props.teamOpen) props.onCloseTeam();
+      if (props.request) props.onCloseRequest();
+    },
+  });
+  const { comparing, compared, showChanges, showBlame, shownDiff } = views;
 
-  // The diff view: a file's changes in the selected commit, in your changes, or between two compared.
-  const [diffAt, setDiffAt] = useState<(ShownDiff & { origin: string }) | null>(null);
-  const compareOrigin = compared && comparing.key ? `compare:${comparing.key}` : null;
-  const origin = compareOrigin ?? (selection.selected && !selection.multi ? selection.selectedId : null);
-  const commitFiles = diffAt && diffAt.origin !== WORKTREE_ID ? props.details.cache.current.get(diffAt.origin)?.files : undefined;
-  const diffTargets: DiffTarget[] = useMemo(() => {
-    if (!diffAt) return [];
-    if (diffAt.origin === WORKTREE_ID) return worktreeTargets(snapshot.worktree);
-    if (diffAt.origin === compareOrigin && compared) return rangeTargets(compared.base, compared.to.id, compared.files, `${compared.from.label} → ${compared.to.label}`);
-    return commitTargets(diffAt.origin, highlightedFirst(commitFiles ?? [], highlight.isHistoryFile), byId.get(diffAt.origin)?.kind === "stash");
-  }, [diffAt, snapshot.worktree, commitFiles, highlight.isHistoryFile, byId, compareOrigin, compared]);
-  const diffIndex = diffAt && diffAt.origin === origin ? findTarget(diffTargets, diffAt.source, diffAt.path) : -1;
-  const shownDiff = diffIndex >= 0 ? diffTargets[diffIndex] : null;
-  // Another commit was selected, or the file isn't changed any more.
-  useEffect(() => {
-    if (diffAt && !shownDiff) setDiffAt(null);
-  }, [diffAt, shownDiff]);
-  const showChanges = (file: FileChange, source: DiffSource) => {
-    setBlameAt(null);
-    if (props.teamOpen) props.onCloseTeam();
-    if (props.request) props.onCloseRequest();
-    if (origin) setDiffAt({ origin, source, path: file.path });
-  };
-  // Who changed each line of a file: at a commit, or as it is in your working tree.
-  const [blameAt, setBlameAt] = useState<{ path: string; at: string | null } | null>(null);
-  const showBlame = (path: string, source: DiffSource) => {
-    setDiffAt(null);
-    if (props.teamOpen) props.onCloseTeam();
-    if (props.request) props.onCloseRequest();
-    setBlameAt({ path, at: source.kind === "commit" ? source.id : source.kind === "range" ? source.to : null });
-  };
-  const closeBlame = useCallback(() => setBlameAt(null), []);
-  const stepDiff = (index: number) => {
-    const target = diffTargets[index];
-    if (target && diffAt) setDiffAt({ origin: diffAt.origin, source: target.source, path: target.file.path });
-  };
-
-  // What the commit, branch and selection menus need.
-  const requests = useContext(PullRequestsContext);
-  const ctx: MenuContext = {
+  // What the commit, branch, file and list menus need.
+  const { ctx, fileMenuContext, worktreeContext, submoduleContext } = useRepositoryMenus({
     snapshot,
     canChange,
-    localBranches: counts.localBranches,
-    run,
-    open: openDialog,
-    requests,
-    showRequest: props.onShowRequest,
-    focus: highlight.highlightHistory,
-    focusAuthor: highlight.highlightAuthor,
-    visibility: settings.visibility,
-    setHidden: settings.setHidden,
-    solo: settings.solo,
-    pins: settings.pins,
-    togglePin: settings.togglePin,
-    protectedBranches: settings.protectedBranches,
-    toggleProtected: settings.toggleProtected,
-    rewritable: (commit: CommitRow) => rewritable(commit, snapshot, counts.headHistory, byId),
-    beforeHead: (commit: CommitRow) => commit.id !== snapshot.headCommit && counts.headHistory.has(commit.id),
-    openUrl: openInBrowser,
-    worktrees: props.worktrees,
-    openWorktree: props.openTab,
-    compare: comparing.compare,
-  };
-  const fileMenuContext: FileMenuContext = {
-    snapshot,
-    canChange,
-    run,
+    counts,
+    act,
     openDialog,
-    showHistory: (file) => highlight.showHistory(file).catch((e) => repo.setError({ message: String(e) })),
-    locks: lfs.locks ? lfs.byPath : null,
+    showRequest: props.onShowRequest,
+    highlight,
+    settings,
+    byId,
+    worktrees: props.worktrees,
+    openTab: props.openTab,
+    compare: comparing.compare,
+    setError: repo.setError,
+    lfs,
     checks: props.checks,
-    reveal: (path) => revealItemInDir(joinPath(snapshot.path, path)).catch(() => props.notify({ text: `${baseName(path)} isn't in the working tree` })),
+    notify: props.notify,
     showChanges,
     showBlame,
-  };
-  const worktreeContext: WorktreeMenuContext = {
-    canChange,
-    open: props.openTab,
-    reveal: (path) => revealItemInDir(path).catch(() => props.notify({ text: `${path} isn't there any more` })),
-    remove: (worktree) => openDialog({ kind: "removeWorktree", worktree }),
-    prune: () => act({ kind: "pruneWorktrees" }),
-  };
-  const submoduleContext: SubmoduleMenuContext = {
-    canChange,
-    open: (submodule) => props.openTab(joinPath(snapshot.path, submodule.path)),
-    update: props.submodules.update,
-    stage: (path) => act({ kind: "stage", paths: [path] }),
-    reveal: (submodule) => revealItemInDir(joinPath(snapshot.path, submodule.path)).catch(() => props.notify({ text: `${submodule.path} isn't there` })),
-  };
+    updateSubmodules: props.submodules.update,
+  });
   const fileMenu = (file: FileChange, x: number, y: number, source: DiffSource) => menu.show(x, y, fileMenuItems(fileMenuContext, file, source));
   const lockMenu = (lock: Lock, x: number, y: number) => menu.show(x, y, lockMenuItems(fileMenuContext, lock));
   const checkout = (entry: { pill: Parameters<typeof checkoutFor>[1]; commit: CommitRow | undefined }) => {
@@ -447,70 +378,22 @@ export function RepositoryView(props: Props) {
             onLoadMore={() => repo.load(snapshot.path, "more", snapshot.commits.length + PAGE_SIZE)}
             loadingMore={repo.busy?.kind === "more"}
           />
-          {shownDiff && (
-            <DiffView
-              repoPath={snapshot.path}
-              targets={diffTargets}
-              index={diffIndex}
-              onIndex={stepDiff}
-              onClose={() => setDiffAt(null)}
-              run={run}
-              version={snapshot.worktree}
-              onChooseTool={() => props.openSettings(DIFF_SECTION)}
-              sides={conflictSides(snapshot)}
-              onBlame={(target) => showBlame(target.file.path, target.source)}
-            />
-          )}
-          {props.teamOpen && (
-            <TeamView
-              repoPath={snapshot.path}
-              version={snapshot.commits}
-              user={snapshot.user}
-              locks={lfs.locks?.locks ?? null}
-              overlaps={props.overlaps}
-              onClose={props.onCloseTeam}
-              onShowBranch={(branch) => {
-                if (!byId.has(branch.tip)) {
-                  notLoaded();
-                  return;
-                }
-                highlight.highlightHistory(branch.name, branch.tip);
-                props.onCloseTeam();
-              }}
-              onShowPerson={(name, email) => {
-                highlight.highlightAuthor(name, email);
-                props.onCloseTeam();
-              }}
-            />
-          )}
-          {props.request && (
-            <PullRequestView
-              repoPath={snapshot.path}
-              request={props.request}
-              onClose={props.onCloseRequest}
-              openUrl={openInBrowser}
-              onShowBranch={(branch) => {
-                const remote = props.request?.remote ?? "origin";
-                const ref = snapshot.commits.find((commit) => commit.refs.some((r) => r.kind === "branch" && (r.name === `${remote}/${branch}` || r.name === branch)));
-                if (!ref) {
-                  notLoaded();
-                  return;
-                }
-                highlight.highlightHistory(branch, ref.id);
-                props.onCloseRequest();
-              }}
-            />
-          )}
-          {blameAt && (
-            <BlameView
-              repoPath={snapshot.path}
-              path={blameAt.path}
-              at={blameAt.at}
-              onClose={closeBlame}
-              onSelectCommit={select}
-              hasCommit={(id) => byId.has(id)}
-            />
-          )}
+          <ListOverlays
+            snapshot={snapshot}
+            views={views}
+            highlight={highlight}
+            run={run}
+            hasCommit={(id) => byId.has(id)}
+            select={select}
+            notLoaded={notLoaded}
+            openSettings={props.openSettings}
+            locks={lfs.locks?.locks ?? null}
+            overlaps={props.overlaps}
+            teamOpen={props.teamOpen}
+            onCloseTeam={props.onCloseTeam}
+            request={props.request}
+            onCloseRequest={props.onCloseRequest}
+          />
         </div>
         {detailsPanel.shown && (
           <>

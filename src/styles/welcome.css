@@ -1,0 +1,113 @@
+/* Welcome screen */
+
+.welcome {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background:
+    radial-gradient(circle at 20% 15%, rgb(var(--pink-rgb) / 0.09), transparent 40%),
+    /* The logo's colours: pink, amber and blue. */
+    radial-gradient(circle at 80% 20%, rgb(var(--warning-rgb) / 0.07), transparent 40%),
+    radial-gradient(circle at 50% 90%, rgb(var(--accent-rgb) / 0.1), transparent 45%),
+    var(--bg);
+}
+
+.welcome-card {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.welcome-card h1 {
+  margin: 4px 0 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.welcome-status {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.welcome-card .error-banner {
+  width: 100%;
+  text-align: left;
+}
+
+.recent {
+  width: 100%;
+  margin-top: 18px;
+  text-align: left;
+}
+
+.recent h2 {
+  margin: 0 0 6px;
+  padding: 0 10px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.recent ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+}
+
+.recent li:hover {
+  background: var(--bg-panel);
+}
+
+.recent-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+
+.recent-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.recent-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.recent-path {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -1,0 +1,350 @@
+/* Commit list */
+
+.commit-list {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.list-header {
+  display: grid;
+  align-items: center;
+  height: 30px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  flex: none;
+}
+
+.list-header > div {
+  padding: 0 10px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.list-header .refs-heading {
+  padding-left: 14px;
+}
+
+.list-scroller {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.list-scroller:focus-visible {
+  outline: none;
+}
+
+.list-spacer {
+  position: relative;
+}
+
+.graph-canvas {
+  position: absolute;
+  left: 0;
+  pointer-events: none;
+}
+
+.commit-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: var(--list-columns);
+  align-items: center;
+}
+
+/* The graph column follows the lanes in view; ease the other columns along with it (but
+   not while a column is being dragged, or the list's width is changing: then they follow
+   the width frame by frame). */
+body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .commit-row,
+body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .list-header {
+  transition: grid-template-columns 160ms ease;
+}
+
+/* The graph and the lines from the branch labels to it sit where the columns are, so they
+   move along with them. */
+body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-canvas,
+body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-connector {
+  transition:
+    left 160ms ease,
+    width 160ms ease;
+}
+
+.commit-row:hover {
+  background: var(--bg-hover);
+}
+
+.commit-row.selected {
+  background: var(--bg-selected);
+}
+
+.cell {
+  min-width: 0;
+  padding: 0 10px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.description {
+  display: flex;
+  align-items: center;
+}
+
+/* Branch and tag column: the label sits at the right edge, joined to the node by a line. */
+.refs-cell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 8px;
+}
+
+.refs-cell .ref-pills {
+  max-width: 100%;
+}
+
+.refs-cell .ref-pill:not(.more) {
+  flex: 0 1 auto;
+  max-width: none;
+}
+
+/* The checked-out branch glows; the other labels stay in the background until their row is
+   hovered or selected. The labels shrink to fit, so only the glow reaches past the cell. */
+.refs-cell {
+  overflow: visible;
+}
+
+.refs-cell .ref-pill.current {
+  box-shadow: 0 3px 12px var(--pill-glow);
+}
+
+.refs-cell .ref-pill:not(.current) {
+  opacity: 0.5;
+  transition: opacity 120ms;
+}
+
+.commit-row:hover .refs-cell .ref-pill,
+.commit-row.selected .refs-cell .ref-pill {
+  opacity: 1;
+}
+
+/* Faint by default; full strength on the hovered or selected row. */
+.ref-connector {
+  position: absolute;
+  top: 50%;
+  height: 1px;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.commit-row:hover .ref-connector,
+.commit-row.selected .ref-connector {
+  opacity: 0.9;
+}
+
+.summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summary.merge {
+  color: var(--text-muted);
+}
+
+.summary.stash,
+.summary.wip {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.change-counts {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 10px;
+  flex: none;
+}
+
+.change-count {
+  padding: 0 6px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.change-count.added {
+  color: var(--added);
+  background: rgb(var(--added-rgb) / 0.13);
+}
+
+.change-count.modified {
+  color: var(--warning);
+  background: rgb(var(--warning-rgb) / 0.13);
+}
+
+.change-count.deleted,
+.change-count.conflicted {
+  color: var(--danger);
+  background: rgb(var(--danger-rgb) / 0.13);
+}
+
+.author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.author-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.date {
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+}
+
+.sha {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.commit-row.selected .sha,
+.commit-row.selected .date {
+  color: var(--text-secondary);
+}
+
+.list-empty {
+  padding: 48px 24px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.list-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--on-bright);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  flex: none;
+}
+
+/* Centre the capitals themselves, not the font's line box: fonts put their capitals at
+   different heights in it (higher in Google Sans, lower in Segoe UI). */
+.avatar-initials {
+  text-box: trim-both cap alphabetic;
+}
+
+/* Branch and tag labels */
+
+.ref-pills {
+  display: inline-flex;
+  gap: 4px;
+  min-width: 0;
+  flex: none;
+  max-width: 60%;
+}
+
+.ref-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 200px;
+  height: 20px;
+  padding: 0 7px;
+  border: 1px solid;
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ref-pill.current {
+  font-weight: 700;
+}
+
+.ref-pill.tag {
+  border-style: dashed;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.ref-pill.more {
+  flex: none;
+  border-color: var(--border-strong);
+  background: var(--bg-raised);
+  color: var(--text-muted);
+}
+
+button.ref-pill.more {
+  font: inherit;
+  cursor: pointer;
+}
+
+button.ref-pill.more:hover,
+button.ref-pill.more:focus-visible {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.ref-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The folders a shortened name leaves out ("…/barbershop"). */
+.ref-name-folder {
+  opacity: 0.6;
+}
+
+.ref-where {
+  display: inline-flex;
+  gap: 2px;
+  opacity: 0.75;
+}
+
+/* ↑2 ↓1: how far a local branch is from the one it tracks. */
+.ref-sync {
+  display: inline-flex;
+  flex: none;
+  gap: 3px;
+  margin-left: 1px;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ref-pill svg {
+  flex: none;
+}

@@ -1,0 +1,511 @@
+/* Diff view: a file's changes, over the commit list. */
+
+.center-pane {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.file.openable {
+  cursor: pointer;
+}
+
+.file.openable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.file.shown,
+.file.shown:hover {
+  background: var(--bg-selected);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.file.shown .file-name {
+  color: var(--text);
+}
+
+.diff-view {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.diff-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  padding: 0 10px 0 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  flex: none;
+}
+
+.diff-steps {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.diff-count {
+  margin-left: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.diff-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.diff-name {
+  font-family: var(--mono);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: none;
+  max-width: 60%;
+}
+
+.diff-dir {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.diff-source {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.diff-stats {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.diff-stats .added {
+  color: var(--added);
+}
+
+.diff-stats .removed {
+  color: var(--removed);
+}
+
+.diff-option {
+  flex: none;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* When the changes are narrow, the tool button shows only its icon (its name is in the tooltip). */
+.diff-header {
+  container: diff-header / inline-size;
+}
+
+@container diff-header (max-width: 760px) {
+  .diff-header .outline-button.tool-button .button-label {
+    display: none;
+  }
+}
+
+/* Narrower still: the file's name and changes before where it is and which version. */
+@container diff-header (max-width: 560px) {
+  .diff-count,
+  .diff-header .diff-dir,
+  .diff-header .diff-source {
+    display: none;
+  }
+}
+
+@container diff-header (max-width: 420px) {
+  .diff-header .diff-option {
+    display: none;
+  }
+}
+
+.diff-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.diff-lines {
+  min-width: max-content;
+  padding-bottom: 16px;
+  font-family: var(--mono);
+  /* Show the characters as typed: "=>" and "===" stay as they are. */
+  font-variant-ligatures: none;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.diff-hunk-header {
+  display: flex;
+  gap: 10px;
+  height: 26px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 0 12px;
+  background: rgb(var(--accent-rgb) / 0.06);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.diff-hunk:first-child .diff-hunk-header {
+  margin-top: 0;
+  border-top: none;
+}
+
+.diff-hunk-dots {
+  color: var(--text-faint);
+}
+
+/* Stage, unstage or discard a hunk: kept in view at the right while scrolling sideways. */
+.diff-hunk-actions {
+  position: sticky;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  /* Over the heading when it's long: the header's own colour, so the heading goes under. */
+  padding-left: 10px;
+  background: linear-gradient(rgb(var(--accent-rgb) / 0.06), rgb(var(--accent-rgb) / 0.06)) var(--bg);
+  box-shadow: -10px 0 8px -4px var(--bg);
+  font-family: var(--font);
+}
+
+.diff-hunk-section {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hunk-button {
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  line-height: 1;
+  opacity: 0.75;
+  transition: opacity 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.diff-hunk:hover .hunk-button,
+.hunk-button:focus-visible {
+  opacity: 1;
+}
+
+.hunk-button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.hunk-button.primary:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.hunk-chosen {
+  color: var(--accent-ink);
+  font-size: 11.5px;
+}
+
+/* Changed lines can be chosen by their numbers and sign. */
+.diff-lines.picking .diff-row.pickable .diff-number,
+.diff-lines.picking .diff-row.pickable .diff-sign {
+  cursor: pointer;
+}
+
+.diff-lines.picking .diff-row.pickable:hover .diff-number {
+  color: var(--text);
+}
+
+.diff-row.chosen {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.diff-row.chosen .diff-number,
+.diff-row.chosen .diff-sign {
+  background: linear-gradient(rgb(var(--accent-rgb) / 0.22), rgb(var(--accent-rgb) / 0.22)) var(--bg);
+  color: var(--text);
+}
+
+/* The chosen lines' buttons, over the bottom of the changes. */
+.line-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  box-shadow: 0 10px 30px var(--shadow);
+  font-size: 12.5px;
+  transform: translateX(-50%);
+  animation: line-bar-in 0.16s ease-out;
+}
+
+@keyframes line-bar-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+}
+
+.diff-hunk-section {
+  color: var(--text-secondary);
+}
+
+.diff-row {
+  display: grid;
+  grid-template-columns: 52px 52px 20px auto;
+}
+
+.diff-number {
+  padding: 0 8px;
+  text-align: right;
+  color: var(--text-faint);
+  user-select: none;
+  position: sticky;
+  background: var(--bg);
+}
+
+.diff-number:first-child {
+  left: 0;
+}
+
+.diff-number:nth-child(2) {
+  left: 52px;
+  border-right: 1px solid var(--border);
+}
+
+.diff-sign {
+  text-align: center;
+  color: var(--text-faint);
+  user-select: none;
+}
+
+.diff-text {
+  padding-right: 24px;
+  white-space: pre;
+  tab-size: 4;
+}
+
+.diff-row.added {
+  background: rgb(var(--added-rgb) / 0.09);
+}
+
+.diff-row.added .diff-number {
+  background: linear-gradient(rgb(var(--added-rgb) / 0.1), rgb(var(--added-rgb) / 0.1)) var(--bg);
+  color: var(--added-number);
+}
+
+.diff-row.added .diff-sign {
+  color: var(--added);
+}
+
+.diff-row.removed {
+  background: rgb(var(--removed-rgb) / 0.09);
+}
+
+.diff-row.removed .diff-number {
+  background: linear-gradient(rgb(var(--removed-rgb) / 0.1), rgb(var(--removed-rgb) / 0.1)) var(--bg);
+  color: var(--removed-number);
+}
+
+.diff-row.removed .diff-sign {
+  color: var(--removed);
+}
+
+.diff-row mark {
+  color: inherit;
+  border-radius: 2px;
+}
+
+.diff-row.added mark {
+  background: rgb(var(--added-rgb) / 0.3);
+}
+
+.diff-row.removed mark {
+  background: rgb(var(--removed-rgb) / 0.32);
+}
+
+/* Side by side: before on the left, after on the right, long lines wrapping. */
+.diff-lines.split {
+  min-width: 0;
+}
+
+.diff-split-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.diff-half {
+  display: grid;
+  grid-template-columns: 52px 20px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.diff-half + .diff-half {
+  border-left: 1px solid var(--border);
+}
+
+.diff-half .diff-number {
+  position: static;
+  border-right: 1px solid var(--border);
+}
+
+.diff-half .diff-text {
+  padding-right: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diff-half.empty {
+  background: repeating-linear-gradient(-45deg, transparent 0 5px, rgb(var(--overlay-rgb) / 0.035) 5px 10px);
+}
+
+.diff-half.added {
+  background: rgb(var(--added-rgb) / 0.09);
+}
+
+.diff-half.added .diff-number {
+  background: rgb(var(--added-rgb) / 0.1);
+  color: var(--added-number);
+}
+
+.diff-half.added .diff-sign {
+  color: var(--added);
+}
+
+.diff-half.removed {
+  background: rgb(var(--removed-rgb) / 0.09);
+}
+
+.diff-half.removed .diff-number {
+  background: rgb(var(--removed-rgb) / 0.1);
+  color: var(--removed-number);
+}
+
+.diff-half.removed .diff-sign {
+  color: var(--removed);
+}
+
+.diff-half mark {
+  color: inherit;
+  border-radius: 2px;
+}
+
+.diff-half.added mark {
+  background: rgb(var(--added-rgb) / 0.3);
+}
+
+.diff-half.removed mark {
+  background: rgb(var(--removed-rgb) / 0.32);
+}
+
+.diff-lines.picking .diff-half.pickable .diff-number,
+.diff-lines.picking .diff-half.pickable .diff-sign {
+  cursor: pointer;
+}
+
+.diff-lines.picking .diff-half.pickable:hover .diff-number {
+  color: var(--text);
+}
+
+.diff-half.chosen {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.diff-half.chosen .diff-number,
+.diff-half.chosen .diff-sign {
+  background: rgb(var(--accent-rgb) / 0.22);
+  color: var(--text);
+}
+
+.diff-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 60%;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.diff-message strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.diff-image-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  /* A checkerboard, so transparent parts show. */
+  background: repeating-conic-gradient(var(--checker-a) 0 25%, var(--checker-b) 0 50%) 0 0 / 16px 16px;
+}
+
+.diff-image-frame img {
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  image-rendering: auto;
+}
+
+.diff-image-missing {
+  color: var(--text-faint);
+}
+
+.diff-binary-sizes {
+  margin: 14px 0 0;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .diff-option,
+  .diff-dir {
+    display: none;
+  }
+
+  .diff-view .outline-button .button-label {
+    display: none;
+  }
+}

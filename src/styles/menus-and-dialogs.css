@@ -1,0 +1,443 @@
+/* Right-click menu */
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+
+.context-menu {
+  position: fixed;
+  min-width: 220px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  box-shadow: 0 10px 30px var(--shadow);
+  outline: none;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.menu-item:hover:not(:disabled),
+.menu-item:focus-visible {
+  background: var(--bg-active);
+}
+
+.menu-item:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.menu-item.danger {
+  color: var(--danger-strong-text);
+}
+
+.menu-icon {
+  display: inline-flex;
+  width: 16px;
+  color: var(--text-muted);
+  flex: none;
+}
+
+.menu-item.danger .menu-icon {
+  color: inherit;
+}
+
+.menu-item:disabled .menu-icon {
+  color: var(--text-faint);
+}
+
+.menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-strong);
+}
+
+.menu-item:disabled {
+  color: var(--text-faint);
+}
+
+/* Confirmation dialog */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--scrim);
+}
+
+.dialog:focus-visible {
+  outline: none;
+}
+
+.dialog {
+  width: min(480px, 100%);
+  padding: 20px 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg-panel);
+  box-shadow: 0 20px 60px var(--shadow-strong);
+}
+
+.dialog h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.dialog p {
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.clone-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.clone-options legend {
+  padding: 0 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dialog .clone-options .hint {
+  margin: -4px 0 2px;
+}
+
+/* Lined up with the checkbox's label. */
+.dialog .clone-options .checkbox-hint {
+  margin-left: 24px;
+}
+
+.clone-options-toggle {
+  align-self: flex-start;
+}
+
+.sign-in-browser {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+
+.sign-in-browser .hint {
+  margin: 0;
+}
+
+.dialog .hint.warning {
+  color: var(--notice-text);
+}
+
+.diagnostics-text {
+  max-height: 46vh;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.dialog code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent-text);
+}
+
+.commit-ref {
+  color: var(--text);
+}
+
+.dialog-consequences {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+}
+
+.dialog-consequences li + li {
+  margin-top: 6px;
+}
+
+.dialog-consequences .danger {
+  color: var(--danger-text);
+}
+
+.dialog .error-banner {
+  margin-top: 14px;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.secondary-button,
+.danger-button,
+.danger-outline-button {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.secondary-button {
+  border: 1px solid var(--border-strong);
+  background: var(--bg-raised);
+}
+
+.danger-button {
+  border: none;
+  background: var(--danger-solid);
+  color: #fff;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: var(--danger-solid-hover);
+}
+
+.secondary-button:disabled,
+.danger-button:disabled {
+  opacity: 0.6;
+}
+
+.details-actions {
+  margin-top: 16px;
+}
+
+.danger-outline-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgb(var(--danger-rgb) / 0.45);
+  background: transparent;
+  color: var(--danger-strong-text);
+  font-weight: 500;
+}
+
+.danger-outline-button:hover {
+  background: rgb(var(--danger-rgb) / 0.1);
+}
+
+/* A button's text, trimmed to its capital letters, so an icon next to it lines up with the
+   letters rather than with the font's line box (which differs from font to font). It stays
+   on one line and ends in "…" when it doesn't fit. Clipped sideways only: the trimmed box
+   is as tall as the capitals, and letters like "p" reach below it. */
+.button-label {
+  min-width: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-box: trim-both cap alphabetic;
+}
+
+.details-actions .outline-button,
+.details-actions .danger-outline-button {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.details-actions svg {
+  flex: none;
+}
+
+/* Dialog forms */
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.text-input {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 13px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.text-input:focus {
+  border-color: var(--accent);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.checkbox input {
+  accent-color: var(--accent);
+}
+
+.primary-small-button {
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.primary-small-button:disabled {
+  opacity: 0.5;
+}
+
+.dialog .error-banner {
+  white-space: pre-wrap;
+}
+
+/* Toast */
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid rgb(var(--success-rgb) / 0.35);
+  border-radius: 8px;
+  background: linear-gradient(rgb(var(--success-rgb) / 0.1), rgb(var(--success-rgb) / 0.1)) var(--bg);
+  color: var(--success-text);
+  box-shadow: 0 10px 30px var(--shadow);
+  transform: translateX(-50%);
+  animation: toast-in 0.18s ease-out;
+  cursor: pointer;
+}
+
+/* Resizing */
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  z-index: 2;
+  width: 7px;
+  cursor: col-resize;
+}
+
+.resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 3px;
+  width: 1px;
+  background: var(--border-strong);
+}
+
+.resize-handle:hover::after {
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 3px;
+  background: var(--accent);
+}
+
+.refs-heading,
+.graph-heading {
+  position: relative;
+  overflow: visible !important;
+}
+
+/* Between panels: a thin strip that sits on the panel border. */
+.resize-handle.panel-handle {
+  position: relative;
+  right: auto;
+  width: 5px;
+  margin: 0 -2px;
+  flex: none;
+}
+
+.resize-handle.panel-handle::after {
+  display: none;
+}
+
+.resize-handle.panel-handle:hover::after {
+  display: block;
+  left: 1px;
+}
+
+body.resizing,
+body.resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+/* Compact rows */
+
+.commit-list.dense .ref-pill {
+  height: 18px;
+  font-size: 11px;
+}
+
+.commit-list.dense .change-count {
+  line-height: 16px;
+}

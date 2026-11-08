@@ -1,0 +1,189 @@
+/* Commit box */
+
+.details-scroll.worktree {
+  padding-top: 4px;
+}
+
+.commit-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--border);
+  flex: none;
+}
+
+.commit-box .text-input {
+  font-family: var(--font);
+}
+
+.commit-box textarea.text-input {
+  height: auto;
+  padding: 8px 10px;
+  resize: vertical;
+  min-height: 56px;
+}
+
+.commit-row-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.commit-row-controls .checkbox {
+  font-size: 12px;
+}
+
+.details-scroll.worktree .files:first-child {
+  margin-top: 0;
+  padding-top: 8px;
+  border-top: none;
+}
+
+/* Tabs. On macOS the window has no title bar, so the tab bar leaves room for its buttons. */
+
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  height: 36px;
+  padding: 0 8px;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--border);
+  flex: none;
+  user-select: none;
+}
+
+.mac .tab-bar,
+.mac .window-drag-strip {
+  padding-left: 80px;
+}
+
+.window-drag-strip {
+  height: 28px;
+  flex: none;
+  background: var(--bg);
+}
+
+.tab-logo {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px 0 4px;
+}
+
+.tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 90px;
+  max-width: 220px;
+  height: 30px;
+  padding: 0 6px 0 12px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 7px 7px 0 0;
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.tab:hover {
+  background: var(--chrome-hover);
+  color: var(--text-secondary);
+}
+
+.tab.active {
+  border-color: var(--border);
+  background: var(--bg-panel);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* A tab is as wide as its name in bold, whether or not it's the active one (in bold), so
+   switching tabs doesn't nudge them: an invisible bold copy of the name holds the space. */
+.tab-name {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.tab-name > span,
+.tab-name::after {
+  grid-area: 1 / 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-name::after {
+  content: attr(data-text);
+  /* Not read out twice by screen readers, where the browser understands this. */
+  content: attr(data-text) / "";
+  font-weight: 600;
+  visibility: hidden;
+}
+
+.tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-faint);
+  opacity: 0;
+  flex: none;
+}
+
+.tab:hover .tab-close,
+.tab.active .tab-close {
+  opacity: 1;
+}
+
+.tab-close:hover {
+  background: var(--bg-raised);
+  color: var(--text);
+}
+
+/* The + is a small tab at the end of the row, on the same bottom edge as the tabs. */
+.tab-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-end;
+  width: 34px;
+  height: 30px;
+  margin-left: 2px;
+  padding: 0;
+  border: none;
+  border-radius: 7px 7px 0 0;
+  background: var(--chrome-raised);
+  color: var(--text-secondary);
+  flex: none;
+}
+
+.tab-new:hover {
+  background: var(--bg-raised);
+  color: var(--text);
+}
+
+.tab-bar-fill {
+  flex: 1;
+}
+
+.app > .welcome {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}

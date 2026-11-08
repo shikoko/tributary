@@ -1,0 +1,414 @@
+/* Bars under the toolbar */
+
+.progress-strip,
+.operation-bar,
+.view-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+
+.progress-strip {
+  background: var(--bg-panel);
+}
+
+.progress-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-detail {
+  color: var(--text-muted);
+}
+
+.progress-track {
+  flex: 1;
+  min-width: 120px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+@keyframes progress-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+.progress-fill.indeterminate {
+  width: 30%;
+  animation: progress-slide 1.2s ease-in-out infinite;
+}
+
+.secondary-button.small {
+  height: 26px;
+  padding: 0 10px;
+  font-weight: 500;
+}
+
+.operation-bar {
+  flex-wrap: wrap;
+  background: rgb(var(--warning-rgb) / 0.08);
+  border-bottom-color: rgb(var(--warning-rgb) / 0.3);
+}
+
+.operation-text {
+  flex: 1;
+  min-width: 200px;
+  color: var(--text-secondary);
+}
+
+.operation-title {
+  color: var(--text);
+}
+
+.operation-text strong {
+  color: var(--warning-soft-text);
+}
+
+.operation-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.operation-buttons button {
+  height: 28px;
+}
+
+.view-banner {
+  padding: 5px 14px;
+  background: rgb(var(--accent-rgb) / 0.07);
+  color: var(--text-secondary);
+}
+
+.view-banner svg {
+  color: var(--accent-ink);
+  flex: none;
+}
+
+.view-banner strong {
+  color: var(--text);
+}
+
+/* Something to fix in the repository's setup, like Git LFS files that weren't downloaded. */
+.notice-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 12px 0;
+  padding: 7px 8px 7px 12px;
+  border: 1px solid rgb(var(--notice-rgb) / 0.35);
+  border-radius: 8px;
+  background: rgb(var(--notice-rgb) / 0.08);
+  color: var(--notice-text);
+  flex: none;
+}
+
+/* Banners in boxes stack with 8px between them, and the last one keeps 8px from what's
+   below, so its edge doesn't sit on the panels. */
+:is(.notice-banner, .error-banner.inline):not(:has(+ .notice-banner, + .error-banner.inline)) {
+  margin-bottom: 8px;
+}
+
+.notice-banner > svg {
+  flex: none;
+  color: var(--notice);
+}
+
+.notice-banner span {
+  flex: 1;
+  min-width: 0;
+}
+
+.notice-action {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid rgb(var(--notice-rgb) / 0.5);
+  border-radius: 5px;
+  background: rgb(var(--notice-rgb) / 0.14);
+  color: var(--warning-strong-text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.notice-action:hover:not(:disabled) {
+  background: rgb(var(--notice-rgb) / 0.24);
+}
+
+/* An offer rather than a problem, like releasing locks after a push. */
+.notice-banner.info {
+  border-color: rgb(var(--info-rgb) / 0.35);
+  background: rgb(var(--info-rgb) / 0.08);
+  color: var(--info-text);
+}
+
+.notice-banner.info > svg {
+  color: var(--info);
+}
+
+.notice-banner.info .notice-action {
+  border-color: rgb(var(--info-rgb) / 0.5);
+  background: rgb(var(--info-rgb) / 0.14);
+  color: var(--info-strong-text);
+}
+
+.notice-banner.info .notice-action:hover:not(:disabled) {
+  background: rgb(var(--info-rgb) / 0.24);
+}
+
+/* Commit list extras */
+
+.commit-row.drop-target {
+  background: rgb(var(--accent-rgb) / 0.16);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* Dragging a label onto a commit (see lib/drag.ts). */
+.drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  padding: 2px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: rgb(var(--accent-rgb) / 0.22);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Branch and tag labels in the graph can be dragged onto commits. */
+.refs-cell .ref-pill.branch,
+.refs-cell .ref-pill.tag {
+  cursor: grab;
+}
+
+body.dragging-label,
+body.dragging-label * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.avatar.picture {
+  object-fit: cover;
+  background: var(--bg-raised);
+}
+
+.sidebar-counts {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  flex: none;
+}
+
+/* Hover preview */
+
+.commit-preview {
+  position: fixed;
+  z-index: 15;
+  width: 360px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  box-shadow: 0 12px 32px var(--shadow-strong);
+  pointer-events: none;
+}
+
+.preview-summary {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.preview-body {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.preview-refs {
+  margin-top: 8px;
+}
+
+.preview-refs .ref-pills {
+  flex-wrap: wrap;
+  max-width: none;
+}
+
+.preview-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.preview-meta code {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.preview-files {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+/* Command palette */
+
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: flex;
+  justify-content: center;
+  padding-top: 12vh;
+  background: var(--scrim-soft);
+}
+
+.palette {
+  width: min(580px, calc(100% - 32px));
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg-panel);
+  box-shadow: 0 24px 64px var(--shadow-strong);
+  overflow: hidden;
+  align-self: flex-start;
+}
+
+.palette-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  height: 48px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  flex: none;
+}
+
+.palette-input input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.palette-list {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.palette-item.active {
+  background: var(--bg-selected);
+}
+
+.palette-icon {
+  display: inline-flex;
+  width: 16px;
+  color: var(--text-muted);
+  flex: none;
+}
+
+.palette-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-group {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.palette-item kbd,
+.shortcuts kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.palette-empty {
+  padding: 14px 10px;
+  color: var(--text-muted);
+}
+
+/* Shortcut list */
+
+.shortcuts {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.shortcuts td {
+  padding: 5px 0;
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+
+.shortcuts td:first-child {
+  width: 1%;
+  padding-right: 16px;
+  white-space: nowrap;
+}

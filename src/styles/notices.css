@@ -1,0 +1,492 @@
+/* Updates */
+
+.update-pill {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 6px;
+  height: 24px;
+  margin-left: 8px;
+  padding: 0 10px;
+  border: 1px solid rgb(var(--accent-rgb) / 0.45);
+  border-radius: 12px;
+  background: rgb(var(--accent-rgb) / 0.12);
+  box-shadow: 0 0 12px rgb(var(--accent-rgb) / 0.25);
+  color: var(--accent-text);
+  font-size: 12px;
+  flex: none;
+}
+
+.update-pill:hover {
+  background: rgb(var(--accent-rgb) / 0.2);
+  color: var(--accent-strong-text);
+}
+
+.update-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  overflow-y: auto;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.update-notes strong {
+  margin-top: 4px;
+  color: var(--text);
+}
+
+.update-notes p {
+  margin: 0;
+}
+
+.update-note-item {
+  display: flex;
+  gap: 8px;
+}
+
+.update-progress {
+  margin-top: 14px;
+}
+
+/* Warnings about changed files: big ones outside Git LFS, lockable ones nobody holds */
+
+.file-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.file-warning > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.file-warning.large {
+  background: rgb(var(--danger-rgb) / 0.1);
+  color: var(--danger-text);
+}
+
+.file-warning.large strong {
+  color: var(--danger-bright-text);
+}
+
+.file-warning.lockable {
+  background: rgb(var(--info-rgb) / 0.08);
+  color: var(--info-text);
+}
+
+.file-warning.lockable strong {
+  color: var(--info-strong-text);
+}
+
+.file-warning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.outline-button.small,
+.danger-outline-button.small {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.file-warning .outline-button.small {
+  border-color: currentColor;
+  color: inherit;
+}
+
+.commit-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: rgb(var(--danger-rgb) / 0.1);
+  color: var(--danger-text);
+  font-size: 12px;
+}
+
+.commit-warning span {
+  flex: 1;
+}
+
+.settings-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-value {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.stash-files {
+  max-height: 220px;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.stash-files li .checkbox {
+  height: 26px;
+  min-width: 0;
+}
+
+.stash-file-name {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.stash-file-dir {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Pull request badges on branch labels and in the sidebar */
+
+.pr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgb(var(--overlay-rgb) / 0.1);
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  flex: none;
+}
+
+.pr-badge:hover {
+  background: rgb(var(--overlay-rgb) / 0.18);
+  color: var(--text);
+}
+
+.ref-pill.current .pr-badge {
+  background: rgb(var(--on-lane-rgb) / 0.22);
+  color: var(--on-lane);
+}
+
+.pr-badge.draft {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.pr-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.pr-badge.success .pr-dot {
+  background: var(--success);
+}
+
+.pr-badge.failure .pr-dot {
+  background: var(--danger);
+}
+
+.pr-badge.pending .pr-dot {
+  background: var(--warning);
+}
+
+.sidebar-item .pr-badge {
+  margin-left: auto;
+}
+
+.sidebar-item .pr-badge + .sidebar-counts {
+  margin-left: 4px;
+}
+
+/* A tab whose background fetch found new commits */
+
+.tab-news {
+  width: 7px;
+  height: 7px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px rgb(var(--accent-rgb) / 0.7);
+  flex: none;
+}
+
+/* Recover commits (reflog) */
+
+.recover-list {
+  max-height: min(52vh, 460px);
+  margin: 12px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  list-style: none;
+}
+
+.recover-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+}
+
+.recover-row + .recover-row {
+  border-top: 1px solid var(--border);
+}
+
+.recover-row.lost {
+  background: rgb(var(--warning-rgb) / 0.04);
+}
+
+.recover-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.recover-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.recover-action {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+  flex: none;
+}
+
+.recover-detail {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recover-when {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 12px;
+  white-space: nowrap;
+  flex: none;
+}
+
+.recover-commit {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recover-lost {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgb(var(--warning-rgb) / 0.12);
+  color: var(--warning-text);
+  font-size: 11px;
+}
+
+/* Commit message help */
+
+.message-tools {
+  display: flex;
+  gap: 12px;
+  margin-bottom: -2px;
+}
+
+.message-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.message-tool:hover:not(:disabled) {
+  color: var(--accent-ink);
+}
+
+.message-tool:disabled {
+  opacity: 0.4;
+}
+
+.summary-field {
+  position: relative;
+  display: flex;
+}
+
+.summary-field .text-input {
+  flex: 1;
+  padding-right: 40px;
+}
+
+.summary-count {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.summary-count.long {
+  color: var(--warning);
+}
+
+.summary-count.over {
+  color: var(--danger);
+}
+
+/* People who ask for less motion get none: no spinners, pulses or sliding panels. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Git's own names and identifiers in the terminal font, the rest of the interface in Google Sans. */
+.ref-pill,
+.head-chip,
+.name-chip,
+.file-name,
+.file-dir,
+.status-path,
+.menu-shortcut,
+.body-code,
+kbd,
+code {
+  font-family: var(--mono);
+}
+
+/* Files you're changing that other branches also changed: a note for code, a warning
+   for assets that can't be merged. */
+.file-warning.elsewhere {
+  background: rgb(var(--info-rgb) / 0.08);
+  color: var(--info-text);
+}
+
+.file-warning.elsewhere.assets {
+  background: rgb(var(--notice-rgb) / 0.1);
+  color: var(--notice-text);
+}
+
+/* Long names shorten instead of widening the panel. */
+.file-warning.elsewhere > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.elsewhere-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 7px 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.elsewhere-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.elsewhere-file {
+  min-width: 3em;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.elsewhere-note {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.elsewhere-branch {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.elsewhere-who {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-elsewhere {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  color: var(--info-text);
+}
+
+.file-elsewhere.assets {
+  color: var(--notice);
+}
+
+.status-item.elsewhere {
+  color: var(--info-text);
+}
+
+.status-item.elsewhere.assets {
+  color: var(--warning-text);
+}

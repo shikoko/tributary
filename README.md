@@ -201,7 +201,7 @@ The tests don't run on GitHub Actions, so run them before you build.
 | `src-tauri/src/commands.rs` | The commands the frontend calls |
 | `src-tauri/src/error.rs` | The error every command can return |
 | `src-tauri/src/github/` | Open pull requests and their checks, opening one and reading one in full; signing in |
-| `src-tauri/src/gitlab.rs` | The same for merge requests on GitLab and their pipelines |
+| `src-tauri/src/gitlab/` | The same for merge requests on GitLab and their pipelines |
 | `src-tauri/src/requests.rs` | Pull and merge requests in the app, whichever site the repository is on |
 | `src-tauri/src/locks.rs` | Lists Git LFS file locks, telling yours from everyone else's |
 | `src-tauri/src/diagnostics.rs` | What **Copy Diagnostics** shows |
@@ -215,7 +215,7 @@ The tests don't run on GitHub Actions, so run them before you build.
 | `src/menus/` | The right-click menus of commits, branch and tag labels and the sidebar |
 | `src/components/` | The interface: the commit list (only the rows on screen are rendered; its layout, header, rows and canvases in `commitList/`), the sidebar (`sidebar/`), the changes panel (`worktree/`), the details panel, the dialogs, … |
 | `src/lib/` | Logic without an interface (search, selection, undo, paths, diagnostics, …), with its tests |
-| `src/styles.css` | The dark theme |
+| `src/styles/` | The styles, an area per file (colours and themes in `theme.css`), applied in the order `src/styles.css` lists them |
 | `tools/preview/` | The browser preview, demo repositories and the smoke test |
 
 The app icons are generated from `src-tauri/icons/app-icon.svg`. Tauri's own SVG renderer shows the background's gradient in visible bands, so render the SVG with Chrome first, then generate the icons from that PNG (on macOS):
