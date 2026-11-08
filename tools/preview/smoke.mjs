@@ -265,6 +265,7 @@ try {
   await step("signs in to GitHub with a token", async () => {
     await page.evaluate(() => (window.__PREVIEW__.github = { account: null }));
     await page.keyboard.press("Control+Comma");
+    await page.getByRole("tab", { name: "Accounts" }).click();
     await page.getByRole("button", { name: "Sign in…" }).click();
     await page.getByPlaceholder(/ghp_/).fill("ghp_example");
     await page.locator(".dialog").getByRole("button", { name: "Sign in", exact: true }).click();

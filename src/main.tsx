@@ -1,8 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-// JetBrains Mono for all text, with its real italics. Bundled, so it works offline and
-// looks the same whatever fonts are installed.
+// Google Sans for the interface and JetBrains Mono (with its real italics) for SHAs, branch
+// names, paths and code. Bundled, so they work offline and look the same everywhere.
+import "@fontsource-variable/google-sans";
 import "@fontsource-variable/jetbrains-mono";
 import "@fontsource-variable/jetbrains-mono/wght-italic.css";
 import "./styles.css";

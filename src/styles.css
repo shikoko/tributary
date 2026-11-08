@@ -16,7 +16,9 @@
   --accent: #1fb5ff;
   --danger: #ff5c6c;
 
-  --font: "JetBrains Mono Variable", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  /* Google Sans for the interface, JetBrains Mono for what you'd type in a terminal:
+     SHAs, branch and tag labels, file names, git commands, shortcuts. */
+  --font: "Google Sans Variable", "Google Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 
   color-scheme: dark;
@@ -183,7 +185,7 @@ button:disabled {
   padding: 1px 6px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.18);
-  font-family: var(--font);
+  font-family: var(--mono);
   font-size: 11px;
   font-weight: 500;
 }
@@ -2434,7 +2436,7 @@ body.dragging-label * {
   border-radius: 4px;
   background: var(--bg-raised);
   color: var(--text-secondary);
-  font-family: var(--font);
+  font-family: var(--mono);
   font-size: 11px;
   white-space: nowrap;
 }
@@ -3688,24 +3690,103 @@ textarea.text-input {
 
 /* Settings */
 
+.settings-window {
+  width: min(820px, 100%);
+}
+
+/* The sections on the left, the chosen one's settings on the right, at a fixed size so
+   switching sections doesn't make the window jump. */
 .settings {
-  max-height: min(62vh, 620px);
-  margin: 0 -22px;
-  padding: 0 22px;
+  display: flex;
+  height: min(520px, 66vh);
+  margin: 4px -22px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 210px;
+  flex: none;
+  padding: 10px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.settings-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.settings-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.settings-tab.selected {
+  background: var(--bg-selected);
+  color: var(--text);
+}
+
+.settings-tab-icon {
+  display: flex;
+  flex: none;
+  color: var(--text-muted);
+}
+
+.settings-tab.selected .settings-tab-icon {
+  color: var(--accent);
+}
+
+.settings-tab-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-tab-subtitle {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-panel {
+  flex: 1;
+  min-width: 0;
+  padding: 16px 22px;
   overflow-y: auto;
 }
 
-.settings-section + .settings-section {
-  margin-top: 18px;
+.settings-panel h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.settings-section h3 {
-  margin: 0 0 4px;
+.settings-panel-subtitle {
   color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.settings-panel .settings-row:last-child {
+  border-bottom: none;
 }
 
 .settings-row {
@@ -3715,10 +3796,6 @@ textarea.text-input {
   min-height: 44px;
   padding: 7px 0;
   border-bottom: 1px solid var(--border);
-}
-
-.settings-section .settings-row:last-child {
-  border-bottom: none;
 }
 
 .settings-row.disabled .settings-label {
@@ -4245,4 +4322,18 @@ textarea.text-input {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Git's own names and identifiers in the terminal font, the rest of the interface in Google Sans. */
+.ref-pill,
+.head-chip,
+.name-chip,
+.file-name,
+.file-dir,
+.status-path,
+.menu-shortcut,
+.body-code,
+kbd,
+code {
+  font-family: var(--mono);
 }

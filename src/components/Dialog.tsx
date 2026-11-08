@@ -12,6 +12,8 @@ interface Props {
   busy?: boolean;
   /** Room for a list, like the commits of an interactive rebase. */
   wide?: boolean;
+  /** For a dialog laid out its own way. */
+  className?: string;
   onCancel: () => void;
 }
 
@@ -37,7 +39,7 @@ function keepFocusInside(event: KeyboardEvent<HTMLDivElement>) {
  * A modal dialog. Esc or a click outside cancels it. The keyboard stays inside it while
  * it's open, and goes back to where it was when it closes.
  */
-export function Dialog({ title, children, buttons, error, errorAction, busy, wide, onCancel }: Props) {
+export function Dialog({ title, children, buttons, error, errorAction, busy, wide, className, onCancel }: Props) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -53,7 +55,7 @@ export function Dialog({ title, children, buttons, error, errorAction, busy, wid
     <div className="dialog-backdrop" onMouseDown={() => !busy && onCancel()}>
       <div
         ref={box}
-        className={`dialog${wide ? " wide" : ""}`}
+        className={`dialog${wide ? " wide" : ""}${className ? ` ${className}` : ""}`}
         role="alertdialog"
         aria-modal="true"
         aria-label={title}

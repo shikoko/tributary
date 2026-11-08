@@ -1,5 +1,5 @@
 import type { ColumnOptions } from "../components/CommitList";
-import { DownloadIcon } from "../components/Icons";
+import { ColumnsIcon, DownloadIcon, FetchIcon, FolderIcon, GearIcon, LockIcon, UserIcon } from "../components/Icons";
 import { LfsStorageSummary } from "../components/LfsCleanup";
 import { NameList, type SettingsSection } from "../components/SettingsDialog";
 import type { GitHubStatus } from "../api";
@@ -39,6 +39,7 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
   const sections: SettingsSection[] = [
     {
       title: "General",
+      icon: <GearIcon size={15} />,
       rows: [
         { kind: "toggle", label: "Reopen tabs on launch", value: reopenTabs, set: setReopenTabs },
         {
@@ -67,6 +68,7 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
     },
     {
       title: "Accounts",
+      icon: <UserIcon size={15} />,
       rows: [
         {
           kind: "custom",
@@ -94,6 +96,7 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
     },
     {
       title: "Fetching",
+      icon: <FetchIcon size={15} />,
       rows: [
         {
           kind: "toggle",
@@ -127,6 +130,7 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
     },
     {
       title: "Large files and Git LFS",
+      icon: <LockIcon size={15} />,
       rows: [
         {
           kind: "select",
@@ -147,6 +151,7 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
     },
     {
       title: "Commit list",
+      icon: <ColumnsIcon size={15} />,
       rows: [
         { kind: "toggle", label: "Compact rows", value: dense, set: setDense },
         { kind: "toggle", label: "Day separators", value: daySeparators, set: setDaySeparators },
@@ -210,7 +215,9 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
   ];
   if (repository) {
     sections.push({
-      title: `This repository: ${repository.name}`,
+      title: "This repository",
+      subtitle: repository.name,
+      icon: <FolderIcon size={15} />,
       rows: [
         {
           kind: "custom",

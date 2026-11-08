@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { stepFocus } from "../lib/inputMode";
 import { Dialog } from "./Dialog";
 import { CloseIcon } from "./Icons";
 
@@ -18,15 +19,23 @@ export type SettingRow =
 
 export interface SettingsSection {
   title: string;
+  /** Shown under the title in the list, like the repository's name. */
+  subtitle?: string;
+  icon?: ReactNode;
   rows: SettingRow[];
 }
 
-/** Every setting in one place. Changes apply right away. */
-export function SettingsDialog({ sections, onClose }: { sections: SettingsSection[]; onClose: () => void }) {
+/**
+ * Every setting in one place, a section at a time: the sections on the left, the chosen
+ * one's settings on the right. Changes apply right away.
+ */
+export function SettingsDialog({ sections, initial, onClose }: { sections: SettingsSection[]; initial?: string; onClose: () => void }) {
+  const [chosen, setChosen] = useState(initial ?? sections[0]?.title);
+  const section = sections.find((candidate) => candidate.title === chosen) ?? sections[0];
   return (
     <Dialog
       title="Settings"
-      wide
+      className="settings-window"
       onCancel={onClose}
       buttons={
         <button className="secondary-button" onClick={onClose} autoFocus>
@@ -35,51 +44,87 @@ export function SettingsDialog({ sections, onClose }: { sections: SettingsSectio
       }
     >
       <div className="settings">
-        {sections.map((section) => (
-          <section key={section.title} className="settings-section">
-            <h3>{section.title}</h3>
+        <nav className="settings-nav" role="tablist" aria-orientation="vertical" aria-label="Settings sections">
+          {sections.map((candidate) => {
+            const selected = candidate === section;
+            return (
+              <button
+                key={candidate.title}
+                role="tab"
+                id={`settings-tab-${candidate.title}`}
+                aria-selected={selected}
+                aria-controls="settings-panel"
+                tabIndex={selected ? 0 : -1}
+                className={`settings-tab${selected ? " selected" : ""}`}
+                onClick={() => setChosen(candidate.title)}
+                onKeyDown={(event) => {
+                  // ↑ ↓ Home End move between the sections, showing each.
+                  const tabs = [...event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>("[role=tab]")];
+                  const next = stepFocus(tabs, event.currentTarget, event.key === "ArrowLeft" || event.key === "ArrowRight" ? "" : event.key);
+                  if (!next) return;
+                  event.preventDefault();
+                  next.focus();
+                  next.click();
+                }}
+              >
+                <span className="settings-tab-icon">{candidate.icon}</span>
+                <span className="settings-tab-text">
+                  <span>{candidate.title}</span>
+                  {candidate.subtitle && <span className="settings-tab-subtitle">{candidate.subtitle}</span>}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+        {section && (
+          <section className="settings-panel" id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${section.title}`}>
+            <h3>
+              {section.title}
+              {section.subtitle && <span className="settings-panel-subtitle">{section.subtitle}</span>}
+            </h3>
             {section.rows.map((row) => (
-              <div key={row.label} className={`settings-row${"disabled" in row && row.disabled ? " disabled" : ""}`}>
-                <div className="settings-label">
-                  <span>{row.label}</span>
-                  {row.hint && <span className="settings-hint">{row.hint}</span>}
-                </div>
-                <div className="settings-control">
-                  {row.kind === "toggle" ? (
-                    <button
-                      role="switch"
-                      aria-checked={row.value}
-                      aria-label={row.label}
-                      className={`switch${row.value ? " on" : ""}`}
-                      onClick={() => row.set(!row.value)}
-                      disabled={row.disabled}
-                    >
-                      <span className="switch-knob" />
-                    </button>
-                  ) : row.kind === "select" ? (
-                    <select
-                      className="settings-select"
-                      value={row.value}
-                      onChange={(event) => row.set(event.target.value)}
-                      disabled={row.disabled}
-                      aria-label={row.label}
-                    >
-                      {row.options.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    row.content
-                  )}
-                </div>
-              </div>
+              <SettingRowView key={row.label} row={row} />
             ))}
           </section>
-        ))}
+        )}
       </div>
     </Dialog>
+  );
+}
+
+/** One setting: its label and hint on the left, its control on the right. */
+function SettingRowView({ row }: { row: SettingRow }) {
+  return (
+    <div className={`settings-row${"disabled" in row && row.disabled ? " disabled" : ""}`}>
+      <div className="settings-label">
+        <span>{row.label}</span>
+        {row.hint && <span className="settings-hint">{row.hint}</span>}
+      </div>
+      <div className="settings-control">
+        {row.kind === "toggle" ? (
+          <button
+            role="switch"
+            aria-checked={row.value}
+            aria-label={row.label}
+            className={`switch${row.value ? " on" : ""}`}
+            onClick={() => row.set(!row.value)}
+            disabled={row.disabled}
+          >
+            <span className="switch-knob" />
+          </button>
+        ) : row.kind === "select" ? (
+          <select className="settings-select" value={row.value} onChange={(event) => row.set(event.target.value)} disabled={row.disabled} aria-label={row.label}>
+            {row.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          row.content
+        )}
+      </div>
+    </div>
   );
 }
 
