@@ -71,7 +71,9 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
               if (event.button === 1) onClose(tab.path);
             }}
           >
-            <span className="tab-name">{tab.name}</span>
+            <span className="tab-name" data-text={tab.name}>
+              <span>{tab.name}</span>
+            </span>
             {news?.[tab.path] && <span className="tab-news" aria-label="New commits" />}
             <button
               className="tab-close"
@@ -86,7 +88,9 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
         ))}
         {startTab && (
           <div role="tab" aria-selected className="tab active start-tab" title="Open, clone or create a repository">
-            <span className="tab-name">New tab</span>
+            <span className="tab-name" data-text="New tab">
+              <span>New tab</span>
+            </span>
             <button className="tab-close" onClick={onCloseStart} aria-label="Close the new tab" title={`Close tab (${modKey}W)`}>
               <CloseIcon size={12} />
             </button>

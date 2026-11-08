@@ -2019,12 +2019,29 @@ body.resizing * {
   font-weight: 600;
 }
 
+/* A tab is as wide as its name in bold, whether or not it's the active one (in bold), so
+   switching tabs doesn't nudge them: an invisible bold copy of the name holds the space. */
 .tab-name {
   flex: 1;
   min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.tab-name > span,
+.tab-name::after {
+  grid-area: 1 / 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tab-name::after {
+  content: attr(data-text);
+  /* Not read out twice by screen readers, where the browser understands this. */
+  content: attr(data-text) / "";
+  font-weight: 600;
+  visibility: hidden;
 }
 
 .tab-close {
