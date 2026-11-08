@@ -12,6 +12,7 @@ import { SettingsDialog } from "../components/SettingsDialog";
 import { ShortcutsDialog } from "../components/ShortcutsDialog";
 import { Toast, type ToastMessage } from "../components/Toast";
 import { UpdateDialog } from "../components/UpdateDialog";
+import { useDiffToolRows } from "../components/DiffToolRows";
 import { settingsSections } from "./settingsSections";
 import { useGitHubStatus } from "./useGitHub";
 import type { ContextMenuState } from "./useMenus";
@@ -26,6 +27,8 @@ interface Props {
   preferences: Preferences;
   updates: Updates;
   repoPath: string | null;
+  /** The Settings section to open at, if not the first. */
+  settingsSection?: string;
   /** The clone dialog is open. */
   cloning: boolean;
   onCloneCancel: () => void;
@@ -44,6 +47,7 @@ export function AppOverlays(props: Props) {
   const { overlays, menu, preferences, updates, notify } = props;
   const { open, hide, show } = overlays;
   const github = useGitHubStatus(open.settings);
+  const diffTools = useDiffToolRows({ open: open.settings, repoPath: props.repoPath, notify: (text) => notify({ text }) });
   const [version, setVersion] = useState<string | null>(null);
   useEffect(() => {
     getVersion()
@@ -58,7 +62,9 @@ export function AppOverlays(props: Props) {
       {open.shortcuts && <ShortcutsDialog onClose={() => hide("shortcuts")} />}
       {open.settings && (
         <SettingsDialog
+          initial={props.settingsSection}
           sections={settingsSections({
+            diffTools,
             preferences,
             version,
             updates,

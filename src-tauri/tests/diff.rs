@@ -151,3 +151,94 @@ fn opens_the_diff_tool_set_up_in_git() {
     );
     assert!(new.unwrap_err().to_string().contains("is new"));
 }
+
+#[test]
+fn shows_text_stored_with_git_lfs_line_by_line() {
+    if !common::lfs_installed() {
+        return;
+    }
+    let mut repo = TempRepo::new("diff-lfs-text");
+    repo.git(&["lfs", "install", "--local"]);
+    std::fs::write(
+        repo.path().join(".gitattributes"),
+        "*.json filter=lfs diff=lfs merge=lfs -text\n",
+    )
+    .unwrap();
+    repo.git(&["add", ".gitattributes"]);
+    repo.commit(
+        "level.json",
+        "{\n  \"enemies\": 3,\n  \"name\": \"Tavern\"\n}\n",
+    );
+    let second = repo.commit(
+        "level.json",
+        "{\n  \"enemies\": 5,\n  \"name\": \"Tavern\"\n}\n",
+    );
+
+    // A commit: the real lines, not the pointer files' oid and size lines.
+    let changed = diff(&repo, DiffSource::Commit { id: second }, "level.json");
+    assert!(changed.lfs && !changed.binary);
+    assert_eq!((changed.additions, changed.deletions), (1, 1));
+    assert!(lines(&changed).contains(&"+  \"enemies\": 5,".to_owned()));
+
+    // Your changes too.
+    std::fs::write(
+        repo.path().join("level.json"),
+        "{\n  \"enemies\": 5,\n  \"name\": \"Cellar\"\n}\n",
+    )
+    .unwrap();
+    let edited = diff(&repo, DiffSource::Unstaged, "level.json");
+    assert_eq!(
+        lines(&edited)
+            .into_iter()
+            .filter(|line| !line.starts_with(' '))
+            .collect::<Vec<_>>(),
+        vec!["-  \"name\": \"Tavern\"", "+  \"name\": \"Cellar\""]
+    );
+}
+
+#[test]
+fn sets_the_diff_and_merge_tools() {
+    use tributary_lib::actions::{Scope, diff_tool_settings, set_diff_tool};
+    let repo = TempRepo::new("diff-tools");
+    let here = Some(repo.path());
+    // In this repository's own settings, so the computer's stay as they are.
+    let set = |merge: bool, tool: Option<&str>, command: Option<&str>| {
+        set_diff_tool(
+            here,
+            merge,
+            tool.map(Into::into),
+            command.map(Into::into),
+            Scope::Local,
+        )
+    };
+    assert_eq!(
+        set(false, Some("vscode"), None).unwrap(),
+        "Diffs open in Visual Studio Code"
+    );
+    assert_eq!(
+        set(true, Some("custom"), Some(r#"mymerge "$MERGED""#)).unwrap(),
+        "Conflicts open in your command"
+    );
+    let settings = diff_tool_settings(here, false).unwrap();
+    assert_eq!(settings.diff.as_deref(), Some("vscode"));
+    assert_eq!(
+        settings.diff_command.as_deref(),
+        Some(r#"code --wait --diff "$LOCAL" "$REMOTE""#)
+    );
+    assert_eq!(settings.merge.as_deref(), Some("custom"));
+    assert_eq!(
+        settings.merge_command.as_deref(),
+        Some(r#"mymerge "$MERGED""#)
+    );
+
+    // A custom tool needs its command; odd names aren't taken.
+    assert!(set(false, Some("custom"), None).is_err());
+    assert!(set(false, Some("rm -rf"), None).is_err());
+
+    // Back to git's default (twice is fine).
+    set(false, None, None).unwrap();
+    set(false, None, None).unwrap();
+    // The repository's setting is gone (the computer's own may still apply).
+    let local = repo.git(&["config", "--local", "--list"]);
+    assert!(!local.contains("diff.tool="), "{local}");
+}

@@ -153,6 +153,24 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "submodules" => to_json(actions::submodules(&path()?)?),
         "repo_identity" => to_json(actions::repo_identity(&path()?)?),
         "lfs_settings" => to_json(actions::lfs_settings(&path()?)?),
+        "diff_tool_settings" => {
+            let folder: Option<String> = optional(args, "path")?;
+            let list: bool = arg(args, "list")?;
+            to_json(actions::diff_tool_settings(
+                folder.as_deref().map(std::path::Path::new),
+                list,
+            )?)
+        }
+        "set_diff_tool" => {
+            let folder: Option<String> = optional(args, "path")?;
+            to_json(actions::set_diff_tool(
+                folder.as_deref().map(std::path::Path::new),
+                arg(args, "merge")?,
+                optional(args, "tool")?,
+                optional(args, "command")?,
+                actions::Scope::Global,
+            )?)
+        }
         "pull_requests" => {
             let path = path()?;
             to_json(tauri::async_runtime::block_on(github::open_requests(

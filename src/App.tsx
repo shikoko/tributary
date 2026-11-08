@@ -56,6 +56,10 @@ export default function App() {
   const { tabs, setTabs, setActiveTab, firstParentOnly } = preferences;
   const updates = useUpdates(preferences.autoUpdate);
   const overlays = useOverlays();
+  const openSettings = (section?: string) => {
+    setSettingsSection(section);
+    overlays.show("settings");
+  };
   const menu = useContextMenu();
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const notify = useCallback((text: string) => setToast({ text }), []);
@@ -63,6 +67,8 @@ export default function App() {
   const hideToast = useCallback(() => setToast(null), []);
   /** The repository dialog that's open (the clone dialog shows on the start screen too). */
   const [dialog, setDialog] = useState<OpenDialog>(null);
+  /** The Settings section to open at (like "Diff and merge"), or the first. */
+  const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
 
   // The open repository. Opening one starts fresh, back where you were in it.
   const repo = useRepository({
@@ -237,7 +243,7 @@ export default function App() {
       open: repo.pick,
       clone: () => setDialog({ kind: "clone" }),
       create: repo.create,
-      settings: () => overlays.show("settings"),
+      settings: () => openSettings(),
       palette: () => overlays.show("palette"),
       shortcuts: () => overlays.show("shortcuts"),
       zoom: zoomBy,
@@ -263,14 +269,14 @@ export default function App() {
     },
   };
   const menus = appMenus(menuBarContext);
-  useNativeMenu(menus, { settings: () => overlays.show("settings") });
+  useNativeMenu(menus, { settings: () => openSettings() });
   const menuBar = useMenuBar(menus, menu.setMenu);
   const view = menus.find((m) => m.label === "View");
   const viewMenu = view ? menuItems(view.entries.filter((entry) => entry === "-" || !["search", "palette"].includes(entry.id))) : [];
 
   useKeyboardShortcuts({
     togglePalette: () => overlays.toggle("palette"),
-    openSettings: () => overlays.show("settings"),
+    openSettings: () => openSettings(),
     open: repo.pick,
     newTab: tabbing.newTab,
     closeTab: tabbing.closeCurrent,
@@ -303,7 +309,7 @@ export default function App() {
           switchTab: tabbing.switchTab,
           setFocus: highlight.setFocus,
           setHidden: settings.setHidden,
-          openSettings: () => overlays.show("settings"),
+          openSettings: () => openSettings(),
           highlightMine: highlight.highlightMine,
         })
       : [...startCommands(menuBarContext), settingsCommand(menuBarContext), ...helpCommandsFor(menuBarContext)].map((c) => ({
@@ -370,6 +376,7 @@ export default function App() {
               openTab={tabbing.switchTab}
               closeTab={tabbing.closeTab}
               lockFiles={lockFiles}
+              openSettings={openSettings}
               notify={setToast}
             />
           ) : (
@@ -382,6 +389,7 @@ export default function App() {
             preferences={preferences}
             updates={updates}
             repoPath={repoPath}
+            settingsSection={settingsSection}
             cloning={dialog?.kind === "clone"}
             onCloneCancel={() => setDialog(null)}
             onCloned={(path) => {

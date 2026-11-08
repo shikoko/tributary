@@ -48,6 +48,8 @@ pub fn run() {
             commands::submodules,
             commands::repo_identity,
             commands::lfs_settings,
+            commands::diff_tool_settings,
+            commands::set_diff_tool,
             commands::file_diff,
             commands::lfs_storage,
             commands::lfs_health,

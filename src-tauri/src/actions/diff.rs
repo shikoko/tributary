@@ -195,12 +195,31 @@ pub fn file_diff(
         diff.deletions = 0;
         return Ok(diff);
     }
-    // Git LFS files diff as their small pointer files: show sizes instead.
+    // Git LFS files diff as their small pointer files: compare the real files instead,
+    // line by line when they're text, by their sizes (or as images) otherwise.
     if diff.lfs {
         diff.binary = true;
         diff.hunks.clear();
         diff.additions = 0;
         diff.deletions = 0;
+        if !is_image(file) {
+            let before = read_side(&git, &plan.before, file, true, true);
+            let after = read_side(&git, &plan.after, file, true, true);
+            if let Some(output) = text_diff(&git, file, &before, &after, ignore_whitespace) {
+                diff.binary = false;
+                if output.len() > MAX_DIFF_BYTES {
+                    diff.too_large = true;
+                } else {
+                    parse_into(&output, &mut diff);
+                }
+                if diff.binary || diff.too_large {
+                    diff.hunks.clear();
+                    diff.size_before = before.size;
+                    diff.size_after = after.size;
+                }
+                return Ok(diff);
+            }
+        }
     }
     if diff.binary || diff.too_large {
         let image = diff.binary && is_image(file);
@@ -412,6 +431,62 @@ fn read_side(git: &Git, side: &Side, file: &str, lfs: bool, content: bool) -> Re
     Read { size, data }
 }
 
+/// The diff of two versions of a file that are text (Git LFS files, read in full), from
+/// `git diff --no-index` on copies of them. None when either isn't text, or wasn't read.
+fn text_diff(
+    git: &Git,
+    file: &str,
+    before: &Read,
+    after: &Read,
+    ignore_whitespace: bool,
+) -> Option<String> {
+    let side = |read: &Read| -> Option<Vec<u8>> {
+        match (&read.size, &read.data) {
+            // Missing on this side (added or deleted): compare with nothing.
+            (None, _) => Some(Vec::new()),
+            (Some(_), Some(bytes)) if is_text(bytes) => Some(bytes.clone()),
+            _ => None,
+        }
+    };
+    let (old, new) = (side(before)?, side(after)?);
+    // Copies with the file's own name, so git's diff drivers and section names still apply.
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let folder = std::env::temp_dir().join(format!(
+        "tributary-diff-{}-{}",
+        std::process::id(),
+        COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let name = super::support::file_name(file);
+    let (a, b) = (folder.join("a").join(name), folder.join("b").join(name));
+    let written = std::fs::create_dir_all(folder.join("a"))
+        .and_then(|_| std::fs::create_dir_all(folder.join("b")))
+        .and_then(|_| std::fs::write(&a, &old))
+        .and_then(|_| std::fs::write(&b, &new));
+    let output = written.ok().and_then(|_| {
+        let mut command = crate::git::command(git.executable());
+        command
+            .current_dir(&folder)
+            .args(["diff", "--no-index", "--no-color", "--no-ext-diff"]);
+        if ignore_whitespace {
+            command.arg("-w");
+        }
+        command
+            .args(["--", "a", "b"])
+            .env("GIT_TERMINAL_PROMPT", "0");
+        let output = command.output().ok()?;
+        // Exit code 1 means "they differ".
+        matches!(output.status.code(), Some(0 | 1))
+            .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+    });
+    let _ = std::fs::remove_dir_all(&folder);
+    output
+}
+
+/// Text, as far as git would tell: no NUL bytes near the start, and not too long to show.
+fn is_text(bytes: &[u8]) -> bool {
+    bytes.len() <= MAX_DIFF_BYTES && !bytes[..bytes.len().min(8000)].contains(&0)
+}
+
 fn is_lfs_pointer(bytes: &[u8]) -> bool {
     bytes.len() < 1024 && bytes.starts_with(b"version https://git-lfs")
 }
@@ -608,8 +683,8 @@ fn tool_error(error: Error, kind: &str) -> Error {
         || message.contains("not configured")
     {
         Error::Message(format!(
-            "Git has no {kind} tool set up. Choose one with git config --global {kind}.tool <name> \
-             (like vscode, meld, kdiff3, p4merge or bc), then try again.\n\n{message}"
+            "Git has no {kind} tool set up. Choose one in Settings, under Diff and merge \
+             (or with git config --global {kind}.tool <name>), then try again.\n\n{message}"
         ))
     } else {
         error

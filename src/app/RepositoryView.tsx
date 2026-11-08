@@ -29,6 +29,7 @@ import { RepositoryDialogs } from "./Dialogs";
 import { fileMenuItems, lockMenuItems, type FileMenuContext } from "./fileMenus";
 import { columnMenuItems, detailsActionsFor, pushMenuItems, submoduleMenuItems, worktreeMenuItems, type SubmoduleMenuContext, type WorktreeMenuContext } from "./listMenus";
 import { RepositoryBanners } from "./RepositoryBanners";
+import { DIFF_SECTION } from "./settingsSections";
 import type { Actions } from "./useActions";
 import type { BranchCounts } from "./useBranchCounts";
 import type { CommitDetailsCache } from "./useCommitDetails";
@@ -83,6 +84,8 @@ interface Props {
   closeTab: (path: string) => void;
   /** Choose files to lock with Git LFS. */
   lockFiles: () => void;
+  /** Open Settings, at a section (like "Diff and merge"). */
+  openSettings: (section?: string) => void;
   notify: (toast: ToastMessage) => void;
 }
 
@@ -385,6 +388,7 @@ export function RepositoryView(props: Props) {
               onClose={() => setDiffAt(null)}
               run={run}
               version={snapshot.worktree}
+              onChooseTool={() => props.openSettings(DIFF_SECTION)}
             />
           )}
         </div>

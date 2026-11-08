@@ -11,6 +11,7 @@ mod changes;
 mod clone;
 mod conflicts;
 mod diff;
+mod diff_tools;
 mod elsewhere;
 mod files;
 mod history;
@@ -40,6 +41,7 @@ pub use diff::{
     DiffLine, DiffSource, FileDiff, Hunk, Images, LineKind, SubmoduleChange, SubmoduleCommit,
     file_diff,
 };
+pub use diff_tools::{DiffToolSettings, Scope, ToolChoice, diff_tool_settings, set_diff_tool};
 pub use elsewhere::{OtherChange, Overlap, changed_elsewhere};
 pub use files::{FileHistory, file_history};
 pub use identity::{RepoIdentity, repo_identity};

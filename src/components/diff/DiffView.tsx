@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fileDiff, type Action, type FileDiff } from "../../api";
 import type { DiffTarget } from "../../lib/diffTargets";
+import { toolLabel, useDiffTools } from "../../lib/diffTools";
 import { useStoredState } from "../../lib/settings";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon } from "../Icons";
 import { DiffBinary } from "./DiffBinary";
@@ -18,13 +19,15 @@ interface Props {
   run: (action: Action) => void;
   /** Changes when the repository reloads: your changes are read again. */
   version: unknown;
+  /** No diff (or merge) tool is set up: choose one, in Settings. */
+  onChooseTool: () => void;
 }
 
 /**
  * A file's changes over the commit list: text line by line, images side by side, other
  * files by their size. Esc closes, [ and ] go to the previous and next file.
  */
-export function DiffView({ repoPath, targets, index, onIndex, onClose, run, version }: Props) {
+export function DiffView({ repoPath, targets, index, onIndex, onClose, run, version, onChooseTool }: Props) {
   const target = targets[index];
   const [ignoreWhitespace, setIgnoreWhitespace] = useStoredState("diff.ignoreWhitespace", false);
   const [loaded, setLoaded] = useState<{ key: string; diff: FileDiff | null; error: string | null } | null>(null);
@@ -67,6 +70,12 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
   const path = target.file.path;
   const slash = path.lastIndexOf("/");
   const conflicted = target.file.status === "conflicted";
+  const tools = useDiffTools(repoPath);
+  const tool = tools ? (conflicted ? tools.merge : tools.diff) : null;
+  /** Open the file in the diff (or merge) tool, or choose one first. */
+  const openInTool = () =>
+    tools && !tool ? onChooseTool() : run(conflicted ? { kind: "openInMergeTool", path } : { kind: "openInDiffTool", source: target.source, path });
+  const toolButton = tools && !tool ? `Choose a ${conflicted ? "merge" : "diff"} tool…` : `Open in ${toolLabel(tool, conflicted ? "merge" : "diff")}`;
   /** Shown as something other than lines: whitespace and diff tools don't apply. */
   const whole = Boolean(diff && (diff.binary || diff.tooLarge || diff.submodule));
   return (
@@ -93,6 +102,11 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           <span className="diff-name">{path.slice(slash + 1)}</span>
           {slash > 0 && <span className="diff-dir">{path.slice(0, slash)}</span>}
           <span className="diff-source">{target.label}</span>
+          {diff?.lfs && !diff.binary && !diff.tooLarge && (
+            <span className="diff-source" title="Stored with Git LFS: these are the files' real contents">
+              Git LFS
+            </span>
+          )}
           {diff && !whole && (
             <span className="diff-stats">
               <span className="added">+{diff.additions}</span> <span className="removed">−{diff.deletions}</span>
@@ -108,11 +122,17 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         {(conflicted || (target.file.status !== "untracked" && !diff?.submodule)) && (
           <button
             className="outline-button"
-            onClick={() => run(conflicted ? { kind: "openInMergeTool", path } : { kind: "openInDiffTool", source: target.source, path })}
-            title={conflicted ? "Resolve it in the merge tool set up in git (merge.tool)" : "Compare it in the diff tool set up in git (diff.tool)"}
+            onClick={openInTool}
+            title={
+              tools && !tool
+                ? "No tool is set up in git yet: choose one in Settings"
+                : conflicted
+                  ? "Resolve it in the merge tool set up in git (merge.tool)"
+                  : "Compare it in the diff tool set up in git (diff.tool)"
+            }
           >
             <ExternalLinkIcon size={13} />
-            <span className="button-label">{conflicted ? "Open in merge tool" : "Open in diff tool"}</span>
+            <span className="button-label">{toolButton}</span>
           </button>
         )}
         <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close the changes">
@@ -130,7 +150,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         ) : diff.submodule ? (
           <DiffSubmodule change={diff.submodule} />
         ) : diff.binary || diff.tooLarge ? (
-          <DiffBinary diff={diff} />
+          <DiffBinary diff={diff} tool={toolButton} onOpen={openInTool} />
         ) : diff.hunks.length === 0 ? (
           <div className="diff-message muted">{ignoreWhitespace ? "Only whitespace changed." : "No changes to show (only the file's name or mode changed)."}</div>
         ) : (

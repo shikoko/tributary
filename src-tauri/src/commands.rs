@@ -145,6 +145,37 @@ pub async fn changed_elsewhere(
     blocking(move || actions::changed_elsewhere(&PathBuf::from(path), &changed)).await
 }
 
+/// The diff and merge tools set up in git, and with `list`, the ones it finds here.
+#[tauri::command]
+pub async fn diff_tool_settings(
+    path: Option<String>,
+    list: bool,
+) -> Result<actions::DiffToolSettings> {
+    blocking(move || actions::diff_tool_settings(path.as_deref().map(std::path::Path::new), list))
+        .await
+}
+
+/// Open diffs (or conflicts) in this tool from now on, in every repository (git's own
+/// `diff.tool` or `merge.tool`).
+#[tauri::command]
+pub async fn set_diff_tool(
+    path: Option<String>,
+    merge: bool,
+    tool: Option<String>,
+    command: Option<String>,
+) -> Result<String> {
+    blocking(move || {
+        actions::set_diff_tool(
+            path.as_deref().map(std::path::Path::new),
+            merge,
+            tool,
+            command,
+            actions::Scope::Global,
+        )
+    })
+    .await
+}
+
 /// Which files the repository stores with Git LFS, and which big ones it could.
 #[tauri::command]
 pub async fn lfs_settings(path: String) -> Result<actions::LfsSettings> {

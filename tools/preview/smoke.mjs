@@ -312,6 +312,20 @@ try {
     await page.keyboard.press("Escape");
   });
 
+  await step("chooses a diff tool from a file it can't show line by line", async () => {
+    await row("Rig the barber").click();
+    await page.locator(".details .file", { hasText: "Barber.uasset" }).click();
+    const message = page.locator(".diff-message");
+    await message.getByRole("button", { name: "Choose a diff tool…" }).click();
+    const settings = page.locator(".dialog", { hasText: "Diff and merge" });
+    await settings.getByLabel("Diff tool").selectOption("vscode");
+    await page.locator(".toast", { hasText: "Diffs open in Visual Studio Code" }).waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await message.getByRole("button", { name: "Open in Visual Studio Code" }).waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await dismissToast();
+  });
+
   await step("shows pull requests on their branches", async () => {
     await page.locator(".pr-badge").first().waitFor({ timeout: 10_000 });
   });
