@@ -132,6 +132,10 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             to_json(actions::file_checks(&path()?, &files, threshold)?)
         }
         "lfs_storage" => to_json(actions::lfs_storage_of(&path()?)?),
+        "changed_elsewhere" => {
+            let changed: Vec<String> = arg(args, "changed")?;
+            to_json(actions::changed_elsewhere(&path()?, &changed)?)
+        }
         "lfs_health" => to_json(actions::lfs_health(&path()?)?),
         "pull_requests" => {
             let path = path()?;

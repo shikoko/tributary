@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { fullRefName, PAGE_SIZE, type Action, type CommitRow, type FileChange, type FileChecks, type Lock, type RepoSnapshot, type Worktree } from "../api";
+import { fullRefName, PAGE_SIZE, type Action, type CommitRow, type FileChange, type FileChecks, type Lock, type Overlap, type RepoSnapshot, type Worktree } from "../api";
 import { withCoAuthor } from "../lib/commitMessage";
 import { rewritable } from "../lib/graph";
 import type { LfsLocks } from "../lib/locks";
@@ -11,7 +11,7 @@ import { checkoutFor, commitMenu, dropMenu, pillForEntry, pillMenu, selectionMen
 import { ActivityPanel } from "../components/ActivityPanel";
 import { CommitList } from "../components/CommitList";
 import type { MenuItem } from "../components/ContextMenu";
-import { EyeIcon, PlusIcon } from "../components/Icons";
+import { BranchIcon, EyeIcon, PlusIcon } from "../components/Icons";
 import { MessageTools } from "../components/MessageTools";
 import { ResizeHandle } from "../components/ResizeHandle";
 import { Sidebar } from "../components/Sidebar";
@@ -56,6 +56,8 @@ interface Props {
   counts: BranchCounts;
   lfs: LfsLocks;
   lfsHealth: LfsHealthState;
+  /** Files you're changing that other branches also changed. */
+  overlaps: Overlap[];
   checks: FileChecks | null;
   worktrees: Worktree[];
   details: CommitDetailsCache;
@@ -157,6 +159,20 @@ export function RepositoryView(props: Props) {
     onReset: () => (panel === "sidebar" ? setSidebarWidth(220) : setDetailsWidth(380)),
   });
 
+  const notLoaded = () => props.notify({ text: "That commit isn't loaded: load more commits, or fetch" });
+  /** The status bar's "changed elsewhere": every overlapping file, to show the other branch's change. */
+  const elsewhereMenu = (anchor: HTMLElement) =>
+    menu.under(
+      anchor,
+      props.overlaps.flatMap((overlap) =>
+        overlap.elsewhere.map((change, index) => ({
+          label: `${baseName(overlap.path)}: ${change.branch}, ${change.author}`,
+          icon: index === 0 ? <BranchIcon /> : undefined,
+          onSelect: () => (byId.has(change.commit) ? select(change.commit) : notLoaded()),
+        })),
+      ),
+      360,
+    );
   const activityHere = props.activity.entries;
   const lastHere = [...activityHere].reverse().find((entry) => entry.folder === snapshot.path && !entry.background);
   const canFetch = !snapshot.bare && snapshot.remotes.length > 0;
@@ -289,6 +305,8 @@ export function RepositoryView(props: Props) {
                 }
                 openDialog={openDialog}
                 onFileMenu={fileMenu}
+                overlaps={props.overlaps}
+                onNotLoaded={notLoaded}
               />
             </div>
           </>
@@ -311,6 +329,8 @@ export function RepositoryView(props: Props) {
         pruneHint={settings.pruneHint}
         onPrune={canChange ? () => openDialog({ kind: "prune" }) : null}
         onDismissPruneHint={settings.dismissPruneHint}
+        elsewhere={props.overlaps.length > 0 ? { count: props.overlaps.length, assets: props.overlaps.some((overlap) => overlap.unmergeable) } : null}
+        onElsewhere={elsewhereMenu}
       />
       <RepositoryDialogs
         dialog={props.dialog}

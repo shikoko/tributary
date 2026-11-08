@@ -205,6 +205,14 @@ try {
     await page.locator(".file-warning.large").waitFor({ timeout: 10_000 });
   });
 
+  await step("warns about assets also changed on other branches", async () => {
+    const warning = page.locator(".file-warning.elsewhere.assets");
+    await warning.waitFor({ timeout: 15_000 });
+    const text = await warning.innerText();
+    expect(text.includes("Barber.uasset") && text.includes("art/barber-v2"), `warning "${text.slice(0, 90)}"`);
+    await page.locator(".status-item.elsewhere").waitFor({ timeout: 5000 });
+  });
+
   await step("shows pull requests on their branches", async () => {
     await page.locator(".pr-badge").first().waitFor({ timeout: 10_000 });
   });

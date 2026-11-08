@@ -285,3 +285,30 @@ export function remoteState(path: string): Promise<RemoteState> {
 export function commitsBetween(path: string, from: string, to: string): Promise<{ count: number; authors: string[] }> {
   return invoke("commits_between", { path, from, to });
 }
+
+/** The latest change to a file on another branch. */
+export interface OtherChange {
+  /** Like "origin/art/lighting" or "feature/tags". */
+  branch: string;
+  commit: string;
+  summary: string;
+  author: string;
+  /** Seconds since the Unix epoch. */
+  time: number;
+}
+
+/** A file you're working on that another branch also changed since yours split off from it. */
+export interface Overlap {
+  path: string;
+  /** It can't be merged (Git LFS, lockable or binary): one version will have to win. */
+  unmergeable: boolean;
+  /** Your change is uncommitted (otherwise it's in a commit on your branch). */
+  uncommitted: boolean;
+  /** The other branches' latest changes to it, newest first. */
+  elsewhere: OtherChange[];
+}
+
+/** Of `changed` (your uncommitted changes) and your branch's own changes: the files recently changed branches also changed. */
+export function changedElsewhere(path: string, changed: string[]): Promise<Overlap[]> {
+  return invoke<Overlap[]>("changed_elsewhere", { path, changed });
+}

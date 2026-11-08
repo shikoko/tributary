@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
-import type { FileChange, Lock } from "../api";
+import type { FileChange, Lock, Overlap } from "../api";
+import { overlapTitle } from "../lib/elsewhere";
 import { withAlpha } from "../lib/colors";
 import { lockOwner } from "../lib/locks";
 import { relativeTime } from "../lib/format";
-import { LockIcon } from "./Icons";
+import { BranchIcon, LockIcon } from "./Icons";
 
 const STATUS: Record<FileChange["status"], { letter: string; color: string; label: string }> = {
   added: { letter: "A", color: "#36e07c", label: "Added" },
@@ -25,6 +26,8 @@ interface FileLineProps {
   lock?: Lock;
   /** Stands out, like the file whose history is highlighted. */
   highlighted?: boolean;
+  /** Another branch also changed it since yours split off. */
+  elsewhere?: Overlap;
   onContextMenu?: (file: FileChange, x: number, y: number) => void;
 }
 
@@ -34,7 +37,7 @@ export function lockTitle(lock: Lock): string {
   return `Locked by ${lockOwner(lock)}${Number.isNaN(when) ? "" : ` ${relativeTime(when / 1000)}`}`;
 }
 
-export function FileLine({ file, action, choices, lock, highlighted, onContextMenu }: FileLineProps) {
+export function FileLine({ file, action, choices, lock, highlighted, onContextMenu, elsewhere }: FileLineProps) {
   const status = STATUS[file.status];
   // Untracked folders are listed as "dir/" when everything inside them is new.
   const isFolder = file.path.endsWith("/");
@@ -63,6 +66,11 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
         <span className={`file-lock ${lock.mine ? "mine" : "theirs"}`}>
           <LockIcon size={11} />
           {!lock.mine && <span className="file-lock-owner">{lock.owner}</span>}
+        </span>
+      )}
+      {elsewhere && (
+        <span className={`file-elsewhere${elsewhere.unmergeable ? " assets" : ""}`} title={overlapTitle(elsewhere)}>
+          <BranchIcon size={11} />
         </span>
       )}
       {dir && <span className="file-dir">{dir}</span>}

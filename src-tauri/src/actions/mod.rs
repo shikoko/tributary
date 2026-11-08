@@ -10,6 +10,7 @@ mod branches;
 mod changes;
 mod clone;
 mod conflicts;
+mod elsewhere;
 mod files;
 mod history;
 mod lfs;
@@ -31,6 +32,7 @@ use crate::git::{Git, Progress};
 
 pub use backups::{BACKUP_DAYS, Backup, BackupEvent, backups};
 pub use clone::{CloneOptions, clone_repository, init_repository};
+pub use elsewhere::{OtherChange, Overlap, changed_elsewhere};
 pub use files::{FileHistory, file_history};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
 pub use lfs_health::{LfsHealth, lfs_health};

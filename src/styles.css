@@ -4337,3 +4337,90 @@ kbd,
 code {
   font-family: var(--mono);
 }
+
+/* Files you're changing that other branches also changed: a note for code, a warning
+   for assets that can't be merged. */
+.file-warning.elsewhere {
+  background: rgba(31, 181, 255, 0.08);
+  color: #a9dcf7;
+}
+
+.file-warning.elsewhere.assets {
+  background: rgba(240, 180, 76, 0.1);
+  color: #f3d29b;
+}
+
+/* Long names shorten instead of widening the panel. */
+.file-warning.elsewhere > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.elsewhere-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 7px 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.elsewhere-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.elsewhere-file {
+  min-width: 3em;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.elsewhere-note {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.elsewhere-branch {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.elsewhere-who {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-elsewhere {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  color: #6fc6f2;
+}
+
+.file-elsewhere.assets {
+  color: #f0b44c;
+}
+
+.status-item.elsewhere {
+  color: #8fd3f7;
+}
+
+.status-item.elsewhere.assets {
+  color: #ffc966;
+}

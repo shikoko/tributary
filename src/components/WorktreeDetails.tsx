@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
-import type { Action, FileChange, FileChecks, Lock, RepoSnapshot } from "../api";
+import type { Action, FileChange, FileChecks, Lock, Overlap, RepoSnapshot } from "../api";
 import { CloseIcon, MinusIcon, PlusIcon, StashIcon, TrashIcon } from "./Icons";
 import { ChangeWarnings } from "./worktree/ChangeWarnings";
 import { CommitBox, type CommitDraft } from "./worktree/CommitBox";
 import { ConflictList } from "./worktree/ConflictList";
+import { ElsewhereWarning } from "./worktree/ElsewhereWarning";
 import { FileSection } from "./worktree/FileSection";
 
 export { EMPTY_DRAFT, type CommitDraft } from "./worktree/CommitBox";
@@ -30,6 +31,10 @@ interface Props {
   canLock: boolean;
   /** Help writing the commit message: recent messages and co-authors. */
   messageTools?: ReactNode;
+  /** Files you're changing that other branches also changed. */
+  overlaps: Overlap[];
+  /** Select a commit in the graph. */
+  onShowCommit: (id: string) => void;
 }
 
 /** What the two sides of a conflict are called, for buttons like "Keep main's version". */
@@ -49,6 +54,8 @@ export function WorktreeDetailsPanel(props: Props) {
   const unstaged = status.unstaged.filter((file) => file.status !== "conflicted");
   const stagedPaths = new Set(status.staged.map((file) => file.path));
   const quietly = (action: Action) => run(action, { quiet: true });
+  const elsewhere = new Map(props.overlaps.map((overlap) => [overlap.path, overlap]));
+  const elsewhereOf = (path: string) => elsewhere.get(path);
   /** A renamed file is staged or unstaged with its old path. */
   const paths = (file: FileChange) => (file.oldPath ? [file.oldPath, file.path] : [file.path]);
 
@@ -69,9 +76,10 @@ export function WorktreeDetailsPanel(props: Props) {
       </header>
 
       <div className="details-scroll worktree">
+        <ElsewhereWarning overlaps={props.overlaps} onShow={props.onShowCommit} />
         <ChangeWarnings staged={status.staged} unstaged={status.unstaged} lockOf={lockOf} checks={checks} canLock={props.canLock} busy={busy} run={run} />
         {conflicted.length > 0 && (
-          <ConflictList conflicted={conflicted} {...conflictSides(snapshot)} busy={busy} lockOf={lockOf} onFileMenu={onFileMenu} run={run} />
+          <ConflictList conflicted={conflicted} {...conflictSides(snapshot)} busy={busy} lockOf={lockOf} onFileMenu={onFileMenu} run={run} elsewhereOf={elsewhereOf} />
         )}
         <FileSection
           title="Staged"
@@ -80,6 +88,7 @@ export function WorktreeDetailsPanel(props: Props) {
           bulk={{ label: "Unstage all", onClick: () => quietly({ kind: "unstageAll" }) }}
           lockOf={lockOf}
           onFileMenu={onFileMenu}
+          elsewhereOf={elsewhereOf}
           fileAction={(file) => ({ label: "Unstage", icon: <MinusIcon size={13} />, onClick: () => quietly({ kind: "unstage", paths: paths(file) }) })}
           busy={busy}
         />
@@ -90,6 +99,7 @@ export function WorktreeDetailsPanel(props: Props) {
           bulk={{ label: "Stage all", onClick: () => quietly({ kind: "stageAll" }) }}
           lockOf={lockOf}
           onFileMenu={onFileMenu}
+          elsewhereOf={elsewhereOf}
           fileAction={(file) => ({ label: "Stage", icon: <PlusIcon size={13} />, onClick: () => quietly({ kind: "stage", paths: paths(file) }) })}
           busy={busy}
         />

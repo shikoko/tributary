@@ -135,6 +135,16 @@ pub async fn lfs_health(path: String) -> Result<Option<actions::LfsHealth>> {
     blocking(move || actions::lfs_health(&PathBuf::from(path))).await
 }
 
+/// Files you're working on (`changed`: your uncommitted changes, plus your branch's
+/// commits) that other recently changed branches also changed since yours split off.
+#[tauri::command]
+pub async fn changed_elsewhere(
+    path: String,
+    changed: Vec<String>,
+) -> Result<Vec<actions::Overlap>> {
+    blocking(move || actions::changed_elsewhere(&PathBuf::from(path), &changed)).await
+}
+
 /// How much space the local copies of Git LFS files take.
 #[tauri::command]
 pub async fn lfs_storage(path: String) -> Result<Option<actions::LfsStorage>> {

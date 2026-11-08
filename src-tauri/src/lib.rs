@@ -42,6 +42,7 @@ pub fn run() {
             commands::lfs_locks,
             commands::file_history,
             commands::file_checks,
+            commands::changed_elsewhere,
             commands::lfs_storage,
             commands::lfs_health,
             commands::diagnostics,

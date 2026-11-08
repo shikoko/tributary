@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { CommitRow, FileChange, FileChecks, Lock, RepoSnapshot } from "../api";
+import type { CommitRow, FileChange, FileChecks, Lock, Overlap, RepoSnapshot } from "../api";
 import { webRemote } from "../lib/weblinks";
 import type { DetailsAction } from "../components/CommitDetails";
 import { CommitDetailsPanel } from "../components/CommitDetails";
@@ -29,6 +29,10 @@ interface Props {
   messageTools: ReactNode;
   openDialog: (dialog: OpenDialog) => void;
   onFileMenu: (file: FileChange, x: number, y: number, where: "worktree" | "commit") => void;
+  /** Files you're changing that other branches also changed. */
+  overlaps: Overlap[];
+  /** A commit to show isn't among the loaded ones. */
+  onNotLoaded: () => void;
 }
 
 /**
@@ -69,6 +73,8 @@ export function DetailsPane(props: Props) {
         checks={props.checks}
         canLock={locks !== null}
         messageTools={props.messageTools}
+        overlaps={props.overlaps}
+        onShowCommit={(id) => (selection.byId.has(id) ? select(id) : props.onNotLoaded())}
       />
     );
   }

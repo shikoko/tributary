@@ -21,6 +21,7 @@ import { StartView } from "./app/StartView";
 import { useActions } from "./app/useActions";
 import { useBackgroundFetch } from "./app/useBackgroundFetch";
 import { useBranchCounts } from "./app/useBranchCounts";
+import { useChangedElsewhere } from "./app/useChangedElsewhere";
 import { useCommitDetails } from "./app/useCommitDetails";
 import { useDraft } from "./app/useDraft";
 import { useAutoLock, useFileChecks } from "./app/useFileChecks";
@@ -109,6 +110,7 @@ export default function App() {
   const lfs = useLfsLocks(repoPath);
   const lfsHealth = useLfsHealth(snapshot);
   const worktrees = useWorktrees(snapshot);
+  const overlaps = useChangedElsewhere(snapshot);
   const prs = usePullRequests(repoPath, Boolean(snapshot?.webRemotes.some((remote) => remote.host === "github")));
   const prLookup = useMemo(() => makeLookup(prs.list, openInBrowser), [prs.list]);
   const checks = useFileChecks(snapshot, preferences.largeFileMB);
@@ -320,6 +322,7 @@ export default function App() {
               counts={counts}
               lfs={lfs}
               lfsHealth={lfsHealth}
+              overlaps={overlaps}
               checks={checks}
               worktrees={worktrees}
               details={details}

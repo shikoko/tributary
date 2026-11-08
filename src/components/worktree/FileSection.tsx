@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { FileChange, Lock } from "../../api";
+import type { FileChange, Lock, Overlap } from "../../api";
 import { plural } from "../../lib/format";
 import { FileLine } from "../FileLine";
 
@@ -12,10 +12,12 @@ interface Props {
   busy: boolean;
   lockOf: (path: string) => Lock | undefined;
   onFileMenu: (file: FileChange, x: number, y: number) => void;
+  /** Where else a file was changed, if anywhere. */
+  elsewhereOf?: (path: string) => Overlap | undefined;
 }
 
 /** Staged or unstaged files, each with a button to move it to the other list, and one for all of them. */
-export function FileSection({ title, files, empty, bulk, fileAction, busy, lockOf, onFileMenu }: Props) {
+export function FileSection({ title, files, empty, bulk, fileAction, busy, lockOf, onFileMenu, elsewhereOf }: Props) {
   return (
     <section className="files">
       <h3>
@@ -38,6 +40,7 @@ export function FileSection({ title, files, empty, bulk, fileAction, busy, lockO
               file={file}
               action={{ ...fileAction(file), disabled: busy }}
               lock={lockOf(file.path)}
+              elsewhere={elsewhereOf?.(file.path)}
               onContextMenu={onFileMenu}
             />
           ))}
