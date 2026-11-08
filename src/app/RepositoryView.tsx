@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePresence } from "../lib/usePresence";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { fullRefName, PAGE_SIZE, WORKTREE_ID, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type RepoSnapshot, type Worktree } from "../api";
 import { commitTargets, findTarget, highlightedFirst, worktreeTargets, type DiffTarget, type ShownDiff } from "../lib/diffTargets";
@@ -210,6 +211,81 @@ export function RepositoryView(props: Props) {
   const lastHere = [...activityHere].reverse().find((entry) => entry.folder === snapshot.path && !entry.background);
   const canFetch = !snapshot.bare && snapshot.remotes.length > 0;
 
+  // The side panels slide open and closed (see usePresence).
+  const sidebarPanel = usePresence(
+    sidebarOpen,
+    sidebarOpen ? (
+      <Sidebar
+        commits={snapshot.commits}
+        hiddenRefs={snapshot.hiddenRefs}
+        visibility={settings.visibility}
+        pins={settings.pins}
+        selectedId={selection.selectedId}
+        width={sidebarWidth}
+        aheadBehind={counts.aheadBehind}
+        onSelect={(id) => byId.has(id) && select(id)}
+        onActivate={(entry) => checkout({ pill: pillForEntry(entry), commit: byId.get(entry.commitId) })}
+        onContextMenu={sidebarMenu}
+        onFocus={(entry) => byId.has(entry.commitId) && highlight.highlightHistory(entry.name, entry.commitId)}
+        onToggleVisible={(entry) => {
+          const name = fullRefName(entry);
+          if (!name) return;
+          settings.setHidden([name], settings.soloing ? settings.visibility.solo.includes(name) : !entry.hidden);
+        }}
+        onShowAll={settings.showAllBranches}
+        onPrune={canChange ? () => openDialog({ kind: "prune" }) : null}
+        protectedBranches={settings.protectedBranches}
+        locks={lfs.locks?.locks ?? null}
+        locksError={lfs.locks?.error ?? null}
+        onLockMenu={lockMenu}
+        onLockFiles={canChange ? props.lockFiles : null}
+        onReleaseMine={canChange && myLocks.length > 0 ? () => act({ kind: "unlockFiles", locks: myLocks.map(({ id, path }) => ({ id, path })), force: false }) : null}
+        worktrees={props.worktrees}
+        onOpenWorktree={(worktree) => !worktree.current && props.openTab(worktree.path)}
+        onWorktreeMenu={(worktree, x, y) => menu.show(x, y, worktreeMenuItems(worktree, worktreeContext))}
+        submodules={props.submodules.list}
+        onOpenSubmodule={submoduleContext.open}
+        onSubmoduleMenu={(submodule, x, y) => menu.show(x, y, submoduleMenuItems(submodule, submoduleContext))}
+      />
+    ) : null,
+  );
+  const detailsOpen = Boolean(selection.selected || selection.multi);
+  const detailsPanel = usePresence(
+    detailsOpen,
+    detailsOpen ? (
+      <DetailsPane
+        snapshot={snapshot}
+        selection={selection}
+        actions={actions}
+        canChange={canChange}
+        draft={props.draft}
+        details={props.details}
+        checks={props.checks}
+        locks={lfs.locks ? lfs.byPath : null}
+        isHistoryFile={highlight.isHistoryFile}
+        detailsActions={(commit) => detailsActionsFor(commit, snapshot, canChange, run, openDialog)}
+        messageTools={
+          <MessageTools
+            commits={snapshot.commits}
+            you={snapshot.user}
+            onUseMessage={async (commit) => {
+              const details = await props.details.load(commit.id).catch(() => null);
+              props.draft.setDraft((current) => ({ ...current, summary: details?.summary ?? commit.summary, description: details?.body ?? "" }));
+            }}
+            onAddCoAuthor={(person) => props.draft.setDraft((current) => ({ ...current, description: withCoAuthor(current.description, person) }))}
+            openMenu={menu.under}
+          />
+        }
+        openDialog={openDialog}
+        onFileMenu={fileMenu}
+        onOpenFile={showChanges}
+        shownDiff={shownDiff && { source: shownDiff.source, path: shownDiff.file.path }}
+        overlaps={props.overlaps}
+        onNotLoaded={notLoaded}
+      />
+    ) : null,
+  );
+
   return (
     <>
       <Toolbar
@@ -258,40 +334,11 @@ export function RepositoryView(props: Props) {
         openWorktree={props.openTab}
       />
       <main className="workspace">
-        {sidebarOpen && (
+        {sidebarPanel.shown && (
           <>
-            <Sidebar
-              commits={snapshot.commits}
-              hiddenRefs={snapshot.hiddenRefs}
-              visibility={settings.visibility}
-              pins={settings.pins}
-              selectedId={selection.selectedId}
-              width={sidebarWidth}
-              aheadBehind={counts.aheadBehind}
-              onSelect={(id) => byId.has(id) && select(id)}
-              onActivate={(entry) => checkout({ pill: pillForEntry(entry), commit: byId.get(entry.commitId) })}
-              onContextMenu={sidebarMenu}
-              onFocus={(entry) => byId.has(entry.commitId) && highlight.highlightHistory(entry.name, entry.commitId)}
-              onToggleVisible={(entry) => {
-                const name = fullRefName(entry);
-                if (!name) return;
-                settings.setHidden([name], settings.soloing ? settings.visibility.solo.includes(name) : !entry.hidden);
-              }}
-              onShowAll={settings.showAllBranches}
-              onPrune={canChange ? () => openDialog({ kind: "prune" }) : null}
-              protectedBranches={settings.protectedBranches}
-              locks={lfs.locks?.locks ?? null}
-              locksError={lfs.locks?.error ?? null}
-              onLockMenu={lockMenu}
-              onLockFiles={canChange ? props.lockFiles : null}
-              onReleaseMine={canChange && myLocks.length > 0 ? () => act({ kind: "unlockFiles", locks: myLocks.map(({ id, path }) => ({ id, path })), force: false }) : null}
-              worktrees={props.worktrees}
-              onOpenWorktree={(worktree) => !worktree.current && props.openTab(worktree.path)}
-              onWorktreeMenu={(worktree, x, y) => menu.show(x, y, worktreeMenuItems(worktree, worktreeContext))}
-              submodules={props.submodules.list}
-              onOpenSubmodule={submoduleContext.open}
-              onSubmoduleMenu={(submodule, x, y) => menu.show(x, y, submoduleMenuItems(submodule, submoduleContext))}
-            />
+            <div className={`sidebar-frame${sidebarPanel.closing ? " closing" : ""}`} style={{ width: sidebarWidth }}>
+              {sidebarPanel.content}
+            </div>
             <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
           </>
         )}
@@ -340,40 +387,11 @@ export function RepositoryView(props: Props) {
             />
           )}
         </div>
-        {(selection.selected || selection.multi) && (
+        {detailsPanel.shown && (
           <>
             <ResizeHandle className="panel-handle" {...panelResize("details")} />
-            <div className="details-frame" style={{ width: detailsWidth }}>
-              <DetailsPane
-                snapshot={snapshot}
-                selection={selection}
-                actions={actions}
-                canChange={canChange}
-                draft={props.draft}
-                details={props.details}
-                checks={props.checks}
-                locks={lfs.locks ? lfs.byPath : null}
-                isHistoryFile={highlight.isHistoryFile}
-                detailsActions={(commit) => detailsActionsFor(commit, snapshot, canChange, run, openDialog)}
-                messageTools={
-                  <MessageTools
-                    commits={snapshot.commits}
-                    you={snapshot.user}
-                    onUseMessage={async (commit) => {
-                      const details = await props.details.load(commit.id).catch(() => null);
-                      props.draft.setDraft((current) => ({ ...current, summary: details?.summary ?? commit.summary, description: details?.body ?? "" }));
-                    }}
-                    onAddCoAuthor={(person) => props.draft.setDraft((current) => ({ ...current, description: withCoAuthor(current.description, person) }))}
-                    openMenu={menu.under}
-                  />
-                }
-                openDialog={openDialog}
-                onFileMenu={fileMenu}
-                onOpenFile={showChanges}
-                shownDiff={shownDiff && { source: shownDiff.source, path: shownDiff.file.path }}
-                overlaps={props.overlaps}
-                onNotLoaded={notLoaded}
-              />
+            <div className={`details-frame${detailsPanel.closing ? " closing" : ""}`} style={{ width: detailsWidth, ["--panel-width" as string]: `${detailsWidth}px` }}>
+              {detailsPanel.content}
             </div>
           </>
         )}

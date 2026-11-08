@@ -881,10 +881,100 @@ body:not(.resizing) .commit-list:not(.graph-growing) .list-header {
 
 /* Details panel */
 
-.details-frame {
+/* The side panels: a frame that opens and closes (animating its width) around a panel of
+   fixed width, so the commit list moves over smoothly and the panel's own layout doesn't
+   squeeze along the way. */
+.details-frame,
+.sidebar-frame {
   display: flex;
   min-width: 0;
   flex: none;
+  overflow: hidden;
+  animation: panel-open 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* The details panel comes in from the right, the sidebar from the left. */
+.details-frame {
+  justify-content: flex-start;
+}
+
+.details-frame > * {
+  flex: none;
+  width: var(--panel-width);
+}
+
+.sidebar-frame {
+  justify-content: flex-end;
+}
+
+.details-frame.closing,
+.sidebar-frame.closing {
+  animation: panel-close 0.16s cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes panel-open {
+  from {
+    width: 0;
+    opacity: 0.6;
+  }
+}
+
+@keyframes panel-close {
+  to {
+    width: 0;
+    opacity: 0.6;
+  }
+}
+
+/* Windows, menus and popovers fade in, moving a few pixels into place. */
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes lift-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.dialog-backdrop,
+.palette-backdrop {
+  animation: backdrop-in 0.14s ease-out;
+}
+
+.dialog,
+.palette {
+  animation: rise-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.context-menu {
+  animation: drop-in 0.12s ease-out;
+}
+
+.elsewhere-panel {
+  animation: lift-in 0.14s ease-out;
+}
+
+.diff-view {
+  animation: backdrop-in 0.14s ease-out;
 }
 
 .details {
@@ -5055,4 +5145,8 @@ code {
   width: 260px;
   height: 30px;
   font-family: var(--font);
+}
+
+.commit-preview {
+  animation: backdrop-in 0.12s ease-out;
 }
