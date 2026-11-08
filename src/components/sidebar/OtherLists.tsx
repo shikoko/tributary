@@ -1,0 +1,84 @@
+import type { MouseEvent } from "react";
+import type { Lock, Worktree } from "../../api";
+import { worktreeName, worktreeNote } from "../../lib/worktrees";
+import { lockTitle } from "../FileLine";
+import { CheckIcon, FolderIcon, LockIcon } from "../Icons";
+
+interface WorktreeProps {
+  worktrees: Worktree[];
+  /** Click: the commit it has checked out. */
+  onSelect: (commitId: string) => void;
+  /** Double-click or Enter: open it in a tab. */
+  onOpen: (worktree: Worktree) => void;
+  onMenu: (worktree: Worktree, x: number, y: number) => void;
+}
+
+/** The repository's working trees, by folder, with what each has checked out. */
+export function WorktreeList({ worktrees, onSelect, onOpen, onMenu }: WorktreeProps) {
+  return (
+    <ul>
+      {worktrees.map((worktree) => (
+        <li key={worktree.path}>
+          <div
+            className={`sidebar-item sidebar-worktree${worktree.current ? " current" : ""}${worktree.prunable ? " hidden-ref" : ""}`}
+            role="button"
+            tabIndex={0}
+            title={`${worktree.path}${worktree.prunable ? " (its folder is gone)" : worktree.current ? " (open)" : ""}`}
+            onDoubleClick={() => onOpen(worktree)}
+            onKeyDown={(event) => event.key === "Enter" && onOpen(worktree)}
+            onClick={(event) => (worktree.prunable ? onMenu(worktree, event.clientX, event.clientY) : worktree.head && onSelect(worktree.head))}
+            onContextMenu={(event: MouseEvent) => {
+              event.preventDefault();
+              onMenu(worktree, event.clientX, event.clientY);
+            }}
+          >
+            <span className="sidebar-icon">{worktree.current ? <CheckIcon size={13} /> : <FolderIcon size={13} />}</span>
+            <span className="sidebar-name">{worktreeName(worktree)}</span>
+            {worktreeNote(worktree) && <span className="sidebar-lock-owner">{worktreeNote(worktree)}</span>}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+interface LockProps {
+  locks: Lock[];
+  /** Why the locks couldn't be refreshed. */
+  error: string | null;
+  onMenu: (lock: Lock, x: number, y: number) => void;
+}
+
+/** Files locked with Git LFS, and who holds each. */
+export function LockedFileList({ locks, error, onMenu }: LockProps) {
+  return (
+    <ul>
+      {locks.map((lock) => (
+        <li key={lock.id}>
+          <div
+            className={`sidebar-item sidebar-locked${lock.mine ? " mine" : ""}`}
+            role="button"
+            tabIndex={0}
+            title={`${lock.path}\n${lockTitle(lock)}`}
+            onClick={(event) => onMenu(lock, event.clientX, event.clientY)}
+            onContextMenu={(event: MouseEvent) => {
+              event.preventDefault();
+              onMenu(lock, event.clientX, event.clientY);
+            }}
+          >
+            <span className="sidebar-icon">
+              <LockIcon size={12} />
+            </span>
+            <span className="sidebar-name">{lock.path.split("/").pop()}</span>
+            <span className="sidebar-lock-owner">{lock.mine ? "you" : lock.owner}</span>
+          </div>
+        </li>
+      ))}
+      {error && (
+        <li className="sidebar-empty" title={error}>
+          Couldn't refresh the locks
+        </li>
+      )}
+    </ul>
+  );
+}

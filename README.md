@@ -189,9 +189,11 @@ The tests don't run on GitHub Actions, so run them before you build.
 | `src-tauri/src/updates.rs` | Finds, downloads and installs new versions from the GitHub releases |
 | `src-tauri/tests/` | Integration tests, one file per area, on throwaway repositories |
 | `src-tauri/examples/headless.rs` | The app's commands without a window, for the browser preview |
-| `src/App.tsx` | Holds the open repository's state and puts the pieces together |
-| `src/app/` | The app's hooks (preferences, shortcuts, background fetch, Git LFS health, …), its menus, command palette and dialogs |
-| `src/components/` | The interface: the commit list (only the rows on screen are rendered), the graph painter, the details panel, the dialogs, … |
+| `src/App.tsx` | Connects the parts: the tabs, the open repository or the start screen, and what opens over them |
+| `src/app/` | The app's state, in hooks (the open repository, tabs, selection, search, highlighting, actions, per-repository settings, …), and its screens, menus, command palette and dialogs |
+| `src/api/` | The commands the frontend calls, and the shapes of what they take and give back, one file per area |
+| `src/menus/` | The right-click menus of commits, branch and tag labels and the sidebar |
+| `src/components/` | The interface: the commit list (only the rows on screen are rendered; its layout, header, rows and canvases in `commitList/`), the sidebar (`sidebar/`), the changes panel (`worktree/`), the details panel, the dialogs, … |
 | `src/lib/` | Logic without an interface (search, selection, undo, paths, diagnostics, …), with its tests |
 | `src/styles.css` | The dark theme |
 | `tools/preview/` | The browser preview, demo repositories and the smoke test |

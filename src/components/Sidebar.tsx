@@ -1,29 +1,13 @@
-import { useContext, useMemo, useState, type MouseEvent, type ReactNode } from "react";
-import { PullRequestsContext } from "../lib/pullRequests";
-import { PullRequestBadge } from "./RefPills";
+import { useMemo, useState, type ReactNode } from "react";
 import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Visibility, type Worktree } from "../api";
-import { lockTitle } from "./CommitDetails";
-import { pressLabel } from "../lib/drag";
-import { collectRefs, type RefEntry } from "../lib/refs";
 import { stepFocus } from "../lib/inputMode";
-import { worktreeName, worktreeNote } from "../lib/worktrees";
+import type { RefEntry } from "../lib/refs";
 import { useStoredState } from "../lib/settings";
-import {
-  BranchIcon,
-  BroomIcon,
-  LockIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  CloudIcon,
-  EyeIcon,
-  EyeOffIcon,
-  FolderIcon,
-  PinIcon,
-  PlusIcon,
-  SearchIcon,
-  StashIcon,
-  TagIcon,
-} from "./Icons";
+import { BranchIcon, BroomIcon, CloudIcon, EyeOffIcon, PinIcon, PlusIcon, SearchIcon, StashIcon, TagIcon } from "./Icons";
+import { LockedFileList, WorktreeList } from "./sidebar/OtherLists";
+import { RefItem, type RefHandlers } from "./sidebar/RefItem";
+import { sidebarLists, stashLabel } from "./sidebar/refTree";
+import { RefTree, SidebarSection, type Folding } from "./sidebar/SidebarSection";
 
 interface Props {
   commits: CommitRow[];
@@ -63,199 +47,42 @@ interface Props {
   onWorktreeMenu: (worktree: Worktree, x: number, y: number) => void;
 }
 
-/** An entry, or a folder of entries that share a prefix like "feature/". */
-type Node = { kind: "entry"; entry: RefEntry; label: string } | { kind: "folder"; path: string; name: string; children: Node[]; count: number };
-
-/** Group names that share a prefix ("feature/a", "feature/b") into folders. Lone names stay as they are. */
-function group(entries: { entry: RefEntry; label: string }[], prefix = ""): Node[] {
-  const folders = new Map<string, { entry: RefEntry; label: string }[]>();
-  for (const item of entries) {
-    const slash = item.label.indexOf("/");
-    if (slash <= 0) continue;
-    const name = item.label.slice(0, slash);
-    folders.set(name, [...(folders.get(name) ?? []), item]);
-  }
-  const nodes: Node[] = [];
-  const placed = new Set<string>();
-  for (const item of entries) {
-    const slash = item.label.indexOf("/");
-    const name = slash > 0 ? item.label.slice(0, slash) : null;
-    const members = name ? folders.get(name) : undefined;
-    if (!name || !members || members.length < 2) {
-      nodes.push({ kind: "entry", ...item });
-    } else if (!placed.has(name)) {
-      placed.add(name);
-      const path = `${prefix}${name}/`;
-      const children = group(
-        members.map((member) => ({ entry: member.entry, label: member.label.slice(name.length + 1) })),
-        path,
-      );
-      nodes.push({ kind: "folder", path, name, children, count: members.length });
-    }
-  }
-  return nodes;
-}
-
-/** Every branch, remote branch, tag and stash; click one to jump to its commit. */
+/**
+ * Every branch, remote branch, tag and stash (click one to jump to its commit), pinned
+ * ones first, and the repository's worktrees and Git LFS locks. A filter narrows them all.
+ */
 export function Sidebar(props: Props) {
-  const { commits, hiddenRefs, visibility, pins, selectedId, width, onSelect, onActivate, onContextMenu } = props;
-  const { onFocus, onToggleVisible, aheadBehind } = props;
+  const { visibility, pins, selectedId, width, aheadBehind } = props;
   const [filter, setFilter] = useState("");
-  const pullRequests = useContext(PullRequestsContext);
   const [collapsed, setCollapsed] = useStoredState<Record<string, boolean>>("sidebar.collapsed", { tags: true });
-  const lists = useMemo(() => {
-    const lists = collectRefs(commits);
-    // Hidden branches and tags are listed too, so they can be shown again.
-    const byName = (a: RefEntry, b: RefEntry) => a.name.localeCompare(b.name, undefined, { numeric: true });
-    for (const ref of hiddenRefs) {
-      const entry: RefEntry = { kind: ref.kind === "head" ? "branch" : ref.kind, name: ref.name, commitId: ref.commit, current: false, summary: "", upstream: ref.upstream, hidden: true };
-      if (ref.kind === "branch") lists.branches.push(entry);
-      else if (ref.kind === "tag") lists.tags.push(entry);
-      else if (ref.kind === "remote") {
-        const remote = ref.name.slice(0, Math.max(0, ref.name.indexOf("/"))) || ref.name;
-        if (!lists.remotes.has(remote)) lists.remotes.set(remote, []);
-        lists.remotes.get(remote)!.push(entry);
-      }
-    }
-    lists.branches.sort((a, b) => Number(b.current) - Number(a.current) || byName(a, b));
-    lists.tags.sort(byName);
-    for (const entries of lists.remotes.values()) entries.sort(byName);
-    return lists;
-  }, [commits, hiddenRefs]);
+  const lists = useMemo(() => sidebarLists(props.commits, props.hiddenRefs), [props.commits, props.hiddenRefs]);
 
   const needle = filter.trim().toLowerCase();
+  const filtering = needle !== "";
   const matches = (entry: RefEntry) => !needle || entry.name.toLowerCase().includes(needle);
-  const toggle = (key: string) => setCollapsed((current) => ({ ...current, [key]: !current[key] }));
   // While filtering, every section is open so nothing that matches is hidden.
-  const isOpen = (key: string) => Boolean(needle) || !collapsed[key];
-  const soloing = visibility.solo.length > 0;
-
-  const item = (entry: RefEntry, label: string, icon: ReactNode, depth = 0, key = `${entry.kind}:${entry.name}`) => {
-    const counts = entry.kind === "branch" ? aheadBehind.get(entry.name) : undefined;
-    const fullName = fullRefName(entry);
-    const soloed = soloing && fullName !== null && visibility.solo.includes(fullName);
-    const canHide = fullName !== null && !entry.current;
-    const pr =
-      entry.kind === "branch"
-        ? pullRequests?.find(entry.name, true, [], entry.upstream)
-        : entry.kind === "remote"
-          ? pullRequests?.find(entry.name, false, [])
-          : undefined;
-    return (
-      <li key={key}>
-        <div
-          className={`sidebar-item${entry.commitId === selectedId && !entry.hidden ? " selected" : ""}${entry.current ? " current" : ""}${entry.hidden ? " hidden-ref" : ""}`}
-          style={depth ? { paddingLeft: 12 + depth * 14 } : undefined}
-          role="button"
-          tabIndex={0}
-          onPointerDown={(event) => {
-            if (entry.kind !== "stash" && !entry.hidden && !event.altKey) pressLabel(event, entry.name);
-          }}
-          onClick={(event) => (event.altKey && entry.kind !== "stash" ? onFocus(entry) : onSelect(entry.commitId))}
-          onKeyDown={(event) => event.key === "Enter" && onSelect(entry.commitId)}
-          onDoubleClick={() => !entry.hidden && onActivate(entry)}
-          onContextMenu={(event: MouseEvent) => {
-            event.preventDefault();
-            onSelect(entry.commitId);
-            onContextMenu(entry, event.clientX, event.clientY);
-          }}
-          title={entry.kind === "stash" ? `${entry.name}: ${entry.summary}` : entry.hidden ? `${entry.name} (hidden)` : entry.name}
-        >
-          <span className="sidebar-icon">{entry.current ? <CheckIcon size={13} /> : icon}</span>
-          <span className="sidebar-name">{label}</span>
-          {entry.kind === "branch" && props.protectedBranches.includes(entry.name) && (
-            <span className="sidebar-lock" title={`${entry.name} is protected: it can't be deleted, and rewriting it needs its name typed`}>
-              <LockIcon size={11} />
-            </span>
-          )}
-          {pr && <PullRequestBadge pr={pr} onOpen={pullRequests!.open} />}
-          {counts && (counts.ahead > 0 || counts.behind > 0) && (
-            <span
-              className="sidebar-counts"
-              title={`${counts.ahead} to push, ${counts.behind} to pull (${entry.upstream ?? "upstream"})`}
-            >
-              {counts.ahead > 0 && <span>↑{counts.ahead}</span>}
-              {counts.behind > 0 && <span>↓{counts.behind}</span>}
-            </span>
-          )}
-          {canHide && (
-            <button
-              className={`sidebar-eye${entry.hidden ? " off" : ""}${soloed ? " solo" : ""}`}
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleVisible(entry);
-              }}
-              onDoubleClick={(event) => event.stopPropagation()}
-              title={
-                soloing
-                  ? soloed
-                    ? `Stop showing only ${entry.name}`
-                    : `Also show ${entry.name}`
-                  : entry.hidden
-                    ? `Show ${entry.name} in the graph`
-                    : `Hide ${entry.name} from the graph`
-              }
-              aria-label={entry.hidden ? `Show ${entry.name}` : `Hide ${entry.name}`}
-            >
-              {entry.hidden ? <EyeOffIcon size={13} /> : <EyeIcon size={13} />}
-            </button>
-          )}
-        </div>
-      </li>
-    );
+  const folding: Folding = {
+    isOpen: (key) => filtering || !collapsed[key],
+    toggle: (key) => setCollapsed((current) => ({ ...current, [key]: !current[key] })),
   };
-
-  /** A list of entries, with shared prefixes grouped into folders. */
-  const tree = (sectionKey: string, entries: RefEntry[], labelOf: (entry: RefEntry) => string, icon: ReactNode) => {
-    const render = (nodes: Node[], depth: number): ReactNode[] =>
-      nodes.map((node) => {
-        if (node.kind === "entry") return item(node.entry, node.label, icon, depth);
-        const key = `folder:${sectionKey}:${node.path}`;
-        const open = isOpen(key);
-        return (
-          <li key={key}>
-            <button
-              className="sidebar-item sidebar-folder"
-              style={{ paddingLeft: 12 + depth * 14 }}
-              onClick={() => toggle(key)}
-              onKeyDown={(event) => {
-                // → opens a folder, ← closes it.
-                if ((event.key === "ArrowRight" && !open) || (event.key === "ArrowLeft" && open)) {
-                  event.preventDefault();
-                  toggle(key);
-                }
-              }}
-              aria-expanded={open}
-            >
-              <span className="sidebar-icon">
-                <ChevronDownIcon size={11} className={open ? undefined : "collapsed"} />
-              </span>
-              <FolderIcon size={13} />
-              <span className="sidebar-name">{node.name}</span>
-              <span className="sidebar-count">{node.count}</span>
-            </button>
-            {open && <ul>{render(node.children, depth + 1)}</ul>}
-          </li>
-        );
-      });
-    return <ul>{render(group(entries.map((entry) => ({ entry, label: labelOf(entry) }))), 0)}</ul>;
-  };
-
-  const section = (key: string, title: string, count: number, children: ReactNode, action?: ReactNode) =>
-    (count > 0 || !needle) && (
-      <section className="sidebar-section" key={key}>
-        <div className="sidebar-heading-row">
-          <button className="sidebar-heading" onClick={() => toggle(key)} aria-expanded={isOpen(key)}>
-            <ChevronDownIcon size={12} className={isOpen(key) ? undefined : "collapsed"} />
-            <span>{title}</span>
-            <span className="sidebar-count">{count}</span>
-          </button>
-          {action}
-        </div>
-        {isOpen(key) && (count > 0 ? children : <div className="sidebar-empty">None</div>)}
-      </section>
-    );
+  const handlers: RefHandlers = props;
+  const item = (entry: RefEntry, label: string, icon: ReactNode, depth = 0, key = `${entry.kind}:${entry.name}`) => (
+    <RefItem
+      key={key}
+      entry={entry}
+      label={label}
+      icon={icon}
+      depth={depth}
+      selected={entry.commitId === selectedId}
+      visibility={visibility}
+      counts={entry.kind === "branch" ? aheadBehind.get(entry.name) : undefined}
+      isProtected={entry.kind === "branch" && props.protectedBranches.includes(entry.name)}
+      handlers={handlers}
+    />
+  );
+  const tree = (id: string, entries: RefEntry[], labelOf: (entry: RefEntry) => string, icon: ReactNode) => (
+    <RefTree id={id} entries={entries} labelOf={labelOf} folding={folding} renderItem={(entry, label, depth) => item(entry, label, icon, depth)} />
+  );
 
   const branches = lists.branches.filter(matches);
   const tags = lists.tags.filter(matches);
@@ -267,7 +94,9 @@ export function Sidebar(props: Props) {
   const pinned = pins
     .map((name) => everything.find((entry) => fullRefName(entry) === name))
     .filter((entry): entry is RefEntry => entry !== undefined && matches(entry));
+  const soloing = visibility.solo.length > 0;
   const hiddenCount = soloing ? visibility.solo.length : visibility.hidden.length;
+  const section = { filtering, folding };
 
   return (
     <aside
@@ -278,8 +107,7 @@ export function Sidebar(props: Props) {
         // ↑ ↓ Home End move between the entries, across sections.
         const target = event.target as HTMLElement;
         if (!target.classList.contains("sidebar-item") || event.key === "ArrowLeft" || event.key === "ArrowRight") return;
-        const all = [...event.currentTarget.querySelectorAll<HTMLElement>(".sidebar-item")];
-        const next = stepFocus(all, target, event.key);
+        const next = stepFocus([...event.currentTarget.querySelectorAll<HTMLElement>(".sidebar-item")], target, event.key);
         if (next) {
           event.preventDefault();
           next.focus();
@@ -313,31 +141,28 @@ export function Sidebar(props: Props) {
         </div>
       )}
       <div className="sidebar-scroll">
-        {pinned.length > 0 &&
-          section(
-            "pinned",
-            "Pinned",
-            pinned.length,
-            <ul>
-              {pinned.map((entry) => item(entry, entry.name, <PinIcon size={13} />, 0, `pin:${entry.kind}:${entry.name}`))}
-            </ul>,
-          )}
-        {section(
-          "branches",
-          "Branches",
-          branches.length,
-          tree("branches", branches, (e) => e.name, <BranchIcon size={13} />),
-          props.onPrune && (
-            <button className="sidebar-heading-action" onClick={props.onPrune} title="Prune branches: clean up merged ones and ones gone from the remote" aria-label="Prune branches">
-              <BroomIcon size={13} />
-            </button>
-          ),
+        {pinned.length > 0 && (
+          <SidebarSection id="pinned" title="Pinned" count={pinned.length} {...section}>
+            <ul>{pinned.map((entry) => item(entry, entry.name, <PinIcon size={13} />, 0, `pin:${entry.kind}:${entry.name}`))}</ul>
+          </SidebarSection>
         )}
-        {section(
-          "remotes",
-          "Remotes",
-          remoteCount,
-          remotes.map(
+        <SidebarSection
+          id="branches"
+          title="Branches"
+          count={branches.length}
+          {...section}
+          action={
+            props.onPrune && (
+              <button className="sidebar-heading-action" onClick={props.onPrune} title="Prune branches: clean up merged ones and ones gone from the remote" aria-label="Prune branches">
+                <BroomIcon size={13} />
+              </button>
+            )
+          }
+        >
+          {tree("branches", branches, (e) => e.name, <BranchIcon size={13} />)}
+        </SidebarSection>
+        <SidebarSection id="remotes" title="Remotes" count={remoteCount} {...section}>
+          {remotes.map(
             ([remote, entries]) =>
               entries.length > 0 && (
                 <div key={remote} className="sidebar-group">
@@ -345,93 +170,37 @@ export function Sidebar(props: Props) {
                   {tree(`remote:${remote}`, entries, (e) => e.name.slice(remote.length + 1), <CloudIcon size={13} />)}
                 </div>
               ),
-          ),
-        )}
-        {section("tags", "Tags", tags.length, tree("tags", tags, (e) => e.name, <TagIcon size={13} />))}
-        {section(
-          "stashes",
-          "Stashes",
-          stashes.length,
-          <ul>{stashes.map((e) => item(e, stashLabel(e), <StashIcon size={13} />))}</ul>,
-        )}
-        {props.worktrees.length > 1 &&
-          section(
-            "worktrees",
-            "Worktrees",
-            props.worktrees.length,
-            <ul>
-              {props.worktrees.map((worktree) => (
-                <li key={worktree.path}>
-                  <div
-                    className={`sidebar-item sidebar-worktree${worktree.current ? " current" : ""}${worktree.prunable ? " hidden-ref" : ""}`}
-                    role="button"
-                    tabIndex={0}
-                    title={`${worktree.path}${worktree.prunable ? " (its folder is gone)" : worktree.current ? " (open)" : ""}`}
-                    onDoubleClick={() => props.onOpenWorktree(worktree)}
-                    onKeyDown={(event) => event.key === "Enter" && props.onOpenWorktree(worktree)}
-                    onClick={(event) =>
-                      worktree.prunable
-                        ? props.onWorktreeMenu(worktree, event.clientX, event.clientY)
-                        : worktree.head && props.onSelect(worktree.head)
-                    }
-                    onContextMenu={(event: MouseEvent) => {
-                      event.preventDefault();
-                      props.onWorktreeMenu(worktree, event.clientX, event.clientY);
-                    }}
-                  >
-                    <span className="sidebar-icon">{worktree.current ? <CheckIcon size={13} /> : <FolderIcon size={13} />}</span>
-                    <span className="sidebar-name">{worktreeName(worktree)}</span>
-                    {worktreeNote(worktree) && <span className="sidebar-lock-owner">{worktreeNote(worktree)}</span>}
-                  </div>
-                </li>
-              ))}
-            </ul>,
           )}
-        {locks &&
-          section(
-            "locks",
-            "Locked files",
-            locks.length,
-            <ul>
-              {locks.map((lock) => (
-                <li key={lock.id}>
-                  <div
-                    className={`sidebar-item sidebar-locked${lock.mine ? " mine" : ""}`}
-                    role="button"
-                    tabIndex={0}
-                    title={`${lock.path}\n${lockTitle(lock)}`}
-                    onClick={(event) => props.onLockMenu(lock, event.clientX, event.clientY)}
-                    onContextMenu={(event: MouseEvent) => {
-                      event.preventDefault();
-                      props.onLockMenu(lock, event.clientX, event.clientY);
-                    }}
-                  >
-                    <span className="sidebar-icon">
-                      <LockIcon size={12} />
-                    </span>
-                    <span className="sidebar-name">{lock.path.split("/").pop()}</span>
-                    <span className="sidebar-lock-owner">{lock.mine ? "you" : lock.owner}</span>
-                  </div>
-                </li>
-              ))}
-              {props.locksError && (
-                <li className="sidebar-empty" title={props.locksError}>
-                  Couldn't refresh the locks
-                </li>
-              )}
-            </ul>,
-            props.onLockFiles && (
-              <button className="sidebar-heading-action" onClick={props.onLockFiles} title="Lock files…" aria-label="Lock files">
-                <PlusIcon size={13} />
-              </button>
-            ),
-          )}
+        </SidebarSection>
+        <SidebarSection id="tags" title="Tags" count={tags.length} {...section}>
+          {tree("tags", tags, (e) => e.name, <TagIcon size={13} />)}
+        </SidebarSection>
+        <SidebarSection id="stashes" title="Stashes" count={stashes.length} {...section}>
+          <ul>{stashes.map((e) => item(e, stashLabel(e), <StashIcon size={13} />))}</ul>
+        </SidebarSection>
+        {props.worktrees.length > 1 && (
+          <SidebarSection id="worktrees" title="Worktrees" count={props.worktrees.length} {...section}>
+            <WorktreeList worktrees={props.worktrees} onSelect={props.onSelect} onOpen={props.onOpenWorktree} onMenu={props.onWorktreeMenu} />
+          </SidebarSection>
+        )}
+        {locks && (
+          <SidebarSection
+            id="locks"
+            title="Locked files"
+            count={locks.length}
+            {...section}
+            action={
+              props.onLockFiles && (
+                <button className="sidebar-heading-action" onClick={props.onLockFiles} title="Lock files…" aria-label="Lock files">
+                  <PlusIcon size={13} />
+                </button>
+              )
+            }
+          >
+            <LockedFileList locks={locks} error={props.locksError} onMenu={props.onLockMenu} />
+          </SidebarSection>
+        )}
       </div>
     </aside>
   );
-}
-
-/** "Try a collapsible sidebar" for a stash made with the message "On main: Try a collapsible sidebar". */
-function stashLabel(entry: RefEntry): string {
-  return entry.summary.replace(/^(WIP )?on [^:]+: /i, "") || entry.name;
 }
