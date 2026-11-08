@@ -407,3 +407,21 @@ export interface BranchActivity {
 export function teamActivity(path: string, days: number): Promise<TeamActivity> {
   return invoke<TeamActivity>("team_activity", { path, days });
 }
+
+/** Where a recent repository stands, for the start screen. */
+export interface RepoSummary {
+  /** The folder is there and holds a repository. */
+  found: boolean;
+  /** The checked-out branch (null when HEAD is detached). */
+  branch: string | null;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  /** Files with uncommitted changes (new ones included), and with conflicts. */
+  changes: number;
+  conflicts: number;
+}
+
+export function repoSummary(path: string): Promise<RepoSummary> {
+  return invoke<RepoSummary>("repo_summary", { path });
+}

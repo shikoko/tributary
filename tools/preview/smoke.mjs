@@ -467,6 +467,10 @@ try {
       [demos.studio, STUDIO_PULL_REQUESTS],
     );
     await page.getByRole("button", { name: "New tab" }).click();
+    // The recent notebook shows where it stands: its branch and uncommitted changes.
+    const notebook = page.locator(".recent li", { hasText: "notebook" }).first();
+    await notebook.locator(".recent-chip.changes").waitFor({ timeout: 10_000 });
+    await notebook.locator(".recent-branch", { hasText: "main" }).waitFor({ timeout: 5000 });
     await page.getByText("Open repository").first().click();
     await row("Add a tavern chair").waitFor({ timeout: 15_000 });
     expect((await page.locator(".tab").count()) >= 2, "only one tab");

@@ -7437,3 +7437,46 @@ button.request-ref:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Recent repositories: where each stands now. */
+.recent-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  margin-left: auto;
+}
+
+.recent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.recent-chip.changes {
+  background: rgb(var(--warning-rgb) / 0.14);
+  color: var(--warning-text);
+}
+
+.recent-chip.conflicts,
+.recent-chip.missing {
+  background: rgb(var(--danger-rgb) / 0.14);
+  color: var(--danger-text);
+}
+
+.recent-chip.sync {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.recent li.missing .recent-name,
+.recent li.missing .recent-path {
+  opacity: 0.6;
+}

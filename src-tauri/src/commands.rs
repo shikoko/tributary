@@ -222,6 +222,12 @@ pub async fn repo_identity(path: String) -> Result<actions::RepoIdentity> {
     blocking(move || actions::repo_identity(&PathBuf::from(path))).await
 }
 
+/// Where a recent repository stands: its branch, ahead and behind, uncommitted changes.
+#[tauri::command]
+pub async fn repo_summary(path: String) -> Result<repo::RepoSummary> {
+    blocking(move || Ok(repo::summary(&PathBuf::from(path)))).await
+}
+
 /// The repository's remotes and their addresses (without passwords or tokens).
 #[tauri::command]
 pub async fn remotes(path: String) -> Result<Vec<actions::RemoteInfo>> {

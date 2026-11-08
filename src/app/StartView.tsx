@@ -2,6 +2,7 @@ import { forgetRepo, pinRepo } from "../lib/recent";
 import { isMac } from "../lib/platform";
 import { Welcome } from "../components/Welcome";
 import type { Repository } from "./useRepository";
+import { useRecentSummaries } from "./useRecentSummaries";
 
 interface Props {
   repo: Repository;
@@ -13,11 +14,13 @@ interface Props {
 /** The start screen: open, clone or create a repository, or pick a recent one. */
 export function StartView({ repo, tabBar, onClone }: Props) {
   const { recent, setRecent, busy, error } = repo;
+  const summaries = useRecentSummaries(recent, true);
   return (
     <>
       {!tabBar && isMac && <div className="window-drag-strip" data-tauri-drag-region />}
       <Welcome
         recent={recent}
+        summaries={summaries}
         opening={busy?.kind === "open" ? busy.path : null}
         error={error?.message ?? null}
         onPick={repo.pick}

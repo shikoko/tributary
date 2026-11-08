@@ -177,6 +177,7 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "repo_identity" => to_json(actions::repo_identity(&path()?)?),
         "signing_settings" => to_json(actions::signing_settings(&path()?)?),
         "remotes" => to_json(actions::remotes(&path()?)?),
+        "repo_summary" => to_json(repo::summary(&path()?)),
         "lfs_settings" => to_json(actions::lfs_settings(&path()?)?),
         "diff_tool_settings" => {
             let folder: Option<String> = optional(args, "path")?;

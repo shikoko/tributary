@@ -10,6 +10,7 @@ mod refs;
 mod remotes;
 mod snapshot;
 mod status;
+mod summary;
 mod worktrees;
 
 use std::path::Path;
@@ -29,6 +30,7 @@ pub use snapshot::{
     load_with,
 };
 pub use status::{FileChange, FileStatus, WorktreeStatus};
+pub use summary::{RepoSummary, summary};
 pub use worktrees::{Worktree, worktrees};
 
 pub(crate) fn open(path: &Path) -> Result<gix::Repository, Error> {

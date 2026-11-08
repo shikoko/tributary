@@ -61,6 +61,7 @@ const UNLOGGED: &[&str] = &[
     "log",
     "diff",
     "cat-file",
+    "status",
 ];
 
 /// `text` with the user names and passwords (or tokens) taken out of the web addresses in
