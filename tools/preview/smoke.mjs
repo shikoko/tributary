@@ -70,6 +70,8 @@ const dismissToast = async () => {
   await page.locator(".toast").waitFor({ state: "detached", timeout: 5000 }).catch(() => {});
 };
 const row = (text) => page.locator(".commit-row", { hasText: text }).first();
+/** Scroll the commit list to its end (only the rows on screen are drawn), or back to the top. */
+const scrollList = (where) => page.locator(".list-scroller").evaluate((el, end) => el.scrollTo(0, end ? el.scrollHeight : 0), where === "end");
 
 console.log("Tributary smoke test");
 try {
@@ -152,10 +154,15 @@ try {
     await page.locator(".tool-button", { hasText: "Fetch" }).click();
     await toast();
     await row("Tidy up the settings screen").waitFor({ timeout: 10_000 });
+    // A teammate merged main into feature/export: the local branch's label says it's behind.
+    const exportLabel = page.locator(".commit-list .ref-pill[title^='Branch feature/export (local)']");
+    await exportLabel.locator(".ref-sync", { hasText: "↓" }).waitFor({ timeout: 10_000 });
+    expect((await exportLabel.getAttribute("title"))?.includes("behind origin/feature/export"), "the label doesn't say it's behind");
     await dismissToast();
   });
 
   await step("makes a tag in a dialog, and undoes it", async () => {
+    await scrollList("end");
     await row("Add the note model").click({ button: "right" });
     await page.locator(".menu-item", { hasText: "New tag here" }).click();
     await page.getByPlaceholder("v1.2.0").fill("v0.0.9");
@@ -165,6 +172,7 @@ try {
     await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
     await page.waitForFunction(() => ![...document.querySelectorAll(".ref-pill")].some((pill) => pill.textContent?.includes("v0.0.9")), null, { timeout: 10_000 });
     await dismissToast();
+    await scrollList("top");
   });
 
   await step("highlights a file's history, until Esc", async () => {

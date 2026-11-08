@@ -1083,6 +1083,17 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
   opacity: 0.75;
 }
 
+/* ↑2 ↓1: how far a local branch is from the one it tracks. */
+.ref-sync {
+  display: inline-flex;
+  flex: none;
+  gap: 3px;
+  margin-left: 1px;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .ref-pill svg {
   flex: none;
 }

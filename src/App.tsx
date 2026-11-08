@@ -37,6 +37,7 @@ import { useOverlays } from "./app/useOverlays";
 import { usePlace } from "./app/usePlace";
 import { usePreferences } from "./app/usePreferences";
 import { ThemeContext, useAppearance } from "./app/useAppearance";
+import { BranchSyncContext } from "./lib/branchSync";
 import { useRepository } from "./app/useRepository";
 import { useRepositorySettings } from "./app/useRepositorySettings";
 import { useSearch } from "./app/useSearch";
@@ -325,6 +326,7 @@ export default function App() {
   const showTabBar = Boolean(snapshot) || tabs.length > 0 || menuBar.element !== undefined;
   return (
     <ThemeContext.Provider value={theme}>
+    <BranchSyncContext.Provider value={counts.aheadBehind}>
     <ProfilePictures.Provider value={preferences.profilePictures ? repoPath : null}>
       <PullRequestsContext.Provider value={prs.list.length > 0 ? prLookup : null}>
         <div className="app">
@@ -409,6 +411,7 @@ export default function App() {
         </div>
       </PullRequestsContext.Provider>
     </ProfilePictures.Provider>
+    </BranchSyncContext.Provider>
     </ThemeContext.Provider>
   );
 }

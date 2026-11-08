@@ -1,5 +1,6 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PullRequest } from "../api";
+import { BranchSyncContext, describeSync } from "../lib/branchSync";
 import { describeChecks, PullRequestsContext, requestNumber } from "../lib/pullRequests";
 import type { RefLabel } from "../api";
 import { withAlpha } from "../lib/colors";
@@ -68,6 +69,9 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
   const revision = revisionOf(pill);
   const pullRequests = useContext(PullRequestsContext);
   const pr = pill.kind === "branch" ? pullRequests?.find(pill.name, pill.local, pill.remotes) : undefined;
+  // A local branch that isn't where the branch it tracks is: how far ahead and behind.
+  const sync = useContext(BranchSyncContext).get(pill.kind === "branch" && pill.local ? pill.name : "");
+  const syncText = sync ? describeSync(sync) : null;
   const style: React.CSSProperties = pill.current
     ? // --pill-glow: the glow it gets in the commit list.
       ({ background: color, borderColor: color, color: "var(--on-lane)", "--pill-glow": withAlpha(color, 0.5) } as React.CSSProperties)
@@ -80,7 +84,11 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
     <span
       className={`ref-pill ${pill.kind}${pill.current ? " current" : ""}`}
       style={style}
-      title={describePill(pill) + (onActivate && pill.kind === "branch" && !pill.current ? " — double-click to check out" : "")}
+      title={
+        describePill(pill) +
+        (syncText ? `\n${syncText}` : "") +
+        (onActivate && pill.kind === "branch" && !pill.current ? "\nDouble-click to check out" : "")
+      }
       onDoubleClick={(event) => {
         if (!onActivate) return;
         event.stopPropagation();
@@ -110,6 +118,12 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
         <span className="ref-where">
           {pill.local && <LaptopIcon size={12} />}
           {pill.remotes.length > 0 && <CloudIcon size={12} />}
+        </span>
+      )}
+      {sync && syncText && (
+        <span className="ref-sync" aria-label={syncText}>
+          {sync.ahead > 0 && <span>↑{sync.ahead}</span>}
+          {sync.behind > 0 && <span>↓{sync.behind}</span>}
         </span>
       )}
       {pr && <PullRequestBadge pr={pr} onOpen={pullRequests!.open} />}

@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import type { BranchSync } from "../lib/branchSync";
 import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Submodule, type Visibility, type Worktree } from "../api";
 import { stepFocus } from "../lib/inputMode";
 import type { RefEntry } from "../lib/refs";
@@ -33,7 +34,7 @@ interface Props {
   /** Protected branch names, shown with a padlock. */
   protectedBranches: string[];
   /** For local branches that track a remote branch: commits to push and to pull. */
-  aheadBehind: Map<string, { ahead: number; behind: number }>;
+  aheadBehind: Map<string, BranchSync>;
   /** Files locked with Git LFS, or null when the repository doesn't use locking. */
   locks: Lock[] | null;
   /** Why the locks couldn't be refreshed. */

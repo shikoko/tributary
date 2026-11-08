@@ -437,12 +437,18 @@ export function buildNotebook(root, configFile) {
   run(["push", "-q", "origin", "main~1:refs/heads/main", "feature/export"]);
   run(["fetch", "-q", "origin"]);
   run(["branch", "-q", "--set-upstream-to=origin/main", "main"]);
+  run(["branch", "-q", "--set-upstream-to=origin/feature/export", "feature/export"]);
   const teammate = join(root, "remotes", "notebook-teammate");
   rmSync(teammate, { recursive: true, force: true });
   execFileSync("git", ["clone", "-q", origin, teammate], { env: { ...process.env, GIT_CONFIG_GLOBAL: configFile } });
   const priya = repository(teammate, { configFile, start: now() - 3600 });
   priya.run(["commit", "-q", "--allow-empty", "-m", "Tidy up the settings screen"], { who: "priya" });
   priya.run(["push", "-q", "origin", "main", "HEAD:refs/heads/feature/onboarding"]);
+  // Priya brings the latest main into feature/export with a merge on the remote: after a
+  // fetch, the local feature/export is a commit behind its upstream.
+  priya.run(["checkout", "-q", "feature/export"]);
+  priya.run(["merge", "-q", "--no-ff", "-m", "Merge the latest main into feature/export", "main"], { who: "priya" });
+  priya.run(["push", "-q", "origin", "feature/export"]);
 
   // The editor kit here is still at its first version, as after a pull that didn't
   // update submodules.

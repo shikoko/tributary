@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { CommitRow, RepoSnapshot } from "../api";
+import type { BranchSync } from "../lib/branchSync";
 import { ancestors, countMissing } from "../lib/graph";
 
 /**
@@ -15,7 +16,7 @@ export function useBranchCounts(snapshot: RepoSnapshot | null, byId: Map<string,
   }, [snapshot, byId, headHistory]);
 
   const aheadBehind = useMemo(() => {
-    const result = new Map<string, { ahead: number; behind: number }>();
+    const result = new Map<string, BranchSync>();
     if (!snapshot) return result;
     const remoteTips = new Map<string, string>();
     const branches: { name: string; id: string; upstream: string }[] = [];
@@ -30,7 +31,7 @@ export function useBranchCounts(snapshot: RepoSnapshot | null, byId: Map<string,
       if (!upstreamId) continue;
       const local = ancestors(branch.id, byId);
       const remote = ancestors(upstreamId, byId);
-      result.set(branch.name, { ahead: countMissing(local, remote), behind: countMissing(remote, local) });
+      result.set(branch.name, { ahead: countMissing(local, remote), behind: countMissing(remote, local), upstream: branch.upstream });
     }
     return result;
   }, [snapshot, byId]);
