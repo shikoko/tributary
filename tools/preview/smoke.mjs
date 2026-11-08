@@ -213,6 +213,25 @@ try {
     await page.locator(".status-item.elsewhere").waitFor({ timeout: 5000 });
   });
 
+  await step("offers to release your locks after pushing", async () => {
+    await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+    await page.getByRole("button", { name: "Unstage all" }).click();
+    await page.locator(".file", { hasText: "Barber.uasset" }).hover();
+    await page.getByRole("button", { name: "Stage Content/Characters/Barber.uasset" }).click();
+    await page.getByPlaceholder("Commit summary").fill("Tweak the barber's apron");
+    await page.locator(".commit-box .primary-small-button").click();
+    await page.locator(".commit-row", { hasText: "Tweak the barber's apron" }).waitFor({ timeout: 10_000 });
+    await dismissToast();
+    await page.locator(".tool-button", { hasText: "Push" }).first().click();
+    const banner = page.locator(".notice-banner.info");
+    await banner.waitFor({ timeout: 15_000 });
+    const text = await banner.innerText();
+    expect(text.includes("Barber.uasset"), `banner "${text}"`);
+    await banner.getByRole("button", { name: "Release lock" }).click();
+    await page.locator(".sidebar-locked", { hasText: "Barber" }).waitFor({ state: "detached", timeout: 15_000 });
+    await dismissToast();
+  });
+
   await step("shows pull requests on their branches", async () => {
     await page.locator(".pr-badge").first().waitFor({ timeout: 10_000 });
   });

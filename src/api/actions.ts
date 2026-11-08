@@ -91,6 +91,8 @@ export interface Outcome {
   pullRequest?: string;
   /** Where what the action threw away was kept, to undo it (like discarded changes). */
   backup?: string;
+  /** After a push: the files the pushed commits changed. */
+  pushedFiles?: string[];
 }
 
 /** A git command Tributary ran. */

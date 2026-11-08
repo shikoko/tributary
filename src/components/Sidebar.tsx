@@ -3,7 +3,7 @@ import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Visibility
 import { stepFocus } from "../lib/inputMode";
 import type { RefEntry } from "../lib/refs";
 import { useStoredState } from "../lib/settings";
-import { BranchIcon, BroomIcon, CloudIcon, EyeOffIcon, PinIcon, PlusIcon, SearchIcon, StashIcon, TagIcon } from "./Icons";
+import { BranchIcon, BroomIcon, CloudIcon, EyeOffIcon, PinIcon, PlusIcon, SearchIcon, StashIcon, TagIcon, UnlockIcon } from "./Icons";
 import { LockedFileList, WorktreeList } from "./sidebar/OtherLists";
 import { RefItem, type RefHandlers } from "./sidebar/RefItem";
 import { sidebarLists, stashLabel } from "./sidebar/refTree";
@@ -41,6 +41,8 @@ interface Props {
   onLockMenu: (lock: Lock, x: number, y: number) => void;
   /** Lock files you choose (null while that can't be done). */
   onLockFiles: (() => void) | null;
+  /** Release every lock you hold (null when you hold none, or that can't be done). */
+  onReleaseMine: (() => void) | null;
   /** The repository's working trees: shown when there's more than the main one. */
   worktrees: Worktree[];
   onOpenWorktree: (worktree: Worktree) => void;
@@ -190,11 +192,18 @@ export function Sidebar(props: Props) {
             count={locks.length}
             {...section}
             action={
-              props.onLockFiles && (
-                <button className="sidebar-heading-action" onClick={props.onLockFiles} title="Lock files…" aria-label="Lock files">
-                  <PlusIcon size={13} />
-                </button>
-              )
+              <>
+                {props.onReleaseMine && (
+                  <button className="sidebar-heading-action" onClick={props.onReleaseMine} title="Release all my locks" aria-label="Release all my locks">
+                    <UnlockIcon size={13} />
+                  </button>
+                )}
+                {props.onLockFiles && (
+                  <button className="sidebar-heading-action" onClick={props.onLockFiles} title="Lock files…" aria-label="Lock files">
+                    <PlusIcon size={13} />
+                  </button>
+                )}
+              </>
             }
           >
             <LockedFileList locks={locks} error={props.locksError} onMenu={props.onLockMenu} />

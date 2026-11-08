@@ -28,6 +28,7 @@ import { useAutoLock, useFileChecks } from "./app/useFileChecks";
 import { useHighlight } from "./app/useHighlight";
 import { useKeyboardShortcuts } from "./app/useKeyboardShortcuts";
 import { useLfsHealth } from "./app/useLfsHealth";
+import { useLockRelease } from "./app/useLockRelease";
 import { useContextMenu, useMenuBar } from "./app/useMenus";
 import { useNativeMenu } from "./app/useNativeMenu";
 import { useOverlays } from "./app/useOverlays";
@@ -124,15 +125,17 @@ export default function App() {
     notify: setToast,
     blockFocusRefresh: repo.blockFocusRefresh,
     showChanges: () => selection.setSelectedId(WORKTREE_ID),
-    after: (action: Action, kind: Running) => {
+    after: (action: Action, kind: Running, outcome) => {
       // Locks change when you lock or unlock, and may have changed on the server; a push
       // can open the way for a pull request, and a fetch can bring new ones.
       if (action.kind === "lockFiles" || action.kind === "unlockFiles") lfs.refresh(true);
       else if (kind && kind !== "other") lfs.refresh();
       if (kind && kind !== "other") prs.refresh(true);
+      if (action.kind === "push" && outcome?.pushedFiles) lockRelease.pushedFiles(outcome.pushedFiles);
     },
   });
   const { act, running } = actions;
+  const lockRelease = useLockRelease({ snapshot, locks: lfs.locks ? lfs.byPath : null, mode: preferences.releaseLocks, act });
   useAutoLock({
     enabled: preferences.autoLock,
     repoPath,
@@ -323,6 +326,7 @@ export default function App() {
               lfs={lfs}
               lfsHealth={lfsHealth}
               overlaps={overlaps}
+              lockRelease={lockRelease}
               checks={checks}
               worktrees={worktrees}
               details={details}

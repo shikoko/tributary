@@ -2,6 +2,7 @@ import { cancelAction, WORKTREE_ID, type RepoSnapshot } from "../api";
 import { openInBrowser } from "../lib/weblinks";
 import { CloseIcon } from "../components/Icons";
 import { LfsHealthBanner } from "../components/LfsHealthBanner";
+import { LockReleaseBanner } from "../components/LockReleaseBanner";
 import { OperationBar } from "../components/OperationBar";
 import { ProgressStrip } from "../components/ProgressStrip";
 import { ViewBanner } from "../components/ViewBanner";
@@ -9,6 +10,7 @@ import { conflictSides } from "../components/WorktreeDetails";
 import type { Actions } from "./useActions";
 import type { Highlight } from "./useHighlight";
 import type { LfsHealthState } from "./useLfsHealth";
+import type { LockRelease } from "./useLockRelease";
 import type { Repository } from "./useRepository";
 import type { RepositorySettings } from "./useRepositorySettings";
 import type { Selection } from "./useSelection";
@@ -21,6 +23,9 @@ interface Props {
   highlight: Highlight;
   settings: RepositorySettings;
   lfsHealth: LfsHealthState;
+  lockRelease: LockRelease;
+  /** Release locks after every push from now on. */
+  alwaysReleaseLocks: () => void;
   /** Turn off "only the checked-out branch's own history". */
   showWholeHistory: () => void;
   /** Open another working tree, in its tab. */
@@ -31,7 +36,8 @@ interface Props {
  * The bars between the toolbar and the commit list: progress, a merge or rebase that
  * stopped, the last error, Git LFS trouble, and what part of the history is shown.
  */
-export function RepositoryBanners({ snapshot, repo, actions, selection, highlight, settings, lfsHealth, showWholeHistory, openWorktree }: Props) {
+export function RepositoryBanners(props: Props) {
+  const { snapshot, repo, actions, selection, highlight, settings, lfsHealth, lockRelease, showWholeHistory, openWorktree } = props;
   const { act, running, progress } = actions;
   const { error, setError } = repo;
   const { focus } = highlight;
@@ -81,6 +87,15 @@ export function RepositoryBanners({ snapshot, repo, actions, selection, highligh
           onSetUp={() => act({ kind: "setUpLfs" }, "download")}
           onGetLfs={() => openInBrowser("https://git-lfs.com")}
           onDismiss={lfsHealth.dismiss}
+        />
+      )}
+      {lockRelease.offered.length > 0 && (
+        <LockReleaseBanner
+          locks={lockRelease.offered}
+          busy={running !== null}
+          onRelease={lockRelease.release}
+          onKeep={lockRelease.keep}
+          onAlways={props.alwaysReleaseLocks}
         />
       )}
       {(focus || snapshot.firstParent || settings.soloing) && (

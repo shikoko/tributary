@@ -31,6 +31,8 @@ export function usePreferences() {
   const [largeFileMB, setLargeFileMB] = useStoredState("files.largeMB", 10);
   /** Lock lockable files as soon as you change them. */
   const [autoLock, setAutoLock] = useStoredState("locks.auto", false);
+  /** After pushing: ask to release the locks on the pushed files, release them, or keep them. */
+  const [releaseLocks, setReleaseLocks] = useStoredState<ReleaseLocks>("locks.release", "ask");
   return {
     tabs, setTabs, setActiveTab,
     sidebarOpen, setSidebarOpen, sidebarWidth, setSidebarWidth, detailsWidth, setDetailsWidth,
@@ -38,8 +40,11 @@ export function usePreferences() {
     dense, setDense, zoom, setZoom, autoFetch, setAutoFetch, reopenTabs, setReopenTabs,
     firstParentOnly, setFirstParentOnly, profilePictures, setProfilePictures, previews, setPreviews,
     activityOpen, setActivityOpen, fetchMinutes, setFetchMinutes, newCommitNotices, setNewCommitNotices,
-    autoUpdate, setAutoUpdate, largeFileMB, setLargeFileMB, autoLock, setAutoLock,
+    autoUpdate, setAutoUpdate, largeFileMB, setLargeFileMB, autoLock, setAutoLock, releaseLocks, setReleaseLocks,
   };
 }
 
 export type Preferences = ReturnType<typeof usePreferences>;
+
+/** What to do with your locks on files you've just pushed. */
+export type ReleaseLocks = "ask" | "always" | "never";

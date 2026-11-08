@@ -303,6 +303,9 @@ pub struct Outcome {
     /// Where what the action threw away was kept, to undo it (like discarded changes).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub backup: Option<String>,
+    /// After a push: the files the pushed commits changed.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pushed_files: Vec<String>,
 }
 
 /// What an action reports besides its message.
@@ -310,6 +313,7 @@ pub struct Outcome {
 struct Extra {
     pull_request: Option<String>,
     backup: Option<String>,
+    pushed_files: Vec<String>,
 }
 
 /// Run `action` and return a short message saying what happened.
@@ -329,6 +333,7 @@ pub fn run_with_progress(
         message,
         pull_request: extra.pull_request,
         backup: extra.backup,
+        pushed_files: extra.pushed_files,
     })
 }
 

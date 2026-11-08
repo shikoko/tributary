@@ -90,8 +90,12 @@ pub(super) fn push(
             remote
         }
     };
+    // The files the pushed commits change (the ones the remote doesn't have yet): after the
+    // push, locks on them can be released.
+    let pushed_files = files_not_on(git, &remote);
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     let output = git.run_progress(&args, on_progress)?;
+    extra.pushed_files = pushed_files;
     if let Some((tracking, id)) = replaced
         && ref_id(repo, "HEAD") != Some(id)
     {
@@ -102,6 +106,30 @@ pub(super) fn push(
         "{} {branch} to {remote}",
         if force { "Force pushed" } else { "Pushed" }
     ))
+}
+
+/// The files changed by the commits on HEAD that `remote` doesn't have yet.
+fn files_not_on(git: &Git, remote: &str) -> Vec<String> {
+    let remotes = format!("--remotes={remote}");
+    let Ok(output) = git.run(&[
+        "log",
+        "--format=",
+        "--name-only",
+        "-z",
+        "HEAD",
+        "--not",
+        &remotes,
+    ]) else {
+        return Vec::new();
+    };
+    let mut files: Vec<String> = output
+        .split(['\0', '\n'])
+        .filter(|file| !file.is_empty())
+        .map(str::to_owned)
+        .collect();
+    files.sort();
+    files.dedup();
+    files
 }
 
 /// Where the checked-out `branch` pushes to: its remote and the remote branch it

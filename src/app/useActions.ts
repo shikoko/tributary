@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type MutableRefObject } from "react";
-import { onProgress, PAGE_SIZE, runActionFor, type Action, type Progress, type RepoSnapshot } from "../api";
+import { onProgress, PAGE_SIZE, runActionFor, type Action, type Outcome, type Progress, type RepoSnapshot } from "../api";
 import { involvesUntrackedFiles, isLocalChangesError } from "../lib/errors";
 import { undoFor } from "../lib/undo";
 import { openInBrowser } from "../lib/weblinks";
@@ -24,8 +24,8 @@ interface Options {
   setError: (error: RepoError | null) => void;
   notify: (toast: ToastMessage) => void;
   blockFocusRefresh: MutableRefObject<boolean>;
-  /** After an action and the reload, with how it ran (to refresh locks, pull requests…). */
-  after: (action: Action, kind: Running) => void;
+  /** After an action and the reload, with how it ran and what it reported (to refresh locks, pull requests…). */
+  after: (action: Action, kind: Running, outcome: Outcome | null) => void;
   /** A squash merge waits to be committed: show the uncommitted changes. */
   showChanges: () => void;
 }
@@ -72,7 +72,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
         stopListening = await onProgress((value) => setProgress((current) => current && { ...current, value })).catch(() => undefined);
       }
 
-      let outcome: Awaited<ReturnType<typeof runActionFor>> | null = null;
+      let outcome: Outcome | null = null;
       let failure: string | null = null;
       try {
         outcome = await runActionFor(before.path, action);
@@ -86,7 +86,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       // Reload even after a failure (a pull with conflicts still changes things), and only
       // then show the result, since reloading clears old errors.
       await load(before.path, "refresh", Math.max(PAGE_SIZE, before.commits.length));
-      after(action, kind);
+      after(action, kind, outcome);
 
       if (failure === "Cancelled.") {
         notify({ text: "Cancelled" });

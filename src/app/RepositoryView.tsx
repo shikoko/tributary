@@ -30,6 +30,7 @@ import type { CommitDetailsCache } from "./useCommitDetails";
 import type { Draft } from "./useDraft";
 import type { Highlight } from "./useHighlight";
 import type { LfsHealthState } from "./useLfsHealth";
+import type { LockRelease } from "./useLockRelease";
 import type { ContextMenuState } from "./useMenus";
 import type { Preferences } from "./usePreferences";
 import type { Repository } from "./useRepository";
@@ -56,6 +57,7 @@ interface Props {
   counts: BranchCounts;
   lfs: LfsLocks;
   lfsHealth: LfsHealthState;
+  lockRelease: LockRelease;
   /** Files you're changing that other branches also changed. */
   overlaps: Overlap[];
   checks: FileChecks | null;
@@ -159,6 +161,7 @@ export function RepositoryView(props: Props) {
     onReset: () => (panel === "sidebar" ? setSidebarWidth(220) : setDetailsWidth(380)),
   });
 
+  const myLocks = lfs.locks?.locks.filter((lock) => lock.mine) ?? [];
   const notLoaded = () => props.notify({ text: "That commit isn't loaded: load more commits, or fetch" });
   /** The status bar's "changed elsewhere": every overlapping file, to show the other branch's change. */
   const elsewhereMenu = (anchor: HTMLElement) =>
@@ -207,6 +210,11 @@ export function RepositoryView(props: Props) {
         highlight={highlight}
         settings={settings}
         lfsHealth={props.lfsHealth}
+        lockRelease={props.lockRelease}
+        alwaysReleaseLocks={() => {
+          preferences.setReleaseLocks("always");
+          props.lockRelease.release();
+        }}
         showWholeHistory={() => preferences.setFirstParentOnly(false)}
         openWorktree={props.openTab}
       />
@@ -237,6 +245,7 @@ export function RepositoryView(props: Props) {
               locksError={lfs.locks?.error ?? null}
               onLockMenu={lockMenu}
               onLockFiles={canChange ? props.lockFiles : null}
+              onReleaseMine={canChange && myLocks.length > 0 ? () => act({ kind: "unlockFiles", locks: myLocks.map(({ id, path }) => ({ id, path })), force: false }) : null}
               worktrees={props.worktrees}
               onOpenWorktree={(worktree) => !worktree.current && props.openTab(worktree.path)}
               onWorktreeMenu={(worktree, x, y) => menu.show(x, y, worktreeMenuItems(worktree, worktreeContext))}

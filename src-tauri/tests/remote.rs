@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{TempRepo, remote_turn, run, with_identity};
+use common::{TempRepo, outcome, remote_turn, run, with_identity};
 use tributary_lib::actions::{Action, CloneOptions};
 use tributary_lib::error::Error;
 use tributary_lib::{actions, git, repo};
@@ -33,7 +33,12 @@ fn pushes_fetches_and_pulls() {
 
     let bob = TempRepo::clone_of("bob", &remote);
     let second = alice.commit("b.txt", "Second");
-    run(&alice, Action::Push { force: false }).unwrap();
+    alice.commit("c.txt", "Third");
+    // The push reports the files its commits changed, not ones pushed before.
+    let pushed = outcome(&alice, Action::Push { force: false });
+    assert_eq!(pushed.pushed_files, vec!["b.txt", "c.txt"]);
+    alice.git(&["reset", "--quiet", "--hard", "HEAD~1"]);
+    run(&alice, Action::Push { force: true }).unwrap();
     assert_eq!(remote.git(&["rev-parse", "main"]), second);
 
     run(&bob, Action::Fetch { background: false }).unwrap();

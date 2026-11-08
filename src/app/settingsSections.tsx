@@ -5,7 +5,7 @@ import { NameList, type SettingsSection } from "../components/SettingsDialog";
 import type { GitHubStatus } from "../api";
 import type { Updates } from "../lib/updates";
 import { FETCH_MINUTES, ZOOM_LEVELS } from "./constants";
-import type { NewCommitNotices, Preferences } from "./usePreferences";
+import type { NewCommitNotices, Preferences, ReleaseLocks } from "./usePreferences";
 
 interface Options {
   preferences: Preferences;
@@ -34,6 +34,7 @@ interface Options {
 export function settingsSections({ preferences, version, updates, onInstallUpdate, github, repository }: Options): SettingsSection[] {
   const { reopenTabs, setReopenTabs, autoUpdate, setAutoUpdate, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
+  const { releaseLocks, setReleaseLocks } = preferences;
   const { daySeparators, setDaySeparators, previews, setPreviews, profilePictures, setProfilePictures } = preferences;
   const { columnOptions, setColumnOptions, zoom, setZoom } = preferences;
   const sections: SettingsSection[] = [
@@ -146,6 +147,18 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
           hint: "Lockable files (like .uasset), as soon as you change one that nobody has locked.",
           value: autoLock,
           set: setAutoLock,
+        },
+        {
+          kind: "select",
+          label: "After pushing",
+          hint: "Your locks on the files you pushed, so your teammates can work on them. Files you're still changing keep theirs.",
+          value: releaseLocks,
+          options: [
+            { value: "ask", label: "Ask to release my locks" },
+            { value: "always", label: "Release my locks" },
+            { value: "never", label: "Keep my locks" },
+          ],
+          set: (value) => setReleaseLocks(value as ReleaseLocks),
         },
       ],
     },

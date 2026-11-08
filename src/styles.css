@@ -2224,6 +2224,27 @@ body.resizing * {
   background: rgba(240, 180, 76, 0.24);
 }
 
+/* An offer rather than a problem, like releasing locks after a push. */
+.notice-banner.info {
+  border-color: rgba(31, 181, 255, 0.35);
+  background: rgba(31, 181, 255, 0.08);
+  color: #a9dcf7;
+}
+
+.notice-banner.info > svg {
+  color: var(--accent);
+}
+
+.notice-banner.info .notice-action {
+  border-color: rgba(31, 181, 255, 0.5);
+  background: rgba(31, 181, 255, 0.14);
+  color: #d6efff;
+}
+
+.notice-banner.info .notice-action:hover:not(:disabled) {
+  background: rgba(31, 181, 255, 0.24);
+}
+
 /* Commit list extras */
 
 .commit-row.drop-target {
