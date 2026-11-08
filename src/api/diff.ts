@@ -86,3 +86,35 @@ export interface ConflictText {
 export function conflictText(path: string, file: string): Promise<ConflictText> {
   return invoke<ConflictText>("conflict_text", { path, file });
 }
+
+/** Who changed each line of a file last. */
+export interface Blame {
+  /** The commits the lines come from, in the order they first appear. */
+  commits: BlameCommit[];
+  lines: BlameLine[];
+}
+
+export interface BlameCommit {
+  /** Null for lines that aren't committed yet. */
+  id: string | null;
+  author: string;
+  email: string;
+  /** Seconds since the Unix epoch. */
+  time: number;
+  summary: string;
+  /** The file's path in that commit (it may have been renamed since). */
+  name: string;
+}
+
+export interface BlameLine {
+  text: string;
+  /** Index into `commits`. */
+  commit: number;
+  /** Its line number in that commit's version. */
+  original: number;
+}
+
+/** Who changed each line of `file` last: as it is now, or at commit `at`. */
+export function blameFile(path: string, file: string, at?: string | null): Promise<Blame> {
+  return invoke<Blame>("blame_file", { path, file, at: at ?? null });
+}

@@ -1,6 +1,7 @@
 import type { Action, DiffSource, FileChange, FileChecks, Lock, RepoSnapshot } from "../api";
 import type { MenuItem } from "../components/ContextMenu";
 import {
+  BlameIcon,
   CheckIcon,
   CloudIcon,
   CopyIcon,
@@ -36,6 +37,8 @@ export interface FileMenuContext {
   reveal: (path: string) => void;
   /** Show a file's changes in the diff view. */
   showChanges: (file: FileChange, source: DiffSource) => void;
+  /** Show who changed each line of a file, at the commit `source` is from (or as it is now). */
+  showBlame: (path: string, source: DiffSource) => void;
 }
 
 /** Lock, unlock or force-unlock a file. */
@@ -64,7 +67,7 @@ function lockItems(ctx: FileMenuContext, path: string, lock: Lock | undefined, s
 /** Right-click on a file in a commit (a "commit" source) or in your changes (staged or unstaged). */
 export function fileMenuItems(ctx: FileMenuContext, file: FileChange, source: DiffSource): MenuItem[] {
   const { snapshot, canChange, run, openDialog, showHistory, locks, checks, reveal } = ctx;
-  const where = source.kind === "commit" ? "commit" : "worktree";
+  const where = source.kind === "commit" || source.kind === "range" ? "commit" : "worktree";
   const folder = file.path.endsWith("/");
   const path = file.path.replace(/\/+$/, "");
   const dir = folderOf(path);
@@ -77,6 +80,10 @@ export function fileMenuItems(ctx: FileMenuContext, file: FileChange, source: Di
         ? { label: "Open in merge tool", icon: <ExternalLinkIcon />, disabled: !canChange, onSelect: () => run({ kind: "openInMergeTool", path }) }
         : { label: "Open in diff tool", icon: <ExternalLinkIcon />, disabled: file.status === "untracked", onSelect: () => run({ kind: "openInDiffTool", source, path }) },
     );
+    // Blame needs the file to be there (and, in your changes, to be known to git).
+    if (file.status !== "deleted" && file.status !== "untracked") {
+      items.push({ label: "Who changed each line", icon: <BlameIcon />, onSelect: () => ctx.showBlame(path, source) });
+    }
   }
   if (conflicted) {
     const sides = conflictSides(snapshot);

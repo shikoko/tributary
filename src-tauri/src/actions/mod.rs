@@ -6,6 +6,7 @@
 //! so nothing can be mistaken for a git option.
 
 mod backups;
+mod blame;
 mod branches;
 mod changes;
 mod clone;
@@ -37,6 +38,7 @@ use crate::error::{Error, Result};
 use crate::git::{Git, Progress};
 
 pub use backups::{BACKUP_DAYS, Backup, BackupEvent, backups};
+pub use blame::{Blame, BlameCommit, BlameLine, blame};
 pub use clone::{CloneOptions, clone_repository, init_repository};
 pub use conflicts::{ConflictText, conflict_text};
 pub use diff::{

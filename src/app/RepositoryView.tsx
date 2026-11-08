@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePresence } from "../lib/usePresence";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { fullRefName, PAGE_SIZE, WORKTREE_ID, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type RepoSnapshot, type Worktree } from "../api";
@@ -17,6 +17,7 @@ import { RepoSettingsDialog } from "../components/RepoSettingsDialog";
 import { DiffView } from "../components/diff/DiffView";
 import { conflictSides } from "../components/WorktreeDetails";
 import { ComparePanel } from "../components/ComparePanel";
+import { BlameView } from "../components/BlameView";
 import { useComparison } from "./useComparison";
 import type { MenuItem } from "../components/ContextMenu";
 import { EyeIcon, PlusIcon } from "../components/Icons";
@@ -128,7 +129,17 @@ export function RepositoryView(props: Props) {
   useEffect(() => {
     if (diffAt && !shownDiff) setDiffAt(null);
   }, [diffAt, shownDiff]);
-  const showChanges = (file: FileChange, source: DiffSource) => origin && setDiffAt({ origin, source, path: file.path });
+  const showChanges = (file: FileChange, source: DiffSource) => {
+    setBlameAt(null);
+    if (origin) setDiffAt({ origin, source, path: file.path });
+  };
+  // Who changed each line of a file: at a commit, or as it is in your working tree.
+  const [blameAt, setBlameAt] = useState<{ path: string; at: string | null } | null>(null);
+  const showBlame = (path: string, source: DiffSource) => {
+    setDiffAt(null);
+    setBlameAt({ path, at: source.kind === "commit" ? source.id : source.kind === "range" ? source.to : null });
+  };
+  const closeBlame = useCallback(() => setBlameAt(null), []);
   const stepDiff = (index: number) => {
     const target = diffTargets[index];
     if (target && diffAt) setDiffAt({ origin: diffAt.origin, source: target.source, path: target.file.path });
@@ -166,6 +177,7 @@ export function RepositoryView(props: Props) {
     checks: props.checks,
     reveal: (path) => revealItemInDir(joinPath(snapshot.path, path)).catch(() => props.notify({ text: `${baseName(path)} isn't in the working tree` })),
     showChanges,
+    showBlame,
   };
   const worktreeContext: WorktreeMenuContext = {
     canChange,
@@ -413,6 +425,17 @@ export function RepositoryView(props: Props) {
               version={snapshot.worktree}
               onChooseTool={() => props.openSettings(DIFF_SECTION)}
               sides={conflictSides(snapshot)}
+              onBlame={(target) => showBlame(target.file.path, target.source)}
+            />
+          )}
+          {blameAt && (
+            <BlameView
+              repoPath={snapshot.path}
+              path={blameAt.path}
+              at={blameAt.at}
+              onClose={closeBlame}
+              onSelectCommit={select}
+              hasCommit={(id) => byId.has(id)}
             />
           )}
         </div>

@@ -466,3 +466,42 @@ fn lists_the_commits_that_changed_a_file_or_folder() {
     assert!(actions::file_history(repo.path(), outside.to_str().unwrap()).is_err());
     assert!(actions::file_history(repo.path(), "../elsewhere").is_err());
 }
+
+#[test]
+fn shows_who_changed_each_line() {
+    let repo = TempRepo::new("blame");
+    std::fs::write(repo.path().join("notes.txt"), "one\ntwo\n").unwrap();
+    repo.git(&["add", "notes.txt"]);
+    repo.git(&["commit", "-qm", "First notes"]);
+    let first = repo.git(&["rev-parse", "HEAD"]);
+    std::fs::write(repo.path().join("notes.txt"), "one\nTWO\nthree\n").unwrap();
+    repo.git(&["commit", "-qam", "Shout the second note"]);
+    let second = repo.git(&["rev-parse", "HEAD"]);
+    std::fs::write(repo.path().join("notes.txt"), "one\nTWO\nthree\nfour\n").unwrap();
+
+    let blame = tributary_lib::actions::blame(repo.path(), "notes.txt", None).unwrap();
+    let who: Vec<(&str, Option<&str>)> = blame
+        .lines
+        .iter()
+        .map(|line| (line.text.as_str(), blame.commits[line.commit].id.as_deref()))
+        .collect();
+    assert_eq!(
+        who,
+        [
+            ("one", Some(first.as_str())),
+            ("TWO", Some(second.as_str())),
+            ("three", Some(second.as_str())),
+            // Not committed yet.
+            ("four", None),
+        ]
+    );
+    let shout = &blame.commits[blame.lines[1].commit];
+    assert_eq!(shout.summary, "Shout the second note");
+    assert_eq!(shout.author, "Test Author");
+
+    // As it was at the first commit.
+    let then = tributary_lib::actions::blame(repo.path(), "notes.txt", Some(&first)).unwrap();
+    assert_eq!(then.lines.len(), 2);
+    assert_eq!(then.commits.len(), 1);
+    assert!(tributary_lib::actions::blame(repo.path(), "missing.txt", None).is_err());
+}

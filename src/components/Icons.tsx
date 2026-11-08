@@ -27,6 +27,14 @@ export const FolderIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** Lines of text with a person beside them: who changed each line. */
+export const BlameIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="4" cy="4.5" r="1.75" />
+    <path d="M1.75 10.5a2.25 2.25 0 0 1 4.5 0M8.5 3.5h5.5M8.5 7h5.5M8.5 10.5h5.5M2 13.5h12" />
+  </Icon>
+);
+
 /** Two arrows, one each way: comparing two things (and swapping them). */
 export const CompareIcon = (p: IconProps) => (
   <Icon {...p}>

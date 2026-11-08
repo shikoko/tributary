@@ -151,6 +151,11 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
                 ignore_whitespace,
             )?)
         }
+        "blame_file" => {
+            let file: String = arg(args, "file")?;
+            let at: Option<String> = optional(args, "at")?;
+            to_json(actions::blame(&path()?, &file, at.as_deref())?)
+        }
         "conflict_text" => {
             let file: String = arg(args, "file")?;
             to_json(actions::conflict_text(&path()?, &file)?)

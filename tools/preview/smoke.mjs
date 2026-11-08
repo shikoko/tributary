@@ -327,6 +327,23 @@ try {
     await panel.waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("shows who changed each line of a file, and goes to their commit", async () => {
+    await row("Speed up opening large notebooks").click();
+    await page.locator(".details .file", { hasText: "store.ts" }).first().click({ button: "right" });
+    await page.locator(".menu-item", { hasText: "Who changed each line" }).click();
+    const view = page.locator(".blame-view");
+    await view.locator(".blame-gutter", { hasText: "Maya Chen" }).first().waitFor({ timeout: 10_000 });
+    expect((await view.locator(".blame-gutter", { hasText: "Priya Nair" }).count()) > 0, "Priya's lines aren't credited to her");
+    // Maya's lines come from "Store notes in IndexedDB": clicking goes there.
+    await view.locator(".blame-gutter", { hasText: "Maya Chen" }).first().click();
+    await page.locator(".details", { hasText: "Store notes in IndexedDB" }).waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+    // Back near the top, where the next steps expect the list.
+    await scrollList("top");
+    await row("Speed up opening large notebooks").click();
+  });
+
   await step("hides a branch, then shows everything again", async () => {
     const themes = page.locator(".sidebar-item", { hasText: /^themes/ }).first();
     await themes.hover();

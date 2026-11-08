@@ -53,6 +53,7 @@ pub fn run() {
             commands::file_diff,
             commands::conflict_text,
             commands::compare_commits,
+            commands::blame_file,
             commands::lfs_storage,
             commands::lfs_health,
             commands::diagnostics,

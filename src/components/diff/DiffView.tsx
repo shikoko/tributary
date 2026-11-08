@@ -4,7 +4,7 @@ import { fileDiff, type Action, type FileDiff, type LineMode } from "../../api";
 import type { DiffTarget } from "../../lib/diffTargets";
 import { toolLabel, useDiffTools } from "../../lib/diffTools";
 import { useStoredState } from "../../lib/settings";
-import { ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon } from "../Icons";
+import { BlameIcon, ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon } from "../Icons";
 import { DiffBinary } from "./DiffBinary";
 import { DiffMedia } from "./DiffMedia";
 import { FileKindIcon } from "../FileKindIcon";
@@ -27,13 +27,15 @@ interface Props {
   onChooseTool: () => void;
   /** What the two sides of a conflict are called, like "main" and "feature/sync". */
   sides: { mine: string; theirs: string };
+  /** Show who changed each line of the file instead. */
+  onBlame: (target: DiffTarget) => void;
 }
 
 /**
  * A file's changes over the commit list: text line by line, images side by side, other
  * files by their size. Esc closes, [ and ] go to the previous and next file.
  */
-export function DiffView({ repoPath, targets, index, onIndex, onClose, run, version, onChooseTool, sides }: Props) {
+export function DiffView({ repoPath, targets, index, onIndex, onClose, run, version, onChooseTool, sides, onBlame }: Props) {
   const target = targets[index];
   const [ignoreWhitespace, setIgnoreWhitespace] = useStoredState("diff.ignoreWhitespace", false);
   const [loaded, setLoaded] = useState<{ key: string; diff: FileDiff | null; error: string | null } | null>(null);
@@ -190,6 +192,11 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           >
             <ExternalLinkIcon size={13} />
             <span className="button-label">{toolButton}</span>
+          </button>
+        )}
+        {!whole && !conflicted && target.file.status !== "deleted" && target.file.status !== "untracked" && (
+          <button className="icon-button" onClick={() => onBlame(target)} title="Who changed each line" aria-label="Who changed each line">
+            <BlameIcon size={15} />
           </button>
         )}
         <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close the changes">

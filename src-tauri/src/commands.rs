@@ -227,6 +227,12 @@ pub async fn file_diff(
     .await
 }
 
+/// Who changed each line of a file last: in the working tree, or at commit `at`.
+#[tauri::command]
+pub async fn blame_file(path: String, file: String, at: Option<String>) -> Result<actions::Blame> {
+    blocking(move || actions::blame(&PathBuf::from(path), &file, at.as_deref())).await
+}
+
 /// A conflicted file as it is now, with its conflict markers, to resolve in the app.
 #[tauri::command]
 pub async fn conflict_text(path: String, file: String) -> Result<actions::ConflictText> {
