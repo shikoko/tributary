@@ -228,6 +228,12 @@ pub async fn repo_summary(path: String) -> Result<repo::RepoSummary> {
     blocking(move || Ok(repo::summary(&PathBuf::from(path)))).await
 }
 
+/// Show the app's icon for its theme: dark or light.
+#[tauri::command]
+pub fn set_app_icon(app: tauri::AppHandle, dark: bool) -> Result<()> {
+    crate::app_icon::set(&app, dark)
+}
+
 /// The repository's remotes and their addresses (without passwords or tokens).
 #[tauri::command]
 pub async fn remotes(path: String) -> Result<Vec<actions::RemoteInfo>> {

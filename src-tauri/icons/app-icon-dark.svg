@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Tributary's app icon (dark): five branches in the graph's colours flow in from beyond
+    the edge and merge into one commit, and one river flows on. Drawn by tools/icons/draw.py;
+    change that, not this file.
+  -->
+  <defs>
+    <path id="tile" d="M924 512C924 922 922 924 512 924C102 924 100 922 100 512C100 102 102 100 512 100C922 100 924 102 924 512Z"/>
+    <clipPath id="clip"><use href="#tile"/></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#1c2333"/><stop offset="1" stop-color="#0b0e14"/></linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.22"/>
+      <stop offset="0.4" stop-color="#fff" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.02"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <use href="#tile" fill="url(#bg)" filter="url(#shadow)"/>
+  <g clip-path="url(#clip)">
+    <!-- The river, widening as it flows out -->
+    <path d="M450 690L418 1060H606L574 690Z" fill="#ffffff"/>
+    <g fill="none" stroke-linecap="round">
+    <path d="M200 20V320C200 520 512 510 512 690" stroke="#151a25" stroke-width="104"/>
+    <path d="M200 20V320C200 520 512 510 512 690" stroke="#1fb5ff" stroke-width="86"/>
+    <path d="M824 20V320C824 520 512 510 512 690" stroke="#151a25" stroke-width="104"/>
+    <path d="M824 20V320C824 520 512 510 512 690" stroke="#8f6bff" stroke-width="86"/>
+    <path d="M356 20V320C356 520 512 510 512 690" stroke="#151a25" stroke-width="104"/>
+    <path d="M356 20V320C356 520 512 510 512 690" stroke="#ff4f9a" stroke-width="86"/>
+    <path d="M668 20V320C668 520 512 510 512 690" stroke="#151a25" stroke-width="104"/>
+    <path d="M668 20V320C668 520 512 510 512 690" stroke="#2fd38a" stroke-width="86"/>
+    <path d="M512 20V320C512 520 512 510 512 690" stroke="#151a25" stroke-width="104"/>
+    <path d="M512 20V320C512 520 512 510 512 690" stroke="#ffad1f" stroke-width="86"/>
+    </g>
+    <!-- Where they merge -->
+    <circle cx="512" cy="690" r="92" fill="#ffffff"/>
+    <circle cx="512" cy="690" r="36" fill="#141a26"/>
+  </g>
+  <use href="#tile" fill="none" stroke="url(#rim)" stroke-width="5" clip-path="url(#clip)"/>
+</svg>

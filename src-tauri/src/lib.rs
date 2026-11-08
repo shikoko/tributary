@@ -2,6 +2,7 @@
 //! changes them with the user's own git; the frontend calls it through [`commands`].
 
 pub mod actions;
+mod app_icon;
 pub mod avatars;
 mod commands;
 pub mod diagnostics;
@@ -33,6 +34,7 @@ pub fn run() {
             git::on_activity(move |entry| {
                 let _ = handle.emit("activity", entry);
             });
+            app_icon::restore(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -53,6 +55,7 @@ pub fn run() {
             commands::signing_settings,
             commands::remotes,
             commands::repo_summary,
+            commands::set_app_icon,
             commands::lfs_settings,
             commands::diff_tool_settings,
             commands::set_diff_tool,

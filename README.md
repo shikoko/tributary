@@ -181,7 +181,7 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 
 ![The light theme, with the appearance settings: theme, accent colour, graph colours, commits as their authors' pictures, line bends and diff colours](docs/images/appearance.png)
 
-- **Appearance:** dark, light, or the same as your system (switching when it does). An accent colour for buttons, selections, links, focus and the checked-out branch: one of nine, or any colour you like, from the colour picker or typed as a hex code like `#e8702a` (text in it is darkened or lightened until it's easy to read). Commits on the graph as their authors' pictures (or initials), ringed in their branch's colour, or as dots (merges are small dots either way). The graph's colours: vivid, soft, colour-blind safe (built on the Okabe–Ito colours), or your own (start from any of them, then click a colour to change it, add or take out colours). And how its lines bend between lanes: smoothly into the next lane and round for longer jumps (the default), or round, smooth (like Apple's rounded corners), tight or sweeping everywhere. Added and removed lines in green and red, or in blue and orange, which are easier to tell apart with red–green colour blindness. Notes and warnings keep their own colours whatever the accent, so they don't look like something else.
+- **Appearance:** dark, light, or the same as your system (switching when it does). An accent colour for buttons, selections, links, focus and the checked-out branch: one of nine, or any colour you like, from the colour picker or typed as a hex code like `#e8702a` (text in it is darkened or lightened until it's easy to read). Commits on the graph as their authors' pictures (or initials), ringed in their branch's colour, or as dots (merges are small dots either way). The graph's colours: vivid, soft, colour-blind safe (built on the Okabe–Ito colours), or your own (start from any of them, then click a colour to change it, add or take out colours). And how its lines bend between lanes: smoothly into the next lane and round for longer jumps (the default), or round, smooth (like Apple's rounded corners), tight or sweeping everywhere. Added and removed lines in green and red, or in blue and orange, which are easier to tell apart with red–green colour blindness. Notes and warnings keep their own colours whatever the accent, so they don't look like something else. The app's icon follows the theme too: light or dark, in the Dock or on the taskbar.
 - **Settings:** <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>,</kbd> opens the app's settings, grouped in a list on the left: general (submodules, updates), appearance, accounts (your GitHub sign-in), background fetching and notifications, large files and Git LFS, and how the commit list looks.
 - **Your layout:** drag the edges of the sidebar, the details panel and the Branch / Tag and Graph columns (double-click to reset). Right-click the column headings to show or hide Author, Date and SHA, and to show exact dates or commit dates instead of "3 hours ago". The View menu has compact rows and zoom. All of it is remembered. On macOS the toolbar sits in the title bar, next to the window buttons.
 - **Profile pictures (optional):** turn on **Profile pictures** in Settings (or the View menu) to show authors' pictures instead of initials. For a repository on GitHub, Tributary asks GitHub which account each author's email belongs to (signed in, it can ask about every author; otherwise it goes by the latest 100 commits); on GitLab, it asks the GitLab server; otherwise, or when they don't know, it tries Gravatar. It is off by default, because it sends authors' email addresses to GitHub or GitLab (which host the repository anyway) and a hash of them to Gravatar. The pictures are fetched by the app itself, not the page, and kept until you quit.
@@ -347,18 +347,19 @@ The tests don't run on GitHub Actions, so run them before you build.
 | `src/lib/` | Logic without an interface (search, selection, undo, paths, diagnostics, …), with its tests |
 | `src/styles/` | The styles, an area per file (colours and themes in `theme.css`), applied in the order `src/styles.css` lists them |
 | `tools/preview/` | The browser preview, demo repositories and the smoke test |
+| `tools/icons/` | Draws the app icon, light and dark, and renders it at every size |
 
-The app icons are generated from `src-tauri/icons/app-icon.svg`. Tauri's own SVG renderer shows the background's gradient in visible bands, so render the SVG with Chrome first, then generate the icons from that PNG (on macOS):
+The app icon comes in a light and a dark version, and the app shows the one that matches its theme while it runs (in the Dock on macOS, on the taskbar elsewhere); the installed app carries the light one. Both are drawn by `tools/icons/draw.py` (into `src-tauri/icons/app-icon.svg` and `app-icon-dark.svg`), then rendered at every size with Chromium, whose gradients come out smooth. The macOS icon keeps Apple's margins around the tile; the Windows and Linux ones fill their square, so they're as big as they can be in a taskbar:
 
 ```bash
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --hide-scrollbars --window-size=1024,1024 --default-background-color=00000000 --screenshot="$TMPDIR/app-icon.png" "file://$PWD/src-tauri/icons/app-icon.svg"
+python3 tools/icons/draw.py
 ```
 
 ```bash
-npm run tauri icon "$TMPDIR/app-icon.png" && rm -rf src-tauri/icons/android src-tauri/icons/ios
+node tools/icons/render.mjs
 ```
 
-The in-app logo (`Logo` in `src/components/Icons.tsx`) is the same drawing without the tile; change both together.
+The in-app logo (`Logo` in `src/components/Icons.tsx`) is the same drawing, with or without its tile; change both together.
 
 ## License
 

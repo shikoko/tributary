@@ -19,7 +19,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 base64 = "0.23"
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["image-png"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 # System notifications, for new commits found by a background fetch.
@@ -49,8 +49,15 @@ opt-level = 3
 panic = "abort"
 strip = true
 
+# The Dock icon on macOS, which follows the app's theme (app_icon.rs).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSResponder", "NSImage"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSData"] }
+
 [lints.rust]
-unsafe_code = "forbid"
+# One exception, allowed where it is: setting the Dock icon on macOS (app_icon.rs).
+unsafe_code = "deny"
 
 [lints.clippy]
 # App code reports errors instead of panicking; tests may unwrap.

@@ -425,39 +425,63 @@ export const MenuIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** The app icon's tile: a rounded square with continuous (Apple-style) corners. */
+const LOGO_TILE = "M924 512C924 922 922 924 512 924C102 924 100 922 100 512C100 102 102 100 512 100C922 100 924 102 924 512Z";
+
 /**
- * Tributary's logo: the app icon's drawing (src-tauri/icons/app-icon.svg) without the tile,
- * in the same 1024 coordinates. The lines stop short of every dot, so the gaps show
- * whatever the logo sits on.
+ * Tributary's logo, drawn like the app icon (tools/icons/draw.py): five branches in the
+ * graph's colours flow in from above and merge into one commit, and one river flows on, in
+ * the theme's colours (dark on light, white on dark). With `tile`, it's the whole app icon;
+ * without, just the mark, and `gap` is the colour behind it (it keeps the lanes apart).
  */
-export function Logo({ size = 32 }: { size?: number }) {
-  const mask = `logo-gaps-${useId().replace(/:/g, "")}`;
-  // Thicker lines when small, so they don't fade to less than a pixel.
-  const line = size < 32 ? 40 : 26;
-  return (
-    <svg width={size} height={size} viewBox="172 197 680 680" aria-hidden="true">
-      <defs>
-        <mask id={mask} maskUnits="userSpaceOnUse" x="172" y="197" width="680" height="680">
-          <rect x="172" y="197" width="680" height="680" fill="#fff" />
-          <circle cx="322" cy="370" r="58" />
-          <circle cx="702" cy="315" r="58" />
-          <circle cx="512" cy="270" r="78" />
-          <circle cx="512" cy="560" r="48" />
-          <circle cx="512" cy="760" r="48" />
-        </mask>
-      </defs>
-      <g mask={`url(#${mask})`} fill="none" strokeWidth={line} strokeLinecap="round">
-        <path d="M322 370V627A133 133 0 0 0 455 760H512" stroke="#ff4f9a" />
-        <path d="M702 315V427A133 133 0 0 1 569 560H512" stroke="#ffad1f" />
-        <path d="M512 270V862" stroke="#1fb5ff" />
+export function Logo({ size = 32, gap = "var(--bg)", tile = false }: { size?: number; gap?: string; tile?: boolean }) {
+  const id = useId().replace(/:/g, "");
+  const lanes: [number, string][] = [
+    [200, "#1fb5ff"],
+    [356, "#ff4f9a"],
+    [512, "#ffad1f"],
+    [668, "#2fd38a"],
+    [824, "#8f6bff"],
+  ];
+  const lane = (x: number) => `M${x} 20V320C${x} 520 512 510 512 690`;
+  const between = tile ? "var(--logo-tile-gap)" : gap;
+  const mark = (
+    <>
+      <path d="M450 690L418 1060H606L574 690Z" style={{ fill: "var(--logo-ink)" }} />
+      <g fill="none" strokeLinecap="round">
+        {/* Outer lanes first, the middle one last, so they stack evenly where they meet. */}
+        {[0, 4, 1, 3, 2].map((i) => (
+          <g key={i}>
+            <path d={lane(lanes[i][0])} style={{ stroke: between }} strokeWidth={104} />
+            <path d={lane(lanes[i][0])} stroke={lanes[i][1]} strokeWidth={86} />
+          </g>
+        ))}
       </g>
-      <circle cx="322" cy="370" r="48" fill="#ff4f9a" />
-      <circle cx="702" cy="315" r="48" fill="#ffad1f" />
-      <circle cx="512" cy="560" r="38" fill="#1fb5ff" />
-      <circle cx="512" cy="760" r="38" fill="#1fb5ff" />
-      {/* The checked-out commit, ringed as in the graph. */}
-      <circle cx="512" cy="270" r="44" fill="#1fb5ff" />
-      <circle cx="512" cy="270" r="61" fill="none" style={{ stroke: "var(--graph-ring)" }} strokeWidth="14" />
+      <circle cx="512" cy="690" r="92" style={{ fill: "var(--logo-ink)" }} />
+      <circle cx="512" cy="690" r="36" style={{ fill: "var(--logo-dot)" }} />
+    </>
+  );
+  if (!tile) {
+    return (
+      <svg width={size} height={size} viewBox="150 150 724 724" aria-hidden="true">
+        {mark}
+      </svg>
+    );
+  }
+  return (
+    <svg width={size} height={size} viewBox="100 100 824 824" aria-hidden="true" className="logo-tile">
+      <defs>
+        <linearGradient id={`${id}-bg`} x1="0" y1="0" x2="0.35" y2="1">
+          <stop offset="0" style={{ stopColor: "var(--logo-tile-top)" }} />
+          <stop offset="1" style={{ stopColor: "var(--logo-tile-bottom)" }} />
+        </linearGradient>
+        <clipPath id={`${id}-clip`}>
+          <path d={LOGO_TILE} />
+        </clipPath>
+      </defs>
+      <path d={LOGO_TILE} fill={`url(#${id}-bg)`} />
+      <g clipPath={`url(#${id}-clip)`}>{mark}</g>
+      <path d={LOGO_TILE} fill="none" stroke="rgb(255 255 255 / 0.12)" strokeWidth="5" />
     </svg>
   );
 }

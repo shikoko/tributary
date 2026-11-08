@@ -1,78 +1,41 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!--
-    Tributary's app icon: a commit graph on a dark tile.
-    The blue main branch runs off the bottom of the tile; amber and pink branch off it the
-    way the app's graph draws them (sideways out of a commit, one rounded corner, then up
-    their own column). The checked-out commit at the top has the app's white ring.
-    The in-app logo (Logo in src/components/Icons.tsx) is the same drawing without the tile.
-    After changing this file, regenerate the icons as the README describes.
+    Tributary's app icon (light): five branches in the graph's colours flow in from beyond
+    the edge and merge into one commit, and one river flows on. Drawn by tools/icons/draw.py;
+    change that, not this file.
   -->
   <defs>
-    <!-- A rounded square with continuous (Apple-style) corners, 824 wide. -->
     <path id="tile" d="M924 512C924 922 922 924 512 924C102 924 100 922 100 512C100 102 102 100 512 100C922 100 924 102 924 512Z"/>
-    <clipPath id="tile-clip"><use href="#tile"/></clipPath>
-    <linearGradient id="background" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1f2636"/>
-      <stop offset="1" stop-color="#0d1016"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.5">
-      <stop offset="0" stop-color="#1fb5ff" stop-opacity="0.22"/>
-      <stop offset="1" stop-color="#1fb5ff" stop-opacity="0"/>
-    </radialGradient>
+    <clipPath id="clip"><use href="#tile"/></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e5eaf2"/></linearGradient>
     <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff" stop-opacity="0.16"/>
-      <stop offset="0.35" stop-color="#fff" stop-opacity="0.04"/>
+      <stop offset="0" stop-color="#fff" stop-opacity="0.35"/>
+      <stop offset="0.4" stop-color="#fff" stop-opacity="0.06"/>
       <stop offset="1" stop-color="#fff" stop-opacity="0.02"/>
     </linearGradient>
-    <!-- A faint grain, so the background gradient doesn't show bands. -->
-    <filter id="grain" x="0" y="0" width="100%" height="100%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"/>
-      <feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0"/>
-    </filter>
     <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
-      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.35"/>
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.3"/>
     </filter>
-    <!-- Lines darken slightly towards the bottom. -->
-    <linearGradient id="pink" x1="0" y1="250" x2="0" y2="980" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ff4f9a"/><stop offset="1" stop-color="#cf4280"/>
-    </linearGradient>
-    <linearGradient id="amber" x1="0" y1="250" x2="0" y2="980" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffad1f"/><stop offset="1" stop-color="#cf8e1d"/>
-    </linearGradient>
-    <linearGradient id="blue" x1="0" y1="250" x2="0" y2="980" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#1fb5ff"/><stop offset="1" stop-color="#1b94d0"/>
-    </linearGradient>
-    <!-- The lines stop short of every dot, leaving an empty gap around it. -->
-    <mask id="gaps" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-      <rect width="1024" height="1024" fill="#fff"/>
-      <circle cx="322" cy="370" r="58"/>
-      <circle cx="702" cy="315" r="58"/>
-      <circle cx="512" cy="270" r="78"/>
-      <circle cx="512" cy="560" r="48"/>
-      <circle cx="512" cy="760" r="48"/>
-    </mask>
   </defs>
-
-  <use href="#tile" fill="url(#background)" filter="url(#shadow)"/>
-  <use href="#tile" fill="url(#glow)"/>
-  <rect width="1024" height="1024" filter="url(#grain)" clip-path="url(#tile-clip)"/>
-
-  <g clip-path="url(#tile-clip)">
-    <g mask="url(#gaps)" fill="none" stroke-width="26" stroke-linecap="round">
-      <path d="M322 370V627A133 133 0 0 0 455 760H512" stroke="url(#pink)"/>
-      <path d="M702 315V427A133 133 0 0 1 569 560H512" stroke="url(#amber)"/>
-      <path d="M512 270V1100" stroke="url(#blue)"/>
+  <use href="#tile" fill="url(#bg)" filter="url(#shadow)"/>
+  <g clip-path="url(#clip)">
+    <!-- The river, widening as it flows out -->
+    <path d="M450 690L418 1060H606L574 690Z" fill="#141a26"/>
+    <g fill="none" stroke-linecap="round">
+    <path d="M200 20V320C200 520 512 510 512 690" stroke="#f4f6fa" stroke-width="104"/>
+    <path d="M200 20V320C200 520 512 510 512 690" stroke="#1fb5ff" stroke-width="86"/>
+    <path d="M824 20V320C824 520 512 510 512 690" stroke="#f4f6fa" stroke-width="104"/>
+    <path d="M824 20V320C824 520 512 510 512 690" stroke="#8f6bff" stroke-width="86"/>
+    <path d="M356 20V320C356 520 512 510 512 690" stroke="#f4f6fa" stroke-width="104"/>
+    <path d="M356 20V320C356 520 512 510 512 690" stroke="#ff4f9a" stroke-width="86"/>
+    <path d="M668 20V320C668 520 512 510 512 690" stroke="#f4f6fa" stroke-width="104"/>
+    <path d="M668 20V320C668 520 512 510 512 690" stroke="#2fd38a" stroke-width="86"/>
+    <path d="M512 20V320C512 520 512 510 512 690" stroke="#f4f6fa" stroke-width="104"/>
+    <path d="M512 20V320C512 520 512 510 512 690" stroke="#ffad1f" stroke-width="86"/>
     </g>
-    <!-- Branch tips -->
-    <circle cx="322" cy="370" r="48" fill="#ff4f9a"/>
-    <circle cx="702" cy="315" r="48" fill="#ffad1f"/>
-    <!-- The commits the branches start from -->
-    <circle cx="512" cy="560" r="38" fill="#1fb5ff"/>
-    <circle cx="512" cy="760" r="38" fill="#1fb5ff"/>
-    <!-- The checked-out commit -->
-    <circle cx="512" cy="270" r="44" fill="#1fb5ff"/>
-    <circle cx="512" cy="270" r="61" fill="none" stroke="#fff" stroke-width="14"/>
+    <!-- Where they merge -->
+    <circle cx="512" cy="690" r="92" fill="#141a26"/>
+    <circle cx="512" cy="690" r="36" fill="#ffffff"/>
   </g>
-
-  <use href="#tile" fill="none" stroke="url(#rim)" stroke-width="4" clip-path="url(#tile-clip)"/>
+  <use href="#tile" fill="none" stroke="url(#rim)" stroke-width="5" clip-path="url(#clip)"/>
 </svg>

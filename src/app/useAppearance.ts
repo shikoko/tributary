@@ -14,6 +14,7 @@ import {
   type GraphNodes,
   type Theme,
 } from "../lib/appearance";
+import { setAppIcon } from "../api";
 import { readSetting } from "../lib/settings";
 
 export const APPEARANCE_KEY = "appearance";
@@ -92,5 +93,9 @@ export function useAppearance(value: Partial<Appearance> | undefined): ThemeInfo
     setInfo({ theme, colors, curves: appearance.curves, nodes: appearance.nodes });
     applyToWindow(appearance.theme, colors.background);
   }, [appearance, theme]);
+  // The app's icon follows the theme too (the light one when it's light, the dark one when dark).
+  useEffect(() => {
+    setAppIcon(theme === "dark").catch(() => {});
+  }, [theme]);
   return info;
 }

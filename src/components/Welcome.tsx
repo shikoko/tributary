@@ -98,7 +98,7 @@ export function Welcome({ recent, summaries, opening, error, onPick, onClone, on
   return (
     <div className="welcome">
       <div className="welcome-card">
-        <Logo size={76} />
+        <Logo size={92} tile />
         <h1>Tributary</h1>
         <p className="tagline">See the history of a git repository as a graph.</p>
 

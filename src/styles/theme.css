@@ -44,6 +44,12 @@
   --on-lane-rgb: 13 15 19;
   /* The ring around the selected commit, and search matches next to the scrollbar. */
   --graph-ring: #ffffff;
+  /* The logo's merge and river (the app icon's, in each theme). */
+  --logo-ink: #ffffff;
+  --logo-dot: #141a26;
+  --logo-tile-top: #1c2333;
+  --logo-tile-bottom: #0b0e14;
+  --logo-tile-gap: #151a25;
   --match: #ffd23f;
 
   --accent: #1fb5ff;
@@ -162,6 +168,11 @@
   --on-lane: #ffffff;
   --on-lane-rgb: 255 255 255;
   --graph-ring: #1b1f26;
+  --logo-ink: #141a26;
+  --logo-dot: #ffffff;
+  --logo-tile-top: #ffffff;
+  --logo-tile-bottom: #e5eaf2;
+  --logo-tile-gap: #f4f6fa;
   --match: #c99700;
 
   --accent: #1fb5ff;
