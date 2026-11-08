@@ -309,8 +309,17 @@ try {
   await step("bisects to the first bad commit", async () => {
     const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" }).trim();
     const head = git("rev-parse", "HEAD");
-    // Bisecting checks out older commits: the demo's changes go aside meanwhile.
-    git("stash", "push", "-q", "--include-untracked", "-m", "smoke: bisect");
+    // Bisecting checks out older commits: the demo's changes go aside meanwhile. (The app
+    // may be reading the repository right then, holding git's lock for a moment.)
+    for (let tries = 0; ; tries++) {
+      try {
+        git("stash", "push", "-q", "--include-untracked", "-m", "smoke: bisect");
+        break;
+      } catch (e) {
+        if (tries >= 20 || !String(e).includes("index.lock")) throw e;
+        await page.waitForTimeout(150);
+      }
+    }
     try {
       await page.getByRole("button", { name: "Refresh", exact: true }).click();
       await row("Fix the note counter in the sidebar").click({ button: "right" });
@@ -418,6 +427,15 @@ try {
     const view = page.locator(".blame-view");
     await view.locator(".blame-gutter", { hasText: "Maya Chen" }).first().waitFor({ timeout: 10_000 });
     expect((await view.locator(".blame-gutter", { hasText: "Priya Nair" }).count()) > 0, "Priya's lines aren't credited to her");
+    // Step back to the version before Priya's change: those lines were Maya's then.
+    const priya = view.locator(".blame-gutter-cell", { has: page.locator(".blame-gutter", { hasText: "Priya Nair" }) }).first();
+    await priya.hover();
+    await priya.locator(".blame-back").click();
+    await view.locator(".diff-source", { hasText: /^Before / }).waitFor({ timeout: 10_000 });
+    await view.locator(".blame-gutter", { hasText: "Maya Chen" }).first().waitFor({ timeout: 10_000 });
+    expect((await view.locator(".blame-gutter", { hasText: "Priya Nair" }).count()) === 0, "Priya's change is still there before it");
+    await view.getByRole("button", { name: "Back", exact: true }).click();
+    await view.locator(".blame-gutter", { hasText: "Priya Nair" }).first().waitFor({ timeout: 10_000 });
     // Maya's lines come from "Store notes in IndexedDB": clicking goes there.
     await view.locator(".blame-gutter", { hasText: "Maya Chen" }).first().click();
     await page.locator(".details", { hasText: "Store notes in IndexedDB" }).waitFor({ timeout: 5000 });

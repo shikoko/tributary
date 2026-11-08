@@ -36,6 +36,10 @@ pub struct BlameCommit {
     pub summary: String,
     /// The file's path in that commit (it may have been renamed since).
     pub name: String,
+    /// The commit before it that had the file, and the file's path there: where to look
+    /// for who changed these lines before. None when this commit added the file.
+    pub previous: Option<String>,
+    pub previous_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -124,6 +128,12 @@ fn parse_porcelain(output: &str) -> Result<Blame> {
             "author-time" => commit.time = value.parse().unwrap_or(0),
             "summary" => commit.summary = value.to_owned(),
             "filename" => commit.name = value.to_owned(),
+            "previous" => {
+                if let Some((id, name)) = value.split_once(' ') {
+                    commit.previous = Some(id.to_owned());
+                    commit.previous_name = Some(name.to_owned());
+                }
+            }
             _ => {}
         }
     }
@@ -141,6 +151,7 @@ author Maya Chen
 author-mail <maya@example.com>
 author-time 1700000000
 summary First version
+previous 2222222222222222222222222222222222222222 old-notes.txt
 filename notes.txt
 \tone
 1111111111111111111111111111111111111111 2 2
@@ -159,6 +170,15 @@ filename notes.txt
         assert_eq!(blame.commits[0].email, "maya@example.com");
         assert_eq!(blame.commits[0].summary, "First version");
         assert_eq!(blame.commits[0].name, "notes.txt");
+        assert_eq!(
+            blame.commits[0].previous.as_deref(),
+            Some("2222222222222222222222222222222222222222")
+        );
+        assert_eq!(
+            blame.commits[0].previous_name.as_deref(),
+            Some("old-notes.txt")
+        );
+        assert_eq!(blame.commits[1].previous, None);
         assert_eq!(blame.commits[1].id, None);
         let lines: Vec<(&str, usize, u32)> = blame
             .lines

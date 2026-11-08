@@ -498,6 +498,14 @@ fn shows_who_changed_each_line() {
     let shout = &blame.commits[blame.lines[1].commit];
     assert_eq!(shout.summary, "Shout the second note");
     assert_eq!(shout.author, "Test Author");
+    // Before that change: the version it changed, at the first commit.
+    assert_eq!(shout.previous.as_deref(), Some(first.as_str()));
+    assert_eq!(shout.previous_name.as_deref(), Some("notes.txt"));
+    let first_commit = &blame.commits[blame.lines[0].commit];
+    assert_eq!(
+        first_commit.previous, None,
+        "the first commit added the file"
+    );
 
     // As it was at the first commit.
     let then = tributary_lib::actions::blame(repo.path(), "notes.txt", Some(&first)).unwrap();

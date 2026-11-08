@@ -1,11 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { blameFile, type Blame, type BlameCommit } from "../api";
 import { compactTime, fullDate, shortId } from "../lib/format";
 import { highlightCode, languageFor, MAX_HIGHLIGHT_LINES, pieces } from "../lib/syntax";
 import { LineText } from "./diff/DiffLines";
 import { Avatar } from "./Avatar";
 import { FileKindIcon } from "./FileKindIcon";
-import { CloseIcon } from "./Icons";
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, HistoryIcon } from "./Icons";
 
 const ROW = 20;
 /** Rows drawn above and below the ones on screen. */
@@ -22,12 +22,38 @@ interface Props {
   hasCommit: (id: string) => boolean;
 }
 
+/** A version of the file looked at: where, and the line to show first. */
+interface Version {
+  path: string;
+  at: string | null;
+  line?: number;
+  /** What it's the version before, for the Back button. */
+  before?: BlameCommit;
+}
+
 /**
  * Who changed each line of a file last, over the commit list: each stretch of lines from
  * the same commit shows its author, when, and the commit's message; newer changes have a
- * brighter bar. Click one to go to its commit. Esc closes.
+ * brighter bar. Click one to go to its commit, or step back to the version before it to
+ * see who changed those lines before; Back and Forward go between the versions seen.
+ * Esc closes.
  */
-export function BlameView({ repoPath, path, at, onClose, onSelectCommit, hasCommit }: Props) {
+export function BlameView({ repoPath, path: startPath, at: startAt, onClose, onSelectCommit, hasCommit }: Props) {
+  const [versions, setVersions] = useState<{ list: Version[]; index: number }>({ list: [{ path: startPath, at: startAt }], index: 0 });
+  // Another file (or commit) to start from: a new history.
+  useEffect(() => setVersions({ list: [{ path: startPath, at: startAt }], index: 0 }), [startPath, startAt]);
+  const version = versions.list[versions.index] ?? { path: startPath, at: startAt };
+  const { path, at } = version;
+  const stepBack = useCallback(
+    (commit: BlameCommit, line: number) =>
+      commit.previous &&
+      setVersions(({ list, index }) => ({
+        list: [...list.slice(0, index + 1), { path: commit.previousName ?? path, at: commit.previous, line, before: commit }],
+        index: index + 1,
+      })),
+    [path],
+  );
+  const go = (step: number) => setVersions(({ list, index }) => ({ list, index: Math.min(list.length - 1, Math.max(0, index + step)) }));
   const [loaded, setLoaded] = useState<{ key: string; blame: Blame | null; error: string | null } | null>(null);
   const key = JSON.stringify([repoPath, path, at]);
   useEffect(() => {
@@ -57,11 +83,29 @@ export function BlameView({ repoPath, path, at, onClose, onSelectCommit, hasComm
   return (
     <section className="diff-view blame-view" aria-label={`Who changed each line of ${path}`}>
       <header className="diff-header">
+        {versions.list.length > 1 && (
+          <div className="diff-steps">
+            <button className="icon-button" onClick={() => go(-1)} disabled={versions.index === 0} title="Back to the newer version" aria-label="Back">
+              <ChevronLeftIcon size={14} />
+            </button>
+            <button
+              className="icon-button"
+              onClick={() => go(1)}
+              disabled={versions.index === versions.list.length - 1}
+              title="Forward to the older version"
+              aria-label="Forward"
+            >
+              <ChevronRightIcon size={14} />
+            </button>
+          </div>
+        )}
         <div className="diff-title" title={path}>
           <FileKindIcon path={path} size={14} className="file-kind diff-kind" />
           <span className="diff-name">{path.slice(slash + 1)}</span>
           {slash > 0 && <span className="diff-dir">{path.slice(0, slash)}</span>}
-          <span className="diff-source">{at ? `At ${shortId(at)}` : "Your version"}</span>
+          <span className="diff-source" title={version.before ? `The version before ${shortId(version.before.id ?? "")}: ${version.before.summary}` : undefined}>
+            {version.before ? `Before ${shortId(version.before.id ?? "")}` : at ? `At ${shortId(at)}` : "Your version"}
+          </span>
           {blame && <span className="diff-source">{blame.commits.length === 1 ? "1 commit" : `${blame.commits.length} commits`}</span>}
         </div>
         <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close who changed each line">
@@ -79,7 +123,15 @@ export function BlameView({ repoPath, path, at, onClose, onSelectCommit, hasComm
         ) : blame.lines.length === 0 ? (
           <div className="diff-message muted">The file is empty.</div>
         ) : (
-          <BlameLines blame={blame} language={languageFor(path)} onSelectCommit={onSelectCommit} hasCommit={hasCommit} />
+          <BlameLines
+            key={key}
+            blame={blame}
+            language={languageFor(path)}
+            onSelectCommit={onSelectCommit}
+            hasCommit={hasCommit}
+            onStepBack={stepBack}
+            firstLine={version.line}
+          />
         )}
       </div>
     </section>
@@ -91,11 +143,17 @@ function BlameLines({
   language,
   onSelectCommit,
   hasCommit,
+  onStepBack,
+  firstLine,
 }: {
   blame: Blame;
   language: string | null;
   onSelectCommit: (id: string) => void;
   hasCommit: (id: string) => boolean;
+  /** See the version before `commit`, at about `line`. */
+  onStepBack: (commit: BlameCommit, line: number) => void;
+  /** The line to scroll to first. */
+  firstLine?: number;
 }) {
   // The whole file coloured at once, so comments and strings over several lines come out right.
   const syntax = useMemo(
@@ -119,6 +177,8 @@ function BlameLines({
   useLayoutEffect(() => {
     const element = scroller.current?.closest<HTMLElement>(".diff-body");
     if (!element) return;
+    // Where the lines were in the newer version, near the top.
+    element.scrollTop = firstLine ? Math.max(0, (firstLine - 4) * ROW) : 0;
     const update = () => setView({ top: element.scrollTop, height: element.clientHeight });
     update();
     element.addEventListener("scroll", update, { passive: true });
@@ -147,7 +207,14 @@ function BlameLines({
         style={{ top: index * ROW }}
         onMouseEnter={() => setHovered(line.commit)}
       >
-        <BlameGutter commit={commit} start={start} second={second} onSelectCommit={onSelectCommit} hasCommit={hasCommit} />
+        <BlameGutter
+          commit={commit}
+          start={start}
+          second={second}
+          onSelectCommit={onSelectCommit}
+          hasCommit={hasCommit}
+          onStepBack={() => onStepBack(commit, line.original)}
+        />
         <span className="blame-age" style={{ opacity: 0.15 + 0.85 * age[line.commit] }} />
         <span className="blame-number">{index + 1}</span>
         <span className="blame-text">
@@ -176,12 +243,14 @@ function BlameGutter({
   second,
   onSelectCommit,
   hasCommit,
+  onStepBack,
 }: {
   commit: BlameCommit;
   start: boolean;
   second: boolean;
   onSelectCommit: (id: string) => void;
   hasCommit: (id: string) => boolean;
+  onStepBack: () => void;
 }) {
   const id = commit.id;
   const title = id
@@ -190,11 +259,23 @@ function BlameGutter({
   const go = id && hasCommit(id) ? () => onSelectCommit(id) : undefined;
   if (start) {
     return (
-      <button className="blame-gutter" onClick={go} disabled={!go} title={title}>
-        {id ? <Avatar name={commit.author} email={commit.email} size={14} /> : <span className="blame-you" />}
-        <span className="blame-author">{id ? commit.author : "Not committed yet"}</span>
-        {id && <span className="blame-when">{compactTime(commit.time)}</span>}
-      </button>
+      <span className="blame-gutter-cell">
+        <button className="blame-gutter" onClick={go} disabled={!go} title={title}>
+          {id ? <Avatar name={commit.author} email={commit.email} size={14} /> : <span className="blame-you" />}
+          <span className="blame-author">{id ? commit.author : "Not committed yet"}</span>
+          {id && <span className="blame-when">{compactTime(commit.time)}</span>}
+        </button>
+        {commit.previous && (
+          <button
+            className="blame-back"
+            onClick={onStepBack}
+            title={`Who changed these lines before ${shortId(commit.id ?? "")}: the version before “${commit.summary}”`}
+            aria-label={`Before ${shortId(commit.id ?? "")}`}
+          >
+            <HistoryIcon size={12} />
+          </button>
+        )}
+      </span>
     );
   }
   if (second && id) {

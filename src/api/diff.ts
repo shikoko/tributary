@@ -104,6 +104,9 @@ export interface BlameCommit {
   summary: string;
   /** The file's path in that commit (it may have been renamed since). */
   name: string;
+  /** The commit before it that had the file, and the file's path there (null when it added the file). */
+  previous: string | null;
+  previousName: string | null;
 }
 
 export interface BlameLine {

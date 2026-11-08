@@ -6627,6 +6627,42 @@ select:disabled {
   z-index: 1;
 }
 
+/* A stretch's first line: who and when, and the step back to the version before it. */
+.blame-gutter-cell {
+  display: flex;
+  min-width: 0;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg-panel);
+}
+
+.blame-gutter-cell .blame-gutter {
+  flex: 1;
+  position: static;
+}
+
+.blame-back {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  border: none;
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.blame-row.hovered .blame-back,
+.blame-back:focus-visible {
+  opacity: 1;
+}
+
+.blame-back:hover {
+  color: var(--accent-ink);
+}
+
 .blame-gutter:not(:disabled):hover {
   color: var(--text);
 }
