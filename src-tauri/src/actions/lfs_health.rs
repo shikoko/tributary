@@ -6,6 +6,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
+use super::lfs_settings::FetchFilter;
 use crate::error::{Error, Result};
 use crate::git::{Git, Progress};
 
@@ -71,17 +72,19 @@ pub(super) fn health(git: &Git) -> LfsHealth {
 
 /// Files in the working tree that are still Git LFS pointers. `git lfs ls-files` marks
 /// them with `-` (`*` when the file is there); files left out of a sparse checkout are
-/// marked too, but aren't in the working tree, so they don't count.
+/// marked too, but aren't in the working tree, so they don't count, and neither do those
+/// in folders chosen not to be downloaded (`lfs.fetchinclude`, `lfs.fetchexclude`).
 fn pointer_files(git: &Git) -> Vec<String> {
     let Ok(listing) = git.run(&["lfs", "ls-files"]) else {
         return Vec::new();
     };
+    let filter = FetchFilter::read(git);
     listing
         .lines()
         .filter_map(|line| {
             let (_, rest) = line.split_once(' ')?;
             let path = rest.strip_prefix("- ")?;
-            is_pointer(&git.workdir().join(path)).then(|| path.to_owned())
+            (filter.allows(path) && is_pointer(&git.workdir().join(path))).then(|| path.to_owned())
         })
         .collect()
 }

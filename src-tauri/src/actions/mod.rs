@@ -49,7 +49,7 @@ pub use files::{FileHistory, file_history};
 pub use identity::{RepoIdentity, repo_identity};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
 pub use lfs_health::{LfsHealth, lfs_health};
-pub use lfs_settings::{LfsSettings, LfsSuggestion, lfs_settings};
+pub use lfs_settings::{LfsFolder, LfsSettings, LfsSuggestion, lfs_settings};
 pub use partial::LineMode;
 pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
@@ -227,6 +227,14 @@ pub enum Action {
     PruneLfs,
     /// Download the files stored with Git LFS that are still pointer files (`git lfs pull`).
     DownloadLfsFiles,
+    /// Download only the Git LFS files in the `include` folders (all, when empty) and not
+    /// those in `exclude`: this repository's `lfs.fetchinclude` and `lfs.fetchexclude`.
+    SetLfsFetchFolders {
+        #[serde(default)]
+        include: Vec<String>,
+        #[serde(default)]
+        exclude: Vec<String>,
+    },
     /// Set git up to use Git LFS (`git lfs install`), then download its files.
     SetUpLfs,
     /// Check out `branch` in a new working tree at `path` (an absolute folder that's new
@@ -519,6 +527,9 @@ fn perform(
         Action::UnignorePaths { patterns } => changes::unignore_paths(&git, patterns),
         Action::PruneLfs => lfs::prune_lfs(&git),
         Action::DownloadLfsFiles => lfs_health::download_lfs_files(&git, on_progress),
+        Action::SetLfsFetchFolders { include, exclude } => {
+            lfs_settings::set_lfs_fetch_folders(&git, include, exclude)
+        }
         Action::SetUpLfs => lfs_health::set_up_lfs(&git, on_progress),
         Action::AddWorktree {
             path,

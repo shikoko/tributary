@@ -528,3 +528,105 @@ fn suggests_big_file_types_and_tracks_and_untracks_them() {
             .is_empty()
     );
 }
+
+#[test]
+fn downloads_only_the_git_lfs_files_in_chosen_folders() {
+    if !lfs_installed() {
+        eprintln!("Git LFS isn't installed: skipped");
+        return;
+    }
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("folders-remote.git");
+    let alice = TempRepo::new("folders-alice");
+    alice.git(&["lfs", "install", "--local"]);
+    alice.git(&["lfs", "track", "*.bin"]);
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    for (folder, byte) in [("Art", 1u8), ("Audio", 2u8)] {
+        std::fs::create_dir_all(alice.path().join(folder)).unwrap();
+        std::fs::write(
+            alice.path().join(folder).join("big.bin"),
+            vec![byte; 30_000],
+        )
+        .unwrap();
+    }
+    alice.git(&["add", "."]);
+    alice.git(&["commit", "--quiet", "-m", "Art and audio"]);
+    alice.git(&["push", "--quiet", "origin", "main"]);
+
+    let parent = TempRepo::empty("folders-parent");
+    let options = CloneOptions {
+        skip_lfs: true,
+        ..CloneOptions::default()
+    };
+    let clone =
+        actions::clone_repository(remote.url(), parent.path(), "copy", &options, &|_| {}).unwrap();
+    let settings = actions::lfs_settings(&clone).unwrap();
+    let folders: Vec<(&str, usize, usize)> = settings
+        .folders
+        .iter()
+        .map(|f| (f.path.as_str(), f.files, f.downloaded))
+        .collect();
+    assert_eq!(folders, vec![("Art", 1, 0), ("Audio", 1, 0)]);
+    assert!(settings.fetch_include.is_empty());
+
+    let message = actions::run(
+        &clone,
+        Action::SetLfsFetchFolders {
+            include: vec!["Art".into()],
+            exclude: Vec::new(),
+        },
+    )
+    .unwrap();
+    assert_eq!(message, "Git LFS files are downloaded only from Art");
+    assert_eq!(
+        actions::lfs_settings(&clone).unwrap().fetch_include,
+        vec!["Art"]
+    );
+    // Audio isn't wanted, so its pointer file doesn't count as missing.
+    assert_eq!(actions::lfs_health(&clone).unwrap().unwrap().pointers, 1);
+
+    assert_eq!(
+        actions::run(&clone, Action::DownloadLfsFiles).unwrap(),
+        "Downloaded 1 file"
+    );
+    assert_eq!(
+        std::fs::read(clone.join("Art/big.bin")).unwrap(),
+        vec![1u8; 30_000]
+    );
+    assert!(
+        std::fs::metadata(clone.join("Audio/big.bin"))
+            .unwrap()
+            .len()
+            < 1000
+    );
+    assert_eq!(actions::lfs_health(&clone).unwrap().unwrap().pointers, 0);
+
+    // Commas would split a folder in two.
+    assert!(
+        actions::run(
+            &clone,
+            Action::SetLfsFetchFolders {
+                include: vec!["Art,Audio".into()],
+                exclude: Vec::new(),
+            },
+        )
+        .is_err()
+    );
+    assert_eq!(
+        actions::run(
+            &clone,
+            Action::SetLfsFetchFolders {
+                include: Vec::new(),
+                exclude: Vec::new(),
+            },
+        )
+        .unwrap(),
+        "Git LFS files are downloaded from every folder again"
+    );
+    assert!(
+        actions::lfs_settings(&clone)
+            .unwrap()
+            .fetch_include
+            .is_empty()
+    );
+}

@@ -505,6 +505,22 @@ try {
       await page.locator(".notice-banner").waitFor({ state: "detached", timeout: 10_000 });
       await dismissToast();
     });
+
+    await step("chooses which folders' Git LFS files to download", async () => {
+      await page.getByRole("button", { name: "Repository settings" }).click();
+      const dialog = page.locator(".dialog", { hasText: "Settings for" });
+      await dialog.getByRole("tab", { name: "Git LFS" }).click();
+      await dialog.getByLabel("Download Git LFS files").selectOption("only");
+      await dialog.getByRole("button", { name: /^Add Concept/ }).click();
+      await page.locator(".toast", { hasText: "Git LFS files are downloaded only from Concept" }).waitFor({ timeout: 10_000 });
+      await dialog.locator(".name-chip", { hasText: "Concept" }).waitFor({ timeout: 10_000 });
+      await dismissToast();
+      await dialog.getByLabel("Download Git LFS files").selectOption("all");
+      await page.locator(".toast", { hasText: "from every folder again" }).waitFor({ timeout: 10_000 });
+      await dismissToast();
+      await dialog.getByRole("button", { name: "Done" }).click();
+      await dialog.waitFor({ state: "detached", timeout: 5000 });
+    });
   }
 
   await step("opens a branch in a new worktree", async () => {

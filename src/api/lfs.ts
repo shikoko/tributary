@@ -62,6 +62,20 @@ export interface LfsSettings {
   patterns: string[];
   /** Kinds of big files here that aren't, biggest first. */
   suggestions: { pattern: string; files: number; bytes: number }[];
+  /** Download only the Git LFS files in these folders (or matching these patterns)… */
+  fetchInclude: string[];
+  /** …and not those in these. */
+  fetchExclude: string[];
+  /** The folders with files stored with Git LFS, biggest first. */
+  folders: LfsFolder[];
+}
+
+/** A folder with files stored with Git LFS: how many, how big (their latest versions), and how many are downloaded. */
+export interface LfsFolder {
+  path: string;
+  files: number;
+  bytes: number;
+  downloaded: number;
 }
 
 export function lfsSettings(path: string): Promise<LfsSettings> {

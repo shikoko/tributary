@@ -79,6 +79,8 @@ export type Action =
   | { kind: "unignorePaths"; patterns: string[] }
   | { kind: "pruneLfs" }
   | { kind: "downloadLfsFiles" }
+  /** Download only the Git LFS files in `include` (all, when empty) and not those in `exclude`. */
+  | { kind: "setLfsFetchFolders"; include: string[]; exclude: string[] }
   | { kind: "setUpLfs" }
   | { kind: "addWorktree"; path: string; branch: string; create: boolean; start?: string | null }
   | { kind: "removeWorktree"; path: string; force?: boolean }

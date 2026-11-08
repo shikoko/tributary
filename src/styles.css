@@ -5644,6 +5644,14 @@ code {
   max-width: 380px;
 }
 
+/* The folders whose Git LFS files are downloaded (or skipped), with the others to add. */
+.lfs-folders {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
 .lfs-suggestion {
   display: inline-flex;
   align-items: center;
