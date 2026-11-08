@@ -18,6 +18,9 @@ export interface RefLabel {
   upstream?: string;
   /** For an annotated tag: the id of the tag object (the label sits on its commit). */
   target?: string;
+  /** For a local branch with an upstream: commits it has that the upstream doesn't, and the other way round (git's count, over the whole history). */
+  ahead?: number;
+  behind?: number;
 }
 
 /** The full name of a branch, remote branch or tag, like "refs/heads/main". */

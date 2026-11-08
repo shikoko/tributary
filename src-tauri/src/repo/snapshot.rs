@@ -163,6 +163,17 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
     let head_commit = repo.head_id().ok().map(|id| id.detach());
 
     let mut refs = collect_refs(&repo, head_branch.as_deref());
+    // How far each branch is from its upstream, over the whole history (not just the
+    // commits loaded).
+    let counts = super::refs::upstream_counts(location);
+    for label in refs.values_mut().flatten() {
+        if label.kind == RefKind::Branch
+            && let Some(&(ahead, behind)) = counts.get(&label.name)
+        {
+            label.ahead = Some(ahead);
+            label.behind = Some(behind);
+        }
+    }
     if let (None, Some(id)) = (&head_branch, head_commit) {
         refs.entry(id).or_default().push(RefLabel {
             name: "HEAD".into(),
@@ -170,6 +181,8 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
             current: true,
             upstream: None,
             target: None,
+            ahead: None,
+            behind: None,
         });
     }
 
@@ -278,6 +291,8 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
                 current: false,
                 upstream: None,
                 target: None,
+                ahead: None,
+                behind: None,
             });
             walked.push(stash);
         }

@@ -427,3 +427,32 @@ fn sums_up_who_committed_where_lately() {
     let total: usize = team.people.iter().map(|p| p.commits).sum();
     assert_eq!(total, 3);
 }
+
+#[test]
+fn counts_ahead_and_behind_over_the_whole_history() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("track-remote.git");
+    let mut alice = TempRepo::new("track-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "start");
+    alice.git(&["push", "-q", "-u", "origin", "main"]);
+    let mut bob = TempRepo::clone_of("track-bob", &remote);
+    for n in 0..5 {
+        bob.commit("b.txt", &format!("bob {n}"));
+    }
+    bob.git(&["push", "-q", "origin", "main"]);
+    // Newer than bob's, so it's among the commits loaded.
+    alice.clock = bob.clock + 100;
+    alice.commit("c.txt", "alice's own");
+    alice.git(&["fetch", "-q", "origin"]);
+
+    // Only two commits loaded: git still counts all five.
+    let snapshot = tributary_lib::repo::load(alice.path(), 2, false).unwrap();
+    let main = snapshot
+        .commits
+        .iter()
+        .flat_map(|commit| &commit.refs)
+        .find(|label| label.name == "main")
+        .expect("main is loaded");
+    assert_eq!((main.ahead, main.behind), (Some(1), Some(5)));
+}

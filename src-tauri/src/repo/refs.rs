@@ -1,11 +1,13 @@
 //! Branches, remote branches, tags and stashes, and what they track.
 
 use std::collections::HashMap;
+use std::path::Path;
 
 use gix::ObjectId;
 use gix::bstr::ByteSlice;
 use serde::Serialize;
 
+use crate::git::Git;
 use crate::links;
 use crate::links::WebRemote;
 
@@ -42,6 +44,12 @@ pub struct RefLabel {
     /// For an annotated tag: the id of the tag object itself (`kind` points at its commit).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
+    /// For a local branch with an upstream: how many commits it has that the upstream
+    /// doesn't, and the other way round, over the whole history (git's own count).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ahead: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub behind: Option<u32>,
 }
 
 impl RefLabel {
@@ -121,9 +129,47 @@ pub(super) fn collect_refs(
             kind,
             upstream,
             target,
+            ahead: None,
+            behind: None,
         });
     }
     out
+}
+
+/// Each local branch's distance from the branch it tracks: (ahead, behind), from
+/// `git for-each-ref`'s `upstream:track`. Branches without an upstream (or whose upstream is
+/// gone) aren't listed.
+pub(crate) fn upstream_counts(workdir: &Path) -> HashMap<String, (u32, u32)> {
+    let Ok(git) = Git::find(workdir.to_owned()) else {
+        return HashMap::new();
+    };
+    let Ok(output) = git.in_background().run(&[
+        "for-each-ref",
+        "--format=%(refname:short)%00%(upstream:short)%00%(upstream:track,nobracket)",
+        "refs/heads",
+    ]) else {
+        return HashMap::new();
+    };
+    output.lines().filter_map(parse_track).collect()
+}
+
+/// "main\0origin/main\0ahead 1, behind 2" → ("main", (1, 2)).
+fn parse_track(line: &str) -> Option<(String, (u32, u32))> {
+    let mut parts = line.split('\0');
+    let name = parts.next()?;
+    let upstream = parts.next()?;
+    let track = parts.next().unwrap_or("");
+    if upstream.is_empty() || track.contains("gone") {
+        return None;
+    }
+    let count = |word: &str| {
+        track
+            .split(',')
+            .map(str::trim)
+            .find_map(|part| part.strip_prefix(word)?.trim().parse::<u32>().ok())
+            .unwrap_or(0)
+    };
+    Some((name.to_owned(), (count("ahead"), count("behind"))))
 }
 
 /// Branches that live on, and are never offered for pruning.
@@ -209,4 +255,27 @@ pub(crate) fn upstream(repo: &gix::Repository, branch: &str) -> Option<Upstream>
             .to_owned(),
         commit,
     })
+}
+
+#[cfg(test)]
+mod track_tests {
+    use super::parse_track;
+
+    #[test]
+    fn reads_ahead_and_behind() {
+        assert_eq!(
+            parse_track("main\0origin/main\0ahead 1, behind 2"),
+            Some(("main".into(), (1, 2)))
+        );
+        assert_eq!(
+            parse_track("feature\0origin/feature\0behind 12"),
+            Some(("feature".into(), (0, 12)))
+        );
+        assert_eq!(
+            parse_track("level\0origin/level\0"),
+            Some(("level".into(), (0, 0)))
+        );
+        assert_eq!(parse_track("old\0origin/old\0gone"), None);
+        assert_eq!(parse_track("local\0\0"), None);
+    }
 }
