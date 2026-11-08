@@ -1,5 +1,7 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { Action, DiffSource, FileChange, FileChecks, Lock, Overlap, RepoSnapshot } from "../api";
+import { FILTER_FROM, filterFiles } from "../lib/fileFilter";
+import { FileFilter } from "./FileList";
 import { CloseIcon, MinusIcon, PlusIcon, StashIcon, TrashIcon } from "./Icons";
 import { ChangeWarnings } from "./worktree/ChangeWarnings";
 import { CommitBox, type CommitDraft } from "./worktree/CommitBox";
@@ -55,8 +57,14 @@ export function WorktreeDetailsPanel(props: Props) {
   const { snapshot, run, busy, lockOf, onFileMenu, checks } = props;
   const opening = { onOpen: props.onOpenFile, isShown: props.isShown };
   const status = snapshot.worktree ?? { staged: [], unstaged: [] };
-  const conflicted = status.unstaged.filter((file) => file.status === "conflicted");
-  const unstaged = status.unstaged.filter((file) => file.status !== "conflicted");
+  // Many changes can be narrowed down (and then staged or unstaged a folder at a time).
+  const [query, setQuery] = useState("");
+  const total = status.staged.length + status.unstaged.length;
+  const filtering = query.trim() !== "" && total > FILTER_FROM;
+  const staged = filtering ? filterFiles(status.staged, query) : status.staged;
+  const allUnstaged = filtering ? filterFiles(status.unstaged, query) : status.unstaged;
+  const conflicted = allUnstaged.filter((file) => file.status === "conflicted");
+  const unstaged = allUnstaged.filter((file) => file.status !== "conflicted");
   const stagedPaths = new Set(status.staged.map((file) => file.path));
   const quietly = (action: Action) => run(action, { quiet: true });
   const elsewhere = new Map(props.overlaps.map((overlap) => [overlap.path, overlap]));
@@ -83,16 +91,21 @@ export function WorktreeDetailsPanel(props: Props) {
       <div className="details-scroll worktree">
         <ElsewhereWarning overlaps={props.overlaps} onShow={props.onShowCommit} />
         <ChangeWarnings staged={status.staged} unstaged={status.unstaged} lockOf={lockOf} checks={checks} canLock={props.canLock} busy={busy} run={run} />
+        {total > FILTER_FROM && <FileFilter value={query} onChange={setQuery} shown={staged.length + allUnstaged.length} total={total} />}
         {conflicted.length > 0 && (
           <ConflictList conflicted={conflicted} {...conflictSides(snapshot)} busy={busy} lockOf={lockOf} onFileMenu={onFileMenu} run={run} elsewhereOf={elsewhereOf} {...opening} />
         )}
         <FileSection
           title="Staged"
-          files={status.staged}
+          files={staged}
           source={{ kind: "staged" }}
           {...opening}
-          empty="Nothing staged yet. Stage the files you want to commit."
-          bulk={{ label: "Unstage all", onClick: () => quietly({ kind: "unstageAll" }) }}
+          empty={filtering ? "No staged files match." : "Nothing staged yet. Stage the files you want to commit."}
+          bulk={
+            filtering
+              ? { label: `Unstage these ${staged.length.toLocaleString()}`, onClick: () => quietly({ kind: "unstage", paths: staged.flatMap(paths) }) }
+              : { label: "Unstage all", onClick: () => quietly({ kind: "unstageAll" }) }
+          }
           lockOf={lockOf}
           onFileMenu={onFileMenu}
           elsewhereOf={elsewhereOf}
@@ -104,8 +117,12 @@ export function WorktreeDetailsPanel(props: Props) {
           files={unstaged}
           source={{ kind: "unstaged" }}
           {...opening}
-          empty="No other changes."
-          bulk={{ label: "Stage all", onClick: () => quietly({ kind: "stageAll" }) }}
+          empty={filtering ? "No other changes match." : "No other changes."}
+          bulk={
+            filtering
+              ? { label: `Stage these ${unstaged.length.toLocaleString()}`, onClick: () => quietly({ kind: "stage", paths: unstaged.flatMap(paths) }) }
+              : { label: "Stage all", onClick: () => quietly({ kind: "stageAll" }) }
+          }
           lockOf={lockOf}
           onFileMenu={onFileMenu}
           elsewhereOf={elsewhereOf}

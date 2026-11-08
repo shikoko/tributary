@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { commitDetails, type CommitDetails, type CommitRow, type FileChange, type Lock, type Person, type WebRemote } from "../api";
 import { laneColor } from "../lib/colors";
 import { dateInZone, fullDate, plural, shortId, utcOffset } from "../lib/format";
@@ -9,11 +9,11 @@ import { CheckIcon, CloseIcon, CopyIcon } from "./Icons";
 import { MessageText } from "./MessageText";
 import { RefPills } from "./RefPills";
 import { FileLine } from "./FileLine";
+import { FileFilter, FileList } from "./FileList";
+import { FILTER_FROM, filterFiles } from "../lib/fileFilter";
 import { highlightedFirst } from "../lib/diffTargets";
 import { reflowBody } from "../lib/message";
 
-/** Very large commits only list their first files, to keep the panel responsive. */
-const MAX_FILES = 1000;
 
 interface Props {
   repoPath: string;
@@ -83,6 +83,11 @@ export function CommitDetailsPanel(props: Props) {
 
   const current = loaded.id === commit.id ? loaded : { id: commit.id };
   const details = current.details;
+  // A long list of files can be narrowed down; a new commit starts unfiltered.
+  const [filter, setFilter] = useState({ id: commit.id, query: "" });
+  const query = filter.id === commit.id ? filter.query : "";
+  const setQuery = (value: string) => setFilter({ id: commit.id, query: value });
+  const files = useMemo(() => filterFiles(highlightedFirst(details?.files ?? [], isHighlighted), query), [details, isHighlighted, query]);
   const author: Person = details?.author ?? {
     name: commit.authorName,
     email: commit.authorEmail,
@@ -193,12 +198,13 @@ export function CommitDetailsPanel(props: Props) {
           ) : details.files.length === 0 ? (
             <div className="muted">No file changes.</div>
           ) : (
-            <ul className="file-list">
-              {highlightedFirst(details.files, isHighlighted)
-                .slice(0, MAX_FILES)
-                .map((file) => (
+            <>
+              {details.files.length > FILTER_FROM && <FileFilter value={query} onChange={setQuery} shown={files.length} total={details.files.length} />}
+              <FileList
+                items={files}
+                keyOf={(file) => `${file.status}:${file.oldPath ?? ""}:${file.path}`}
+                render={(file) => (
                   <FileLine
-                    key={`${file.status}:${file.oldPath ?? ""}:${file.path}`}
                     file={file}
                     highlighted={isHighlighted?.(file.path) || (file.oldPath ? isHighlighted?.(file.oldPath) : false)}
                     lock={lockOf?.(file.path)}
@@ -206,11 +212,10 @@ export function CommitDetailsPanel(props: Props) {
                     onOpen={onOpenFile}
                     shown={isShown?.(file.path)}
                   />
-                ))}
-              {details.files.length > MAX_FILES && (
-                <li className="muted more-files">and {plural(details.files.length - MAX_FILES, "more file")}</li>
-              )}
-            </ul>
+                )}
+              />
+              {files.length === 0 && <div className="muted">No files match “{query.trim()}”.</div>}
+            </>
           )}
         </section>
       </div>

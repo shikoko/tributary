@@ -3,7 +3,7 @@
 use super::Extra;
 use super::backups::{DISCARDED, forget_old_discards};
 use super::stash::stash_top;
-use super::support::{LITERAL, count, describe_files, now_millis, ref_id};
+use super::support::{LITERAL, count, describe_files, in_batches, now_millis, ref_id};
 use super::validate::{check_file_paths, check_paths, check_patterns};
 use crate::error::Result;
 use crate::git::Git;
@@ -11,23 +11,29 @@ use crate::git::Git;
 /// Stage files (`git add`).
 pub(super) fn stage(git: &Git, paths: Vec<String>) -> Result<String> {
     let paths = check_paths(&paths)?;
-    let mut args = vec!["add", "--"];
-    args.extend(&paths);
-    git.run(&args)?;
+    // A few thousand at once (a filtered list) would be too long for one command line.
+    for batch in in_batches(&paths) {
+        let mut args = vec!["add", "--"];
+        args.extend(batch);
+        git.run_with_env(&args, &LITERAL)?;
+    }
     Ok(format!("Staged {}", count(paths.len(), "file")))
 }
 
 /// Unstage files, keeping their changes in the working tree.
 pub(super) fn unstage(repo: &gix::Repository, git: &Git, paths: Vec<String>) -> Result<String> {
     let paths = check_paths(&paths)?;
-    let mut args = if repo.head_id().is_ok() {
-        vec!["restore", "--staged", "--"]
+    let command: &[&str] = if repo.head_id().is_ok() {
+        &["restore", "--staged", "--"]
     } else {
         // Nothing is committed yet, so there's no HEAD to restore from.
-        vec!["rm", "--cached", "--quiet", "-r", "--"]
+        &["rm", "--cached", "--quiet", "-r", "--"]
     };
-    args.extend(&paths);
-    git.run(&args)?;
+    for batch in in_batches(&paths) {
+        let mut args = command.to_vec();
+        args.extend(batch);
+        git.run_with_env(&args, &LITERAL)?;
+    }
     Ok(format!("Unstaged {}", count(paths.len(), "file")))
 }
 

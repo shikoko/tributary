@@ -385,3 +385,37 @@ fn sets_who_commits_are_made_as_in_one_repository() {
     }
     assert_eq!(repo_identity(repo.path()).unwrap().local_email, None);
 }
+
+#[test]
+fn stages_and_unstages_thousands_of_files_at_once() {
+    let mut repo = TempRepo::new("stage-many");
+    repo.commit("a.txt", "a");
+    std::fs::create_dir_all(repo.path().join("Content/Generated/Level01")).unwrap();
+    let paths: Vec<String> = (0..3000)
+        .map(|i| {
+            format!("Content/Generated/Level01/Instance_{i:05}_LongerNameForTheCommandLine.txt")
+        })
+        .collect();
+    for path in &paths {
+        std::fs::write(repo.path().join(path), "x").unwrap();
+    }
+    // Over 200,000 characters of paths: more than one command line takes.
+    assert_eq!(
+        run(
+            &repo,
+            Action::Stage {
+                paths: paths.clone()
+            }
+        )
+        .unwrap(),
+        "Staged 3,000 files"
+    );
+    assert_eq!(
+        repo.git(&["diff", "--cached", "--name-only"])
+            .lines()
+            .count(),
+        3000
+    );
+    run(&repo, Action::Unstage { paths }).unwrap();
+    assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "");
+}

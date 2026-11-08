@@ -6,7 +6,16 @@ use gix::ObjectId;
 use gix::bstr::ByteSlice;
 
 pub(super) fn count(n: usize, word: &str) -> String {
-    format!("{n} {word}{}", if n == 1 { "" } else { "s" })
+    // Thousands separated, like "3,000 files".
+    let digits = n.to_string();
+    let mut grouped = String::new();
+    for (i, digit) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            grouped.push(',');
+        }
+        grouped.push(digit);
+    }
+    format!("{grouped} {word}{}", if n == 1 { "" } else { "s" })
 }
 
 /// The name of a file, without its folders.
@@ -91,4 +100,17 @@ pub(super) fn is_merge(repo: &gix::Repository, id: ObjectId) -> bool {
     repo.find_commit(id)
         .map(|commit| commit.parent_ids().count() > 1)
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn counts_with_thousands_separated() {
+        assert_eq!(count(1, "file"), "1 file");
+        assert_eq!(count(999, "file"), "999 files");
+        assert_eq!(count(3000, "file"), "3,000 files");
+        assert_eq!(count(1_234_567, "commit"), "1,234,567 commits");
+    }
 }

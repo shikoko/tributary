@@ -514,6 +514,14 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   write("Content/Cinematics/DoorOpen.webm", doorVideo(2), { append: false });
   write("Content/Props/Stool.glb", stool(true), { append: false });
   commit("A slower door with a longer creak, and a stool with a back", "rosa");
+  // A huge commit, like an engine's import: thousands of small generated files.
+  for (let level = 1; level <= 4; level++) {
+    for (let i = 0; i < 600; i++) {
+      const name = `Content/Generated/Level0${level}/Instance_${String(i).padStart(4, "0")}.json`;
+      write(name, `{ "level": ${level}, "instance": ${i}, "seed": ${(level * 7919 + i * 104729) % 65536} }\n`, { append: false });
+    }
+  }
+  commit("Import the generated level instances", "theo");
   run(["push", "-q", "origin", "main"]);
 
   run(["switch", "-q", "-c", "fix/door"]);

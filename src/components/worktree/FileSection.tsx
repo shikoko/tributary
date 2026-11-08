@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { DiffSource, FileChange, Lock, Overlap } from "../../api";
 import { plural } from "../../lib/format";
 import { FileLine } from "../FileLine";
+import { FileList } from "../FileList";
 
 interface Props {
   title: string;
@@ -38,10 +39,11 @@ export function FileSection({ title, files, empty, bulk, fileAction, busy, lockO
       {files.length === 0 ? (
         <div className="muted">{empty}</div>
       ) : (
-        <ul className="file-list">
-          {files.map((file) => (
+        <FileList
+          items={files}
+          keyOf={(file) => `${file.status}:${file.oldPath ?? ""}:${file.path}`}
+          render={(file) => (
             <FileLine
-              key={`${file.status}:${file.oldPath ?? ""}:${file.path}`}
               file={file}
               action={{ ...fileAction(file), disabled: busy }}
               lock={lockOf(file.path)}
@@ -50,8 +52,8 @@ export function FileSection({ title, files, empty, bulk, fileAction, busy, lockO
               onOpen={(file) => onOpen(file, source)}
               shown={isShown(file.path, source)}
             />
-          ))}
-        </ul>
+          )}
+        />
       )}
     </section>
   );

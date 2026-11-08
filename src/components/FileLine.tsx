@@ -91,7 +91,11 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
           <BranchIcon size={11} />
         </span>
       )}
-      {dir && <span className="file-dir">{dir}</span>}
+      {dir && (
+        <span className="file-dir">
+          <bdi>{dir}</bdi>
+        </span>
+      )}
       {choices && (
         <span className="file-choices">
           {choices.map((choice) => (

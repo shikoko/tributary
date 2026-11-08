@@ -53,7 +53,7 @@ async function step(name, run) {
     console.log(`  ✓ ${name}`);
   } catch (error) {
     failed++;
-    console.log(`  ✗ ${name}\n      ${String(error.message ?? error).split("\n")[0]}`);
+    console.log(`  ✗ ${name}\n      ${String(error.message ?? error).split("\n").slice(0, 3).join("\n      ")}`);
   }
   if (screenshots) await page.screenshot({ path: join(screenshots, `${String(++shot).padStart(2, "0")}.png`) }).catch(() => {});
 }
@@ -287,6 +287,8 @@ try {
   await step("offers to release your locks after pushing", async () => {
     await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
     await page.getByRole("button", { name: "Unstage all" }).click();
+    // Wait for the lists to settle: Theme.wav moves above Barber.uasset.
+    await page.locator(".files h3", { hasText: "Staged" }).locator(".hint", { hasText: "0 files" }).waitFor({ timeout: 10_000 });
     await page.locator(".file", { hasText: "Barber.uasset" }).hover();
     await page.getByRole("button", { name: "Stage Content/Characters/Barber.uasset" }).click();
     await page.getByPlaceholder("Commit summary").fill("Tweak the barber's apron");
@@ -327,6 +329,23 @@ try {
     expect(text.includes("Vertices 120 192"), `facts "${text}"`);
     await page.keyboard.press("Escape");
     await view.waitFor({ state: "detached", timeout: 5000 });
+  });
+
+  await step("lists every file of a huge commit, and filters them", async () => {
+    await row("Import the generated level instances").click();
+    const files = page.locator(".details .files");
+    await files.locator("h3", { hasText: "2,400 changed files" }).waitFor({ timeout: 10_000 });
+    // Only the rows on screen are drawn, but the last file is there to scroll to.
+    const drawn = await files.locator(".file").count();
+    expect(drawn < 400, `${drawn} rows drawn`);
+    await page.locator(".details-scroll").evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    await files.locator(".file", { hasText: "Instance_0599.json" }).last().waitFor({ timeout: 5000 });
+    // Narrow it down.
+    await page.getByLabel("Filter files by name or folder").fill("level03 instance_01");
+    await files.locator(".file-filter-count", { hasText: "100 of 2,400" }).waitFor({ timeout: 5000 });
+    expect((await files.locator(".file").count()) === 100, "filtered rows");
+    await page.getByLabel("Filter files by name or folder").press("Escape");
+    await files.locator(".file-filter-count").waitFor({ state: "detached", timeout: 5000 });
   });
 
   await step("chooses a diff tool from a file it can't show line by line", async () => {
