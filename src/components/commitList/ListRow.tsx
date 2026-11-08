@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import { memo, type MouseEvent, type RefObject } from "react";
 import type { CommitRow } from "../../api";
 import type { ChangeCounts as Counts } from "../../lib/changes";
 import { laneColor } from "../../lib/colors";
@@ -11,16 +11,24 @@ import { laneX, type GraphMetrics } from "../graphPainter";
 import { RefPills } from "../RefPills";
 import { REFS_PADDING, type ColumnOptions, type VisibleColumns } from "./layout";
 
+/** What a row does when it's clicked, hovered, … (the list's latest, read at the time). */
+export interface RowHandlers {
+  onSelect: (id: string, how?: SelectHow) => void;
+  onContextMenu: (commit: CommitRow, x: number, y: number) => void;
+  onPillActivate: (pill: RefPill, commit: CommitRow) => void;
+  onPillContextMenu: (pill: RefPill, commit: CommitRow, x: number, y: number) => void;
+  onPillFocus: (pill: RefPill, commit: CommitRow) => void;
+  onHover: (event: MouseEvent, commit: CommitRow) => void;
+  onLeave: () => void;
+}
+
 interface RowProps {
   commit: CommitRow;
   top: number;
   height: number;
   metrics: GraphMetrics;
-  columns: string;
   visible: VisibleColumns;
   options: ColumnOptions;
-  refsWidth: number;
-  graphWidth: number;
   /** For the uncommitted changes row: how many files changed. */
   changes?: Counts;
   narrow: boolean;
@@ -30,24 +38,22 @@ interface RowProps {
   primary: boolean;
   /** Not a search match, or outside the highlighted history. */
   dimmed: boolean;
-  onSelect: (id: string, how?: SelectHow) => void;
-  onContextMenu: (commit: CommitRow, x: number, y: number) => void;
-  onPillActivate: (pill: RefPill, commit: CommitRow) => void;
-  onPillContextMenu: (pill: RefPill, commit: CommitRow, x: number, y: number) => void;
-  onPillFocus: (pill: RefPill, commit: CommitRow) => void;
-  onHover: (event: MouseEvent) => void;
-  onLeave: () => void;
+  handlers: RefObject<RowHandlers>;
 }
 
-/** One commit in the list: its labels, message, author, date and SHA. The graph is drawn under the rows, on a canvas. */
-export function ListRow(props: RowProps) {
-  const { commit, top, height, metrics, columns, visible, options, refsWidth, graphWidth, changes, narrow, dense } =
-    props;
-  const { selected, primary, dimmed, onSelect, onContextMenu } = props;
+/**
+ * One commit in the list: its labels, message, author, date and SHA. The graph is drawn
+ * under the rows, on a canvas. The columns come from the list (CSS variables), so a new
+ * width doesn't re-render the rows, and a row re-renders only when what it shows changes.
+ */
+export const ListRow = memo(function ListRow(props: RowProps) {
+  const { commit, top, height, metrics, visible, options, changes, narrow, dense, handlers } = props;
+  const { selected, primary, dimmed } = props;
+  const on = () => handlers.current!;
+  const onSelect = (id: string, how?: SelectHow) => on().onSelect(id, how);
   const color = laneColor(commit.graph.column);
-  // A line from the label to the commit's node in the graph.
-  const connectorStart = refsWidth - REFS_PADDING;
-  const connectorEnd = refsWidth + Math.min(laneX(commit.graph.column, metrics), graphWidth);
+  // A line from the label to the commit's node in the graph (which can be narrower than its lane).
+  const lane = laneX(commit.graph.column, metrics);
   const time = options.dateKind === "committed" ? commit.commitTime : commit.time;
   const dateTitle =
     commit.commitTime !== commit.time
@@ -60,7 +66,6 @@ export function ListRow(props: RowProps) {
       style={{
         top,
         height,
-        gridTemplateColumns: columns,
         boxShadow: primary ? `inset 3px 0 0 ${color}` : undefined,
       }}
       data-drop-commit={commit.kind === "commit" ? commit.id : undefined}
@@ -71,13 +76,13 @@ export function ListRow(props: RowProps) {
         if (event.shiftKey || toggle) event.preventDefault();
         onSelect(commit.id, { extend: event.shiftKey, toggle });
       }}
-      onMouseEnter={props.onHover}
-      onMouseMove={props.onHover}
-      onMouseLeave={props.onLeave}
+      onMouseEnter={(event) => on().onHover(event, commit)}
+      onMouseMove={(event) => on().onHover(event, commit)}
+      onMouseLeave={() => on().onLeave()}
       onContextMenu={(event) => {
         event.preventDefault();
         if (!selected) onSelect(commit.id);
-        onContextMenu(commit, event.clientX, event.clientY);
+        on().onContextMenu(commit, event.clientX, event.clientY);
       }}
       role="option"
       aria-selected={selected}
@@ -87,19 +92,23 @@ export function ListRow(props: RowProps) {
           refs={commit.refs}
           color={color}
           limit={1}
-          onActivate={(pill) => props.onPillActivate(pill, commit)}
+          onActivate={(pill) => on().onPillActivate(pill, commit)}
           onContextMenu={(pill, x, y) => {
             onSelect(commit.id);
-            props.onPillContextMenu(pill, commit, x, y);
+            on().onPillContextMenu(pill, commit, x, y);
           }}
-          onFocusPill={(pill) => props.onPillFocus(pill, commit)}
+          onFocusPill={(pill) => on().onPillFocus(pill, commit)}
           draggable
         />
       </div>
       {commit.refs.length > 0 && (
         <span
           className="ref-connector"
-          style={{ left: connectorStart, width: connectorEnd - connectorStart, background: color }}
+          style={{
+            left: `calc(var(--refs-width) - ${REFS_PADDING}px)`,
+            width: `calc(min(${lane}px, var(--graph-width)) + ${REFS_PADDING}px)`,
+            background: color,
+          }}
         />
       )}
       <div />
@@ -139,12 +148,12 @@ export function ListRow(props: RowProps) {
       )}
     </div>
   );
-}
+});
 
 /** A divider like "Yesterday" or "October" between commits from different periods. */
-export function DaySeparator({ day, top, height, columns }: { day: string; top: number; height: number; columns: string }) {
+export function DaySeparator({ day, top, height }: { day: string; top: number; height: number }) {
   return (
-    <div className="day-separator" style={{ top, height, gridTemplateColumns: columns }} role="presentation">
+    <div className="day-separator" style={{ top, height }} role="presentation">
       <div />
       <div />
       <div className="day-label">

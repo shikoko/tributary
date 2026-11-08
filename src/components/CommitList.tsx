@@ -8,13 +8,15 @@ import type { SelectHow } from "../lib/selection";
 import { useGraphCanvas, useScrollMarkers } from "./commitList/canvases";
 import { DENSE_ROW_HEIGHT, FOOTER_HEIGHT, GRAPH_PADDING, LANE_WIDTH, ROW_HEIGHT, useColumnLayout, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
 import { ListHeader } from "./commitList/ListHeader";
-import { DaySeparator, ListRow } from "./commitList/ListRow";
+import { DaySeparator, ListRow, type RowHandlers } from "./commitList/ListRow";
 import { CommitPreview } from "./CommitPreview";
 
 export { DEFAULT_COLUMNS, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
 
 /** How long the pointer rests on a commit before its preview shows, in milliseconds. */
 const PREVIEW_DELAY = 650;
+/** How long the list's width has to stay put before its columns ease again. */
+const WIDTH_SETTLE = 160;
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -88,19 +90,45 @@ export function CommitList(props: Props) {
   const changeCounts = useMemo(() => (snapshot.worktree ? countChanges(snapshot.worktree) : undefined), [snapshot.worktree]);
   const selectedIndex = selectedId ? (indexById.get(selectedId) ?? -1) : -1;
   const contentHeight = slots.length * rowHeight + (snapshot.truncated ? FOOTER_HEIGHT : 0);
-  const layout = useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport, columnWidths, show });
+  const [settledWidth, setSettledWidth] = useState(0);
+  const layout = useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport, settledWidth, columnWidths, show });
   const { first, last, columns, refsWidth, graphWidth } = layout;
 
   useLayoutEffect(() => {
     const element = scroller.current!;
-    const measure = () => setViewport({ width: element.clientWidth, height: element.clientHeight, scrollbar: element.offsetWidth - element.clientWidth });
+    const read = () => ({ width: element.clientWidth, height: element.clientHeight, scrollbar: element.offsetWidth - element.clientWidth });
+    // While the width keeps changing (a side panel sliding open or closed, the window being
+    // resized), the columns follow it frame by frame without easing: easing towards a width
+    // that moves every frame made them lag and swing back and forth. Once the width has
+    // stayed put, easing comes back, and the layout switches to (or from) the compact one
+    // for narrow lists if it has to, in one eased step.
+    let settle: ReturnType<typeof setTimeout> | undefined;
+    let width = 0;
+    const measure = () => {
+      const next = read();
+      if (width === 0) setSettledWidth(next.width);
+      else if (next.width !== width) {
+        document.body.classList.add("list-resizing");
+        clearTimeout(settle);
+        settle = setTimeout(() => {
+          document.body.classList.remove("list-resizing");
+          setSettledWidth(element.clientWidth);
+        }, WIDTH_SETTLE);
+      }
+      width = next.width;
+      setViewport(next);
+    };
     measure();
     element.scrollTop = props.initialScrollTop;
     // Focus the list so the arrow keys work straight away.
     element.focus({ preventScroll: true });
     const observer = new ResizeObserver(measure);
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      clearTimeout(settle);
+      document.body.classList.remove("list-resizing");
+    };
   }, []);
 
   // Labels dragged onto a row.
@@ -155,12 +183,35 @@ export function CommitList(props: Props) {
     event.preventDefault();
   };
 
-  const metrics = { rowHeight, laneWidth: LANE_WIDTH, padding: GRAPH_PADDING };
+  const metrics = useMemo(() => ({ rowHeight, laneWidth: LANE_WIDTH, padding: GRAPH_PADDING }), [rowHeight]);
+  // One set of handlers for every row, reading the latest props when called, so rows don't
+  // re-render just because the list did.
+  const handlers = useRef<RowHandlers>(null!);
+  handlers.current = {
+    onSelect: (id, how) => {
+      hidePreview();
+      onSelect(id, how);
+    },
+    onContextMenu: (commit, x, y) => {
+      hidePreview();
+      props.onContextMenu(commit, x, y);
+    },
+    onPillActivate: props.onPillActivate,
+    onPillContextMenu: props.onPillContextMenu,
+    onPillFocus: props.onPillFocus,
+    onHover: (event, commit) => {
+      window.clearTimeout(previewTimer.current);
+      if (!props.previews || commit.kind === "worktree" || event.buttons) return setPreview(null);
+      const { clientX: x, clientY: y } = event;
+      previewTimer.current = window.setTimeout(() => setPreview({ commit, x, y }), PREVIEW_DELAY);
+    },
+    onLeave: hidePreview,
+  };
   const rows = [];
   for (let slotIndex = first; slotIndex < last; slotIndex++) {
     const slot = slots[slotIndex];
     if (typeof slot !== "number") {
-      rows.push(<DaySeparator key={`day:${slot.before}`} day={slot.day} top={slotIndex * rowHeight} height={rowHeight} columns={columns} />);
+      rows.push(<DaySeparator key={`day:${slot.before}`} day={slot.day} top={slotIndex * rowHeight} height={rowHeight} />);
       continue;
     }
     const commit = commits[slot];
@@ -171,41 +222,26 @@ export function CommitList(props: Props) {
         top={slotIndex * rowHeight}
         height={rowHeight}
         metrics={metrics}
-        columns={columns}
         visible={layout.visible}
         options={show}
-        refsWidth={refsWidth}
-        graphWidth={graphWidth}
         changes={commit.kind === "worktree" ? changeCounts : undefined}
         narrow={layout.narrow}
         dense={dense}
         selected={commit.id === selectedId || Boolean(selectedIds?.has(commit.id))}
         primary={commit.id === selectedId}
         dimmed={(matchIds !== null && !matchIds.has(commit.id)) || (props.focusIds !== null && !props.focusIds.has(commit.id))}
-        onSelect={(id, how) => {
-          hidePreview();
-          onSelect(id, how);
-        }}
-        onContextMenu={(commit, x, y) => {
-          hidePreview();
-          props.onContextMenu(commit, x, y);
-        }}
-        onPillActivate={props.onPillActivate}
-        onPillContextMenu={props.onPillContextMenu}
-        onPillFocus={props.onPillFocus}
-        onHover={(event) => {
-          window.clearTimeout(previewTimer.current);
-          if (!props.previews || commit.kind === "worktree" || event.buttons) return setPreview(null);
-          const { clientX: x, clientY: y } = event;
-          previewTimer.current = window.setTimeout(() => setPreview({ commit, x, y }), PREVIEW_DELAY);
-        }}
-        onLeave={hidePreview}
+        handlers={handlers}
       />,
     );
   }
 
   return (
-    <section className={`commit-list${dense ? " dense" : ""}${layout.graphGrowing ? " graph-growing" : ""}`} aria-label="Commits">
+    <section
+      className={`commit-list${dense ? " dense" : ""}${layout.graphGrowing ? " graph-growing" : ""}`}
+      aria-label="Commits"
+      // The rows' columns: set here, so a new width restyles the rows without re-rendering them.
+      style={{ ["--list-columns" as string]: columns, ["--refs-width" as string]: `${refsWidth}px`, ["--graph-width" as string]: `${graphWidth}px` }}
+    >
       <ListHeader
         columns={columns}
         visible={layout.visible}

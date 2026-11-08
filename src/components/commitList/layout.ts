@@ -65,6 +65,11 @@ interface LayoutInput {
   rowHeight: number;
   scrollTop: number;
   viewport: { width: number; height: number };
+  /**
+   * The width the list last stayed at. The compact layout for narrow lists goes by it, so
+   * a side panel sliding open or closed doesn't flip the layout halfway through.
+   */
+  settledWidth: number;
   columnWidths: ColumnWidths;
   show: ColumnOptions;
 }
@@ -74,8 +79,8 @@ interface LayoutInput {
  * of the rows on screen (not every lane in the history) need, leaving room for the commit
  * message in narrow windows, unless a width was chosen by dragging.
  */
-export function useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport, columnWidths, show }: LayoutInput) {
-  const narrow = viewport.width > 0 && viewport.width < NARROW_WIDTH;
+export function useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport, settledWidth, columnWidths, show }: LayoutInput) {
+  const narrow = settledWidth > 0 && settledWidth < NARROW_WIDTH;
   const refsWidth = columnWidths.refs ?? (narrow ? NARROW_REFS_WIDTH : REFS_WIDTH);
   const authorWidth = show.author ? (narrow ? 44 : 180) : 0;
   const dateWidth = show.date ? (show.dateFormat === "exact" ? (narrow ? 132 : 164) : 116) : 0;
@@ -116,17 +121,24 @@ export function useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport
       Math.max(MIN_GRAPH_WIDTH, GRAPH_PADDING * 2 + lanes * LANE_WIDTH),
       Math.max(MIN_GRAPH_WIDTH, viewport.width - refsWidth - authorWidth - dateWidth - shaWidth - MIN_MESSAGE_WIDTH),
     );
-  // Widening happens at once (easing it would let new lanes run over the messages for a moment).
-  const shownGraphWidth = useRef(graphWidth);
-  const graphGrowing = graphWidth > shownGraphWidth.current;
+  // Widening for new lanes happens at once (easing it would let them run over the messages
+  // for a moment). Widening because there's more room eases like the other columns.
+  const shown = useRef({ width: graphWidth, lanes });
+  const graphGrowing = graphWidth > shown.current.width && lanes > shown.current.lanes;
   useEffect(() => {
-    shownGraphWidth.current = graphWidth;
-  }, [graphWidth]);
+    shown.current = { width: graphWidth, lanes };
+  }, [graphWidth, lanes]);
 
-  const columns = [`${refsWidth}px`, `${graphWidth}px`, "minmax(0, 1fr)", authorWidth, dateWidth, shaWidth]
+  // The SHA column comes and goes with the compact layout, so it stays as an empty last
+  // column when it's hidden: both layouts then have as many columns, and ease into each
+  // other. (Only the last column can do that: the cells fill the columns in order.)
+  const columns = [`${refsWidth}px`, `${graphWidth}px`, "minmax(0, 1fr)", authorWidth, dateWidth]
     .filter((width) => width !== 0)
     .map((width) => (typeof width === "number" ? `${width}px` : width))
+    .concat(`${shaWidth}px`)
     .join(" ");
-  const visible: VisibleColumns = { author: authorWidth > 0, date: dateWidth > 0, sha: shaWidth > 0 };
+  // The same object while nothing changes, so rows needn't re-render.
+  const [showAuthor, showDate, showSha] = [authorWidth > 0, dateWidth > 0, shaWidth > 0];
+  const visible: VisibleColumns = useMemo(() => ({ author: showAuthor, date: showDate, sha: showSha }), [showAuthor, showDate, showSha]);
   return { narrow, refsWidth, graphWidth, graphGrowing, columns, visible, first, last };
 }
