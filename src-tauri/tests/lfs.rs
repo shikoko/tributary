@@ -482,3 +482,49 @@ fn finds_and_downloads_git_lfs_files_left_as_pointers() {
     plain.commit("a.txt", "First");
     assert!(actions::lfs_health(plain.path()).unwrap().is_none());
 }
+
+#[test]
+fn suggests_big_file_types_and_tracks_and_untracks_them() {
+    if !lfs_installed() {
+        return;
+    }
+    let mut repo = TempRepo::new("lfs-settings");
+    repo.commit("notes.txt", "notes");
+    std::fs::write(repo.path().join("Hero.psd"), vec![7u8; 2 * 1024 * 1024]).unwrap();
+    std::fs::write(repo.path().join("Theme.wav"), vec![1u8; 3 * 1024 * 1024]).unwrap();
+    std::fs::write(repo.path().join("small.png"), vec![1u8; 1000]).unwrap();
+
+    let settings = actions::lfs_settings(repo.path()).unwrap();
+    assert!(settings.installed);
+    assert!(settings.patterns.is_empty());
+    let suggested: Vec<(&str, usize)> = settings
+        .suggestions
+        .iter()
+        .map(|s| (s.pattern.as_str(), s.files))
+        .collect();
+    // The biggest first; small files aren't suggested.
+    assert_eq!(suggested, vec![("*.wav", 1), ("*.psd", 1)]);
+
+    let track = Action::TrackWithLfs {
+        patterns: vec!["*.psd".into()],
+        paths: Vec::new(),
+    };
+    assert_eq!(run(&repo, track).unwrap(), "Tracking *.psd with Git LFS");
+    let settings = actions::lfs_settings(repo.path()).unwrap();
+    assert_eq!(settings.patterns, vec!["*.psd"]);
+    assert_eq!(settings.suggestions.len(), 1);
+
+    let untrack = Action::UntrackWithLfs {
+        patterns: vec!["*.psd".into()],
+    };
+    assert_eq!(
+        run(&repo, untrack).unwrap(),
+        "No longer storing *.psd with Git LFS"
+    );
+    assert!(
+        actions::lfs_settings(repo.path())
+            .unwrap()
+            .patterns
+            .is_empty()
+    );
+}

@@ -395,6 +395,16 @@ try {
     await dialog.getByText("Here you commit as Maya Chen <maya@work.example.com>").waitFor({ timeout: 10_000 });
     await dialog.getByRole("tab", { name: "Branches" }).click();
     await dialog.getByText("Protected branches").waitFor();
+    // The notebook doesn't use Git LFS: it can start here.
+    await dialog.getByRole("tab", { name: "Git LFS" }).click();
+    const lfsInstalled = (await dialog.getByText("Git LFS isn't installed").count()) === 0;
+    if (lfsInstalled) {
+      await dialog.getByRole("button", { name: "Store *.psd files with Git LFS" }).click();
+      await dialog.locator(".name-chip", { hasText: "*.psd" }).waitFor({ timeout: 10_000 });
+      await dialog.getByRole("button", { name: "Remove *.psd" }).click();
+      await dialog.locator(".name-chip", { hasText: "*.psd" }).waitFor({ state: "detached", timeout: 10_000 });
+      await dismissToast();
+    }
     await dialog.getByRole("button", { name: "Done" }).click();
     await dialog.waitFor({ state: "detached", timeout: 5000 });
     await dismissToast();

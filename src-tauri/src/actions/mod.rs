@@ -17,6 +17,7 @@ mod history;
 mod identity;
 mod lfs;
 mod lfs_health;
+mod lfs_settings;
 mod prune;
 mod remote;
 mod stash;
@@ -44,6 +45,7 @@ pub use files::{FileHistory, file_history};
 pub use identity::{RepoIdentity, repo_identity};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
 pub use lfs_health::{LfsHealth, lfs_health};
+pub use lfs_settings::{LfsSettings, LfsSuggestion, lfs_settings};
 pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
 };
@@ -230,6 +232,8 @@ pub enum Action {
     OpenInDiffTool { source: DiffSource, path: String },
     /// Open a conflicted file in the user's merge tool (`git mergetool`).
     OpenInMergeTool { path: String },
+    /// Stop storing files matching these patterns with Git LFS (`git lfs untrack`).
+    UntrackWithLfs { patterns: Vec<String> },
     /// Commit as this name and email in this repository (`git config --local`); both
     /// empty go back to the usual ones.
     SetIdentity { name: String, email: String },
@@ -501,6 +505,7 @@ fn perform(
         }
         Action::OpenInMergeTool { path } => diff::open_in_merge_tool(&git, path),
         Action::SetIdentity { name, email } => identity::set_identity(&git, name, email),
+        Action::UntrackWithLfs { patterns } => lfs_settings::untrack_with_lfs(&git, patterns),
         Action::UpdateSubmodules { paths } => {
             submodules::update_submodules(&git, paths, on_progress)
         }

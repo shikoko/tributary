@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { repoIdentity, type Action, type RepoIdentity } from "../api";
 import { CloudIcon, LockIcon, UserIcon } from "./Icons";
-import { LfsStorageSummary } from "./LfsCleanup";
+import { useLfsSettingsRows } from "./LfsSettingsRows";
 import { NameList, SettingsDialog, type SettingsSection } from "./SettingsDialog";
 
 interface Props {
@@ -43,6 +43,7 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
   }, [path]);
   useEffect(load, [load]);
 
+  const lfsRows = useLfsSettingsRows({ path, run, onCleanUp: onCleanUpLfs });
   const own = Boolean(identity?.localName || identity?.localEmail);
   const usual = identity ? describe(identity.globalName, identity.globalEmail) : "…";
   const changed = identity !== null && (draft.name.trim() !== (identity.localName ?? "") || draft.email.trim() !== (identity.localEmail ?? ""));
@@ -129,14 +130,7 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
     {
       title: "Git LFS",
       icon: <CloudIcon size={15} />,
-      rows: [
-        {
-          kind: "custom",
-          label: "Git LFS files on this computer",
-          hint: "Copies of every version you've downloaded. Cleaning up keeps what you still need.",
-          content: <LfsStorageSummary repoPath={path} onCleanUp={onCleanUpLfs} />,
-        },
-      ],
+      rows: lfsRows,
     },
   ];
   return <SettingsDialog title={`Settings for ${name}`} sections={sections} onClose={onClose} />;

@@ -5168,3 +5168,43 @@ code {
 .commit-preview {
   animation: backdrop-in 0.12s ease-out;
 }
+
+/* Git LFS suggestions in a repository's settings */
+
+.lfs-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 380px;
+}
+
+.lfs-suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 13px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lfs-suggestion:hover:not(:disabled) {
+  border-style: solid;
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.lfs-suggestion-pattern {
+  font-family: var(--mono);
+  color: var(--text);
+}
+
+.lfs-suggestion-size {
+  color: var(--text-muted);
+}

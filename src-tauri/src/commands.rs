@@ -145,6 +145,12 @@ pub async fn changed_elsewhere(
     blocking(move || actions::changed_elsewhere(&PathBuf::from(path), &changed)).await
 }
 
+/// Which files the repository stores with Git LFS, and which big ones it could.
+#[tauri::command]
+pub async fn lfs_settings(path: String) -> Result<actions::LfsSettings> {
+    blocking(move || actions::lfs_settings(&PathBuf::from(path))).await
+}
+
 /// Who commits are made as in the repository, here and usually.
 #[tauri::command]
 pub async fn repo_identity(path: String) -> Result<actions::RepoIdentity> {

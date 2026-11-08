@@ -63,6 +63,8 @@ export type Action =
   | { kind: "lockFiles"; paths: string[] }
   /** Store files matching `patterns` with Git LFS, turning the staged `paths` into LFS files. */
   | { kind: "trackWithLfs"; patterns: string[]; paths?: string[] }
+  /** Stop storing files matching these with Git LFS (files already stored with it stay so). */
+  | { kind: "untrackWithLfs"; patterns: string[] }
   /** Throw away changes to files; the outcome's `backup` brings them back. */
   | { kind: "discardFiles"; paths: string[] }
   | { kind: "restoreDiscarded"; reference: string }

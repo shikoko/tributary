@@ -54,6 +54,20 @@ export interface LfsStorage {
   folder: string;
 }
 
+/** Which files a repository stores with Git LFS, and which big ones it could. */
+export interface LfsSettings {
+  /** Git LFS is installed on this computer. */
+  installed: boolean;
+  /** The patterns stored with it, like "*.psd". */
+  patterns: string[];
+  /** Kinds of big files here that aren't, biggest first. */
+  suggestions: { pattern: string; files: number; bytes: number }[];
+}
+
+export function lfsSettings(path: string): Promise<LfsSettings> {
+  return invoke<LfsSettings>("lfs_settings", { path });
+}
+
 /** Null when the repository doesn't use Git LFS. */
 export function lfsStorage(path: string): Promise<LfsStorage | null> {
   return invoke<LfsStorage | null>("lfs_storage", { path });
