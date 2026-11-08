@@ -254,6 +254,60 @@ try {
     writeFileSync(store, before);
   });
 
+  await step("resolves a merge conflict here, conflict by conflict, and undoes it", async () => {
+    const folder = demos.notebook;
+    const who = { GIT_AUTHOR_NAME: "Priya Nair", GIT_AUTHOR_EMAIL: "priya@example.com", GIT_COMMITTER_NAME: "Priya Nair", GIT_COMMITTER_EMAIL: "priya@example.com" };
+    const git = (args, env = {}, input) => execFileSync("git", ["-C", folder, ...args], { encoding: "utf8", env: { ...process.env, ...who, ...env }, input });
+    const store = join(folder, "src", "store.ts");
+    const before = readFileSync(store, "utf8");
+    const head = git(["rev-parse", "HEAD"]).trim();
+    const staged = git(["diff", "--cached", "--name-only"]).trim().split("\n").filter(Boolean);
+    // Theirs, on a branch made without checking it out; mine, committed on main.
+    const blob = git(["hash-object", "-w", "--stdin"], {}, before.replace("const VERSION = 2;", "const VERSION = 4;"));
+    const index = join(folder, ".git", "smoke-theirs.index");
+    git(["read-tree", "HEAD"], { GIT_INDEX_FILE: index });
+    git(["update-index", "--cacheinfo", `100644,${blob.trim()},src/store.ts`], { GIT_INDEX_FILE: index });
+    const tree = git(["write-tree"], { GIT_INDEX_FILE: index }).trim();
+    rmSync(index, { force: true });
+    git(["branch", "smoke/version", git(["commit-tree", tree, "-p", "HEAD", "-m", "Version 4"]).trim()]);
+    writeFileSync(store, before.replace("const VERSION = 2;", "const VERSION = 3;"));
+    git(["commit", "-q", "-m", "Version 3", "--", "src/store.ts"]);
+    // A merge needs nothing staged.
+    if (staged.length) git(["reset", "-q", "--", ...staged]);
+    try {
+      git(["merge", "smoke/version"]);
+    } catch {
+      // It stops with the conflict, as it should.
+    }
+    expect(git(["ls-files", "-u"]).includes("src/store.ts"), "no conflict to resolve");
+    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+    await page.locator(".details .conflicts .file", { hasText: "store.ts" }).click();
+    const card = page.locator(".conflict-card").first();
+    await card.waitFor({ timeout: 10_000 });
+    const save = page.getByRole("button", { name: "Save and mark resolved" });
+    expect(await save.isDisabled(), "saving before every conflict was resolved");
+    await card.getByRole("button", { name: "Theirs", exact: true }).click();
+    await save.click();
+    await page.locator(".toast", { hasText: "Resolved the conflicts in store.ts" }).waitFor({ timeout: 10_000 });
+    expect(git(["ls-files", "-u"]).trim() === "", "still conflicted after saving");
+    expect(readFileSync(store, "utf8").includes("const VERSION = 4;"), "theirs wasn't kept");
+    await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
+    await page.locator(".toast", { hasText: "Put the conflicts back" }).waitFor({ timeout: 10_000 });
+    expect(readFileSync(store, "utf8").includes("<<<<<<<"), "the conflict didn't come back");
+    await dismissToast();
+    await page.keyboard.press("Escape");
+    // Back as it was, for the steps after this one.
+    git(["merge", "--abort"]);
+    git(["reset", "-q", "--soft", head]);
+    git(["reset", "-q", "--", "src/store.ts"]);
+    writeFileSync(store, before);
+    if (staged.length) git(["add", "--", ...staged]);
+    git(["branch", "-q", "-D", "smoke/version"]);
+    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await page.locator(".operation-bar").waitFor({ state: "detached", timeout: 10_000 });
+  });
+
   await step("hides a branch, then shows everything again", async () => {
     const themes = page.locator(".sidebar-item", { hasText: /^themes/ }).first();
     await themes.hover();

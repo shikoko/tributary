@@ -1,11 +1,89 @@
 //! Merges, rebases, cherry-picks and reverts that stopped: resolving conflicts, then
 //! continuing, skipping or aborting.
 
+use std::path::Path;
+
+use serde::Serialize;
+
 use super::Side;
 use super::support::{LITERAL, describe_files, file_name, in_batches};
 use super::validate::{check_file_paths, in_progress};
 use crate::error::{Error, Result};
 use crate::git::Git;
+
+/// Conflicted files bigger than this are left to a merge tool.
+const MAX_CONFLICT_BYTES: u64 = 5 * 1024 * 1024;
+
+/// A conflicted file as it is now, with git's conflict markers, to resolve in the app.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictText {
+    /// None when it can't be resolved here, and why.
+    pub text: Option<String>,
+    pub reason: Option<String>,
+}
+
+/// The conflicted `file` in the repository at `path`, as text.
+pub fn conflict_text(path: &Path, file: &str) -> Result<ConflictText> {
+    let repo = gix::discover(path).map_err(|e| Error::not_a_repository(path, e))?;
+    let workdir = repo
+        .workdir()
+        .ok_or("This repository has no working tree.")?
+        .to_owned();
+    let checked = check_file_paths(std::slice::from_ref(&file.to_owned()))?.join("");
+    let full = workdir.join(&checked);
+    let unreadable = |reason: &str| ConflictText {
+        text: None,
+        reason: Some(reason.to_owned()),
+    };
+    let Ok(metadata) = std::fs::metadata(&full) else {
+        return Ok(unreadable(
+            "One side deleted this file: keep mine or take theirs instead.",
+        ));
+    };
+    if metadata.len() > MAX_CONFLICT_BYTES {
+        return Ok(unreadable("This file is too big to resolve here."));
+    }
+    let bytes = std::fs::read(&full).map_err(|e| format!("Couldn't read {file}: {e}"))?;
+    if bytes.contains(&0) {
+        return Ok(unreadable(
+            "This file isn't text: keep mine or take theirs instead.",
+        ));
+    }
+    match String::from_utf8(bytes) {
+        Ok(text) => Ok(ConflictText {
+            text: Some(text),
+            reason: None,
+        }),
+        Err(_) => Ok(unreadable(
+            "This file isn't UTF-8 text: resolve it in a merge tool.",
+        )),
+    }
+}
+
+/// Resolve conflicted `file` with `text` (worked out in the app): write it and stage it.
+pub(super) fn resolve_with_text(git: &Git, file: String, text: String) -> Result<String> {
+    let checked = check_file_paths(std::slice::from_ref(&file))?;
+    let file = checked[0];
+    let unmerged = git.run_with_env(&["ls-files", "--unmerged", "--", file], &LITERAL)?;
+    if unmerged.trim().is_empty() {
+        return Err(format!("{file} isn't conflicted any more.").into());
+    }
+    let marker = |line: &str, sign: &str| {
+        line.strip_prefix(sign)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '\r']))
+    };
+    if text
+        .lines()
+        .any(|line| marker(line, "<<<<<<<") || marker(line, ">>>>>>>"))
+    {
+        return Err("There are still conflicts in it: choose a side for each one first.".into());
+    }
+    std::fs::write(git.workdir().join(file), text)
+        .map_err(|e| format!("Couldn't save {file}: {e}"))?;
+    git.run_with_env(&["add", "--", file], &LITERAL)?;
+    Ok(format!("Resolved the conflicts in {}", file_name(file)))
+}
 
 /// Resolve conflicted files by taking one side's version of each whole file: yours
 /// (the checked-out branch, or the branch being rebased) or theirs. A side that

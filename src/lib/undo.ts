@@ -28,6 +28,8 @@ export function undoFor(action: Action, before: Pick<RepoSnapshot, "headBranch" 
       return { kind: "restoreBranches", branches: action.branches };
     case "resolveConflicts":
       return { kind: "recreateConflicts", paths: action.paths };
+    case "resolveWithText":
+      return { kind: "recreateConflicts", paths: [action.file] };
     case "ignorePaths":
       return { kind: "unignorePaths", patterns: action.patterns };
     case "stashAndRetry": {

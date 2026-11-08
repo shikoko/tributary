@@ -8,6 +8,7 @@ import { ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon } from "../
 import { DiffBinary } from "./DiffBinary";
 import { DiffMedia } from "./DiffMedia";
 import { FileKindIcon } from "../FileKindIcon";
+import { ConflictEditor } from "./ConflictEditor";
 import { DiffLines, type LinePicking } from "./DiffLines";
 import { DiffSubmodule } from "./DiffSubmodule";
 
@@ -24,13 +25,15 @@ interface Props {
   version: unknown;
   /** No diff (or merge) tool is set up: choose one, in Settings. */
   onChooseTool: () => void;
+  /** What the two sides of a conflict are called, like "main" and "feature/sync". */
+  sides: { mine: string; theirs: string };
 }
 
 /**
  * A file's changes over the commit list: text line by line, images side by side, other
  * files by their size. Esc closes, [ and ] go to the previous and next file.
  */
-export function DiffView({ repoPath, targets, index, onIndex, onClose, run, version, onChooseTool }: Props) {
+export function DiffView({ repoPath, targets, index, onIndex, onClose, run, version, onChooseTool, sides }: Props) {
   const target = targets[index];
   const [ignoreWhitespace, setIgnoreWhitespace] = useStoredState("diff.ignoreWhitespace", false);
   const [loaded, setLoaded] = useState<{ key: string; diff: FileDiff | null; error: string | null } | null>(null);
@@ -150,7 +153,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
               Git LFS
             </span>
           )}
-          {diff && !whole && (
+          {diff && !whole && !conflicted && (
             <span className="diff-stats">
               <span className="added">+{diff.additions}</span> <span className="removed">−{diff.deletions}</span>
             </span>
@@ -166,7 +169,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
             </button>
           </div>
         )}
-        {!whole && (
+        {!whole && !conflicted && (
           <label className="checkbox diff-option">
             <input type="checkbox" checked={ignoreWhitespace} onChange={(event) => setIgnoreWhitespace(event.target.checked)} />
             Ignore whitespace
@@ -193,7 +196,9 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         </button>
       </header>
       <div className="diff-body">
-        {error ? (
+        {conflicted && live ? (
+          <ConflictEditor repoPath={repoPath} path={path} mine={sides.mine} theirs={sides.theirs} version={version} run={run} />
+        ) : error ? (
           <div className="diff-message">
             <strong>Couldn't read the changes</strong>
             <span>{error}</span>

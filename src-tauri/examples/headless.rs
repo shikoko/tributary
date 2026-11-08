@@ -145,6 +145,10 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
                 ignore_whitespace,
             )?)
         }
+        "conflict_text" => {
+            let file: String = arg(args, "file")?;
+            to_json(actions::conflict_text(&path()?, &file)?)
+        }
         "changed_elsewhere" => {
             let changed: Vec<String> = arg(args, "changed")?;
             to_json(actions::changed_elsewhere(&path()?, &changed)?)

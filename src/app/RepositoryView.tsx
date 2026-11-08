@@ -15,6 +15,7 @@ import { CommitList } from "../components/CommitList";
 import { ElsewherePanel } from "../components/ElsewherePanel";
 import { RepoSettingsDialog } from "../components/RepoSettingsDialog";
 import { DiffView } from "../components/diff/DiffView";
+import { conflictSides } from "../components/WorktreeDetails";
 import type { MenuItem } from "../components/ContextMenu";
 import { EyeIcon, PlusIcon } from "../components/Icons";
 import { MessageTools } from "../components/MessageTools";
@@ -389,6 +390,7 @@ export function RepositoryView(props: Props) {
               run={run}
               version={snapshot.worktree}
               onChooseTool={() => props.openSettings(DIFF_SECTION)}
+              sides={conflictSides(snapshot)}
             />
           )}
         </div>

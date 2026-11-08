@@ -61,8 +61,10 @@ export type Action =
   | { kind: "deleteRemoteTag"; name: string; remote: string }
   /** Take one side's version of whole conflicted files. */
   | { kind: "resolveConflicts"; paths: string[]; keep: "mine" | "theirs" }
-  /** Undo resolveConflicts: put the conflicts back. */
+  /** Undo resolveConflicts (or resolveWithText): put the conflicts back. */
   | { kind: "recreateConflicts"; paths: string[] }
+  /** Resolve a conflicted text file with text worked out in the app: save it and stage it. */
+  | { kind: "resolveWithText"; file: string; text: string }
   | { kind: "lockFiles"; paths: string[] }
   /** Store files matching `patterns` with Git LFS, turning the staged `paths` into LFS files. */
   | { kind: "trackWithLfs"; patterns: string[]; paths?: string[] }

@@ -38,6 +38,7 @@ use crate::git::{Git, Progress};
 
 pub use backups::{BACKUP_DAYS, Backup, BackupEvent, backups};
 pub use clone::{CloneOptions, clone_repository, init_repository};
+pub use conflicts::{ConflictText, conflict_text};
 pub use diff::{
     DiffLine, DiffSource, FileDiff, Hunk, LineKind, Media, MediaKind, SubmoduleChange,
     SubmoduleCommit, file_diff,
@@ -188,8 +189,11 @@ pub enum Action {
     /// (the checked-out branch, or the branch being rebased) or theirs. A side that
     /// deleted the file deletes it. For files that can't be merged, like game assets.
     ResolveConflicts { paths: Vec<String>, keep: Side },
-    /// Put the conflicts back into files resolved with [`Action::ResolveConflicts`] (undo).
+    /// Put the conflicts back into files resolved with [`Action::ResolveConflicts`] or
+    /// [`Action::ResolveWithText`] (undo).
     RecreateConflicts { paths: Vec<String> },
+    /// Resolve a conflicted text file with `text`, worked out in the app: save it and stage it.
+    ResolveWithText { file: String, text: String },
     /// Lock files with Git LFS, so nobody else can push changes to them.
     LockFiles { paths: Vec<String> },
     /// Store files matching `patterns` (like `*.psd`) with Git LFS from now on, and turn
@@ -494,6 +498,7 @@ fn perform(
             conflicts::resolve_conflicts(&repo, &git, paths, keep)
         }
         Action::RecreateConflicts { paths } => conflicts::recreate_conflicts(&repo, &git, paths),
+        Action::ResolveWithText { file, text } => conflicts::resolve_with_text(&git, file, text),
         Action::LockFiles { paths } => lfs::lock_files(&git, paths),
         Action::TrackWithLfs { patterns, paths } => lfs::track_with_lfs(&git, patterns, paths),
         Action::DiscardFiles { paths } => changes::discard_files(&repo, &git, paths, extra),

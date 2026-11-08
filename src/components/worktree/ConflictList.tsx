@@ -36,7 +36,7 @@ export function ConflictList({ conflicted, mine, theirs, busy, lockOf, onFileMen
         </button>
       </h3>
       <div className="conflict-help">
-        Pick a whole version of each file (best for files that can't be merged, like assets), or fix the file and stage it.
+        Pick a whole version of each file (best for files that can't be merged, like assets), or click a text file to resolve its conflicts one by one.
       </div>
       <ul className="file-list">
         {conflicted.map((file) => (

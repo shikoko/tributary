@@ -572,3 +572,75 @@ fn merges_with_a_merge_commit_or_squashed() {
         Some("Squash merge feature\n\n- Add the menu\n- Add prices")
     );
 }
+
+#[test]
+fn resolves_a_conflict_with_text_worked_out_in_the_app() {
+    let mut repo = TempRepo::new("merge-text");
+    with_identity(&repo);
+    repo.commit("a.txt", "base");
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+    repo.commit("a.txt", "feature");
+    repo.git(&["switch", "--quiet", "main"]);
+    repo.commit("a.txt", "main");
+    assert!(
+        run(
+            &repo,
+            Action::Merge {
+                target: "feature".into(),
+                mode: MergeMode::Default,
+            },
+        )
+        .is_err()
+    );
+
+    let conflict = actions::conflict_text(repo.path(), "a.txt").unwrap();
+    let text = conflict.text.expect("a text file");
+    assert!(
+        text.contains("<<<<<<< HEAD") && text.contains(">>>>>>> feature"),
+        "{text}"
+    );
+
+    // Still with markers: refused.
+    assert!(
+        run(
+            &repo,
+            Action::ResolveWithText {
+                file: "a.txt".into(),
+                text: text.clone(),
+            },
+        )
+        .is_err()
+    );
+    let message = run(
+        &repo,
+        Action::ResolveWithText {
+            file: "a.txt".into(),
+            text: "main and feature, together\n".into(),
+        },
+    )
+    .unwrap();
+    assert_eq!(message, "Resolved the conflicts in a.txt");
+    assert_eq!(read(&repo, "a.txt"), "main and feature, together\n");
+    assert!(repo.git(&["ls-files", "--unmerged"]).is_empty());
+    // Not conflicted any more: nothing to resolve.
+    assert!(
+        run(
+            &repo,
+            Action::ResolveWithText {
+                file: "a.txt".into(),
+                text: "again\n".into(),
+            },
+        )
+        .is_err()
+    );
+
+    // Undo: the conflict comes back.
+    run(
+        &repo,
+        Action::RecreateConflicts {
+            paths: vec!["a.txt".into()],
+        },
+    )
+    .unwrap();
+    assert!(read(&repo, "a.txt").contains("<<<<<<<"));
+}

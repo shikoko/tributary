@@ -51,6 +51,7 @@ pub fn run() {
             commands::diff_tool_settings,
             commands::set_diff_tool,
             commands::file_diff,
+            commands::conflict_text,
             commands::lfs_storage,
             commands::lfs_health,
             commands::diagnostics,

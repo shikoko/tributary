@@ -74,3 +74,13 @@ export interface SubmoduleChange {
 export function fileDiff(path: string, source: DiffSource, file: string, oldPath?: string, ignoreWhitespace = false): Promise<FileDiff> {
   return invoke<FileDiff>("file_diff", { path, source, file, oldPath: oldPath ?? null, ignoreWhitespace });
 }
+
+/** A conflicted file as it is now, with git's conflict markers; no text when it can't be resolved in the app, and why. */
+export interface ConflictText {
+  text: string | null;
+  reason: string | null;
+}
+
+export function conflictText(path: string, file: string): Promise<ConflictText> {
+  return invoke<ConflictText>("conflict_text", { path, file });
+}

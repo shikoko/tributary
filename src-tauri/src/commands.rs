@@ -215,6 +215,12 @@ pub async fn file_diff(
     .await
 }
 
+/// A conflicted file as it is now, with its conflict markers, to resolve in the app.
+#[tauri::command]
+pub async fn conflict_text(path: String, file: String) -> Result<actions::ConflictText> {
+    blocking(move || actions::conflict_text(&PathBuf::from(path), &file)).await
+}
+
 /// How much space the local copies of Git LFS files take.
 #[tauri::command]
 pub async fn lfs_storage(path: String) -> Result<Option<actions::LfsStorage>> {
