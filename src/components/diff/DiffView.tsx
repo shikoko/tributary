@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { linesLabel, linesOf } from "../../lib/lineSelection";
+import { languageFor } from "../../lib/syntax";
 import { fileDiff, type Action, type FileDiff, type LineMode } from "../../api";
 import type { DiffTarget } from "../../lib/diffTargets";
 import { toolLabel, useDiffTools } from "../../lib/diffTools";
@@ -222,7 +223,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         ) : diff.hunks.length === 0 ? (
           <div className="diff-message muted">{ignoreWhitespace ? "Only whitespace changed." : "No changes to show (only the file's name or mode changed)."}</div>
         ) : (
-          <DiffLines hunks={diff.hunks} picking={picking} />
+          <DiffLines hunks={diff.hunks} picking={picking} language={languageFor(path)} />
         )}
       </div>
         {picking && selected.size > 0 && (

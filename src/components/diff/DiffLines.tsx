@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { Hunk, LineMode } from "../../api";
 import { changedKeys, hunkKeys, keysBetween, lineKey } from "../../lib/lineSelection";
+import { highlightHunk, MAX_HIGHLIGHT_LINES, pieces, type Piece } from "../../lib/syntax";
 import { wordSegments } from "../../lib/wordDiff";
 
 const SIGNS = { added: "+", removed: "−", context: " " } as const;
@@ -18,9 +19,26 @@ export interface LinePicking {
   busy: boolean;
 }
 
+/** A line's pieces: coloured by syntax, with the changed words marked. */
+export function LineText({ parts }: { parts: Piece[] }) {
+  if (parts.length === 0) return <> </>;
+  return (
+    <>
+      {parts.map((part, index) => {
+        const text = part.className ? <span className={part.className}>{part.text}</span> : part.text;
+        return part.changed ? <mark key={index}>{text}</mark> : <span key={index}>{text}</span>;
+      })}
+    </>
+  );
+}
+
 /** A text file's changes: each stretch of changed lines with its line numbers, the changed words marked. */
-export function DiffLines({ hunks, picking }: { hunks: Hunk[]; picking?: LinePicking }) {
+export function DiffLines({ hunks, picking, language }: { hunks: Hunk[]; picking?: LinePicking; language?: string | null }) {
   const segments = useMemo(() => hunks.map((hunk) => wordSegments(hunk.lines)), [hunks]);
+  const syntax = useMemo(() => {
+    const total = hunks.reduce((sum, hunk) => sum + hunk.lines.length, 0);
+    return total > MAX_HIGHLIGHT_LINES ? null : hunks.map((hunk) => highlightHunk(hunk.lines, language ?? null));
+  }, [hunks, language]);
   const order = useMemo(() => changedKeys(hunks), [hunks]);
   /** Where a shift-click range starts: the line last clicked. */
   const anchor = useRef<string | null>(null);
@@ -119,9 +137,7 @@ export function DiffLines({ hunks, picking }: { hunks: Hunk[]; picking?: LinePic
                     {SIGNS[line.kind]}
                   </span>
                   <span className="diff-text">
-                    {parts
-                      ? parts.map((part, index) => (part.changed ? <mark key={index}>{part.text}</mark> : <span key={index}>{part.text}</span>))
-                      : line.text || " "}
+                    <LineText parts={pieces(line.text, syntax?.[hunkIndex][lineIndex] ?? null, parts)} />
                   </span>
                 </div>
               );

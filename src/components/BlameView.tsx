@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { blameFile, type Blame, type BlameCommit } from "../api";
 import { compactTime, fullDate, shortId } from "../lib/format";
+import { highlightCode, languageFor, MAX_HIGHLIGHT_LINES, pieces } from "../lib/syntax";
+import { LineText } from "./diff/DiffLines";
 import { Avatar } from "./Avatar";
 import { FileKindIcon } from "./FileKindIcon";
 import { CloseIcon } from "./Icons";
@@ -77,14 +79,29 @@ export function BlameView({ repoPath, path, at, onClose, onSelectCommit, hasComm
         ) : blame.lines.length === 0 ? (
           <div className="diff-message muted">The file is empty.</div>
         ) : (
-          <BlameLines blame={blame} onSelectCommit={onSelectCommit} hasCommit={hasCommit} />
+          <BlameLines blame={blame} language={languageFor(path)} onSelectCommit={onSelectCommit} hasCommit={hasCommit} />
         )}
       </div>
     </section>
   );
 }
 
-function BlameLines({ blame, onSelectCommit, hasCommit }: { blame: Blame; onSelectCommit: (id: string) => void; hasCommit: (id: string) => boolean }) {
+function BlameLines({
+  blame,
+  language,
+  onSelectCommit,
+  hasCommit,
+}: {
+  blame: Blame;
+  language: string | null;
+  onSelectCommit: (id: string) => void;
+  hasCommit: (id: string) => boolean;
+}) {
+  // The whole file coloured at once, so comments and strings over several lines come out right.
+  const syntax = useMemo(
+    () => (blame.lines.length > MAX_HIGHLIGHT_LINES * 2 ? null : highlightCode(blame.lines.map((line) => line.text).join("\n"), language)),
+    [blame, language],
+  );
   const scroller = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ top: 0, height: 600 });
   const [hovered, setHovered] = useState<number | null>(null);
@@ -133,7 +150,9 @@ function BlameLines({ blame, onSelectCommit, hasCommit }: { blame: Blame; onSele
         <BlameGutter commit={commit} start={start} second={second} onSelectCommit={onSelectCommit} hasCommit={hasCommit} />
         <span className="blame-age" style={{ opacity: 0.15 + 0.85 * age[line.commit] }} />
         <span className="blame-number">{index + 1}</span>
-        <span className="blame-text">{line.text || " "}</span>
+        <span className="blame-text">
+          <LineText parts={pieces(line.text, syntax?.[index] ?? null, null)} />
+        </span>
       </div>,
     );
   }

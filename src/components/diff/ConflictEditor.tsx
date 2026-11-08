@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { conflictText, type Action, type ConflictText } from "../../api";
 import { conflictsIn, parseConflicts, resolveConflict, resolvedText, type Choice, type Conflict } from "../../lib/conflicts";
 import { plural } from "../../lib/format";
+import { highlightCode, languageFor, pieces } from "../../lib/syntax";
+import { LineText } from "./DiffLines";
 
 interface Props {
   repoPath: string;
@@ -16,6 +18,22 @@ interface Props {
 
 /** Unchanged lines shown on each side of a conflict. */
 const CONTEXT = 3;
+
+/** Lines of code, coloured by their syntax. */
+function Code({ text, language }: { text: string; language: string | null }) {
+  const plain = text.replace(/\r/g, "");
+  const tokens = useMemo(() => highlightCode(plain, language), [plain, language]);
+  return (
+    <>
+      {plain.split("\n").map((line, index) => (
+        <Fragment key={index}>
+          {index > 0 && "\n"}
+          <LineText parts={pieces(line, tokens?.[index] ?? null, null)} />
+        </Fragment>
+      ))}
+    </>
+  );
+}
 
 const CHOICES: { choice: Exclude<Choice, { text: string }>; label: string }[] = [
   { choice: "ours", label: "Mine" },
@@ -69,6 +87,7 @@ export function ConflictEditor({ repoPath, path, mine, theirs, version, run }: P
   }, [repoPath, path, version]);
 
   const file = loaded?.path === path && "file" in loaded ? loaded.file : null;
+  const language = languageFor(path);
   const segments = useMemo(() => (file?.text != null ? parseConflicts(file.text) : null), [file]);
   const conflicts = useMemo(() => (segments ? conflictsIn(segments) : []), [segments]);
   const done = conflicts.filter((_, index) => choices[index] !== undefined).length;
@@ -158,7 +177,7 @@ export function ConflictEditor({ repoPath, path, mine, theirs, version, run }: P
       <div className="conflict-segments">
         {segments.map((segment, segmentIndex) => {
           if (segment.kind === "text") {
-            return <CleanText key={segmentIndex} text={segment.text} first={segmentIndex === 0} last={segmentIndex === segments.length - 1} />;
+            return <CleanText key={segmentIndex} text={segment.text} first={segmentIndex === 0} last={segmentIndex === segments.length - 1} language={language} />;
           }
           const index = conflictIndex++;
           return (
@@ -173,6 +192,7 @@ export function ConflictEditor({ repoPath, path, mine, theirs, version, run }: P
               onChoose={(choice) => choose(index, choice)}
               editing={editing?.index === index ? editing.draft : null}
               onEdit={(draft) => setEditing(draft === null ? null : { index, draft })}
+              language={language}
             />
           );
         })}
@@ -182,20 +202,33 @@ export function ConflictEditor({ repoPath, path, mine, theirs, version, run }: P
 }
 
 /** Lines that merged cleanly: a few next to each conflict, the rest folded. */
-function CleanText({ text, first, last }: { text: string; first: boolean; last: boolean }) {
+function CleanText({ text, first, last, language }: { text: string; first: boolean; last: boolean; language: string | null }) {
   const [open, setOpen] = useState(false);
   const lines = text.replace(/\r?\n$/, "").split(/\r?\n/);
   const head = first ? 0 : CONTEXT;
   const tail = last ? 0 : CONTEXT;
-  if (open || lines.length <= head + tail + 1) return <pre className="conflict-clean">{lines.join("\n")}</pre>;
+  if (open || lines.length <= head + tail + 1)
+    return (
+      <pre className="conflict-clean">
+        <Code text={lines.join("\n")} language={language} />
+      </pre>
+    );
   const hidden = lines.length - head - tail;
   return (
     <div className="conflict-clean-group">
-      {head > 0 && <pre className="conflict-clean">{lines.slice(0, head).join("\n")}</pre>}
+      {head > 0 && (
+        <pre className="conflict-clean">
+          <Code text={lines.slice(0, head).join("\n")} language={language} />
+        </pre>
+      )}
       <button className="conflict-fold" onClick={() => setOpen(true)}>
         ⋯ {plural(hidden, "unchanged line")}
       </button>
-      {tail > 0 && <pre className="conflict-clean">{lines.slice(lines.length - tail).join("\n")}</pre>}
+      {tail > 0 && (
+        <pre className="conflict-clean">
+          <Code text={lines.slice(lines.length - tail).join("\n")} language={language} />
+        </pre>
+      )}
     </div>
   );
 }
@@ -211,11 +244,13 @@ interface CardProps {
   /** The text being written for it, while editing. */
   editing: string | null;
   onEdit: (draft: string | null) => void;
+  language: string | null;
 }
 
-function ConflictCard({ conflict, number, count, mine, theirs, choice, onChoose, editing, onEdit }: CardProps) {
+function ConflictCard({ conflict, number, count, mine, theirs, choice, onChoose, editing, onEdit, language }: CardProps) {
   const [showBase, setShowBase] = useState(false);
-  const sideText = (text: string) => (text === "" ? <span className="conflict-empty">Nothing (these lines were removed)</span> : text.replace(/\r?\n$/, ""));
+  const sideText = (text: string) =>
+    text === "" ? <span className="conflict-empty">Nothing (these lines were removed)</span> : <Code text={text.replace(/\r?\n$/, "")} language={language} />;
   return (
     <section className={`conflict-card${choice !== undefined ? " resolved" : ""}`} aria-label={`Conflict ${number} of ${count}`}>
       <header className="conflict-card-header">

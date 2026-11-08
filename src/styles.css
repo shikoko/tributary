@@ -100,6 +100,15 @@
 
   --purple: #a77bff;
   --purple-rgb: 167 123 255;
+  /* Code, coloured by its syntax (diffs, blame, conflicts). */
+  --syntax-keyword: #c792ea;
+  --syntax-string: #a5d98a;
+  --syntax-number: #f0a36e;
+  --syntax-comment: #7d8697;
+  --syntax-function: #6cb6ff;
+  --syntax-type: #e8c47a;
+  --syntax-attribute: #5ccfe6;
+  --syntax-tag: #ff7b8a;
   --teal: #19d7b4;
   --teal-rgb: 25 215 180;
   --pink-rgb: 255 79 154;
@@ -201,6 +210,14 @@
 
   --purple: #7a4ce3;
   --purple-rgb: 122 76 227;
+  --syntax-keyword: #a626a4;
+  --syntax-string: #2f7d32;
+  --syntax-number: #b45309;
+  --syntax-comment: #6b7280;
+  --syntax-function: #1d5fd1;
+  --syntax-type: #8a5a00;
+  --syntax-attribute: #0f7f8f;
+  --syntax-tag: #c62d42;
   --teal: #00957f;
   --teal-rgb: 0 149 127;
   --pink-rgb: 230 60 130;
@@ -6718,4 +6735,72 @@ select:disabled {
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* highlight.js's classes, in the theme's syntax colours. */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag,
+.hljs-meta .hljs-keyword {
+  color: var(--syntax-keyword);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-template-tag,
+.hljs-char.escape_,
+.hljs-addition {
+  color: var(--syntax-string);
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-variable.constant_ {
+  color: var(--syntax-number);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--syntax-comment);
+  font-style: italic;
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-section {
+  color: var(--syntax-function);
+}
+
+.hljs-type,
+.hljs-built_in,
+.hljs-title.class_,
+.hljs-class .hljs-title {
+  color: var(--syntax-type);
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-property,
+.hljs-meta,
+.hljs-selector-attr,
+.hljs-selector-pseudo {
+  color: var(--syntax-attribute);
+}
+
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-deletion {
+  color: var(--syntax-tag);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 700;
 }
