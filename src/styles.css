@@ -247,6 +247,18 @@ body {
   cursor: default;
 }
 
+/* Dropdowns' lists: the app's colours, not the select's own (often muted) text on the
+   system's light list, which was hard to read. */
+select option,
+select optgroup {
+  background-color: var(--bg-raised);
+  color: var(--text);
+}
+
+select option:disabled {
+  color: var(--text-faint);
+}
+
 button {
   font: inherit;
   color: inherit;
