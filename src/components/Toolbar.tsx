@@ -10,6 +10,7 @@ import {
   CommitIcon,
   FetchIcon,
   FolderIcon,
+  GearIcon,
   PullIcon,
   PushIcon,
   RefreshIcon,
@@ -51,6 +52,8 @@ interface Props {
   onViewMenu: (anchor: HTMLElement) => void;
   onRefresh: () => void;
   onPick: () => void;
+  /** This repository's own settings. */
+  onSettings: () => void;
   onClose: () => void;
 }
 
@@ -218,6 +221,14 @@ export function Toolbar(props: Props) {
           aria-label="View options"
         >
           <ViewIcon />
+        </button>
+        <button
+          className="icon-button"
+          onClick={props.onSettings}
+          title={`Settings for ${snapshot.name}: who you commit as, protected branches, Git LFS`}
+          aria-label="Repository settings"
+        >
+          <GearIcon />
         </button>
         <button
           className="icon-button"

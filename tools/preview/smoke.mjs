@@ -398,6 +398,11 @@ try {
     await dialog.getByRole("button", { name: "Done" }).click();
     await dialog.waitFor({ state: "detached", timeout: 5000 });
     await dismissToast();
+    // The toolbar's gear opens it too.
+    await page.getByRole("button", { name: "Repository settings" }).click();
+    await dialog.waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "detached", timeout: 5000 });
     // The app's own Settings don't have it any more.
     await page.keyboard.press("Control+,");
     const settings = page.locator(".dialog", { hasText: "Settings" }).first();

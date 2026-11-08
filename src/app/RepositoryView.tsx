@@ -306,6 +306,7 @@ export function RepositoryView(props: Props) {
         onViewMenu={(anchor) => menu.under(anchor, props.viewMenu, 320)}
         onRefresh={repo.refresh}
         onPick={repo.pick}
+        onSettings={() => openDialog({ kind: "repoSettings" })}
         onClose={() => props.closeTab(snapshot.path)}
       />
       <RepositoryBanners

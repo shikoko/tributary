@@ -70,11 +70,13 @@ export function submoduleNotice(submodules: Submodule[], moved: ReadonlySet<stri
   const late = outOfDate(submodules, moved);
   if (late.length > 0) {
     const names = late.map(submoduleName);
+    const [only] = late;
+    const how = only.state === "behind" ? "is older than" : only.state === "ahead" ? "is newer than" : "isn't";
     return {
       text:
         late.length === 1
-          ? `The submodule ${names[0]} isn't at the commit this branch records for it.`
-          : `${late.length} submodules aren't at the commits this branch records for them (${names.join(", ")}).`,
+          ? `Your copy of the submodule ${names[0]} ${how} the version this branch uses.`
+          : `Your copies of ${late.length} submodules (${names.join(", ")}) aren't the versions this branch uses.`,
       paths: late.map((submodule) => submodule.path),
       action: late.length === 1 ? "Update it" : "Update them",
     };
@@ -92,3 +94,9 @@ export function submoduleNotice(submodules: Submodule[], moved: ReadonlySet<stri
   }
   return null;
 }
+
+/** What a submodule is, and why one gets out of date, for the banner's tooltip. */
+export const SUBMODULE_EXPLAINED =
+  "A submodule is another repository kept inside this one (a library, say), pinned to one of its commits. " +
+  "Each branch says which commit it uses. When a pull or a checkout changes that, git leaves the submodule's folder " +
+  "as it was until you update it, so you'd be building with the wrong version.";

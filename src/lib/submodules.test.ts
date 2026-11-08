@@ -33,7 +33,7 @@ describe("submodules", () => {
     // Unless a checkout just left it ahead.
     expect(outOfDate(list, new Set(["vendor/icons"])).map((s) => s.path)).toEqual(["vendor/kit", "vendor/icons"]);
     expect(submoduleNotice(list)).toEqual({
-      text: "The submodule kit isn't at the commit this branch records for it.",
+      text: "Your copy of the submodule kit is older than the version this branch uses.",
       paths: ["vendor/kit"],
       action: "Update it",
     });

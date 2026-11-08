@@ -1,3 +1,4 @@
+import { SUBMODULE_EXPLAINED } from "../lib/submodules";
 import { CloseIcon, SubmoduleIcon } from "./Icons";
 
 interface Props {
@@ -14,7 +15,7 @@ export function SubmoduleBanner({ notice, busy, onUpdate, onDismiss, onAlways }:
   return (
     <div className="notice-banner info" role="status">
       <SubmoduleIcon size={14} />
-      <span>{notice.text}</span>
+      <span title={SUBMODULE_EXPLAINED}>{notice.text}</span>
       {onAlways && (
         <button className="link-button" onClick={onAlways} disabled={busy} title="Update them now, and after every checkout and pull from now on (Settings, General)">
           Always

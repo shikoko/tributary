@@ -2313,6 +2313,12 @@ body.resizing * {
   flex: none;
 }
 
+/* Banners in boxes stack with 8px between them, and the last one keeps 8px from what's
+   below, so its edge doesn't sit on the panels. */
+:is(.notice-banner, .error-banner.inline):not(:has(+ .notice-banner, + .error-banner.inline)) {
+  margin-bottom: 8px;
+}
+
 .notice-banner > svg {
   flex: none;
   color: #f0b44c;
