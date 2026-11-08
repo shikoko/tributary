@@ -41,16 +41,16 @@ struct RawPipeline {
 }
 
 /// A GitLab project behind one of the repository's remotes.
-struct Project {
-    remote: String,
+pub(crate) struct Project {
+    pub(crate) remote: String,
     /// The server, like "gitlab.com", for git's credential helper.
-    host: String,
+    pub(crate) host: String,
     /// Its API address, like `https://gitlab.com/api/v4/projects/group%2Fapp`.
-    api: String,
+    pub(crate) api: String,
 }
 
 /// The GitLab project behind the repository's remotes (origin, if it's on GitLab).
-fn gitlab_project(path: &Path) -> Result<Option<Project>, Error> {
+pub(crate) fn gitlab_project(path: &Path) -> Result<Option<Project>, Error> {
     let repo = crate::repo::open(path)?;
     let remotes = crate::repo::web_remotes(&repo);
     let gitlab: Vec<_> = remotes
@@ -81,8 +81,9 @@ fn split_project_url(url: &str) -> Option<(&str, &str)> {
         .then(|| (&url[..scheme.len() + 3 + authority.len()], project))
 }
 
-/// A project's path as one URL path segment: GitLab takes `group/app` as `group%2Fapp`.
-fn encode_path(path: &str) -> String {
+/// A project's path as one URL path segment (GitLab takes `group/app` as `group%2Fapp`),
+/// or any text as a query value: everything but letters, digits and `-_.~` is escaped.
+pub(crate) fn encode_path(path: &str) -> String {
     path.bytes()
         .map(|byte| match byte {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {

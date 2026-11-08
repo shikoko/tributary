@@ -157,6 +157,12 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
                 &path,
             ))?)
         }
+        "avatars" => {
+            let emails: Vec<String> = arg(args, "emails")?;
+            to_json(tauri::async_runtime::block_on(
+                tributary_lib::avatars::avatars(&path()?, emails),
+            )?)
+        }
         "github_status" => to_json(tauri::async_runtime::block_on(github::account::status())?),
         "github_sign_in" => {
             let token: String = arg(args, "token")?;

@@ -190,7 +190,7 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
         {
           kind: "toggle",
           label: "Profile pictures",
-          hint: "From Gravatar and GitHub, looked up by email address.",
+          hint: "Looked up by email address: on GitHub or GitLab for repositories there, otherwise on Gravatar (which gets a hash of the address).",
           value: profilePictures,
           set: setProfilePictures,
         },

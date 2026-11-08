@@ -805,7 +805,14 @@ body:not(.resizing) .commit-list:not(.graph-growing) .list-header {
   color: #0d0f13;
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1;
   flex: none;
+}
+
+/* Centre the capitals themselves, not the font's line box: fonts put their capitals at
+   different heights in it (higher in Google Sans, lower in Segoe UI). */
+.avatar-initials {
+  text-box: trim-both cap alphabetic;
 }
 
 /* Branch and tag labels */

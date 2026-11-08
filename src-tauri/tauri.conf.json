@@ -28,7 +28,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: https://www.gravatar.com https://avatars.githubusercontent.com https://github.com; style-src 'self' 'unsafe-inline'",
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'",
       "devCsp": null
     }
   },

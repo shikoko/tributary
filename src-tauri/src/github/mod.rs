@@ -141,7 +141,7 @@ struct CombinedStatus {
 }
 
 /// The GitHub repository behind the repository's remotes: (remote, "owner/name").
-fn github_repository(path: &Path) -> Result<Option<(String, String)>, Error> {
+pub(crate) fn github_repository(path: &Path) -> Result<Option<(String, String)>, Error> {
     let repo = crate::repo::open(path)?;
     let remotes = crate::repo::web_remotes(&repo);
     let github: Vec<_> = remotes

@@ -2,6 +2,7 @@
 //! changes them with the user's own git; the frontend calls it through [`commands`].
 
 pub mod actions;
+pub mod avatars;
 mod commands;
 pub mod diagnostics;
 pub mod error;
@@ -50,6 +51,7 @@ pub fn run() {
             commands::lfs_health,
             commands::diagnostics,
             commands::pull_requests,
+            commands::avatars,
             commands::github_status,
             commands::github_sign_in,
             commands::github_sign_in_with_browser,

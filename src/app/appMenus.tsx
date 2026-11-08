@@ -122,7 +122,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
   ];
   const settingCommands: AppCommand[] = [
     { id: "previews", label: "Previews on Hover", checked: previews, run: () => setPreviews(!previews) },
-    { id: "pictures", label: "Profile Pictures (Gravatar, GitHub)", checked: profilePictures, run: () => setProfilePictures(!profilePictures) },
+    { id: "pictures", label: "Profile Pictures (GitHub, GitLab, Gravatar)", checked: profilePictures, run: () => setProfilePictures(!profilePictures) },
     { id: "auto-fetch", label: `Fetch Every ${fetchMinutes === 1 ? "Minute" : `${fetchMinutes} Minutes`}`, checked: autoFetch, run: () => setAutoFetch(!autoFetch) },
     { id: "reopen", label: "Reopen Tabs on Launch", checked: reopenTabs, run: () => setReopenTabs(!reopenTabs) },
   ];

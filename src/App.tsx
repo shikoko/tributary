@@ -291,7 +291,7 @@ export default function App() {
 
   const showTabBar = Boolean(snapshot) || tabs.length > 0 || menuBar.element !== undefined;
   return (
-    <ProfilePictures.Provider value={preferences.profilePictures}>
+    <ProfilePictures.Provider value={preferences.profilePictures ? repoPath : null}>
       <PullRequestsContext.Provider value={prs.list.length > 0 ? prLookup : null}>
         <div className="app">
           {showTabBar && (

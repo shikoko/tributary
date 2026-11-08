@@ -1,30 +1,47 @@
 /**
- * Profile pictures: GitHub's for its "noreply" addresses, Gravatar's for everything else.
- * Only used when switched on in the View menu, since it asks those services about the
- * authors (Gravatar gets a hash of the email address, not the address itself).
+ * Profile pictures, only when switched on (Settings, Commit list). The app looks them up
+ * (GitHub or GitLab for repositories there, then Gravatar) and hands them over as data:
+ * URLs. The avatars on screen at the same moment are asked for together.
  */
+import { avatars } from "../api";
 
-const urls = new Map<string, Promise<string | null>>();
-/** Pictures that failed to load (no Gravatar, offline, …): use initials instead. */
-export const failedAvatars = new Set<string>();
+/** How long "no picture" stands before asking again (after being offline, say). */
+const RETRY_AFTER = 10 * 60_000;
+/** Wait this long to gather the avatars a render puts on screen into one request. */
+const GATHER = 40;
 
-async function sha256(text: string): Promise<string> {
-  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
+const pictures = new Map<string, Promise<string | null>>();
+/** Per repository: the addresses to ask about, and who's waiting for each. */
+const waiting = new Map<string, Map<string, ((url: string | null) => void)[]>>();
+let timer: ReturnType<typeof setTimeout> | null = null;
+
+function ask() {
+  timer = null;
+  for (const [repo, emails] of waiting) {
+    waiting.delete(repo);
+    const settle = (found: Record<string, string | null>) => {
+      for (const [email, resolvers] of emails) {
+        const url = found[email] ?? null;
+        for (const resolve of resolvers) resolve(url);
+        if (!url) setTimeout(() => pictures.delete(`${repo}\n${email}`), RETRY_AFTER);
+      }
+    };
+    avatars(repo, [...emails.keys()]).then(settle, () => settle({}));
+  }
 }
 
-async function lookup(email: string): Promise<string | null> {
-  const address = email.trim().toLowerCase();
-  if (!address.includes("@")) return null;
-  const withId = /^(\d+)\+[^@]+@users\.noreply\.github\.com$/.exec(address);
-  if (withId) return `https://avatars.githubusercontent.com/u/${withId[1]}?s=80&v=4`;
-  const user = /^([^@+]+)@users\.noreply\.github\.com$/.exec(address);
-  if (user) return `https://github.com/${user[1]}.png?size=80`;
-  if (!crypto?.subtle) return null;
-  return `https://www.gravatar.com/avatar/${await sha256(address)}?s=80&d=404`;
-}
-
-export function avatarUrl(email: string): Promise<string | null> {
-  if (!urls.has(email)) urls.set(email, lookup(email).catch(() => null));
-  return urls.get(email)!;
+/** An author's picture as a data: URL, or null when there's none (or it couldn't be fetched). */
+export function avatarUrl(repo: string, email: string): Promise<string | null> {
+  const key = `${repo}\n${email}`;
+  let found = pictures.get(key);
+  if (!found) {
+    found = new Promise((resolve) => {
+      const emails = waiting.get(repo) ?? new Map<string, ((url: string | null) => void)[]>();
+      waiting.set(repo, emails);
+      emails.set(email, [...(emails.get(email) ?? []), resolve]);
+      timer ??= setTimeout(ask, GATHER);
+    });
+    pictures.set(key, found);
+  }
+  return found;
 }

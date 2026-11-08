@@ -178,6 +178,15 @@ pub async fn lfs_storage(path: String) -> Result<Option<actions::LfsStorage>> {
     blocking(move || actions::lfs_storage_of(&PathBuf::from(path))).await
 }
 
+/// Profile pictures of these authors, as `data:` URLs (null for those without one).
+#[tauri::command]
+pub async fn avatars(
+    path: String,
+    emails: Vec<String>,
+) -> Result<std::collections::HashMap<String, Option<String>>> {
+    crate::avatars::avatars(&PathBuf::from(path), emails).await
+}
+
 /// The open pull requests on the repository's GitHub remote, or merge requests on its
 /// GitLab one.
 #[tauri::command]
