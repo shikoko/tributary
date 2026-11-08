@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { fileDiff, type Action, type FileDiff } from "../../api";
+import { useEffect, useRef, useState } from "react";
+import { linesLabel, linesOf } from "../../lib/lineSelection";
+import { fileDiff, type Action, type FileDiff, type LineMode } from "../../api";
 import type { DiffTarget } from "../../lib/diffTargets";
 import { toolLabel, useDiffTools } from "../../lib/diffTools";
 import { useStoredState } from "../../lib/settings";
@@ -7,7 +8,7 @@ import { ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon } from "../
 import { DiffBinary } from "./DiffBinary";
 import { DiffMedia } from "./DiffMedia";
 import { FileKindIcon } from "../FileKindIcon";
-import { DiffLines } from "./DiffLines";
+import { DiffLines, type LinePicking } from "./DiffLines";
 import { DiffSubmodule } from "./DiffSubmodule";
 
 interface Props {
@@ -17,8 +18,8 @@ interface Props {
   index: number;
   onIndex: (index: number) => void;
   onClose: () => void;
-  /** For opening the diff or merge tool. */
-  run: (action: Action) => void;
+  /** For opening the diff or merge tool, and staging lines. Resolves once it's done. */
+  run: (action: Action) => void | Promise<unknown>;
   /** Changes when the repository reloads: your changes are read again. */
   version: unknown;
   /** No diff (or merge) tool is set up: choose one, in Settings. */
@@ -35,6 +36,10 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
   const [loaded, setLoaded] = useState<{ key: string; diff: FileDiff | null; error: string | null } | null>(null);
   const live = target.source.kind !== "commit";
   const key = JSON.stringify([target.source, target.file.path, target.file.oldPath, ignoreWhitespace]);
+  // Lines chosen to stage, unstage or discard (lib/lineSelection.ts).
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const selectedCount = useRef(0);
+  selectedCount.current = selected.size;
 
   useEffect(() => {
     let current = true;
@@ -56,7 +61,9 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
       const above = document.querySelector('[role="menu"], [role="dialog"], [aria-modal="true"]');
       if (typing || above || event.metaKey || event.ctrlKey || event.altKey) return;
       const step = event.key === "[" ? -1 : event.key === "]" ? 1 : 0;
-      if (event.key === "Escape") onClose();
+      // Esc lets go of chosen lines first.
+      if (event.key === "Escape" && selectedCount.current > 0) setSelected(new Set());
+      else if (event.key === "Escape") onClose();
       else if (step && targets[index + step]) onIndex(index + step);
       else return;
       event.preventDefault();
@@ -69,6 +76,35 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
 
   const diff = loaded?.key === key ? loaded.diff : null;
   const error = loaded?.key === key ? loaded.error : null;
+
+  // A new diff (after staging, say) starts with no lines chosen.
+  const [applying, setApplying] = useState(false);
+  useEffect(() => setSelected(new Set()), [diff]);
+  const side = target.source.kind === "commit" ? null : target.source.kind;
+  /** Why lines can't be chosen here, if they can't. */
+  const notPickable = !side
+    ? null
+    : target.file.status === "untracked"
+      ? "Stage the new file first, then choose its lines"
+      : target.file.status === "conflicted"
+        ? "Resolve the conflict first"
+        : target.file.oldPath
+          ? "Renamed files are staged whole"
+          : diff?.lfs
+            ? "Files stored with Git LFS are staged whole"
+            : ignoreWhitespace
+              ? "Turn off Ignore whitespace to choose lines"
+              : null;
+  const apply = async (mode: LineMode, keys: Iterable<string>) => {
+    setApplying(true);
+    try {
+      await run({ kind: "applyLines", file: target.file.path, mode, ...linesOf(keys) });
+    } finally {
+      setApplying(false);
+    }
+  };
+  const picking: LinePicking | undefined =
+    side && !notPickable ? { side, selected, onSelect: setSelected, onApply: (mode, keys) => void apply(mode, keys), busy: applying } : undefined;
   const path = target.file.path;
   const slash = path.lastIndexOf("/");
   const conflicted = target.file.status === "conflicted";
@@ -173,9 +209,31 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         ) : diff.hunks.length === 0 ? (
           <div className="diff-message muted">{ignoreWhitespace ? "Only whitespace changed." : "No changes to show (only the file's name or mode changed)."}</div>
         ) : (
-          <DiffLines hunks={diff.hunks} />
+          <DiffLines hunks={diff.hunks} picking={picking} />
         )}
       </div>
+        {picking && selected.size > 0 && (
+          <div className="line-bar" role="toolbar" aria-label="Chosen lines">
+            <span>{linesLabel(selected.size)} chosen</span>
+            {picking.side === "unstaged" ? (
+              <>
+                <button className="outline-button" disabled={applying} onClick={() => void apply("discard", selected)} title="Undo them in the file (you can put them back)">
+                  <span className="button-label">Discard</span>
+                </button>
+                <button className="primary-small-button" disabled={applying} onClick={() => void apply("stage", selected)}>
+                  Stage {linesLabel(selected.size)}
+                </button>
+              </>
+            ) : (
+              <button className="primary-small-button" disabled={applying} onClick={() => void apply("unstage", selected)}>
+                Unstage {linesLabel(selected.size)}
+              </button>
+            )}
+            <button className="icon-button" onClick={() => setSelected(new Set())} title="Let go of them (Esc)" aria-label="Let go of the chosen lines">
+              <CloseIcon size={13} />
+            </button>
+          </div>
+        )}
     </section>
   );
 }

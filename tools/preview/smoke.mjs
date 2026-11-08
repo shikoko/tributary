@@ -8,6 +8,7 @@
 // Needs Playwright with Chromium (`npm install --no-save playwright` and
 // `npx playwright install chromium`, if they aren't installed already).
 
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -218,6 +219,39 @@ try {
     await view.locator(".diff-source", { hasText: "Not staged" }).waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");
     await view.waitFor({ state: "detached", timeout: 5000 });
+  });
+
+  await step("stages two chosen lines, then discards a hunk and puts it back", async () => {
+    const store = join(demos.notebook, "src", "store.ts");
+    const before = readFileSync(store, "utf8");
+    writeFileSync(store, `${before.replace("const VERSION = 2;", "const VERSION = 3;")}\n// Old notes are compacted once a week.\n`);
+    // The file is read again when the window gets the focus.
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+    await page.locator(".details .file", { hasText: "store.ts" }).first().click();
+    const view = page.locator(".diff-view");
+    await view.locator(".diff-row.added", { hasText: "VERSION = 3" }).waitFor({ timeout: 10_000 });
+    await view.locator(".diff-row.removed", { hasText: "VERSION = 2" }).locator(".diff-number").first().click();
+    await view.locator(".diff-row.added", { hasText: "VERSION = 3" }).locator(".diff-number").nth(1).click({ modifiers: ["Shift"] });
+    await view.locator(".line-bar").getByRole("button", { name: "Stage 2 lines" }).click();
+    await page.locator(".toast", { hasText: "Staged 2 lines of src/store.ts" }).waitFor({ timeout: 10_000 });
+    const staged = execFileSync("git", ["-C", demos.notebook, "show", ":src/store.ts"], { encoding: "utf8" });
+    expect(staged.includes("const VERSION = 3;") && !staged.includes("compacted"), "staged more than the two lines");
+    await dismissToast();
+    // Throw away the new comment at the end, and put it back.
+    const hunk = view.locator(".diff-hunk", { hasText: "compacted" });
+    await hunk.getByRole("button", { name: "Discard" }).click();
+    await page.locator(".toast", { hasText: "Discarded" }).waitFor({ timeout: 10_000 });
+    expect(!readFileSync(store, "utf8").includes("compacted"), "the lines weren't discarded");
+    await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
+    await page.locator(".toast", { hasText: "Put the discarded lines back" }).waitFor({ timeout: 10_000 });
+    expect(readFileSync(store, "utf8").includes("compacted"), "the lines didn't come back");
+    await dismissToast();
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+    // Back as it was, for the steps after this one.
+    execFileSync("git", ["-C", demos.notebook, "reset", "-q", "--", "src/store.ts"]);
+    writeFileSync(store, before);
   });
 
   await step("hides a branch, then shows everything again", async () => {

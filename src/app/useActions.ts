@@ -108,7 +108,9 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       if (pullRequest) {
         notify({ text: message ?? "Pushed", action: { label: "Create pull request", onClick: () => openInBrowser(pullRequest) } });
       } else if (!options.quiet && message) {
-        const undo = backup && action.kind === "discardFiles" ? { kind: "restoreDiscarded" as const, reference: backup } : undoFor(action, before);
+        // Discarded files and lines are kept for a while, to put back.
+        const discarded = action.kind === "discardFiles" || action.kind === "applyLines";
+        const undo = backup && discarded ? { kind: "restoreDiscarded" as const, reference: backup } : undoFor(action, before);
         notify({ text: message, action: undo ? { label: "Undo", onClick: () => act(undo, "other", { confirmed: true }) } : undefined });
       }
       return true;

@@ -19,6 +19,7 @@ mod identity;
 mod lfs;
 mod lfs_health;
 mod lfs_settings;
+mod partial;
 mod prune;
 mod remote;
 mod stash;
@@ -48,6 +49,7 @@ pub use identity::{RepoIdentity, repo_identity};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
 pub use lfs_health::{LfsHealth, lfs_health};
 pub use lfs_settings::{LfsSettings, LfsSuggestion, lfs_settings};
+pub use partial::LineMode;
 pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
 };
@@ -200,8 +202,19 @@ pub enum Action {
     /// Throw away the changes to files (untracked ones are deleted). What they were is
     /// kept for [`BACKUP_DAYS`] days, to undo with [`Action::RestoreDiscarded`].
     DiscardFiles { paths: Vec<String> },
-    /// Put back changes thrown away by [`Action::DiscardFiles`].
+    /// Put back changes thrown away by [`Action::DiscardFiles`] or [`Action::ApplyLines`].
     RestoreDiscarded { reference: String },
+    /// Stage, unstage or throw away the changes on some lines of `file`: `added` are line
+    /// numbers after the change, `removed` before it, as the diff shows them. Thrown away
+    /// lines are kept, to undo with [`Action::RestoreDiscarded`].
+    ApplyLines {
+        file: String,
+        mode: LineMode,
+        #[serde(default)]
+        added: Vec<u32>,
+        #[serde(default)]
+        removed: Vec<u32>,
+    },
     /// Add patterns (like `*.log` or `Saved/`) to the repository's `.gitignore`.
     IgnorePaths { patterns: Vec<String> },
     /// Take patterns out of `.gitignore` again (undo).
@@ -485,8 +498,18 @@ fn perform(
         Action::TrackWithLfs { patterns, paths } => lfs::track_with_lfs(&git, patterns, paths),
         Action::DiscardFiles { paths } => changes::discard_files(&repo, &git, paths, extra),
         Action::RestoreDiscarded { reference } => {
-            changes::restore_discarded(&repo, &git, reference)
+            if partial::is_discarded_lines(&git, &reference) {
+                partial::restore_discarded_lines(&repo, &git, &reference)
+            } else {
+                changes::restore_discarded(&repo, &git, reference)
+            }
         }
+        Action::ApplyLines {
+            file,
+            mode,
+            added,
+            removed,
+        } => partial::apply_lines(&repo, &git, file, mode, added, removed, extra),
         Action::IgnorePaths { patterns } => changes::ignore_paths(&git, patterns),
         Action::UnignorePaths { patterns } => changes::unignore_paths(&git, patterns),
         Action::PruneLfs => lfs::prune_lfs(&git),

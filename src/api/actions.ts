@@ -5,6 +5,9 @@ import type { BranchTip } from "./branches";
 import type { DiffSource } from "./diff";
 
 /** Something that changes the repository. These run the installed git. */
+/** What to do with some changed lines: stage them, unstage them, or undo them in the file. */
+export type LineMode = "stage" | "unstage" | "discard";
+
 export type Action =
   | { kind: "resetHard"; id: string }
   | { kind: "checkoutBranch"; name: string }
@@ -68,6 +71,8 @@ export type Action =
   /** Throw away changes to files; the outcome's `backup` brings them back. */
   | { kind: "discardFiles"; paths: string[] }
   | { kind: "restoreDiscarded"; reference: string }
+  /** Stage, unstage or throw away some changed lines: added ones by their number after the change, removed ones before it. */
+  | { kind: "applyLines"; file: string; mode: LineMode; added: number[]; removed: number[] }
   | { kind: "ignorePaths"; patterns: string[] }
   | { kind: "unignorePaths"; patterns: string[] }
   | { kind: "pruneLfs" }

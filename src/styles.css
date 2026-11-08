@@ -5132,6 +5132,96 @@ code {
   color: var(--text-faint);
 }
 
+/* Stage, unstage or discard a hunk: kept in view at the right while scrolling sideways. */
+.diff-hunk-actions {
+  position: sticky;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-family: var(--font);
+}
+
+.hunk-button {
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  line-height: 1;
+  opacity: 0.75;
+  transition: opacity 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.diff-hunk:hover .hunk-button,
+.hunk-button:focus-visible {
+  opacity: 1;
+}
+
+.hunk-button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.hunk-button.primary:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.hunk-chosen {
+  color: var(--accent-ink);
+  font-size: 11.5px;
+}
+
+/* Changed lines can be chosen by their numbers and sign. */
+.diff-lines.picking .diff-row.pickable .diff-number,
+.diff-lines.picking .diff-row.pickable .diff-sign {
+  cursor: pointer;
+}
+
+.diff-lines.picking .diff-row.pickable:hover .diff-number {
+  color: var(--text);
+}
+
+.diff-row.chosen {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.diff-row.chosen .diff-number,
+.diff-row.chosen .diff-sign {
+  background: linear-gradient(rgb(var(--accent-rgb) / 0.22), rgb(var(--accent-rgb) / 0.22)) var(--bg);
+  color: var(--text);
+}
+
+/* The chosen lines' buttons, over the bottom of the changes. */
+.line-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  box-shadow: 0 10px 30px var(--shadow);
+  font-size: 12.5px;
+  transform: translateX(-50%);
+  animation: line-bar-in 0.16s ease-out;
+}
+
+@keyframes line-bar-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+}
+
 .diff-hunk-section {
   color: var(--text-secondary);
 }
