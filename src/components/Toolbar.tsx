@@ -1,4 +1,5 @@
 import { useRef, type RefObject } from "react";
+import type { SearchMode } from "../app/useSearch";
 import type { RepoSnapshot } from "../api";
 import { plural, shortId } from "../lib/format";
 import { modKey } from "../lib/platform";
@@ -24,11 +25,25 @@ export type RemoteAction = "fetch" | "pull" | "push";
 
 export interface SearchState {
   query: string;
+  /** Messages (and authors, branches, SHAs), files' paths, or code added or removed. */
+  mode: SearchMode;
   /** How many commits match. */
   total: number;
   /** 1-based position of the selected commit among the matches, or 0. */
   current: number;
+  /** A file or code search git hasn't answered yet. */
+  searching: boolean;
+  /** Matching commits that aren't loaded. */
+  notLoaded: number;
+  truncated: boolean;
+  error: string | null;
 }
+
+const MODES: { mode: SearchMode; label: string; placeholder: string; title: string }[] = [
+  { mode: "message", label: "Messages", placeholder: "", title: "Message, author, branch, tag or SHA, among the loaded commits" },
+  { mode: "files", label: "Files", placeholder: "Commits that changed a file, like store.ts or *.psd", title: "Commits in any branch that changed a file whose path contains this (or matches a pattern like *.psd)" },
+  { mode: "code", label: "Code", placeholder: "Commits that added or removed some code", title: "Commits in any branch that added or removed this exact text" },
+];
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -42,6 +57,7 @@ interface Props {
   searchInput: RefObject<HTMLInputElement | null>;
   onSearch: (query: string) => void;
   onSearchStep: (step: 1 | -1) => void;
+  onSearchMode: (mode: SearchMode) => void;
   onRemote: (action: RemoteAction) => void;
   /** Open the push menu (with force push) under the given element. */
   onPushMenu: (anchor: HTMLElement) => void;
@@ -108,6 +124,19 @@ export function Toolbar(props: Props) {
 
       <div className="search" role="search">
         <SearchIcon size={14} />
+        <select
+          className="search-mode"
+          value={search.mode}
+          onChange={(event) => props.onSearchMode(event.target.value as SearchMode)}
+          title={MODES.find((entry) => entry.mode === search.mode)?.title}
+          aria-label="Search in"
+        >
+          {MODES.map((entry) => (
+            <option key={entry.mode} value={entry.mode}>
+              {entry.label}
+            </option>
+          ))}
+        </select>
         <input
           ref={searchInput}
           value={search.query}
@@ -122,19 +151,39 @@ export function Toolbar(props: Props) {
               else event.currentTarget.blur();
             }
           }}
-          placeholder={`Search ${plural(commitCount, "commit")}${snapshot.truncated ? "+" : ""}`}
-          title={`Message, author, branch, tag or SHA (${modKey}F)`}
+          placeholder={
+            search.mode === "message"
+              ? `Search ${plural(commitCount, "commit")}${snapshot.truncated ? "+" : ""}`
+              : (MODES.find((entry) => entry.mode === search.mode)?.placeholder ?? "")
+          }
+          title={`${MODES.find((entry) => entry.mode === search.mode)?.title} (${modKey}F)`}
           spellCheck={false}
           aria-label="Search commits"
         />
         {search.query && (
           <>
-            <span className="search-count" title={snapshot.truncated ? "Only the loaded commits are searched" : undefined}>
-              {search.total === 0
-                ? "No matches"
-                : search.current > 0
-                  ? `${search.current} of ${search.total}`
-                  : plural(search.total, "match", "matches")}
+            <span
+              className="search-count"
+              title={
+                search.error ??
+                (search.notLoaded > 0
+                  ? `${plural(search.notLoaded, "more commit")} further back match${search.notLoaded === 1 ? "es" : ""}: scroll down to load ${search.notLoaded === 1 ? "it" : "them"}`
+                  : search.mode === "message" && snapshot.truncated
+                    ? "Only the loaded commits are searched"
+                    : undefined)
+              }
+            >
+              {search.searching
+                ? "Searching…"
+                : search.error
+                  ? "Couldn't search"
+                  : search.total === 0
+                    ? search.notLoaded > 0
+                      ? `${search.notLoaded}${search.truncated ? "+" : ""} further back`
+                      : "No matches"
+                    : search.current > 0
+                      ? `${search.current} of ${search.total}${search.notLoaded > 0 ? "+" : ""}`
+                      : plural(search.total, "match", "matches") + (search.notLoaded > 0 ? "+" : "")}
             </span>
             <button
               className="icon-button small"

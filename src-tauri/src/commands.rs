@@ -227,6 +227,17 @@ pub async fn file_diff(
     .await
 }
 
+/// The commits in every branch that changed a file whose path matches `query`, or that
+/// added or removed `query` in their code.
+#[tauri::command]
+pub async fn search_commits(
+    path: String,
+    mode: actions::SearchMode,
+    query: String,
+) -> Result<actions::SearchResult> {
+    blocking(move || actions::search_commits(&PathBuf::from(path), mode, &query)).await
+}
+
 /// Who changed each line of a file last: in the working tree, or at commit `at`.
 #[tauri::command]
 pub async fn blame_file(path: String, file: String, at: Option<String>) -> Result<actions::Blame> {

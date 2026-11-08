@@ -220,6 +220,14 @@ export function commitDetails(path: string, id: string): Promise<CommitDetails> 
   return invoke<CommitDetails>("commit_details", { path, id });
 }
 
+/** What to search commits for, besides their messages: a file's path, or code they added or removed. */
+export type CommitSearchMode = "files" | "code";
+
+/** The commits (newest first, in every branch) that changed a matching file, or added or removed the code. */
+export function searchCommits(path: string, mode: CommitSearchMode, query: string): Promise<{ ids: string[]; truncated: boolean }> {
+  return invoke<{ ids: string[]; truncated: boolean }>("search_commits", { path, mode, query });
+}
+
 /** Two commits (or branches) compared: the files that differ, and the commits each has that the other doesn't. */
 export interface Comparison {
   /** What the files are compared from: `from` itself, or (since they split) where they split. Null when they share no history. */

@@ -125,7 +125,7 @@ export default function App() {
         closeOthers: () => tabbing.closeOthers(path),
       }),
     );
-  const search = useSearch(snapshot?.commits, selection.select, selection.selectedIndex);
+  const search = useSearch(snapshot?.commits, selection.select, selection.selectedIndex, snapshot?.path ?? null);
   const highlight = useHighlight({
     repoPath,
     commits: snapshot?.commits,

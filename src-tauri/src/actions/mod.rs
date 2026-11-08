@@ -23,6 +23,7 @@ mod lfs_settings;
 mod partial;
 mod prune;
 mod remote;
+mod search;
 mod stash;
 mod submodules;
 mod support;
@@ -56,6 +57,7 @@ pub use partial::LineMode;
 pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
 };
+pub use search::{SearchMode, SearchResult, search_commits};
 pub use submodules::{Submodule, SubmoduleState, submodules};
 
 use self::stash::{pop_stash, stash_top};

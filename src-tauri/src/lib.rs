@@ -54,6 +54,7 @@ pub fn run() {
             commands::conflict_text,
             commands::compare_commits,
             commands::blame_file,
+            commands::search_commits,
             commands::lfs_storage,
             commands::lfs_health,
             commands::diagnostics,

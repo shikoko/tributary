@@ -336,6 +336,7 @@ export function RepositoryView(props: Props) {
         searchInput={search.input}
         onSearch={search.search}
         onSearchStep={search.step}
+        onSearchMode={search.setMode}
         onRemote={(action) => act(REMOTE_ACTIONS[action], action)}
         onPushMenu={(anchor) => menu.under(anchor, pushMenuItems(() => act({ kind: "push", force: false }, "push"), openDialog))}
         lastFetch={snapshot.lastFetched ? snapshot.lastFetched * 1000 : null}

@@ -344,6 +344,29 @@ try {
     await row("Speed up opening large notebooks").click();
   });
 
+  await step("searches every branch for commits that changed a file, or some code", async () => {
+    const box = page.getByLabel("Search commits");
+    const count = page.locator(".search-count");
+    const settled = () =>
+      page.waitForFunction(() => {
+        const text = document.querySelector(".search-count")?.textContent ?? "";
+        return text !== "" && !text.includes("Searching");
+      }, null, { timeout: 10_000 });
+    await page.getByLabel("Search in").selectOption("files");
+    await box.fill("store");
+    await settled();
+    expect(/of 2/.test(await count.innerText()), `files: "${await count.innerText()}"`);
+    await page.locator(".commit-row.primary", { hasText: "Speed up opening large notebooks" }).waitFor({ timeout: 5000 });
+    await page.getByLabel("Search in").selectOption("code");
+    await box.fill("PAGE_SIZE");
+    await page.waitForTimeout(100);
+    await settled();
+    expect(/1 of 1/.test(await count.innerText()), `code: "${await count.innerText()}"`);
+    await box.press("Escape");
+    await page.getByLabel("Search in").selectOption("message");
+    await box.press("Escape");
+  });
+
   await step("hides a branch, then shows everything again", async () => {
     const themes = page.locator(".sidebar-item", { hasText: /^themes/ }).first();
     await themes.hover();

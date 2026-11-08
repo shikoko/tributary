@@ -151,6 +151,11 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
                 ignore_whitespace,
             )?)
         }
+        "search_commits" => {
+            let mode: actions::SearchMode = arg(args, "mode")?;
+            let query: String = arg(args, "query")?;
+            to_json(actions::search_commits(&path()?, mode, &query)?)
+        }
         "blame_file" => {
             let file: String = arg(args, "file")?;
             let at: Option<String> = optional(args, "at")?;

@@ -505,3 +505,51 @@ fn shows_who_changed_each_line() {
     assert_eq!(then.commits.len(), 1);
     assert!(tributary_lib::actions::blame(repo.path(), "missing.txt", None).is_err());
 }
+
+#[test]
+fn searches_history_by_file_and_by_code() {
+    use tributary_lib::actions::{SearchMode, search_commits};
+    let repo = TempRepo::new("search");
+    std::fs::create_dir_all(repo.path().join("src/Store")).unwrap();
+    std::fs::write(
+        repo.path().join("src/Store/notes.ts"),
+        "export const LIMIT = 10;\n",
+    )
+    .unwrap();
+    std::fs::write(repo.path().join("README.md"), "Notes\n").unwrap();
+    repo.git(&["add", "-A"]);
+    repo.git(&["commit", "-qm", "Start"]);
+    let start = repo.git(&["rev-parse", "HEAD"]);
+    repo.git(&["switch", "-q", "-c", "feature"]);
+    std::fs::write(
+        repo.path().join("src/Store/notes.ts"),
+        "export const LIMIT = 500;\n",
+    )
+    .unwrap();
+    repo.git(&["commit", "-qam", "Bigger pages"]);
+    let bigger = repo.git(&["rev-parse", "HEAD"]);
+    repo.git(&["switch", "-q", "main"]);
+    std::fs::write(repo.path().join("README.md"), "Notes, faster\n").unwrap();
+    repo.git(&["commit", "-qam", "Readme"]);
+
+    // Any branch, any case, anywhere in the path.
+    let found = search_commits(repo.path(), SearchMode::Files, "store/NOTES").unwrap();
+    assert_eq!(found.ids, [bigger.clone(), start.clone()]);
+    let patterns = search_commits(repo.path(), SearchMode::Files, "*.md").unwrap();
+    assert_eq!(patterns.ids.len(), 2);
+    // Where "LIMIT = 500" came in.
+    let code = search_commits(repo.path(), SearchMode::Code, "LIMIT = 500").unwrap();
+    assert_eq!(code.ids, [bigger]);
+    assert!(
+        search_commits(repo.path(), SearchMode::Code, "")
+            .unwrap()
+            .ids
+            .is_empty()
+    );
+    assert!(
+        search_commits(repo.path(), SearchMode::Code, "--all")
+            .unwrap()
+            .ids
+            .is_empty()
+    );
+}
