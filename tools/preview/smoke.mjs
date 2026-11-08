@@ -312,6 +312,23 @@ try {
     await page.keyboard.press("Escape");
   });
 
+  await step("shows a sound, a video and a 3D model as what they are", async () => {
+    await row("A slower door with a longer creak").click();
+    await page.locator(".details .file", { hasText: "DoorCreak.wav" }).click();
+    const view = page.locator(".diff-view");
+    await view.locator(".diff-waveform").nth(1).waitFor({ timeout: 10_000 });
+    await view.locator(".diff-media-facts", { hasText: "0:01.6" }).waitFor({ timeout: 10_000 });
+    await page.keyboard.press("]");
+    await view.locator(".diff-media-facts", { hasText: "0:03.0 · 320×180" }).waitFor({ timeout: 10_000 });
+    await page.keyboard.press("]");
+    const facts = view.locator(".diff-model-facts");
+    await facts.waitFor({ timeout: 20_000 });
+    const text = (await facts.innerText()).replace(/\s+/g, " ");
+    expect(text.includes("Vertices 120 192"), `facts "${text}"`);
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("chooses a diff tool from a file it can't show line by line", async () => {
     await row("Rig the barber").click();
     await page.locator(".details .file", { hasText: "Barber.uasset" }).click();

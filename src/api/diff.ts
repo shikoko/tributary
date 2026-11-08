@@ -1,4 +1,4 @@
-// What changed in a file, line by line or (for images and other binary files) before and after.
+// What changed in a file: line by line, or (for pictures, sounds, videos, 3D models and other binary files) before and after.
 import { invoke } from "@tauri-apps/api/core";
 
 /** Which change to a file. */
@@ -26,7 +26,7 @@ export interface Hunk {
 
 export interface FileDiff {
   path: string;
-  /** Not text: shown by its sizes (or as images), not line by line. */
+  /** Not text: shown by its sizes (or as media), not line by line. */
   binary: boolean;
   /** Stored with Git LFS. */
   lfs: boolean;
@@ -38,10 +38,24 @@ export interface FileDiff {
   /** In bytes; null where the file doesn't exist. */
   sizeBefore: number | null;
   sizeAfter: number | null;
-  /** For images: before and after, as data: URLs. */
-  images: { before: string | null; after: string | null } | null;
+  /** For pictures, sounds, videos and 3D models: both versions, to show as what they are. */
+  media: Media | null;
   /** For a submodule: the commits it moved by. */
   submodule: SubmoduleChange | null;
+}
+
+export type MediaKind = "image" | "audio" | "video" | "model";
+
+/**
+ * A picture, sound, video or 3D model before and after, as data: URLs: null where the file
+ * doesn't exist, or (with its size known) is too big to show here.
+ */
+export interface Media {
+  kind: MediaKind;
+  /** Its extension, like "glb". */
+  format: string;
+  before: string | null;
+  after: string | null;
 }
 
 /** A submodule moved from one commit to another. */

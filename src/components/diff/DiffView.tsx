@@ -5,6 +5,7 @@ import { toolLabel, useDiffTools } from "../../lib/diffTools";
 import { useStoredState } from "../../lib/settings";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon } from "../Icons";
 import { DiffBinary } from "./DiffBinary";
+import { DiffMedia } from "./DiffMedia";
 import { DiffLines } from "./DiffLines";
 import { DiffSubmodule } from "./DiffSubmodule";
 
@@ -70,6 +71,10 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
   const path = target.file.path;
   const slash = path.lastIndexOf("/");
   const conflicted = target.file.status === "conflicted";
+  // 3D models stored as text (OBJ, glTF) can show either way: in 3D, or line by line.
+  const [asText, setAsText] = useStoredState("diff.modelsAsText", false);
+  const both = Boolean(diff?.media && diff.hunks.length > 0);
+  const showMedia = Boolean(diff?.media && !(both && asText));
   const tools = useDiffTools(repoPath);
   const tool = tools ? (conflicted ? tools.merge : tools.diff) : null;
   /** Open the file in the diff (or merge) tool, or choose one first. */
@@ -77,7 +82,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
     tools && !tool ? onChooseTool() : run(conflicted ? { kind: "openInMergeTool", path } : { kind: "openInDiffTool", source: target.source, path });
   const toolButton = tools && !tool ? `Choose a ${conflicted ? "merge" : "diff"} tool…` : `Open in ${toolLabel(tool, conflicted ? "merge" : "diff")}`;
   /** Shown as something other than lines: whitespace and diff tools don't apply. */
-  const whole = Boolean(diff && (diff.binary || diff.tooLarge || diff.submodule));
+  const whole = Boolean(diff && (diff.binary || diff.tooLarge || diff.submodule || showMedia));
   return (
     <section className="diff-view" aria-label={`Changes to ${path}`}>
       <header className="diff-header">
@@ -113,6 +118,16 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
             </span>
           )}
         </div>
+        {both && (
+          <div className="diff-switch" role="group" aria-label="Show as">
+            <button className={showMedia ? "selected" : undefined} onClick={() => setAsText(false)} aria-pressed={showMedia}>
+              3D
+            </button>
+            <button className={!showMedia ? "selected" : undefined} onClick={() => setAsText(true)} aria-pressed={!showMedia}>
+              Text
+            </button>
+          </div>
+        )}
         {!whole && (
           <label className="checkbox diff-option">
             <input type="checkbox" checked={ignoreWhitespace} onChange={(event) => setIgnoreWhitespace(event.target.checked)} />
@@ -149,6 +164,8 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           <div className="diff-message muted">Loading…</div>
         ) : diff.submodule ? (
           <DiffSubmodule change={diff.submodule} />
+        ) : diff.media && showMedia ? (
+          <DiffMedia diff={diff} media={diff.media} />
         ) : diff.binary || diff.tooLarge ? (
           <DiffBinary diff={diff} tool={toolButton} onOpen={openInTool} />
         ) : diff.hunks.length === 0 ? (

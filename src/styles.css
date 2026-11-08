@@ -4830,27 +4830,6 @@ code {
   font-size: 14px;
 }
 
-.diff-images {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  padding: 20px;
-}
-
-.diff-image {
-  margin: 0;
-  min-width: 0;
-}
-
-.diff-image figcaption {
-  margin-bottom: 8px;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .diff-image-frame {
   display: flex;
   align-items: center;
@@ -4875,8 +4854,7 @@ code {
 }
 
 .diff-binary-sizes {
-  grid-column: 1 / -1;
-  margin: 0;
+  margin: 14px 0 0;
   color: var(--text-secondary);
   text-align: center;
 }
@@ -5236,4 +5214,177 @@ select.rebase-action {
 select:disabled {
   cursor: default;
   opacity: 0.55;
+}
+
+/* Pictures, sounds, videos and 3D models in the diff view */
+
+.diff-media-frame {
+  padding: 20px;
+}
+
+.diff-media {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.diff-media-side {
+  margin: 0;
+  min-width: 0;
+}
+
+.diff-media-side figcaption {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diff-media-facts {
+  color: var(--text-secondary);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.diff-media-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.diff-media-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 12px;
+}
+
+.diff-sound {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+}
+
+.diff-waveform {
+  width: 100%;
+  height: 72px;
+  cursor: pointer;
+}
+
+.diff-sound audio {
+  width: 100%;
+  height: 34px;
+}
+
+.diff-video video {
+  display: block;
+  width: 100%;
+  max-height: 56vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #000;
+}
+
+.diff-model-frame {
+  position: relative;
+  height: min(52vh, 460px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: radial-gradient(circle at 50% 40%, #222631, #15171c);
+  overflow: hidden;
+}
+
+.diff-model-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.diff-model-canvas:active {
+  cursor: grabbing;
+}
+
+.diff-model-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.diff-model-facts {
+  grid-column: 1 / -1;
+  justify-self: center;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diff-model-facts th {
+  padding: 3px 16px 3px 0;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-align: left;
+}
+
+.diff-model-facts td {
+  min-width: 140px;
+  padding: 3px 12px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.diff-model-facts tr.changed td {
+  color: var(--text);
+}
+
+.diff-model-facts tr.changed td:last-child {
+  color: #ffc966;
+}
+
+/* 3D or text, for models stored as text */
+.diff-switch {
+  display: inline-flex;
+  flex: none;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+}
+
+.diff-switch button {
+  height: 24px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.diff-switch button.selected {
+  background: var(--bg-raised);
+  color: var(--text);
 }

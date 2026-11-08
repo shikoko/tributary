@@ -12,7 +12,7 @@
 
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { appendFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { crc32, deflateSync } from "node:zlib";
 import { dirname, join, resolve } from "node:path";
@@ -130,6 +130,111 @@ function coin(shiny) {
     return [shade(r), shade(g), shade(b), Math.round(alpha * 255)];
   });
 }
+
+/** A door's creak as a mono 16-bit WAV: a wobbling tone that falls, `seconds` long. */
+function creak(seconds, wobble) {
+  const rate = 22050;
+  const samples = Math.round(rate * seconds);
+  const data = Buffer.alloc(samples * 2);
+  let phase = 0;
+  for (let i = 0; i < samples; i++) {
+    const t = i / rate;
+    const pitch = 420 - 260 * (t / seconds) + 40 * Math.sin(2 * Math.PI * wobble * t);
+    phase += (2 * Math.PI * pitch) / rate;
+    const envelope = Math.min(1, t * 20) * Math.min(1, (seconds - t) * 6) * (0.55 + 0.45 * Math.sin(2 * Math.PI * 3 * t));
+    data.writeInt16LE(Math.round(Math.sin(phase) * envelope * 0.5 * 32767), i * 2);
+  }
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + data.length, 4);
+  header.write("WAVEfmt ", 8);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20); // PCM
+  header.writeUInt16LE(1, 22); // mono
+  header.writeUInt32LE(rate, 24);
+  header.writeUInt32LE(rate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(data.length, 40);
+  return Buffer.concat([header, data]);
+}
+
+/** A binary glTF (GLB) model made of boxes: [x, y, z, width, height, depth] for each. */
+function boxes(list) {
+  const positions = [];
+  const normals = [];
+  const indices = [];
+  const faces = [
+    [[1, 0, 0], [[1, -1, -1], [1, 1, -1], [1, 1, 1], [1, -1, 1]]],
+    [[-1, 0, 0], [[-1, -1, 1], [-1, 1, 1], [-1, 1, -1], [-1, -1, -1]]],
+    [[0, 1, 0], [[-1, 1, -1], [-1, 1, 1], [1, 1, 1], [1, 1, -1]]],
+    [[0, -1, 0], [[-1, -1, 1], [-1, -1, -1], [1, -1, -1], [1, -1, 1]]],
+    [[0, 0, 1], [[-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]],
+    [[0, 0, -1], [[1, -1, -1], [-1, -1, -1], [-1, 1, -1], [1, 1, -1]]],
+  ];
+  for (const [x, y, z, w, h, d] of list) {
+    for (const [normal, corners] of faces) {
+      const start = positions.length / 3;
+      for (const [cx, cy, cz] of corners) {
+        positions.push(x + (cx * w) / 2, y + (cy * h) / 2, z + (cz * d) / 2);
+        normals.push(...normal);
+      }
+      indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
+    }
+  }
+  const floats = (values) => Buffer.from(new Float32Array(values).buffer);
+  const positionBytes = floats(positions);
+  const normalBytes = floats(normals);
+  const indexBytes = Buffer.from(new Uint16Array(indices).buffer);
+  const pad = (buffer, fill) => Buffer.concat([buffer, Buffer.alloc((4 - (buffer.length % 4)) % 4, fill)]);
+  const bin = pad(Buffer.concat([positionBytes, normalBytes, indexBytes]), 0);
+  const min = [0, 1, 2].map((axis) => Math.min(...positions.filter((_, i) => i % 3 === axis)));
+  const max = [0, 1, 2].map((axis) => Math.max(...positions.filter((_, i) => i % 3 === axis)));
+  const json = {
+    asset: { version: "2.0", generator: "Tributary demo" },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ mesh: 0 }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0, NORMAL: 1 }, indices: 2, material: 0 }] }],
+    materials: [{ pbrMetallicRoughness: { baseColorFactor: [0.62, 0.42, 0.26, 1], metallicFactor: 0, roughnessFactor: 0.8 } }],
+    buffers: [{ byteLength: bin.length }],
+    bufferViews: [
+      { buffer: 0, byteOffset: 0, byteLength: positionBytes.length, target: 34962 },
+      { buffer: 0, byteOffset: positionBytes.length, byteLength: normalBytes.length, target: 34962 },
+      { buffer: 0, byteOffset: positionBytes.length + normalBytes.length, byteLength: indexBytes.length, target: 34963 },
+    ],
+    accessors: [
+      { bufferView: 0, componentType: 5126, count: positions.length / 3, type: "VEC3", min, max },
+      { bufferView: 1, componentType: 5126, count: normals.length / 3, type: "VEC3" },
+      { bufferView: 2, componentType: 5123, count: indices.length, type: "SCALAR" },
+    ],
+  };
+  const jsonChunk = pad(Buffer.from(JSON.stringify(json)), 0x20);
+  const chunk = (type, data) => {
+    const header = Buffer.alloc(8);
+    header.writeUInt32LE(data.length, 0);
+    header.write(type, 4);
+    return Buffer.concat([header, data]);
+  };
+  const body = Buffer.concat([chunk("JSON", jsonChunk), chunk("BIN\0", bin)]);
+  const header = Buffer.alloc(12);
+  header.write("glTF", 0);
+  header.writeUInt32LE(2, 4);
+  header.writeUInt32LE(12 + body.length, 8);
+  return Buffer.concat([header, body]);
+}
+
+/** A stool: a seat on four legs, and with `back`, a back to lean on. */
+function stool(back) {
+  const legs = [-0.35, 0.35].flatMap((x) => [-0.35, 0.35].map((z) => [x, 0.4, z, 0.08, 0.8, 0.08]));
+  const parts = [[0, 0.84, 0, 0.9, 0.08, 0.9], ...legs];
+  if (back) parts.push([0, 1.35, -0.41, 0.9, 0.9, 0.08], [-0.35, 1.05, -0.41, 0.08, 0.5, 0.08], [0.35, 1.05, -0.41, 0.08, 0.5, 0.08]);
+  return boxes(parts);
+}
+
+/** A short video of the tavern door, from the files kept next to this script. */
+const doorVideo = (version) => readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures", `door-open-v${version}.webm`));
 
 const days = (n) => n * 86400;
 const now = () => Math.floor(Date.now() / 1000);
@@ -400,6 +505,15 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   commit("Seat guests by the fire", "theo");
   write("Content/UI/Icons/Coin.png", coin(true), { append: false });
   commit("Shinier coins for the tip jar", "rosa");
+  // A sound, a video and a 3D model, each changed once.
+  write("Content/Audio/DoorCreak.wav", creak(0.9, 6), { append: false });
+  write("Content/Cinematics/DoorOpen.webm", doorVideo(1), { append: false });
+  write("Content/Props/Stool.glb", stool(false), { append: false });
+  commit("Record the tavern door, and model a stool", "theo");
+  write("Content/Audio/DoorCreak.wav", creak(1.6, 11), { append: false });
+  write("Content/Cinematics/DoorOpen.webm", doorVideo(2), { append: false });
+  write("Content/Props/Stool.glb", stool(true), { append: false });
+  commit("A slower door with a longer creak, and a stool with a back", "rosa");
   run(["push", "-q", "origin", "main"]);
 
   run(["switch", "-q", "-c", "fix/door"]);

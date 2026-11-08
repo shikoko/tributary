@@ -6,7 +6,7 @@
 mod common;
 
 use common::{TempRepo, outcome};
-use tributary_lib::actions::{self, Action, DiffSource, FileDiff, LineKind, file_diff};
+use tributary_lib::actions::{self, Action, DiffSource, FileDiff, LineKind, MediaKind, file_diff};
 
 fn diff(repo: &TempRepo, source: DiffSource, file: &str) -> FileDiff {
     file_diff(repo.path(), source, file, None, false).unwrap()
@@ -113,7 +113,8 @@ fn shows_images_before_and_after() {
         (changed.size_before, changed.size_after),
         (Some(75), Some(75))
     );
-    let images = changed.images.unwrap();
+    let images = changed.media.unwrap();
+    assert_eq!(images.kind, MediaKind::Image);
     assert!(images.before.unwrap().starts_with("data:image/png;base64,"));
     assert_ne!(images.after, None);
 }
@@ -241,4 +242,48 @@ fn sets_the_diff_and_merge_tools() {
     // The repository's setting is gone (the computer's own may still apply).
     let local = repo.git(&["config", "--local", "--list"]);
     assert!(!local.contains("diff.tool="), "{local}");
+}
+
+#[test]
+fn shows_sounds_videos_and_3d_models_as_what_they_are() {
+    let mut repo = TempRepo::new("diff-media");
+    // Not real recordings: what matters is that they're binary, and their kinds.
+    let wav = |n: u8| [b"RIFF\0\0\0\0WAVE".as_slice(), &[0, n, 0, 1]].concat();
+    std::fs::write(repo.path().join("Theme.wav"), wav(1)).unwrap();
+    std::fs::write(repo.path().join("Intro.mp4"), [0u8, 0, 0, 24, 1]).unwrap();
+    // OBJ models are text: shown in 3D, and line by line too.
+    std::fs::write(
+        repo.path().join("Chair.obj"),
+        "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n",
+    )
+    .unwrap();
+    repo.git(&["add", "."]);
+    repo.git(&["commit", "--quiet", "-m", "Media"]);
+    std::fs::write(repo.path().join("Theme.wav"), wav(2)).unwrap();
+    std::fs::write(
+        repo.path().join("Chair.obj"),
+        "v 0 0 0\nv 2 0 0\nv 0 1 0\nf 1 2 3\n",
+    )
+    .unwrap();
+    repo.commit("notes.txt", "notes");
+
+    let sound = diff(&repo, DiffSource::Unstaged, "Theme.wav");
+    let media = sound.media.unwrap();
+    assert_eq!(
+        (media.kind, media.format.as_str()),
+        (MediaKind::Audio, "wav")
+    );
+    assert!(media.before.unwrap().starts_with("data:audio/wav;base64,"));
+    assert!(media.after.unwrap().starts_with("data:audio/wav;base64,"));
+
+    let model = diff(&repo, DiffSource::Unstaged, "Chair.obj");
+    assert_eq!(model.media.unwrap().kind, MediaKind::Model);
+    assert_eq!((model.additions, model.deletions), (1, 1));
+
+    // A video added in a commit: nothing before it.
+    let added = repo.git(&["log", "-1", "--format=%H", "--", "Intro.mp4"]);
+    let video = diff(&repo, DiffSource::Commit { id: added }, "Intro.mp4");
+    let media = video.media.unwrap();
+    assert_eq!((media.kind, media.before), (MediaKind::Video, None));
+    assert!(media.after.unwrap().starts_with("data:video/mp4;base64,"));
 }

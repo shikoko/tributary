@@ -38,8 +38,8 @@ use crate::git::{Git, Progress};
 pub use backups::{BACKUP_DAYS, Backup, BackupEvent, backups};
 pub use clone::{CloneOptions, clone_repository, init_repository};
 pub use diff::{
-    DiffLine, DiffSource, FileDiff, Hunk, Images, LineKind, SubmoduleChange, SubmoduleCommit,
-    file_diff,
+    DiffLine, DiffSource, FileDiff, Hunk, LineKind, Media, MediaKind, SubmoduleChange,
+    SubmoduleCommit, file_diff,
 };
 pub use diff_tools::{DiffToolSettings, Scope, ToolChoice, diff_tool_settings, set_diff_tool};
 pub use elsewhere::{OtherChange, Overlap, changed_elsewhere};

@@ -17,8 +17,8 @@ const EMPTY_TREE: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 /// Diffs longer than this aren't shown in full.
 const MAX_DIFF_BYTES: usize = 4 * 1024 * 1024;
 const MAX_LINES: usize = 20_000;
-/// Images bigger than this aren't previewed.
-const MAX_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
+/// Text read in full (Git LFS files) up to this size to compare line by line.
+const MAX_TEXT_BYTES: u64 = MAX_DIFF_BYTES as u64;
 /// How long to wait for a diff or merge tool to fail before leaving it open.
 const TOOL_SETTLE: Duration = Duration::from_secs(2);
 
@@ -61,12 +61,75 @@ pub struct Hunk {
     pub lines: Vec<DiffLine>,
 }
 
-/// An image before and after, as `data:` URLs.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+/// What kind of file a picture, sound, video or 3D model is, to show it as one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Images {
+pub enum MediaKind {
+    Image,
+    Audio,
+    Video,
+    Model,
+}
+
+/// A picture, sound, video or 3D model before and after, as `data:` URLs: None where the
+/// file doesn't exist, or (with its size known) is too big to show here.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Media {
+    pub kind: MediaKind,
+    /// Its extension, like "glb" (3D models are read by it).
+    pub format: String,
     pub before: Option<String>,
     pub after: Option<String>,
+}
+
+/// The kinds of files shown as what they are, with their types and how big they can be.
+const MEDIA_TYPES: [(&str, MediaKind, &str); 25] = [
+    ("png", MediaKind::Image, "image/png"),
+    ("jpg", MediaKind::Image, "image/jpeg"),
+    ("jpeg", MediaKind::Image, "image/jpeg"),
+    ("gif", MediaKind::Image, "image/gif"),
+    ("webp", MediaKind::Image, "image/webp"),
+    ("bmp", MediaKind::Image, "image/bmp"),
+    ("ico", MediaKind::Image, "image/x-icon"),
+    ("wav", MediaKind::Audio, "audio/wav"),
+    ("mp3", MediaKind::Audio, "audio/mpeg"),
+    ("ogg", MediaKind::Audio, "audio/ogg"),
+    ("oga", MediaKind::Audio, "audio/ogg"),
+    ("opus", MediaKind::Audio, "audio/ogg"),
+    ("flac", MediaKind::Audio, "audio/flac"),
+    ("m4a", MediaKind::Audio, "audio/mp4"),
+    ("aac", MediaKind::Audio, "audio/aac"),
+    ("mp4", MediaKind::Video, "video/mp4"),
+    ("m4v", MediaKind::Video, "video/mp4"),
+    ("webm", MediaKind::Video, "video/webm"),
+    ("mov", MediaKind::Video, "video/quicktime"),
+    ("glb", MediaKind::Model, "model/gltf-binary"),
+    ("gltf", MediaKind::Model, "model/gltf+json"),
+    ("obj", MediaKind::Model, "model/obj"),
+    ("fbx", MediaKind::Model, "application/octet-stream"),
+    ("stl", MediaKind::Model, "model/stl"),
+    ("ply", MediaKind::Model, "application/octet-stream"),
+];
+
+/// Files bigger than this aren't shown here (they'd have to go to the window whole).
+fn media_limit(kind: MediaKind) -> u64 {
+    const MB: u64 = 1024 * 1024;
+    match kind {
+        MediaKind::Image => 20 * MB,
+        MediaKind::Audio => 50 * MB,
+        MediaKind::Video => 80 * MB,
+        MediaKind::Model => 40 * MB,
+    }
+}
+
+/// The file's kind and type, if it's one shown as what it is.
+fn media_type(file: &str) -> Option<(MediaKind, &'static str)> {
+    let extension = file.rsplit_once('.')?.1.to_ascii_lowercase();
+    MEDIA_TYPES
+        .iter()
+        .find(|(known, _, _)| *known == extension)
+        .map(|(_, kind, mime)| (*kind, *mime))
 }
 
 /// A submodule moved from one commit to another.
@@ -99,7 +162,7 @@ const MAX_SUBMODULE_COMMITS: usize = 50;
 #[serde(rename_all = "camelCase")]
 pub struct FileDiff {
     pub path: String,
-    /// Not text: shown by its sizes (or as images), not line by line.
+    /// Not text: shown by its sizes (or as media), not line by line.
     pub binary: bool,
     /// Stored with Git LFS.
     pub lfs: bool,
@@ -111,7 +174,8 @@ pub struct FileDiff {
     /// In bytes, when the content isn't shown line by line. None where the file doesn't exist.
     pub size_before: Option<u64>,
     pub size_after: Option<u64>,
-    pub images: Option<Images>,
+    /// For pictures, sounds, videos and 3D models: both versions, to show as what they are.
+    pub media: Option<Media>,
     /// It's a submodule: which commits it moved by.
     pub submodule: Option<SubmoduleChange>,
 }
@@ -195,16 +259,19 @@ pub fn file_diff(
         diff.deletions = 0;
         return Ok(diff);
     }
+    let media = media_type(file);
     // Git LFS files diff as their small pointer files: compare the real files instead,
-    // line by line when they're text, by their sizes (or as images) otherwise.
+    // line by line when they're text, by their sizes (or as media) otherwise.
     if diff.lfs {
         diff.binary = true;
         diff.hunks.clear();
         diff.additions = 0;
         diff.deletions = 0;
-        if !is_image(file) {
-            let before = read_side(&git, &plan.before, file, true, true);
-            let after = read_side(&git, &plan.after, file, true, true);
+        // Pictures, sounds and videos aren't text; 3D models can be (OBJ, glTF).
+        let binary_media = media.is_some_and(|(kind, _)| kind != MediaKind::Model);
+        if !binary_media {
+            let before = read_side(&git, &plan.before, file, true, Some(MAX_TEXT_BYTES));
+            let after = read_side(&git, &plan.after, file, true, Some(MAX_TEXT_BYTES));
             if let Some(output) = text_diff(&git, file, &before, &after, ignore_whitespace) {
                 diff.binary = false;
                 if output.len() > MAX_DIFF_BYTES {
@@ -214,25 +281,37 @@ pub fn file_diff(
                 }
                 if diff.binary || diff.too_large {
                     diff.hunks.clear();
-                    diff.size_before = before.size;
-                    diff.size_after = after.size;
                 }
-                return Ok(diff);
             }
+            diff.size_before = before.size;
+            diff.size_after = after.size;
         }
     }
-    if diff.binary || diff.too_large {
-        let image = diff.binary && is_image(file);
-        let before = read_side(&git, &plan.before, file, diff.lfs, image);
-        let after = read_side(&git, &plan.after, file, diff.lfs, image);
+    // Shown as what they are: pictures, sounds and videos (never text), and 3D models
+    // (also when they're text, which then shows line by line too).
+    if let Some((kind, mime)) = media
+        && (diff.binary || diff.lfs || kind == MediaKind::Model)
+    {
+        let limit = Some(media_limit(kind));
+        let before = read_side(&git, &plan.before, file, diff.lfs, limit);
+        let after = read_side(&git, &plan.after, file, diff.lfs, limit);
         diff.size_before = before.size;
         diff.size_after = after.size;
-        if image {
-            diff.images = Some(Images {
-                before: before.data.map(|bytes| data_url(file, &bytes)),
-                after: after.data.map(|bytes| data_url(file, &bytes)),
-            });
-        }
+        let url = |bytes: Vec<u8>| data_url(mime, &bytes);
+        diff.media = Some(Media {
+            kind,
+            format: file
+                .rsplit_once('.')
+                .map(|(_, ext)| ext.to_ascii_lowercase())
+                .unwrap_or_default(),
+            before: before.data.map(url),
+            after: after.data.map(url),
+        });
+    } else if diff.binary || diff.too_large {
+        let before = read_side(&git, &plan.before, file, diff.lfs, None);
+        let after = read_side(&git, &plan.after, file, diff.lfs, None);
+        diff.size_before = before.size;
+        diff.size_after = after.size;
     }
     Ok(diff)
 }
@@ -368,9 +447,10 @@ struct Read {
     data: Option<Vec<u8>>,
 }
 
-/// One side's size, and with `content`, its bytes (for a Git LFS file, the real file
-/// rather than its pointer, when it's on this computer).
-fn read_side(git: &Git, side: &Side, file: &str, lfs: bool, content: bool) -> Read {
+/// One side's size, and its bytes when they're wanted and no bigger than `limit` (for a
+/// Git LFS file, the real file rather than its pointer, when it's on this computer).
+fn read_side(git: &Git, side: &Side, file: &str, lfs: bool, limit: Option<u64>) -> Read {
+    let fits = |size: u64| limit.is_some_and(|limit| size <= limit);
     let bytes = match side {
         Side::Missing => {
             return Read {
@@ -386,7 +466,8 @@ fn read_side(git: &Git, side: &Side, file: &str, lfs: bool, content: bool) -> Re
                     data: None,
                 };
             };
-            let wanted = content && metadata.len() <= MAX_IMAGE_BYTES;
+            // A pointer file is tiny: read it to tell.
+            let wanted = fits(metadata.len()) || (lfs && metadata.len() < 1024);
             let data = if wanted {
                 std::fs::read(&path).ok()
             } else {
@@ -417,7 +498,8 @@ fn read_side(git: &Git, side: &Side, file: &str, lfs: bool, content: bool) -> Re
     };
     if lfs && is_lfs_pointer(&bytes) {
         let size = pointer_size(&bytes);
-        let data = (content && size.is_some_and(|size| size <= MAX_IMAGE_BYTES))
+        let data = size
+            .is_some_and(fits)
             .then(|| {
                 git.run_bytes(&["lfs", "smudge", "--", file], Some(&bytes))
                     .ok()
@@ -427,7 +509,7 @@ fn read_side(git: &Git, side: &Side, file: &str, lfs: bool, content: bool) -> Re
         return Read { size, data };
     }
     let size = Some(bytes.len() as u64);
-    let data = (content && bytes.len() as u64 <= MAX_IMAGE_BYTES).then_some(bytes);
+    let data = fits(bytes.len() as u64).then_some(bytes);
     Read { size, data }
 }
 
@@ -503,30 +585,7 @@ fn stored_with_lfs(git: &Git, file: &str) -> bool {
         .is_ok_and(|output| output.trim_end().ends_with(": filter: lfs"))
 }
 
-const IMAGE_TYPES: [(&str, &str); 7] = [
-    ("png", "image/png"),
-    ("jpg", "image/jpeg"),
-    ("jpeg", "image/jpeg"),
-    ("gif", "image/gif"),
-    ("webp", "image/webp"),
-    ("bmp", "image/bmp"),
-    ("ico", "image/x-icon"),
-];
-
-fn image_type(file: &str) -> Option<&'static str> {
-    let extension = file.rsplit('.').next()?.to_ascii_lowercase();
-    IMAGE_TYPES
-        .iter()
-        .find(|(known, _)| *known == extension)
-        .map(|(_, mime)| *mime)
-}
-
-fn is_image(file: &str) -> bool {
-    image_type(file).is_some()
-}
-
-fn data_url(file: &str, bytes: &[u8]) -> String {
-    let mime = image_type(file).unwrap_or("application/octet-stream");
+fn data_url(mime: &str, bytes: &[u8]) -> String {
     format!(
         "data:{mime};base64,{}",
         base64::engine::general_purpose::STANDARD.encode(bytes)
@@ -728,7 +787,19 @@ mod tests {
         let pointer = b"version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 12345\n";
         assert!(is_lfs_pointer(pointer));
         assert_eq!(pointer_size(pointer), Some(12345));
-        assert!(is_image("Textures/Hero.PNG"));
-        assert!(!is_image("notes.txt"));
+        assert_eq!(
+            media_type("Textures/Hero.PNG"),
+            Some((MediaKind::Image, "image/png"))
+        );
+        assert_eq!(
+            media_type("Audio/Theme.wav").map(|(kind, _)| kind),
+            Some(MediaKind::Audio)
+        );
+        assert_eq!(
+            media_type("Meshes/Chair.glb").map(|(kind, _)| kind),
+            Some(MediaKind::Model)
+        );
+        assert_eq!(media_type("notes.txt"), None);
+        assert_eq!(media_type("Makefile"), None);
     }
 }
