@@ -22,6 +22,8 @@ interface Props {
   onFocusPill?: (pill: RefPill) => void;
   /** Labels can be dragged onto commits (to merge or rebase). */
   draggable?: boolean;
+  /** Click on the "+N" pill: the labels that didn't fit, to pick one. */
+  onMore?: (hidden: RefPill[], x: number, y: number) => void;
 }
 
 /** The name git knows a label by, if it can be merged or rebased onto. */
@@ -29,7 +31,7 @@ export function revisionOf(pill: RefPill): string | null {
   return pill.kind === "branch" || pill.kind === "tag" ? pill.name : null;
 }
 
-export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocusPill, draggable }: Props) {
+export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocusPill, draggable, onMore }: Props) {
   const pills = useMemo(() => refPills(refs), [refs]);
   if (pills.length === 0) return null;
   const shown = limit ? pills.slice(0, limit) : pills;
@@ -48,11 +50,31 @@ export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocu
           draggable={draggable}
         />
       ))}
-      {hidden.length > 0 && (
-        <span className="ref-pill more" title={hidden.map(describePill).join("\n")}>
-          +{hidden.length}
-        </span>
-      )}
+      {hidden.length > 0 &&
+        (onMore ? (
+          <button
+            className="ref-pill more"
+            title={`${hidden.map(describePill).join("\n")}\nClick for their menus`}
+            aria-label={`${hidden.length} more ${hidden.length === 1 ? "label" : "labels"}`}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              const rect = event.currentTarget.getBoundingClientRect();
+              onMore(hidden, rect.left, rect.bottom + 4);
+            }}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onMore(hidden, event.clientX, event.clientY);
+            }}
+          >
+            +{hidden.length}
+          </button>
+        ) : (
+          <span className="ref-pill more" title={hidden.map(describePill).join("\n")}>
+            +{hidden.length}
+          </span>
+        ))}
     </span>
   );
 }

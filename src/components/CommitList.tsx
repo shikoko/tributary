@@ -41,6 +41,8 @@ interface Props {
   /** Double-click on a branch label. */
   onPillActivate: (pill: RefPill, commit: CommitRow) => void;
   onPillContextMenu: (pill: RefPill, commit: CommitRow, x: number, y: number) => void;
+  /** The labels that didn't fit next to a commit ("+2"): pick one for its menu. */
+  onMorePills: (pills: RefPill[], commit: CommitRow, x: number, y: number) => void;
   /** Alt+click on a branch label. */
   onPillFocus: (pill: RefPill, commit: CommitRow) => void;
   /** While a branch or author is highlighted: the commits that stay bright. Other rows fade. */
@@ -200,6 +202,7 @@ export function CommitList(props: Props) {
     },
     onPillActivate: props.onPillActivate,
     onPillContextMenu: props.onPillContextMenu,
+    onMorePills: props.onMorePills,
     onPillFocus: props.onPillFocus,
     onHover: (event, commit) => {
       window.clearTimeout(previewTimer.current);

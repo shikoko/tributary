@@ -21,7 +21,7 @@ import { BlameView } from "../components/BlameView";
 import { TeamView } from "../components/TeamView";
 import { useComparison } from "./useComparison";
 import type { MenuItem } from "../components/ContextMenu";
-import { EyeIcon, PlusIcon } from "../components/Icons";
+import { BranchIcon, EyeIcon, PlusIcon, StashIcon, TagIcon } from "../components/Icons";
 import { MessageTools } from "../components/MessageTools";
 import { ResizeHandle } from "../components/ResizeHandle";
 import { Sidebar } from "../components/Sidebar";
@@ -414,6 +414,17 @@ export function RepositoryView(props: Props) {
             }
             onPillActivate={(pill, commit) => checkout({ pill, commit })}
             onPillContextMenu={(pill, commit, x, y) => menu.show(x, y, pillMenu(ctx, pill, commit))}
+            onMorePills={(pills, commit, x, y) =>
+              menu.show(
+                x,
+                y,
+                pills.map((pill) => ({
+                  label: pill.name,
+                  icon: pill.kind === "tag" ? <TagIcon /> : pill.kind === "stash" ? <StashIcon /> : <BranchIcon />,
+                  onSelect: () => menu.show(x, y, pillMenu(ctx, pill, commit)),
+                })),
+              )
+            }
             onPillFocus={(pill, commit) => highlight.highlightHistory(pill.name, commit.id)}
             onDropRef={(revision, _commit, x, y) => {
               if (revision !== snapshot.headBranch) menu.show(x, y, dropMenu(ctx, revision));

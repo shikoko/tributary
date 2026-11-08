@@ -155,6 +155,11 @@ try {
     await page.locator(".tool-button", { hasText: "Fetch" }).click();
     await toast();
     await row("Tidy up the settings screen").waitFor({ timeout: 10_000 });
+    // Two labels on that commit: the one that doesn't fit is a click away.
+    await row("Tidy up the settings screen").locator(".ref-pill.more").click();
+    await page.locator(".menu-item", { hasText: /origin\/(main|feature\/onboarding)/ }).first().click();
+    await page.locator(".menu-item", { hasText: /Highlight origin\/(main|feature\/onboarding)'s history/ }).waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
     // A teammate merged main into feature/export: the local branch's label says it's behind.
     const exportLabel = page.locator(".commit-list .ref-pill[title^='Branch feature/export (local)']");
     await exportLabel.locator(".ref-sync", { hasText: "↓" }).waitFor({ timeout: 10_000 });

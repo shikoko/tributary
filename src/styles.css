@@ -1106,6 +1106,17 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
   color: var(--text-muted);
 }
 
+button.ref-pill.more {
+  font: inherit;
+  cursor: pointer;
+}
+
+button.ref-pill.more:hover,
+button.ref-pill.more:focus-visible {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
 .ref-name {
   min-width: 0;
   overflow: hidden;

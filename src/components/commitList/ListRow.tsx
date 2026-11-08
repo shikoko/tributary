@@ -18,6 +18,8 @@ export interface RowHandlers {
   onPillActivate: (pill: RefPill, commit: CommitRow) => void;
   onPillContextMenu: (pill: RefPill, commit: CommitRow, x: number, y: number) => void;
   onPillFocus: (pill: RefPill, commit: CommitRow) => void;
+  /** The labels that didn't fit next to a commit: pick one for its menu. */
+  onMorePills: (pills: RefPill[], commit: CommitRow, x: number, y: number) => void;
   onHover: (event: MouseEvent, commit: CommitRow) => void;
   onLeave: () => void;
 }
@@ -100,6 +102,10 @@ export const ListRow = memo(function ListRow(props: RowProps) {
             on().onPillContextMenu(pill, commit, x, y);
           }}
           onFocusPill={(pill) => on().onPillFocus(pill, commit)}
+          onMore={(pills, x, y) => {
+            onSelect(commit.id);
+            on().onMorePills(pills, commit, x, y);
+          }}
           draggable
         />
       </div>
