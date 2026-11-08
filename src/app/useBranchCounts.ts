@@ -47,3 +47,4 @@ export function useBranchCounts(snapshot: RepoSnapshot | null, byId: Map<string,
 
   return { headHistory, ahead, behind, aheadBehind, localBranches };
 }
+export type BranchCounts = ReturnType<typeof useBranchCounts>;

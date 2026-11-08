@@ -135,6 +135,38 @@ try {
     await dismissToast();
   });
 
+  await step("makes a tag in a dialog, and undoes it", async () => {
+    await row("Add the note model").click({ button: "right" });
+    await page.locator(".menu-item", { hasText: "New tag here" }).click();
+    await page.getByPlaceholder("v1.2.0").fill("v0.0.9");
+    await page.getByRole("button", { name: "Create tag" }).click();
+    const tag = page.locator(".ref-pill", { hasText: "v0.0.9" });
+    await tag.first().waitFor({ timeout: 10_000 });
+    await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
+    await page.waitForFunction(() => ![...document.querySelectorAll(".ref-pill")].some((pill) => pill.textContent?.includes("v0.0.9")), null, { timeout: 10_000 });
+    await dismissToast();
+  });
+
+  await step("highlights a file's history, until Esc", async () => {
+    await row("Speed up opening large notebooks").click();
+    await page.locator(".details .file", { hasText: "store.ts" }).first().click({ button: "right" });
+    await page.locator(".menu-item", { hasText: "Show this file's history" }).click();
+    const banner = page.locator(".view-banner", { hasText: "store.ts" });
+    await banner.waitFor({ timeout: 10_000 });
+    await page.locator("body").press("Escape");
+    await banner.waitFor({ state: "detached", timeout: 5000 });
+  });
+
+  await step("hides a branch, then shows everything again", async () => {
+    const themes = page.locator(".sidebar-item", { hasText: /^themes/ }).first();
+    await themes.hover();
+    await themes.locator(".sidebar-eye").click();
+    await page.locator(".sidebar-visibility", { hasText: "1 hidden" }).waitFor({ timeout: 10_000 });
+    await page.locator(".ref-pill", { hasText: "feature/themes" }).waitFor({ state: "detached", timeout: 10_000 });
+    await page.locator(".sidebar-visibility").getByRole("button", { name: "Show all" }).click();
+    await page.locator(".ref-pill", { hasText: "feature/themes" }).first().waitFor({ timeout: 10_000 });
+  });
+
   await step("opens a second repository in a new tab", async () => {
     await page.evaluate(
       ([pick, pullRequests]) => Object.assign(window.__PREVIEW__, { pick, pullRequests }),
@@ -144,6 +176,24 @@ try {
     await page.getByText("Open repository").first().click();
     await row("Add a tavern chair").waitFor({ timeout: 15_000 });
     expect((await page.locator(".tab").count()) >= 2, "only one tab");
+  });
+
+  await step("remembers the selection and the commit message in each tab", async () => {
+    await page.locator(".tab", { hasText: /^notebook$/ }).dispatchEvent("mousedown", { button: 0 });
+    await row("Export notes as Markdown").waitFor({ timeout: 10_000 });
+    await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+    await page.getByPlaceholder("Commit summary").fill("Half-written message");
+    await row("Export notes as Markdown").click();
+    await page.waitForTimeout(600);
+    await page.locator(".tab", { hasText: "studio" }).dispatchEvent("mousedown", { button: 0 });
+    await row("Add a tavern chair").waitFor({ timeout: 10_000 });
+    await page.locator(".tab", { hasText: /^notebook$/ }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".commit-row.selected", { hasText: "Export notes as Markdown" }).waitFor({ timeout: 10_000 });
+    await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+    const kept = await page.getByPlaceholder("Commit summary").inputValue();
+    expect(kept === "Half-written message", `message "${kept}"`);
+    await page.locator(".tab", { hasText: "studio" }).dispatchEvent("mousedown", { button: 0 });
+    await row("Add a tavern chair").waitFor({ timeout: 10_000 });
   });
 
   await step("shows who holds Git LFS locks", async () => {

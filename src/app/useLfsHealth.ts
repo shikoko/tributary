@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { lfsHealth, type LfsHealth, type RepoSnapshot } from "../api";
+import { useRepoSetting } from "../lib/repoPrefs";
 
 /** Whether `health` reports anything to fix. */
 export function needsAttention(health: LfsHealth | null): health is LfsHealth {
@@ -9,7 +10,7 @@ export function needsAttention(health: LfsHealth | null): health is LfsHealth {
 /**
  * How Git LFS is doing in the open repository. Checked when it opens and when HEAD
  * moves; while something's wrong, after every reload too, so the warning goes away once
- * it's fixed (in a terminal, say).
+ * it's fixed (in a terminal, say). The notice can be dismissed until the problem changes.
  */
 export function useLfsHealth(snapshot: RepoSnapshot | null) {
   const [found, setFound] = useState<{ path: string; health: LfsHealth | null } | null>(null);
@@ -31,5 +32,15 @@ export function useLfsHealth(snapshot: RepoSnapshot | null) {
   }, [path, head, checks, watch]);
 
   const recheck = useCallback(() => setChecks((count) => count + 1), []);
-  return { health: current, recheck };
+  // Dismissed: hidden until the problem changes.
+  const signature = current ? `${current.notInstalled}/${current.notSetUp}/${current.pointers}` : "";
+  const [dismissed, setDismissed] = useRepoSetting<string>("lfsNoticeDismissed", path, "");
+  return {
+    health: current,
+    recheck,
+    /** Something to fix that the user hasn't dismissed. */
+    notice: needsAttention(current) && dismissed !== signature ? current : null,
+    dismiss: () => setDismissed(signature),
+  };
 }
+export type LfsHealthState = ReturnType<typeof useLfsHealth>;

@@ -74,3 +74,4 @@ export function useWindowFocus(onFocus: () => void) {
   }, []);
   useSubscription(() => getCurrentWindow().onFocusChanged(({ payload: focused }) => focused && handler.current()));
 }
+export type ActivityLog = ReturnType<typeof useActivityLog>;

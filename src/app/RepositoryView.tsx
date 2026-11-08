@@ -1,0 +1,339 @@
+import { useRef } from "react";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { fullRefName, PAGE_SIZE, type Action, type CommitRow, type FileChange, type FileChecks, type Lock, type RepoSnapshot, type Worktree } from "../api";
+import { withCoAuthor } from "../lib/commitMessage";
+import { rewritable } from "../lib/graph";
+import type { LfsLocks } from "../lib/locks";
+import { baseName, joinPath } from "../lib/paths";
+import type { RefEntry } from "../lib/refs";
+import { openInBrowser } from "../lib/weblinks";
+import { checkoutFor, commitMenu, dropMenu, pillForEntry, pillMenu, selectionMenu, type MenuContext, type OpenDialog } from "../menus";
+import { ActivityPanel } from "../components/ActivityPanel";
+import { CommitList } from "../components/CommitList";
+import type { MenuItem } from "../components/ContextMenu";
+import { EyeIcon, PlusIcon } from "../components/Icons";
+import { MessageTools } from "../components/MessageTools";
+import { ResizeHandle } from "../components/ResizeHandle";
+import { Sidebar } from "../components/Sidebar";
+import { StatusBar } from "../components/StatusBar";
+import type { ToastMessage } from "../components/Toast";
+import { Toolbar, type RemoteAction } from "../components/Toolbar";
+import { RUNNING_LABELS } from "./constants";
+import { DetailsPane } from "./DetailsPane";
+import { RepositoryDialogs } from "./Dialogs";
+import { fileMenuItems, lockMenuItems, type FileMenuContext } from "./fileMenus";
+import { columnMenuItems, detailsActionsFor, pushMenuItems, worktreeMenuItems, type WorktreeMenuContext } from "./listMenus";
+import { RepositoryBanners } from "./RepositoryBanners";
+import type { Actions } from "./useActions";
+import type { BranchCounts } from "./useBranchCounts";
+import type { CommitDetailsCache } from "./useCommitDetails";
+import type { Draft } from "./useDraft";
+import type { Highlight } from "./useHighlight";
+import type { LfsHealthState } from "./useLfsHealth";
+import type { ContextMenuState } from "./useMenus";
+import type { Preferences } from "./usePreferences";
+import type { Repository } from "./useRepository";
+import type { RepositorySettings } from "./useRepositorySettings";
+import type { Search } from "./useSearch";
+import type { Selection } from "./useSelection";
+import type { ActivityLog } from "./useWindowEvents";
+
+const REMOTE_ACTIONS: Record<RemoteAction, Action> = {
+  fetch: { kind: "fetch" },
+  pull: { kind: "pull" },
+  push: { kind: "push", force: false },
+};
+
+interface Props {
+  snapshot: RepoSnapshot;
+  repo: Repository;
+  selection: Selection;
+  search: Search;
+  highlight: Highlight;
+  actions: Actions;
+  settings: RepositorySettings;
+  preferences: Preferences;
+  counts: BranchCounts;
+  lfs: LfsLocks;
+  lfsHealth: LfsHealthState;
+  checks: FileChecks | null;
+  worktrees: Worktree[];
+  details: CommitDetailsCache;
+  draft: Draft;
+  activity: ActivityLog;
+  place: { initialScroll: number; onScroll: (top: number) => void };
+  dialog: OpenDialog;
+  openDialog: (dialog: OpenDialog) => void;
+  menu: ContextMenuState;
+  /** The View menu's commands, for the toolbar's view button. */
+  viewMenu: MenuItem[];
+  /** Open a repository (another working tree, say) in its tab. */
+  openTab: (path: string) => void;
+  closeTab: (path: string) => void;
+  /** Choose files to lock with Git LFS. */
+  lockFiles: () => void;
+  notify: (toast: ToastMessage) => void;
+}
+
+/** An open repository: the toolbar, the sidebar, the commit list and graph, the details, and the status bar. */
+export function RepositoryView(props: Props) {
+  const { snapshot, repo, selection, search, highlight, actions, settings, preferences, counts, lfs, menu, openDialog } = props;
+  const { act, running } = actions;
+  const { select, byId, selectedIds, selectedCommits } = selection;
+  const { sidebarOpen, setSidebarOpen, sidebarWidth, setSidebarWidth, detailsWidth, setDetailsWidth, activityOpen, setActivityOpen } = preferences;
+  const canChange = !snapshot.bare && running === null;
+  const run = (action: Action) => act(action);
+  /** Sizes when a panel resize started. */
+  const resizeStart = useRef({ sidebar: 0, details: 0 });
+
+  // What the commit, branch and selection menus need.
+  const ctx: MenuContext = {
+    snapshot,
+    canChange,
+    localBranches: counts.localBranches,
+    run,
+    open: openDialog,
+    focus: highlight.highlightHistory,
+    focusAuthor: highlight.highlightAuthor,
+    visibility: settings.visibility,
+    setHidden: settings.setHidden,
+    solo: settings.solo,
+    pins: settings.pins,
+    togglePin: settings.togglePin,
+    protectedBranches: settings.protectedBranches,
+    toggleProtected: settings.toggleProtected,
+    rewritable: (commit: CommitRow) => rewritable(commit, snapshot, counts.headHistory, byId),
+    openUrl: openInBrowser,
+    worktrees: props.worktrees,
+    openWorktree: props.openTab,
+  };
+  const fileMenuContext: FileMenuContext = {
+    snapshot,
+    canChange,
+    run,
+    openDialog,
+    showHistory: (file) => highlight.showHistory(file).catch((e) => repo.setError({ message: String(e) })),
+    locks: lfs.locks ? lfs.byPath : null,
+    checks: props.checks,
+    reveal: (path) => revealItemInDir(joinPath(snapshot.path, path)).catch(() => props.notify({ text: `${baseName(path)} isn't in the working tree` })),
+  };
+  const worktreeContext: WorktreeMenuContext = {
+    canChange,
+    open: props.openTab,
+    reveal: (path) => revealItemInDir(path).catch(() => props.notify({ text: `${path} isn't there any more` })),
+    remove: (worktree) => openDialog({ kind: "removeWorktree", worktree }),
+    prune: () => act({ kind: "pruneWorktrees" }),
+  };
+  const fileMenu = (file: FileChange, x: number, y: number, where: "worktree" | "commit") => menu.show(x, y, fileMenuItems(fileMenuContext, file, where));
+  const lockMenu = (lock: Lock, x: number, y: number) => menu.show(x, y, lockMenuItems(fileMenuContext, lock));
+  const checkout = (entry: { pill: Parameters<typeof checkoutFor>[1]; commit: CommitRow | undefined }) => {
+    const action = entry.commit && checkoutFor(ctx, entry.pill, entry.commit);
+    if (action && canChange) act(action);
+  };
+  const sidebarMenu = (entry: RefEntry, x: number, y: number) => {
+    const name = fullRefName(entry);
+    const commit = byId.get(entry.commitId);
+    if (entry.hidden || !commit) {
+      // A hidden branch: its commit may not even be loaded.
+      if (!name) return;
+      menu.show(x, y, [
+        { label: `Show ${entry.name}`, icon: <EyeIcon />, onSelect: () => settings.setHidden([name], false) },
+        {
+          label: settings.pins.includes(name) ? `Unpin ${entry.name}` : `Pin ${entry.name} in the sidebar`,
+          icon: <PlusIcon />,
+          onSelect: () => settings.togglePin(name),
+        },
+      ]);
+      return;
+    }
+    menu.show(x, y, pillMenu(ctx, pillForEntry(entry), commit));
+  };
+  const panelResize = (panel: "sidebar" | "details") => ({
+    onResizeStart: () => (resizeStart.current = { sidebar: sidebarWidth, details: detailsWidth }),
+    onResize: (delta: number) =>
+      panel === "sidebar"
+        ? setSidebarWidth(Math.round(Math.min(480, Math.max(160, resizeStart.current.sidebar + delta))))
+        : setDetailsWidth(Math.round(Math.min(720, Math.max(300, resizeStart.current.details - delta)))),
+    onReset: () => (panel === "sidebar" ? setSidebarWidth(220) : setDetailsWidth(380)),
+  });
+
+  const activityHere = props.activity.entries;
+  const lastHere = [...activityHere].reverse().find((entry) => entry.folder === snapshot.path && !entry.background);
+  const canFetch = !snapshot.bare && snapshot.remotes.length > 0;
+
+  return (
+    <>
+      <Toolbar
+        snapshot={snapshot}
+        refreshing={repo.busy !== null}
+        running={running === "other" || running === "download" ? null : running}
+        ahead={counts.ahead}
+        behind={counts.behind}
+        search={search.position}
+        searchInput={search.input}
+        onSearch={search.search}
+        onSearchStep={search.step}
+        onRemote={(action) => act(REMOTE_ACTIONS[action], action)}
+        onPushMenu={(anchor) => menu.under(anchor, pushMenuItems(() => act({ kind: "push", force: false }, "push"), openDialog))}
+        lastFetch={snapshot.lastFetched ? snapshot.lastFetched * 1000 : null}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        onViewMenu={(anchor) => menu.under(anchor, props.viewMenu, 320)}
+        onRefresh={repo.refresh}
+        onPick={repo.pick}
+        onClose={() => props.closeTab(snapshot.path)}
+      />
+      <RepositoryBanners
+        snapshot={snapshot}
+        repo={repo}
+        actions={actions}
+        selection={selection}
+        highlight={highlight}
+        settings={settings}
+        lfsHealth={props.lfsHealth}
+        showWholeHistory={() => preferences.setFirstParentOnly(false)}
+        openWorktree={props.openTab}
+      />
+      <main className="workspace">
+        {sidebarOpen && (
+          <>
+            <Sidebar
+              commits={snapshot.commits}
+              hiddenRefs={snapshot.hiddenRefs}
+              visibility={settings.visibility}
+              pins={settings.pins}
+              selectedId={selection.selectedId}
+              width={sidebarWidth}
+              aheadBehind={counts.aheadBehind}
+              onSelect={(id) => byId.has(id) && select(id)}
+              onActivate={(entry) => checkout({ pill: pillForEntry(entry), commit: byId.get(entry.commitId) })}
+              onContextMenu={sidebarMenu}
+              onFocus={(entry) => byId.has(entry.commitId) && highlight.highlightHistory(entry.name, entry.commitId)}
+              onToggleVisible={(entry) => {
+                const name = fullRefName(entry);
+                if (!name) return;
+                settings.setHidden([name], settings.soloing ? settings.visibility.solo.includes(name) : !entry.hidden);
+              }}
+              onShowAll={settings.showAllBranches}
+              onPrune={canChange ? () => openDialog({ kind: "prune" }) : null}
+              protectedBranches={settings.protectedBranches}
+              locks={lfs.locks?.locks ?? null}
+              locksError={lfs.locks?.error ?? null}
+              onLockMenu={lockMenu}
+              onLockFiles={canChange ? props.lockFiles : null}
+              worktrees={props.worktrees}
+              onOpenWorktree={(worktree) => !worktree.current && props.openTab(worktree.path)}
+              onWorktreeMenu={(worktree, x, y) => menu.show(x, y, worktreeMenuItems(worktree, worktreeContext))}
+            />
+            <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
+          </>
+        )}
+        <CommitList
+          key={snapshot.path}
+          snapshot={snapshot}
+          selectedId={selection.selectedId}
+          selectedIds={selectedIds}
+          onSelect={select}
+          matchIds={search.matchIds}
+          focusIds={highlight.focusIds}
+          dense={preferences.dense}
+          columnWidths={preferences.columnWidths}
+          onColumnWidths={preferences.setColumnWidths}
+          columnOptions={preferences.columnOptions}
+          daySeparators={preferences.daySeparators}
+          onHeaderContextMenu={(x, y) =>
+            menu.show(x, y, columnMenuItems(preferences.columnOptions, preferences.setColumnOptions, preferences.daySeparators, preferences.setDaySeparators))
+          }
+          previews={preferences.previews}
+          loadDetails={props.details.load}
+          initialScrollTop={props.place.initialScroll}
+          onScrollChange={props.place.onScroll}
+          onContextMenu={(commit, x, y) =>
+            menu.show(x, y, selection.multi && selectedIds?.has(commit.id) ? selectionMenu(ctx, selectedCommits) : commitMenu(ctx, commit))
+          }
+          onPillActivate={(pill, commit) => checkout({ pill, commit })}
+          onPillContextMenu={(pill, commit, x, y) => menu.show(x, y, pillMenu(ctx, pill, commit))}
+          onPillFocus={(pill, commit) => highlight.highlightHistory(pill.name, commit.id)}
+          onDropRef={(revision, _commit, x, y) => {
+            if (revision !== snapshot.headBranch) menu.show(x, y, dropMenu(ctx, revision));
+          }}
+          onLoadMore={() => repo.load(snapshot.path, "more", snapshot.commits.length + PAGE_SIZE)}
+          loadingMore={repo.busy?.kind === "more"}
+        />
+        {(selection.selected || selection.multi) && (
+          <>
+            <ResizeHandle className="panel-handle" {...panelResize("details")} />
+            <div className="details-frame" style={{ width: detailsWidth }}>
+              <DetailsPane
+                snapshot={snapshot}
+                selection={selection}
+                actions={actions}
+                canChange={canChange}
+                draft={props.draft}
+                details={props.details}
+                checks={props.checks}
+                locks={lfs.locks ? lfs.byPath : null}
+                isHistoryFile={highlight.isHistoryFile}
+                detailsActions={(commit) => detailsActionsFor(commit, snapshot, canChange, run, openDialog)}
+                messageTools={
+                  <MessageTools
+                    commits={snapshot.commits}
+                    you={snapshot.user}
+                    onUseMessage={async (commit) => {
+                      const details = await props.details.load(commit.id).catch(() => null);
+                      props.draft.setDraft((current) => ({ ...current, summary: details?.summary ?? commit.summary, description: details?.body ?? "" }));
+                    }}
+                    onAddCoAuthor={(person) => props.draft.setDraft((current) => ({ ...current, description: withCoAuthor(current.description, person) }))}
+                    openMenu={menu.under}
+                  />
+                }
+                openDialog={openDialog}
+                onFileMenu={fileMenu}
+              />
+            </div>
+          </>
+        )}
+      </main>
+      {activityOpen && <ActivityPanel entries={activityHere} folder={snapshot.path} onClear={props.activity.clear} onClose={() => setActivityOpen(false)} />}
+      <StatusBar
+        snapshot={snapshot}
+        ahead={counts.ahead}
+        behind={counts.behind}
+        running={running && running !== "other" ? RUNNING_LABELS[running] : running === "other" ? "Working" : null}
+        hiddenCount={settings.hiddenCount}
+        soloing={settings.soloing}
+        onShowAll={settings.showAllBranches}
+        onFetch={canFetch && canChange ? () => act({ kind: "fetch" }, "fetch") : null}
+        activityOpen={activityOpen}
+        activityFailed={Boolean(lastHere && !lastHere.success)}
+        onToggleActivity={() => setActivityOpen(!activityOpen)}
+        onReveal={() => revealItemInDir(snapshot.path).catch((e) => repo.setError({ message: String(e) }))}
+        pruneHint={settings.pruneHint}
+        onPrune={canChange ? () => openDialog({ kind: "prune" }) : null}
+        onDismissPruneHint={settings.dismissPruneHint}
+      />
+      <RepositoryDialogs
+        dialog={props.dialog}
+        snapshot={snapshot}
+        byId={byId}
+        branchLabel={snapshot.headBranch ?? "HEAD"}
+        protectedHead={settings.protectedHead}
+        protectedBranches={settings.protectedBranches}
+        pins={settings.pins}
+        loadDetails={props.details.load}
+        run={act}
+        select={select}
+        open={openDialog}
+        onClose={() => openDialog(null)}
+        onFinish={(message, undo) => {
+          openDialog(null);
+          actions.finished(message, undo, repo.refresh);
+        }}
+        onLocksChanged={() => lfs.refresh(true)}
+        worktrees={props.worktrees}
+        localBranches={[...counts.localBranches]}
+        openWorktree={props.openTab}
+      />
+    </>
+  );
+}
