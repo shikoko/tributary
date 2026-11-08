@@ -36,6 +36,8 @@ export const RETRYABLE = new Set<Action["kind"]>([
   "cherryPickMany",
   "revertMany",
   "interactiveRebase",
+  "bisectStart",
+  "bisectMark",
 ]);
 export const RUNNING_LABELS: Record<Exclude<Running, "other" | null>, string> = {
   fetch: "Fetching",

@@ -34,6 +34,8 @@ pub enum OperationKind {
 pub(crate) fn operation(repo: &gix::Repository) -> Option<Operation> {
     use gix::state::InProgress;
     let kind = match repo.state()? {
+        // A bisect isn't stuck on anything: it has its own bar (see bisect.rs).
+        InProgress::Bisect => return None,
         InProgress::Merge => OperationKind::Merge,
         InProgress::Rebase | InProgress::RebaseInteractive | InProgress::ApplyMailboxRebase => {
             OperationKind::Rebase

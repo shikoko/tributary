@@ -5,6 +5,7 @@ import { LfsHealthBanner } from "../components/LfsHealthBanner";
 import { LockReleaseBanner } from "../components/LockReleaseBanner";
 import { SubmoduleBanner } from "../components/SubmoduleBanner";
 import { OperationBar } from "../components/OperationBar";
+import { BisectBar } from "../components/BisectBar";
 import { ProgressStrip } from "../components/ProgressStrip";
 import { ViewBanner } from "../components/ViewBanner";
 import { conflictSides } from "../components/WorktreeDetails";
@@ -64,6 +65,17 @@ export function RepositoryBanners(props: Props) {
           onSkip={() => act({ kind: "skipCommit" })}
           onAbort={() => act({ kind: "abortOperation" })}
           onShowFiles={() => selection.select(WORKTREE_ID)}
+        />
+      )}
+      {snapshot.bisect && (
+        <BisectBar
+          bisect={snapshot.bisect}
+          testing={snapshot.headCommit ? { id: snapshot.headCommit, commit: selection.byId.get(snapshot.headCommit) } : null}
+          found={snapshot.bisect.found ? selection.byId.get(snapshot.bisect.found) : undefined}
+          busy={running !== null}
+          onMark={(verdict) => act({ kind: "bisectMark", verdict, id: null })}
+          onStop={() => act({ kind: "bisectReset" })}
+          onShow={(id) => (selection.byId.has(id) ? selection.select(id) : repo.setError({ message: "That commit isn't loaded: load more commits" }))}
         />
       )}
       {error && (

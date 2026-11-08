@@ -42,6 +42,8 @@ pub struct RepoSnapshot {
     pub remotes: Vec<String>,
     /// A merge, rebase, cherry-pick or revert that stopped, usually because of conflicts.
     pub operation: Option<Operation>,
+    /// A bisect under way.
+    pub bisect: Option<super::Bisect>,
     /// Only the checked-out branch's own history (first parents) was loaded.
     pub first_parent: bool,
     pub head_commit: Option<String>,
@@ -357,6 +359,7 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
         .collect();
 
     let operation = operation(&repo);
+    let bisect = super::bisect::bisect(&repo, location);
     let config = repo.config_snapshot();
     let identity = Identity {
         name: config
@@ -388,6 +391,7 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
             .as_deref()
             .and_then(|branch| upstream(&repo, branch)),
         operation,
+        bisect,
         first_parent,
         remotes: repo
             .remote_names()

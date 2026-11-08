@@ -1,4 +1,12 @@
-import { memo, type MouseEvent, type RefObject } from "react";
+import { memo, useContext, type MouseEvent, type RefObject } from "react";
+import { BisectMarksContext, type BisectMark } from "../../lib/bisect";
+
+const BISECT_TITLES: Record<BisectMark, string> = {
+  good: "Marked good while bisecting: it works",
+  bad: "Marked bad while bisecting: it's broken",
+  skipped: "Skipped while bisecting",
+  found: "The first bad commit, found by bisecting",
+};
 import type { CommitRow } from "../../api";
 import type { ChangeCounts as Counts } from "../../lib/changes";
 import { laneColor } from "../../lib/colors";
@@ -57,6 +65,7 @@ interface RowProps {
 export const ListRow = memo(function ListRow(props: RowProps) {
   const { commit, top, height, metrics, lanes, visible, options, changes, narrow, dense, handlers } = props;
   const { selected, primary, dimmed, authorNode, head } = props;
+  const bisectMark = useContext(BisectMarksContext).get(commit.id);
   const on = () => handlers.current!;
   const onSelect = (id: string, how?: SelectHow) => on().onSelect(id, how);
   const color = laneColor(commit.graph.column, lanes);
@@ -147,6 +156,11 @@ export const ListRow = memo(function ListRow(props: RowProps) {
       ) : (
         <>
           <div className="cell description">
+            {bisectMark && (
+              <span className={`bisect-tag ${bisectMark}`} title={BISECT_TITLES[bisectMark]}>
+                {bisectMark === "found" ? "first bad" : bisectMark}
+              </span>
+            )}
             <span
               className={`summary${commit.kind === "stash" ? " stash" : commit.parents.length > 1 ? " merge" : ""}`}
               title={commit.summary}

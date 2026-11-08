@@ -1,5 +1,8 @@
 import type { Action, CommitDetails, CommitRow, PullRequest, RepoSnapshot, Worktree } from "../api";
 import { CreatePullRequestDialog } from "../components/CreatePullRequestDialog";
+import { BisectDialog } from "../components/BisectDialog";
+import { ancestors, countMissing } from "../lib/graph";
+import { shortId } from "../lib/format";
 import { openInBrowser } from "../lib/weblinks";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DeleteBranchDialog, DeleteRemoteBranchDialog } from "../components/DeleteBranchDialogs";
@@ -58,6 +61,22 @@ export function RepositoryDialogs(props: Props) {
   const { worktrees, localBranches, openWorktree } = props;
   return (
     <>
+    {dialog?.kind === "bisect" && snapshot.headCommit && (
+      <BisectDialog
+        good={dialog.good}
+        bad={{
+          id: snapshot.headCommit,
+          label: snapshot.headBranch ?? shortId(snapshot.headCommit),
+          summary: byId.get(snapshot.headCommit)?.summary ?? "",
+        }}
+        between={countMissing(ancestors(snapshot.headCommit, byId), ancestors(dialog.good.id, byId))}
+        onCancel={onClose}
+        onStart={() => {
+          onClose();
+          run({ kind: "bisectStart", bad: snapshot.headCommit!, good: dialog.good.id });
+        }}
+      />
+    )}
     {dialog?.kind === "createPullRequest" && (
       <CreatePullRequestDialog
         repoPath={snapshot.path}

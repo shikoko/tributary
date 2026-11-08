@@ -90,6 +90,8 @@ export interface RepoSnapshot {
   remotes: string[];
   /** A merge, rebase, cherry-pick or revert that stopped, usually because of conflicts. */
   operation: Operation | null;
+  /** A bisect under way. */
+  bisect: Bisect | null;
   /** Only the checked-out branch's own history (first parents) was loaded. */
   firstParent: boolean;
   headCommit: string | null;
@@ -208,6 +210,20 @@ export interface CommitSignature {
   /** Who signed it, as the key says. */
   signer: string | null;
   key: string | null;
+}
+
+/** A bisect under way: the commits marked good and bad, and the first bad one once found. */
+export interface Bisect {
+  /** Where it started (a branch or a commit), to go back to. */
+  start: string | null;
+  bad: string | null;
+  good: string[];
+  skipped: string[];
+  /** Commits that could still be the first bad one. */
+  left: number | null;
+  /** About how many more commits to test. */
+  steps: number | null;
+  found: string | null;
 }
 
 /** How many commits are loaded at a time. */

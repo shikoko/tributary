@@ -3,6 +3,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { WORKTREE_ID, type Action, type PullRequest } from "./api";
 import { useLfsLocks } from "./lib/locks";
 import { makeLookup, PullRequestsContext, requestNumber, usePullRequests } from "./lib/pullRequests";
+import { BisectMarksContext, bisectMarks } from "./lib/bisect";
 import { useUpdates } from "./lib/updates";
 import type { OpenDialog } from "./menus";
 import { ProfilePictures } from "./components/Avatar";
@@ -157,6 +158,7 @@ export default function App() {
   const worktrees = useWorktrees(snapshot);
   const overlaps = useChangedElsewhere(snapshot);
   const prs = usePullRequests(repoPath, Boolean(snapshot?.webRemotes.some((remote) => remote.host === "github" || remote.host === "gitlab")));
+  const marks = useMemo(() => bisectMarks(snapshot?.bisect), [snapshot?.bisect]);
   const prLookup = useMemo(() => makeLookup(prs.list, showRequest), [prs.list, showRequest]);
   // Another repository: its own pull requests.
   useEffect(() => setShownRequest(null), [repoPath]);
@@ -346,6 +348,7 @@ export default function App() {
   return (
     <ThemeContext.Provider value={theme}>
     <BranchSyncContext.Provider value={counts.aheadBehind}>
+    <BisectMarksContext.Provider value={marks}>
     <ProfilePictures.Provider value={preferences.profilePictures ? repoPath : null}>
       <PullRequestsContext.Provider value={prs.list.length > 0 ? prLookup : null}>
         <div className="app">
@@ -441,6 +444,7 @@ export default function App() {
         </div>
       </PullRequestsContext.Provider>
     </ProfilePictures.Provider>
+    </BisectMarksContext.Provider>
     </BranchSyncContext.Provider>
     </ThemeContext.Provider>
   );

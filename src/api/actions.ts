@@ -92,6 +92,10 @@ export type Action =
   /** Commit as this name and email in this repository; both empty go back to the usual ones. */
   | { kind: "setIdentity"; name: string; email: string }
   | { kind: "setSigning"; mode: SigningMode; key: string | null }
+  | { kind: "bisectStart"; bad: string; good: string }
+  /** Mark the commit being tested (or `id`). */
+  | { kind: "bisectMark"; verdict: "good" | "bad" | "skip"; id: string | null }
+  | { kind: "bisectReset" }
   | { kind: "addRemote"; name: string; url: string }
   | { kind: "renameRemote"; from: string; to: string }
   | { kind: "removeRemote"; name: string }

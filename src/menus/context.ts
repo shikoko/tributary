@@ -41,6 +41,8 @@ export type OpenDialog =
   | { kind: "repoSettings"; section?: string }
   /** Open a pull request for `branch` (its name on the remote); `url` opens it on the site instead. */
   | { kind: "createPullRequest"; branch: string; local: string | null; url: string | null }
+  /** Start bisecting from `good` (which worked) to the checked-out commit. */
+  | { kind: "bisect"; good: CommitRow }
   | null;
 
 /** What the menus need from the app. */
@@ -74,6 +76,8 @@ export interface MenuContext {
   toggleProtected: (name: string) => void;
   /** The commits after `commit` on the checked-out branch, newest first, or why they can't be rewritten. */
   rewritable: (commit: CommitRow) => CommitRow[] | string;
+  /** The commit is in the checked-out commit's history (and isn't it). */
+  beforeHead: (commit: CommitRow) => boolean;
   openUrl: (url: string) => void;
   /** The repository's working trees, to know which branches are checked out elsewhere. */
   worktrees: Worktree[];

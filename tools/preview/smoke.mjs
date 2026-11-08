@@ -306,6 +306,38 @@ try {
     await dismissToast();
   });
 
+  await step("bisects to the first bad commit", async () => {
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" }).trim();
+    const head = git("rev-parse", "HEAD");
+    // Bisecting checks out older commits: the demo's changes go aside meanwhile.
+    git("stash", "push", "-q", "--include-untracked", "-m", "smoke: bisect");
+    try {
+      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+      await row("Fix the note counter in the sidebar").click({ button: "right" });
+      await page.locator(".menu-item", { hasText: "Find what broke since this commit (bisect)…" }).click();
+      const dialog = page.locator(".dialog", { hasText: "Find the commit that broke it" });
+      await dialog.getByRole("button", { name: "Start bisecting" }).click();
+      const bar = page.locator(".bisect-bar");
+      await bar.filter({ hasText: "then say whether it's good or bad" }).waitFor({ timeout: 10_000 });
+      // Everything after the good commit is bad: the first one after it is the culprit.
+      for (let tries = 0; tries < 5 && !(await bar.filter({ hasText: "Found it" }).count()); tries++) {
+        await bar.getByRole("button", { name: "Bad", exact: true }).click();
+        await page.waitForTimeout(300);
+        await page.locator(".progress-strip").waitFor({ state: "detached", timeout: 10_000 }).catch(() => {});
+      }
+      await bar.filter({ hasText: "Found it" }).filter({ hasText: "Use the editor kit's faster rendering" }).waitFor({ timeout: 10_000 });
+      await page.locator(".bisect-tag.found").first().waitFor({ timeout: 5000 });
+      await page.locator(".bisect-tag.good").first().waitFor({ timeout: 5000 });
+      await bar.getByRole("button", { name: "Done" }).click();
+      await bar.waitFor({ state: "detached", timeout: 10_000 });
+      expect(git("rev-parse", "HEAD") === head && git("branch", "--show-current") === "main", "not back on main");
+      await dismissToast();
+    } finally {
+      git("stash", "pop", "-q", "--index");
+      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    }
+  });
+
   await step("resolves a merge conflict here, conflict by conflict, and undoes it", async () => {
     const folder = demos.notebook;
     const who = { GIT_AUTHOR_NAME: "Priya Nair", GIT_AUTHOR_EMAIL: "priya@example.com", GIT_COMMITTER_NAME: "Priya Nair", GIT_COMMITTER_EMAIL: "priya@example.com" };

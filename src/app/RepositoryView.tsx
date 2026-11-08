@@ -181,6 +181,7 @@ export function RepositoryView(props: Props) {
     protectedBranches: settings.protectedBranches,
     toggleProtected: settings.toggleProtected,
     rewritable: (commit: CommitRow) => rewritable(commit, snapshot, counts.headHistory, byId),
+    beforeHead: (commit: CommitRow) => commit.id !== snapshot.headCommit && counts.headHistory.has(commit.id),
     openUrl: openInBrowser,
     worktrees: props.worktrees,
     openWorktree: props.openTab,

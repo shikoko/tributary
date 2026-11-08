@@ -6,6 +6,7 @@
 //! so nothing can be mistaken for a git option.
 
 mod backups;
+mod bisect;
 mod blame;
 mod branches;
 mod changes;
@@ -42,6 +43,7 @@ use crate::error::{Error, Result};
 use crate::git::{Git, Progress};
 
 pub use backups::{BACKUP_DAYS, Backup, BackupEvent, backups};
+pub use bisect::Verdict;
 pub use blame::{Blame, BlameCommit, BlameLine, blame};
 pub use clone::{CloneOptions, clone_repository, init_repository};
 pub use conflicts::{ConflictText, conflict_text};
@@ -277,6 +279,15 @@ pub enum Action {
     /// Commit as this name and email in this repository (`git config --local`); both
     /// empty go back to the usual ones.
     SetIdentity { name: String, email: String },
+    /// Start bisecting between a commit that works (`good`) and one that doesn't (`bad`).
+    BisectStart { bad: String, good: String },
+    /// Mark the commit being tested (or `id`) good, bad or skipped.
+    BisectMark {
+        verdict: Verdict,
+        id: Option<String>,
+    },
+    /// Stop bisecting, back where it started.
+    BisectReset,
     /// Add a remote called `name` at `url`.
     AddRemote { name: String, url: String },
     /// Rename a remote (its remote branches follow).
@@ -578,6 +589,9 @@ fn perform(
         Action::OpenInMergeTool { path } => diff::open_in_merge_tool(&git, path),
         Action::SetIdentity { name, email } => identity::set_identity(&git, name, email),
         Action::SetSigning { mode, key } => signing::set_signing(&git, mode, key),
+        Action::BisectStart { bad, good } => bisect::start(&repo, &git, bad, good),
+        Action::BisectMark { verdict, id } => bisect::mark(&repo, &git, verdict, id),
+        Action::BisectReset => bisect::reset(&repo, &git),
         Action::AddRemote { name, url } => remote_settings::add_remote(&git, name, url),
         Action::RenameRemote { from, to } => remote_settings::rename_remote(&git, from, to),
         Action::RemoveRemote { name } => remote_settings::remove_remote(&git, name),

@@ -689,3 +689,66 @@ fn fixes_up_an_earlier_commit_with_the_staged_changes() {
     let elsewhere = run(&repo, Action::FixupInto { id: side });
     assert!(elsewhere.unwrap_err().contains("isn't part of"));
 }
+
+#[test]
+fn bisects_to_the_first_bad_commit() {
+    use actions::Verdict;
+    let mut repo = TempRepo::new("bisect");
+    with_identity(&repo);
+    let mut ids = Vec::new();
+    for n in 0..9 {
+        let state = if n >= 5 { "broken" } else { "ok" };
+        std::fs::write(repo.path().join("state.txt"), state).unwrap();
+        repo.git(&["add", "state.txt"]);
+        ids.push(repo.commit(&format!("file{n}.txt"), &format!("Step {n}")));
+    }
+    let first_bad = ids[5].clone();
+
+    let backwards = run(
+        &repo,
+        Action::BisectStart {
+            bad: ids[0].clone(),
+            good: ids[8].clone(),
+        },
+    );
+    assert!(backwards.unwrap_err().contains("before the bad one"));
+
+    let started = run(
+        &repo,
+        Action::BisectStart {
+            bad: ids[8].clone(),
+            good: ids[0].clone(),
+        },
+    )
+    .unwrap();
+    assert!(started.starts_with("Bisecting"), "{started}");
+    let mut steps = 0;
+    let found = loop {
+        let snapshot = repo::load(repo.path(), 100, false).unwrap();
+        let bisect = snapshot.bisect.expect("bisecting");
+        assert_eq!(bisect.start.as_deref(), Some("main"));
+        assert!(
+            snapshot.operation.is_none(),
+            "a bisect isn't an operation to continue or abort"
+        );
+        if let Some(found) = bisect.found {
+            break found;
+        }
+        let verdict = if read(&repo, "state.txt") == "broken" {
+            Verdict::Bad
+        } else {
+            Verdict::Good
+        };
+        run(&repo, Action::BisectMark { verdict, id: None }).unwrap();
+        steps += 1;
+        assert!(steps < 6, "too many steps");
+    };
+    assert_eq!(found, first_bad);
+    assert!(steps <= 4, "{steps} steps for 8 commits");
+
+    let stopped = run(&repo, Action::BisectReset).unwrap();
+    assert_eq!(stopped, "Stopped bisecting, back on main");
+    let snapshot = repo::load(repo.path(), 100, false).unwrap();
+    assert!(snapshot.bisect.is_none());
+    assert_eq!(snapshot.head_branch.as_deref(), Some("main"));
+}

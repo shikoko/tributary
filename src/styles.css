@@ -7340,3 +7340,100 @@ button.request-ref:hover {
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/* Bisecting: the bar, its buttons, and the commits marked in the list. */
+.bisect-bar > svg {
+  flex: none;
+  color: var(--accent-ink);
+}
+
+.bisect-bar.found {
+  border-color: rgb(var(--danger-rgb) / 0.35);
+}
+
+.bisect-left {
+  color: var(--text-muted);
+}
+
+.bisect-button {
+  height: 32px;
+  padding: 0 16px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.bisect-button.good {
+  border-color: rgb(var(--success-rgb) / 0.5);
+  background: rgb(var(--success-rgb) / 0.12);
+  color: var(--success-text);
+}
+
+.bisect-button.bad {
+  border-color: rgb(var(--danger-rgb) / 0.5);
+  background: rgb(var(--danger-rgb) / 0.12);
+  color: var(--danger-text);
+}
+
+.bisect-button:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.bisect-tag {
+  flex: none;
+  margin-right: 8px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.bisect-tag.good {
+  background: rgb(var(--success-rgb) / 0.16);
+  color: var(--success-text);
+}
+
+.bisect-tag.bad,
+.bisect-tag.found {
+  background: rgb(var(--danger-rgb) / 0.16);
+  color: var(--danger-text);
+}
+
+.bisect-tag.found {
+  box-shadow: inset 0 0 0 1px rgb(var(--danger-rgb) / 0.6);
+}
+
+.bisect-tag.skipped {
+  background: var(--bg-raised);
+  color: var(--text-muted);
+}
+
+.bisect-ends {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0 0 12px;
+}
+
+.bisect-ends dt {
+  font-weight: 600;
+}
+
+.bisect-ends dt.good {
+  color: var(--success-text);
+}
+
+.bisect-ends dt.bad {
+  color: var(--danger-text);
+}
+
+.bisect-ends dd {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

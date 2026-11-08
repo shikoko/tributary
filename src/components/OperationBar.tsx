@@ -25,7 +25,7 @@ export function OperationBar({ operation, branch, conflicts, sides, busy, onCont
   if (operation.kind === "other") {
     return (
       <div className="operation-bar" role="status">
-        <span>A git operation (like <code>git am</code> or <code>git bisect</code>) is in progress. Finish it in a terminal.</span>
+        <span>A git operation (like <code>git am</code>) is in progress. Finish it in a terminal.</span>
       </div>
     );
   }
