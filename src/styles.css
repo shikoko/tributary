@@ -7261,3 +7261,61 @@ button.request-ref:hover {
   color: var(--warning-text);
   font-size: 12px;
 }
+
+/* A signed commit's mark, in its details. */
+.signature-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  cursor: help;
+}
+
+.signature-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 1px 8px 1px 6px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.signature-mark.good {
+  border-color: rgb(var(--success-rgb) / 0.45);
+  background: rgb(var(--success-rgb) / 0.1);
+  color: var(--success-text);
+}
+
+.signature-mark.neutral {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.signature-mark.warning {
+  border-color: rgb(var(--warning-rgb) / 0.45);
+  background: rgb(var(--warning-rgb) / 0.1);
+  color: var(--warning-text);
+}
+
+.signature-mark.bad {
+  border-color: rgb(var(--danger-rgb) / 0.45);
+  background: rgb(var(--danger-rgb) / 0.1);
+  color: var(--danger-text);
+}
+
+.signature-signer {
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signing-key {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

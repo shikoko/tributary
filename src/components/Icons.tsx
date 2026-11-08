@@ -35,6 +35,14 @@ export const BlameIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A key: signing commits. */
+export const KeyIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="5.25" cy="10.75" r="3" />
+    <path d="M7.4 8.6 13.5 2.5M11 5l1.75 1.75M9.5 6.5l1.25 1.25" />
+  </Icon>
+);
+
 /** An arrow into a commit: folding changes into it (a fixup). */
 export const FixupIcon = (p: IconProps) => (
   <Icon {...p}>

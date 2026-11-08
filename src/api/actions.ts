@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { BranchTip } from "./branches";
 import type { DiffSource } from "./diff";
+import type { SigningMode } from "./identity";
 
 /** Something that changes the repository. These run the installed git. */
 /** What to do with some changed lines: stage them, unstage them, or undo them in the file. */
@@ -90,6 +91,7 @@ export type Action =
   | { kind: "openInMergeTool"; path: string }
   /** Commit as this name and email in this repository; both empty go back to the usual ones. */
   | { kind: "setIdentity"; name: string; email: string }
+  | { kind: "setSigning"; mode: SigningMode; key: string | null }
   /** Check out the recorded commit in these submodules (all when empty), setting up those that aren't. */
   | { kind: "updateSubmodules"; paths: string[] }
   | { kind: "unlockFiles"; locks: { id: string; path: string }[]; force?: boolean };

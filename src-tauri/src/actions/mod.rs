@@ -24,6 +24,7 @@ mod partial;
 mod prune;
 mod remote;
 mod search;
+mod signing;
 mod stash;
 mod submodules;
 mod support;
@@ -59,6 +60,7 @@ pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
 };
 pub use search::{SearchMode, SearchResult, search_commits};
+pub use signing::{SigningKey, SigningMode, SigningSettings, signing_settings};
 pub use submodules::{Submodule, SubmoduleState, submodules};
 pub use team::{BranchActivity, BranchPerson, TeamActivity, TeamPerson, team_activity};
 
@@ -273,6 +275,11 @@ pub enum Action {
     /// Commit as this name and email in this repository (`git config --local`); both
     /// empty go back to the usual ones.
     SetIdentity { name: String, email: String },
+    /// Sign commits in this repository: as usual, never, or with a GPG or SSH key.
+    SetSigning {
+        mode: SigningMode,
+        key: Option<String>,
+    },
     /// Check out the recorded commit in these submodules (all of them when empty),
     /// setting up those that aren't yet (`git submodule update --init --recursive`).
     UpdateSubmodules {
@@ -556,6 +563,7 @@ fn perform(
         }
         Action::OpenInMergeTool { path } => diff::open_in_merge_tool(&git, path),
         Action::SetIdentity { name, email } => identity::set_identity(&git, name, email),
+        Action::SetSigning { mode, key } => signing::set_signing(&git, mode, key),
         Action::UntrackWithLfs { patterns } => lfs_settings::untrack_with_lfs(&git, patterns),
         Action::UpdateSubmodules { paths } => {
             submodules::update_submodules(&git, paths, on_progress)

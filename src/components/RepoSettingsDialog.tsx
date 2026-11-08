@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { repoIdentity, type Action, type RepoIdentity } from "../api";
-import { CloudIcon, LockIcon, UserIcon } from "./Icons";
+import { repoIdentity, signingSettings, type Action, type RepoIdentity, type SigningMode, type SigningSettings } from "../api";
+import { CloudIcon, KeyIcon, LockIcon, UserIcon } from "./Icons";
 import { useLfsSettingsRows } from "./LfsSettingsRows";
-import { NameList, SettingsDialog, type SettingsSection } from "./SettingsDialog";
+import { NameList, SettingsDialog, type SettingRow, type SettingsSection } from "./SettingsDialog";
 
 interface Props {
   /** The repository's folder name, and its folder. */
@@ -44,6 +44,7 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
   useEffect(load, [load]);
 
   const lfsRows = useLfsSettingsRows({ path, run, onCleanUp: onCleanUpLfs });
+  const signingRows = useSigningRows(path, run);
   const own = Boolean(identity?.localName || identity?.localEmail);
   const usual = identity ? describe(identity.globalName, identity.globalEmail) : "…";
   const changed = identity !== null && (draft.name.trim() !== (identity.localName ?? "") || draft.email.trim() !== (identity.localEmail ?? ""));
@@ -116,6 +117,11 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
       ],
     },
     {
+      title: "Signing",
+      icon: <KeyIcon size={15} />,
+      rows: signingRows,
+    },
+    {
       title: "Branches",
       icon: <LockIcon size={15} />,
       rows: [
@@ -134,4 +140,135 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
     },
   ];
   return <SettingsDialog title={`Settings for ${name}`} sections={sections} onClose={onClose} />;
+}
+
+const FORMATS: Record<string, string> = { openpgp: "GPG", ssh: "SSH", x509: "X.509" };
+
+/** How commits are signed with git's usual settings, in words. */
+function describeUsual(settings: SigningSettings): string {
+  if (!settings.signs) return "not signed";
+  return `signed with ${FORMATS[settings.format] ?? settings.format}${settings.key ? ` (${baseKeyName(settings.key)})` : ""}`;
+}
+
+function baseKeyName(key: string): string {
+  return key.slice(Math.max(key.lastIndexOf("/"), key.lastIndexOf("\\")) + 1);
+}
+
+/** Signing commits in this repository: as git usually does, never, or with a GPG or SSH key. */
+function useSigningRows(path: string, run: (action: Action) => Promise<boolean>): SettingRow[] {
+  const [settings, setSettings] = useState<SigningSettings | null>(null);
+  const [draft, setDraft] = useState<{ mode: SigningMode; key: string }>({ mode: "usual", key: "" });
+  const [saving, setSaving] = useState(false);
+  const load = useCallback(() => {
+    signingSettings(path)
+      .then((found) => {
+        setSettings(found);
+        setDraft({ mode: found.mode, key: found.mode === "gpg" || found.mode === "ssh" ? (found.key ?? "") : "" });
+      })
+      .catch(() => setSettings(null));
+  }, [path]);
+  useEffect(load, [load]);
+  if (!settings) return [{ kind: "custom", label: "Loading…", content: null }];
+
+  const keys = settings.keys.filter((key) => key.format === draft.mode);
+  const changed = draft.mode !== settings.mode || ((draft.mode === "gpg" || draft.mode === "ssh") && draft.key.trim() !== (settings.key ?? ""));
+  const save = async () => {
+    setSaving(true);
+    await run({ kind: "setSigning", mode: draft.mode, key: draft.key.trim() || null });
+    setSaving(false);
+    load();
+  };
+  const usual = describeUsual(settings);
+  const now =
+    settings.mode === "usual"
+      ? `Commits here are ${usual}, as git is set up everywhere`
+      : settings.mode === "off"
+        ? "Commits here aren't signed"
+        : `Commits here are signed with ${settings.mode === "gpg" ? "GPG" : "SSH"}${settings.key ? ` (${baseKeyName(settings.key)})` : ""}`;
+  const rows: SettingRow[] = [
+    {
+      kind: "custom",
+      label: now,
+      hint: "Signed commits show as verified on GitHub and GitLab once the key is added to your account there.",
+      content: null,
+    },
+    {
+      kind: "custom",
+      label: "Sign commits",
+      content: (
+        <select
+          className="settings-select"
+          value={draft.mode}
+          onChange={(event) => {
+            const mode = event.target.value as SigningMode;
+            const first = settings.keys.find((key) => key.format === mode);
+            setDraft({ mode, key: mode === "ssh" ? (first?.id ?? "") : "" });
+          }}
+          aria-label="How to sign commits in this repository"
+        >
+          <option value="usual">As usual ({usual})</option>
+          <option value="off">Don't sign them here</option>
+          <option value="gpg">With a GPG key</option>
+          <option value="ssh">With an SSH key</option>
+        </select>
+      ),
+    },
+  ];
+  if (draft.mode === "gpg" || draft.mode === "ssh") {
+    const listed = keys.some((key) => key.id === draft.key);
+    rows.push({
+      kind: "custom",
+      label: "Key",
+      hint:
+        draft.mode === "gpg"
+          ? keys.length === 0
+            ? "No GPG keys found: make one with gpg --gen-key, or enter its id."
+            : "Without one chosen, GPG uses the key for the email you commit with."
+          : keys.length === 0
+            ? "No SSH keys found in ~/.ssh: enter the path of the public key (.pub) to sign with."
+            : "The public key (.pub) of the SSH key to sign with.",
+      content: (
+        <div className="signing-key">
+          {keys.length > 0 && (
+            <select
+              className="settings-select"
+              value={listed ? draft.key : draft.key ? "other" : ""}
+              onChange={(event) => setDraft({ ...draft, key: event.target.value === "other" ? " " : event.target.value })}
+              aria-label="Key to sign with"
+            >
+              {draft.mode === "gpg" && <option value="">The key for my email</option>}
+              {keys.map((key) => (
+                <option key={key.id} value={key.id}>
+                  {key.label}
+                </option>
+              ))}
+              <option value="other">Another…</option>
+            </select>
+          )}
+          {(keys.length === 0 || (!listed && draft.key !== "")) && (
+            <input
+              className="text-input settings-input"
+              value={draft.key.trimStart()}
+              placeholder={draft.mode === "gpg" ? "Key id, like 3AA5C34371567BD2" : "~/.ssh/id_ed25519.pub"}
+              onChange={(event) => setDraft({ ...draft, key: event.target.value })}
+              spellCheck={false}
+              autoCapitalize="off"
+              aria-label="Key to sign with"
+              autoFocus={keys.length > 0}
+            />
+          )}
+        </div>
+      ),
+    });
+  }
+  rows.push({
+    kind: "custom",
+    label: "",
+    content: (
+      <button className="primary-small-button" onClick={() => void save()} disabled={saving || !changed || (draft.mode === "ssh" && !draft.key.trim())}>
+        Use for this repository
+      </button>
+    ),
+  });
+  return rows;
 }

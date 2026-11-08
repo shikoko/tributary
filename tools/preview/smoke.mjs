@@ -8,8 +8,8 @@
 // Needs Playwright with Chromium (`npm install --no-save playwright` and
 // `npx playwright install chromium`, if they aren't installed already).
 
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -751,6 +751,56 @@ try {
     await settings.waitFor();
     expect((await settings.getByRole("tab", { name: /This repository/ }).count()) === 0, "Settings still has This repository");
     await page.keyboard.press("Escape");
+  });
+
+  await step("signs commits with a GPG key set for the repository, and shows them verified", async () => {
+    const gpg = spawnSync("gpg", ["--version"]);
+    if (gpg.error || gpg.status !== 0) {
+      console.log("    (skipped: GPG isn't installed)");
+      return;
+    }
+    // A throwaway key, in a short folder (GPG's agent puts its socket there), used through gpg.program.
+    const home = mkdtempSync(join(tmpdir(), "trg"));
+    chmodSync(home, 0o700);
+    const made = spawnSync("gpg", ["--batch", "--pinentry-mode", "loopback", "--passphrase", "", "--quick-gen-key", "Maya Chen <maya@example.com>", "ed25519", "sign", "never"], {
+      env: { ...process.env, GNUPGHOME: home },
+    });
+    expect(made.status === 0, `GPG couldn't make a key: ${made.stderr}`);
+    const wrapper = join(home, "gpg.sh");
+    writeFileSync(wrapper, `#!/bin/sh\nGNUPGHOME='${home}' exec gpg "$@"\n`, { mode: 0o755 });
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8", env: { ...process.env, ...demoEnv(demos) } }).trim();
+    git("config", "gpg.program", wrapper);
+    try {
+      await page.locator(".tab", { hasText: /^notebook$/ }).dispatchEvent("mousedown", { button: 0 });
+      await row("Prepare the 0.3 release notes").waitFor({ timeout: 10_000 });
+      await page.getByRole("button", { name: "Repository settings" }).click();
+      const dialog = page.locator(".dialog", { hasText: "Settings for notebook" });
+      await dialog.getByRole("tab", { name: "Signing" }).click();
+      await dialog.getByLabel("How to sign commits in this repository").selectOption("gpg");
+      await dialog.getByLabel("Key to sign with").selectOption({ label: "Maya Chen <maya@example.com>" });
+      await dialog.getByRole("button", { name: "Use for this repository" }).click();
+      await dialog.getByText(/^Commits here are signed with GPG/).waitFor({ timeout: 10_000 });
+      await page.keyboard.press("Escape");
+      await dialog.waitFor({ state: "detached", timeout: 5000 });
+      await dismissToast();
+      git("commit", "-q", "--allow-empty", "-m", "Signed in the smoke test");
+      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+      await row("Signed in the smoke test").click();
+      const mark = page.locator(".details .signature-mark.good", { hasText: "Verified" });
+      await mark.waitFor({ timeout: 10_000 });
+      await page.locator(".details .signature-signer", { hasText: "Maya Chen" }).waitFor({ timeout: 5000 });
+      // A commit that isn't signed has no mark.
+      await row("Prepare the 0.3 release notes").click();
+      await page.locator(".details", { hasText: "Prepare the 0.3 release notes" }).waitFor({ timeout: 5000 });
+      expect((await page.locator(".details .signature-mark").count()) === 0, "an unsigned commit shows a signature");
+    } finally {
+      // As it was, for the steps after this one.
+      git("reset", "-q", "--soft", "HEAD~1");
+      for (const key of ["commit.gpgsign", "gpg.format", "user.signingkey", "gpg.program"]) spawnSync("git", ["-C", demos.notebook, "config", "--local", "--unset", key]);
+      spawnSync("gpgconf", ["--kill", "gpg-agent"], { env: { ...process.env, GNUPGHOME: home } });
+      rmSync(home, { recursive: true, force: true });
+      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    }
   });
 
   await step("shows diagnostics to copy", async () => {

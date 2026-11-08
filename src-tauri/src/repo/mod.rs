@@ -16,7 +16,7 @@ use std::path::Path;
 use crate::error::{Error, Result};
 
 pub use compare::{Comparison, compare};
-pub use details::{CommitDetails, Person, details};
+pub use details::{CommitDetails, CommitSignature, Person, SignatureStatus, details};
 pub use operation::{Operation, OperationKind};
 pub use reflog::{ReflogEntry, reflog};
 pub(crate) use refs::web_remotes;

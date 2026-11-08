@@ -22,6 +22,37 @@ pub struct CommitDetails {
     pub parents: Vec<String>,
     /// Files changed compared to the first parent.
     pub files: Vec<FileChange>,
+    /// Its signature, when it's signed.
+    pub signature: Option<CommitSignature>,
+}
+
+/// A signed commit's signature, as git checks it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitSignature {
+    pub status: SignatureStatus,
+    /// "gpg", "ssh" or "x509".
+    pub kind: &'static str,
+    /// Who signed it, as the key says.
+    pub signer: Option<String>,
+    /// The key it was signed with.
+    pub key: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SignatureStatus {
+    /// A good signature, by a key that's trusted.
+    Good,
+    /// A good signature, by a key that isn't trusted (or can't be told).
+    Untrusted,
+    /// A good signature by a key that has expired or was revoked, or that has expired itself.
+    Expired,
+    Revoked,
+    /// The signature doesn't match the commit.
+    Bad,
+    /// It couldn't be checked: the key is missing, or (for SSH) no allowed signers are set up.
+    Unchecked,
 }
 
 #[derive(Debug, Serialize)]
@@ -113,7 +144,61 @@ pub fn details(path: &Path, id: &str) -> Result<CommitDetails, Error> {
         committer,
         parents: parents.iter().map(ToString::to_string).collect(),
         files,
+        signature: signature(path, &commit),
     })
+}
+
+/// The commit's signature, checked by git (which asks GPG or ssh-keygen), if it's signed.
+fn signature(path: &Path, commit: &gix::Commit<'_>) -> Option<CommitSignature> {
+    let decoded = commit.decode().ok()?;
+    let raw = decoded.extra_headers().pgp_signature()?;
+    let kind = signature_kind(raw.as_ref());
+    let git = crate::git::Git::find(path.to_owned()).ok()?.in_background();
+    let id = commit.id.to_string();
+    let checked = git
+        .run(&["log", "-1", "--no-walk", "--format=%G?%x1f%GS%x1f%GK", &id])
+        .unwrap_or_default();
+    Some(read_signature(&checked, kind))
+}
+
+fn signature_kind(raw: &[u8]) -> &'static str {
+    if raw.starts_with(b"-----BEGIN SSH SIGNATURE") {
+        "ssh"
+    } else if raw.starts_with(b"-----BEGIN SIGNED MESSAGE") || raw.starts_with(b"-----BEGIN PKCS7")
+    {
+        "x509"
+    } else {
+        "gpg"
+    }
+}
+
+/// `git log --format=%G?%x1f%GS%x1f%GK` for a signed commit.
+fn read_signature(checked: &str, kind: &'static str) -> CommitSignature {
+    let mut fields = checked.trim_end_matches('\n').split('\x1f');
+    let code = fields.next().unwrap_or_default().trim();
+    let text = |field: Option<&str>| {
+        field
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+    };
+    let signer = text(fields.next());
+    let key = text(fields.next());
+    let status = match code {
+        "G" => SignatureStatus::Good,
+        "U" => SignatureStatus::Untrusted,
+        "X" | "Y" => SignatureStatus::Expired,
+        "R" => SignatureStatus::Revoked,
+        "B" => SignatureStatus::Bad,
+        // E: the key is missing; N: git couldn't check it at all (for SSH, without allowed signers).
+        _ => SignatureStatus::Unchecked,
+    };
+    CommitSignature {
+        status,
+        kind,
+        signer,
+        key,
+    }
 }
 
 /// The untracked files saved in a stash, if `parents` are those of a stash made
@@ -173,5 +258,36 @@ pub(super) fn file_change(change: &ChangeDetached) -> FileChange {
                 FileStatus::Renamed
             },
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_signatures() {
+        let good = read_signature(
+            "G\x1fMaya Chen <maya@example.com>\x1fA5EAD03C8BBDB70B\n",
+            "gpg",
+        );
+        assert_eq!(good.status, SignatureStatus::Good);
+        assert_eq!(good.signer.as_deref(), Some("Maya Chen <maya@example.com>"));
+        assert_eq!(good.key.as_deref(), Some("A5EAD03C8BBDB70B"));
+        assert_eq!(
+            read_signature("B\x1f\x1f", "gpg").status,
+            SignatureStatus::Bad
+        );
+        let unchecked = read_signature("N\x1f\x1f\n", "ssh");
+        assert_eq!(
+            (unchecked.status, unchecked.signer),
+            (SignatureStatus::Unchecked, None)
+        );
+        assert_eq!(read_signature("", "gpg").status, SignatureStatus::Unchecked);
+        assert_eq!(
+            signature_kind(b"-----BEGIN SSH SIGNATURE-----\nU1NI"),
+            "ssh"
+        );
+        assert_eq!(signature_kind(b"-----BEGIN PGP SIGNATURE-----"), "gpg");
     }
 }

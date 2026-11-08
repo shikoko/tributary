@@ -222,6 +222,12 @@ pub async fn repo_identity(path: String) -> Result<actions::RepoIdentity> {
     blocking(move || actions::repo_identity(&PathBuf::from(path))).await
 }
 
+/// How commits in a repository are signed, and the keys there are to sign with.
+#[tauri::command]
+pub async fn signing_settings(path: String) -> Result<actions::SigningSettings> {
+    blocking(move || actions::signing_settings(&PathBuf::from(path))).await
+}
+
 /// The repository's submodules, and whether each is at the commit it records.
 #[tauri::command]
 pub async fn submodules(path: String) -> Result<Vec<actions::Submodule>> {

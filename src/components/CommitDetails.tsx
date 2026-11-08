@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { commitDetails, type CommitDetails, type CommitRow, type FileChange, type Lock, type Person, type WebRemote } from "../api";
+import { commitDetails, type CommitDetails, type CommitRow, type CommitSignature, type FileChange, type Lock, type Person, type WebRemote } from "../api";
 import { useThemeColors } from "../app/useAppearance";
 import { laneColor } from "../lib/colors";
 import { dateInZone, fullDate, plural, shortId, utcOffset } from "../lib/format";
 import { copyText } from "../lib/clipboard";
 import { coAuthors } from "../lib/weblinks";
 import { Avatar } from "./Avatar";
-import { CheckIcon, CloseIcon, CopyIcon } from "./Icons";
+import { CheckIcon, CloseIcon, CopyIcon, KeyIcon } from "./Icons";
+import { describeSignature } from "../lib/signatures";
 import { MessageText } from "./MessageText";
 import { RefPills } from "./RefPills";
 import { FileLine } from "./FileLine";
@@ -155,6 +156,14 @@ export function CommitDetailsPanel(props: Props) {
         <dl className="meta">
           <dt>SHA</dt>
           <dd className="mono selectable full-sha">{commit.id}</dd>
+          {details?.signature && (
+            <>
+              <dt>Signed</dt>
+              <dd>
+                <SignatureMark signature={details.signature} />
+              </dd>
+            </>
+          )}
           <dt>{commit.parents.length === 1 ? "Parent" : "Parents"}</dt>
           <dd className="parents">
             {commit.parents.length === 0 && <span className="muted">None (first commit)</span>}
@@ -266,5 +275,21 @@ function CopyButton({ text, label }: { text: string; label: string }) {
       <span className="mono">{label}</span>
       {copied ? <CheckIcon size={13} /> : <CopyIcon size={13} />}
     </button>
+  );
+}
+
+/** "Verified" (or why not) for a signed commit, with who signed it. */
+function SignatureMark({ signature }: { signature: CommitSignature }) {
+  const { label, tone, detail } = describeSignature(signature);
+  // The signer's name, without the address the details already show.
+  const signer = signature.signer?.replace(/\s*<[^>]*>$/, "");
+  return (
+    <span className="signature-line" title={detail}>
+      <span className={`signature-mark ${tone}`}>
+        {tone === "good" ? <CheckIcon size={11} /> : tone === "bad" ? <CloseIcon size={11} /> : <KeyIcon size={11} />}
+        {label}
+      </span>
+      {signer && <span className="signature-signer">{signer}</span>}
+    </span>
   );
 }

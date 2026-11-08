@@ -193,6 +193,21 @@ export interface CommitDetails {
   committer: Person;
   parents: string[];
   files: FileChange[];
+  /** Its signature, when it's signed. */
+  signature: CommitSignature | null;
+}
+
+/** A signed commit's signature, as git checks it. */
+export interface CommitSignature {
+  /**
+   * good: a trusted key's; untrusted: good, but the key isn't trusted; expired or revoked:
+   * good, by a key that no longer is; bad: it doesn't match; unchecked: it couldn't be checked.
+   */
+  status: "good" | "untrusted" | "expired" | "revoked" | "bad" | "unchecked";
+  kind: "gpg" | "ssh" | "x509";
+  /** Who signed it, as the key says. */
+  signer: string | null;
+  key: string | null;
 }
 
 /** How many commits are loaded at a time. */

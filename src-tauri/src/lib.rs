@@ -50,6 +50,7 @@ pub fn run() {
             commands::changed_elsewhere,
             commands::submodules,
             commands::repo_identity,
+            commands::signing_settings,
             commands::lfs_settings,
             commands::diff_tool_settings,
             commands::set_diff_tool,
