@@ -27,6 +27,13 @@ export const FolderIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** Two arrows, one each way: comparing two things (and swapping them). */
+export const CompareIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2.5 5.5h10M10 3l2.5 2.5L10 8M13.5 10.5h-10M6 8l-2.5 2.5L6 13" />
+  </Icon>
+);
+
 /** A circle, half filled: light and dark, for the appearance settings. */
 export const ContrastIcon = (p: IconProps) => (
   <Icon {...p}>

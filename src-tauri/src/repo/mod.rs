@@ -1,6 +1,7 @@
 //! Reading a repository with gix (pure Rust, no git needed): its history, refs,
 //! uncommitted changes, per-commit details and working trees.
 
+mod compare;
 mod details;
 mod operation;
 mod reflog;
@@ -14,6 +15,7 @@ use std::path::Path;
 
 use crate::error::{Error, Result};
 
+pub use compare::{Comparison, compare};
 pub use details::{CommitDetails, Person, details};
 pub use operation::{Operation, OperationKind};
 pub use reflog::{ReflogEntry, reflog};

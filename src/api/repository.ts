@@ -220,6 +220,22 @@ export function commitDetails(path: string, id: string): Promise<CommitDetails> 
   return invoke<CommitDetails>("commit_details", { path, id });
 }
 
+/** Two commits (or branches) compared: the files that differ, and the commits each has that the other doesn't. */
+export interface Comparison {
+  /** What the files are compared from: `from` itself, or (since they split) where they split. Null when they share no history. */
+  base: string | null;
+  /** Where the two split (their merge base). */
+  splitAt: string | null;
+  onlyFrom: number;
+  onlyTo: number;
+  files: FileChange[];
+}
+
+/** Compare commit `to` with `from`: directly, or with `split`, since they split (like a pull request). */
+export function compareCommits(path: string, from: string, to: string, split: boolean): Promise<Comparison> {
+  return invoke<Comparison>("compare_commits", { path, from, to, split });
+}
+
 /** The commits that changed a file or folder. */
 export interface FileHistory {
   /** Relative to the repository's root, without a trailing slash. */

@@ -50,6 +50,18 @@ pub async fn commit_details(path: String, id: String) -> Result<repo::CommitDeta
     blocking(move || repo::details(&PathBuf::from(path), &id)).await
 }
 
+/// The files that differ between two commits (directly, or since they split), and how
+/// many commits each has that the other doesn't.
+#[tauri::command]
+pub async fn compare_commits(
+    path: String,
+    from: String,
+    to: String,
+    split: bool,
+) -> Result<repo::Comparison> {
+    blocking(move || repo::compare(&PathBuf::from(path), &from, &to, split)).await
+}
+
 /// Change the repository: commit, stash, checkout, branch, merge, fetch, pull, push, …
 /// Fetches, pulls and pushes report their progress as `action-progress` events.
 #[tauri::command]

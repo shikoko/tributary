@@ -1,6 +1,8 @@
 // What the menus need from the app, and helpers they share with the dialogs.
 import type { Action, CommitRow, Lock, RepoSnapshot, Visibility, Worktree } from "../api";
 import { type RefPill } from "../lib/refs";
+import { shortId } from "../lib/format";
+import type { CompareRequest } from "../app/useComparison";
 
 /** Dialogs the app can show. */
 export type OpenDialog =
@@ -70,6 +72,18 @@ export interface MenuContext {
   worktrees: Worktree[];
   /** Open a working tree in a tab. */
   openWorktree: (path: string) => void;
+  /** Compare two commits or branches, in the details panel. */
+  compare: (request: CompareRequest) => void;
+}
+
+/** What to call a commit when comparing: its (first) local branch, or its short id. */
+export function commitLabel(commit: CommitRow): string {
+  return commit.refs.find((ref) => ref.kind === "branch")?.name ?? shortId(commit.id);
+}
+
+/** The checked-out commit as one side of a comparison, if there is one. */
+export function headSide(snapshot: RepoSnapshot): { id: string; label: string } | null {
+  return snapshot.headCommit ? { id: snapshot.headCommit, label: snapshot.headBranch ?? shortId(snapshot.headCommit) } : null;
 }
 
 /** The other working tree that has `branch` checked out, if one does. */

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePresence } from "../lib/usePresence";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { fullRefName, PAGE_SIZE, WORKTREE_ID, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type RepoSnapshot, type Worktree } from "../api";
-import { commitTargets, findTarget, highlightedFirst, worktreeTargets, type DiffTarget, type ShownDiff } from "../lib/diffTargets";
+import { commitTargets, findTarget, highlightedFirst, isShown, rangeTargets, worktreeTargets, type DiffTarget, type ShownDiff } from "../lib/diffTargets";
 import { withCoAuthor } from "../lib/commitMessage";
 import { rewritable } from "../lib/graph";
 import type { LfsLocks } from "../lib/locks";
@@ -16,6 +16,8 @@ import { ElsewherePanel } from "../components/ElsewherePanel";
 import { RepoSettingsDialog } from "../components/RepoSettingsDialog";
 import { DiffView } from "../components/diff/DiffView";
 import { conflictSides } from "../components/WorktreeDetails";
+import { ComparePanel } from "../components/ComparePanel";
+import { useComparison } from "./useComparison";
 import type { MenuItem } from "../components/ContextMenu";
 import { EyeIcon, PlusIcon } from "../components/Icons";
 import { MessageTools } from "../components/MessageTools";
@@ -101,15 +103,25 @@ export function RepositoryView(props: Props) {
   /** Sizes when a panel resize started. */
   const resizeStart = useRef({ sidebar: 0, details: 0 });
 
-  // The diff view: a file's changes in the selected commit, or in your changes.
+  // Two commits or branches compared, in the details panel instead of a commit.
+  const comparing = useComparison(snapshot.path, selection.selectedId);
+  const { request: compareRequest, comparison } = comparing;
+  const compared = useMemo(
+    () => (compareRequest && comparison?.base ? { ...compareRequest, ...comparison, base: comparison.base } : null),
+    [compareRequest, comparison],
+  );
+
+  // The diff view: a file's changes in the selected commit, in your changes, or between two compared.
   const [diffAt, setDiffAt] = useState<(ShownDiff & { origin: string }) | null>(null);
-  const origin = selection.selected && !selection.multi ? selection.selectedId : null;
+  const compareOrigin = compared && comparing.key ? `compare:${comparing.key}` : null;
+  const origin = compareOrigin ?? (selection.selected && !selection.multi ? selection.selectedId : null);
   const commitFiles = diffAt && diffAt.origin !== WORKTREE_ID ? props.details.cache.current.get(diffAt.origin)?.files : undefined;
   const diffTargets: DiffTarget[] = useMemo(() => {
     if (!diffAt) return [];
     if (diffAt.origin === WORKTREE_ID) return worktreeTargets(snapshot.worktree);
+    if (diffAt.origin === compareOrigin && compared) return rangeTargets(compared.base, compared.to.id, compared.files, `${compared.from.label} → ${compared.to.label}`);
     return commitTargets(diffAt.origin, highlightedFirst(commitFiles ?? [], highlight.isHistoryFile), byId.get(diffAt.origin)?.kind === "stash");
-  }, [diffAt, snapshot.worktree, commitFiles, highlight.isHistoryFile, byId]);
+  }, [diffAt, snapshot.worktree, commitFiles, highlight.isHistoryFile, byId, compareOrigin, compared]);
   const diffIndex = diffAt && diffAt.origin === origin ? findTarget(diffTargets, diffAt.source, diffAt.path) : -1;
   const shownDiff = diffIndex >= 0 ? diffTargets[diffIndex] : null;
   // Another commit was selected, or the file isn't changed any more.
@@ -142,6 +154,7 @@ export function RepositoryView(props: Props) {
     openUrl: openInBrowser,
     worktrees: props.worktrees,
     openWorktree: props.openTab,
+    compare: comparing.compare,
   };
   const fileMenuContext: FileMenuContext = {
     snapshot,
@@ -253,10 +266,18 @@ export function RepositoryView(props: Props) {
       />
     ) : null,
   );
-  const detailsOpen = Boolean(selection.selected || selection.multi);
+  const detailsOpen = Boolean(comparing.request || selection.selected || selection.multi);
   const detailsPanel = usePresence(
     detailsOpen,
-    detailsOpen ? (
+    comparing.request ? (
+      <ComparePanel
+        comparing={comparing}
+        onOpenFile={(file) => compared && showChanges(file, { kind: "range", from: compared.base, to: compared.to.id })}
+        isShown={(path) => Boolean(compared && isShown(shownDiff && { source: shownDiff.source, path: shownDiff.file.path }, { kind: "range", from: compared.base, to: compared.to.id }, path))}
+        onSelect={(id) => (byId.has(id) ? select(id) : notLoaded())}
+        hasCommit={(id) => byId.has(id)}
+      />
+    ) : detailsOpen ? (
       <DetailsPane
         snapshot={snapshot}
         selection={selection}
@@ -286,6 +307,7 @@ export function RepositoryView(props: Props) {
         shownDiff={shownDiff && { source: shownDiff.source, path: shownDiff.file.path }}
         overlaps={props.overlaps}
         onNotLoaded={notLoaded}
+        onCompare={comparing.compare}
       />
     ) : null,
   );

@@ -37,7 +37,8 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
   const target = targets[index];
   const [ignoreWhitespace, setIgnoreWhitespace] = useStoredState("diff.ignoreWhitespace", false);
   const [loaded, setLoaded] = useState<{ key: string; diff: FileDiff | null; error: string | null } | null>(null);
-  const live = target.source.kind !== "commit";
+  /** Your own changes, which change as you work (rather than a commit's, or between two). */
+  const live = target.source.kind === "staged" || target.source.kind === "unstaged";
   const key = JSON.stringify([target.source, target.file.path, target.file.oldPath, ignoreWhitespace]);
   // Lines chosen to stage, unstage or discard (lib/lineSelection.ts).
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -83,7 +84,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
   // A new diff (after staging, say) starts with no lines chosen.
   const [applying, setApplying] = useState(false);
   useEffect(() => setSelected(new Set()), [diff]);
-  const side = target.source.kind === "commit" ? null : target.source.kind;
+  const side = target.source.kind === "staged" || target.source.kind === "unstaged" ? target.source.kind : null;
   /** Why lines can't be chosen here, if they can't. */
   const notPickable = !side
     ? null

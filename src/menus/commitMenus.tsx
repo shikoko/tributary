@@ -22,17 +22,32 @@ import {
   ResetIcon,
   StashIcon,
   TagIcon,
-  TrashIcon } from "../components/Icons";
-import { worktreeOf, canResetTo, splitRemoteBranch, type MenuContext } from "./context";
+  TrashIcon,
+  CompareIcon } from "../components/Icons";
+import { worktreeOf, canResetTo, splitRemoteBranch, commitLabel, headSide, type MenuContext } from "./context";
 
 /** Right-click while several commits are selected. */
 export function selectionMenu(ctx: MenuContext, commits: CommitRow[]): MenuItem[] {
   const branch = ctx.snapshot.headBranch;
   const blocked = !ctx.canChange || !branch || ctx.snapshot.operation !== null || commits.some((c) => c.kind !== "commit" || c.parents.length > 1);
   const oldestFirst = [...commits].reverse().map((commit) => commit.id);
+  const compare: MenuItem[] =
+    commits.length === 2 && commits.every((commit) => commit.kind === "commit")
+      ? [
+          {
+            label: "Compare these two commits",
+            icon: <CompareIcon />,
+            // The older one first: what changed from it to the newer one.
+            onSelect: () =>
+              ctx.compare({ from: { id: commits[1].id, label: commitLabel(commits[1]) }, to: { id: commits[0].id, label: commitLabel(commits[0]) }, split: false }),
+          },
+        ]
+      : [];
   return [
+    ...compare,
     {
       label: `Cherry-pick ${commits.length} commits onto ${branch ?? "HEAD"}`,
+      separated: compare.length > 0,
       icon: <CherryIcon />,
       disabled: blocked,
       onSelect: () => ctx.run({ kind: "cherryPickMany", ids: oldestFirst }),
@@ -126,6 +141,18 @@ export function commitMenu(ctx: MenuContext, commit: CommitRow): MenuItem[] {
       icon: <EyeIcon />,
       onSelect: () => ctx.focus(commit.summary || commit.id.slice(0, 7), commit.id),
     },
+    ...(() => {
+      const head = headSide(snapshot);
+      return head && !isHead
+        ? [
+            {
+              label: `Compare with ${head.label}`,
+              icon: <CompareIcon />,
+              onSelect: () => ctx.compare({ from: head, to: { id: commit.id, label: commitLabel(commit) }, split: false }),
+            },
+          ]
+        : [];
+    })(),
     {
       label: `Highlight ${commit.authorName || commit.authorEmail}'s commits`,
       icon: <UserIcon />,

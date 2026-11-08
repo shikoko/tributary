@@ -14,8 +14,9 @@ import {
   PencilIcon,
   PushIcon,
   TagIcon,
-  TrashIcon } from "../components/Icons";
-import { worktreeOf, splitRemoteBranch, type MenuContext } from "./context";
+  TrashIcon,
+  CompareIcon } from "../components/Icons";
+import { worktreeOf, splitRemoteBranch, headSide, type MenuContext } from "./context";
 import { mergeItems, visibilityItems, webItems } from "./shared";
 import { stashMenu } from "./commitMenus";
 
@@ -42,6 +43,21 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
     separated: true,
     onSelect: () => ctx.focus(pill.name, commit.id),
   };
+  const head = headSide(snapshot);
+  /** A branch: what it has that the checked-out one doesn't (like a pull request). A tag: what's changed since. */
+  const compare: MenuItem[] =
+    head && commit.id !== head.id
+      ? [
+          {
+            label: pill.kind === "tag" ? `What's changed in ${head.label} since ${pill.name}` : `Compare with ${head.label}`,
+            icon: <CompareIcon />,
+            onSelect: () =>
+              pill.kind === "tag"
+                ? ctx.compare({ from: { id: commit.id, label: pill.name }, to: head, split: false })
+                : ctx.compare({ from: head, to: { id: commit.id, label: pill.name }, split: true }),
+          },
+        ]
+      : [];
   if (pill.kind === "tag") {
     const label = commit.refs.find((ref) => ref.kind === "tag" && ref.name === pill.name);
     const remote = snapshot.remotes.includes("origin") ? "origin" : (snapshot.remotes[0] ?? null);
@@ -54,6 +70,7 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
       },
       ...mergeItems(ctx, pill.name, pill.name),
       highlight,
+      ...compare,
       ...visibilityItems(ctx, pill),
       ...webItems(ctx, pill),
       ...(remote
@@ -141,7 +158,7 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
     });
   }
   if (!pill.current) items.push(...mergeItems(ctx, pill.name, pill.name));
-  items.push(highlight, ...visibilityItems(ctx, pill), ...webItems(ctx, pill));
+  items.push(highlight, ...compare, ...visibilityItems(ctx, pill), ...webItems(ctx, pill));
   // Remote copies of this branch at the same commit.
   const remoteNames = pill.local ? pill.remotes.map((remote) => `${remote}/${pill.name}`) : [pill.name];
   remoteNames.forEach((name, i) => {

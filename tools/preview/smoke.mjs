@@ -308,6 +308,25 @@ try {
     await page.locator(".operation-bar").waitFor({ state: "detached", timeout: 10_000 });
   });
 
+  await step("compares a branch with the checked-out one, and opens a file's change", async () => {
+    await page.locator(".commit-list .ref-pill[title^='Branch feature/export (local']").first().click({ button: "right" });
+    await page.locator(".menu-item", { hasText: "Compare with main" }).click();
+    const panel = page.locator(".compare-panel");
+    await panel.locator(".file", { hasText: "zip.ts" }).click({ timeout: 10_000 });
+    const facts = await panel.locator(".compare-facts").innerText();
+    expect(/feature\/export has \d+ commits? that main doesn't/.test(facts), `facts "${facts}"`);
+    const view = page.locator(".diff-view");
+    await view.locator(".diff-source", { hasText: "main → feature/export" }).waitFor({ timeout: 10_000 });
+    await view.locator(".diff-row.added").first().waitFor({ timeout: 10_000 });
+    // Esc closes the file's changes, then the comparison.
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+    await panel.getByRole("button", { name: "Directly" }).click();
+    await panel.locator(".files h3", { hasText: /different files/ }).waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await panel.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("hides a branch, then shows everything again", async () => {
     const themes = page.locator(".sidebar-item", { hasText: /^themes/ }).first();
     await themes.hover();

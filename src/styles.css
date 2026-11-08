@@ -6189,3 +6189,52 @@ select:disabled {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* Two commits or branches compared, in the details panel. */
+
+.compare-sides {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.compare-side {
+  min-width: 0;
+  overflow: hidden;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--bg-raised);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compare-side.to {
+  background: rgb(var(--accent-rgb) / 0.14);
+  color: var(--accent-text);
+}
+
+.compare-swap {
+  flex: none;
+}
+
+.compare-how {
+  margin-bottom: 12px;
+}
+
+.compare-facts {
+  margin-bottom: 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.compare-facts p {
+  margin: 0 0 6px;
+}
+
+.compare-facts strong {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+}

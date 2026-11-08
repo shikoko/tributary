@@ -11,6 +11,8 @@ import type { Actions } from "./useActions";
 import type { CommitDetailsCache } from "./useCommitDetails";
 import type { Draft } from "./useDraft";
 import type { Selection } from "./useSelection";
+import type { CompareRequest } from "./useComparison";
+import { commitLabel } from "../menus/context";
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -38,6 +40,8 @@ interface Props {
   overlaps: Overlap[];
   /** A commit to show isn't among the loaded ones. */
   onNotLoaded: () => void;
+  /** Compare two commits, in this panel. */
+  onCompare: (request: CompareRequest) => void;
 }
 
 /**
@@ -57,6 +61,15 @@ export function DetailsPane(props: Props) {
         onCherryPick={() => act({ kind: "cherryPickMany", ids: [...selectedCommits].reverse().map((c) => c.id) })}
         onRevert={() => act({ kind: "revertMany", ids: selectedCommits.map((c) => c.id) })}
         onClose={selection.dropMultiple}
+        onCompare={
+          selectedCommits.length === 2 && selectedCommits.every((commit) => commit.kind === "commit")
+            ? () => {
+                // The older one first: what changed from it to the newer one.
+                const [newer, older] = selectedCommits;
+                props.onCompare({ from: { id: older.id, label: commitLabel(older) }, to: { id: newer.id, label: commitLabel(newer) }, split: false });
+              }
+            : undefined
+        }
       />
     );
   }

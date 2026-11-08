@@ -287,3 +287,43 @@ fn shows_sounds_videos_and_3d_models_as_what_they_are() {
     assert_eq!((media.kind, media.before), (MediaKind::Video, None));
     assert!(media.after.unwrap().starts_with("data:video/mp4;base64,"));
 }
+
+#[test]
+fn compares_two_branches_directly_and_since_they_split() {
+    let mut repo = TempRepo::new("diff-compare");
+    let base = repo.commit("shared.txt", "shared");
+    repo.git(&["switch", "--quiet", "--create", "feature"]);
+    repo.commit("feature.txt", "feature work");
+    let feature = repo.commit("shared.txt", "feature's take");
+    repo.git(&["switch", "--quiet", "main"]);
+    let main = repo.commit("main.txt", "main work");
+
+    // Since they split: what the feature branch changed, like a pull request.
+    let split = tributary_lib::repo::compare(repo.path(), &main, &feature, true).unwrap();
+    assert_eq!(split.split_at.as_deref(), Some(base.as_str()));
+    assert_eq!(split.base.as_deref(), Some(base.as_str()));
+    assert_eq!((split.only_from, split.only_to), (1, 2));
+    let paths: Vec<&str> = split.files.iter().map(|file| file.path.as_str()).collect();
+    assert_eq!(paths, ["feature.txt", "shared.txt"]);
+
+    // Directly: main's own file shows as removed too.
+    let direct = tributary_lib::repo::compare(repo.path(), &main, &feature, false).unwrap();
+    assert_eq!(direct.base.as_deref(), Some(main.as_str()));
+    let paths: Vec<&str> = direct.files.iter().map(|file| file.path.as_str()).collect();
+    assert_eq!(paths, ["feature.txt", "main.txt", "shared.txt"]);
+
+    // A file's change between them.
+    let diff = actions::file_diff(
+        repo.path(),
+        DiffSource::Range {
+            from: base.clone(),
+            to: feature.clone(),
+        },
+        "shared.txt",
+        None,
+        false,
+    )
+    .unwrap();
+    assert_eq!((diff.additions, diff.deletions), (1, 1));
+    assert!(tributary_lib::repo::compare(repo.path(), "nope", &feature, true).is_err());
+}

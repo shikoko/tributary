@@ -102,6 +102,12 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             to_json(repo::load_with(&path()?, options)?)
         }
         "commit_details" => to_json(repo::details(&path()?, &arg::<String>(args, "id")?)?),
+        "compare_commits" => to_json(repo::compare(
+            &path()?,
+            &arg::<String>(args, "from")?,
+            &arg::<String>(args, "to")?,
+            arg(args, "split")?,
+        )?),
         "run_action" => {
             let action: Action = arg(args, "action")?;
             to_json(actions::run_with_progress(&path()?, action, &progress)?)

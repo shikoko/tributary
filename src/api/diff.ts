@@ -8,7 +8,9 @@ export type DiffSource =
   /** Staged changes, compared to the last commit. */
   | { kind: "staged" }
   /** Changes not staged yet (new files: compared to nothing). */
-  | { kind: "unstaged" };
+  | { kind: "unstaged" }
+  /** From one commit to another (comparing two commits or branches). */
+  | { kind: "range"; from: string; to: string };
 
 export interface DiffLine {
   kind: "context" | "added" | "removed";

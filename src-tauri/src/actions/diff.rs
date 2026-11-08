@@ -32,6 +32,8 @@ pub enum DiffSource {
     Staged,
     /// Changes not staged yet, compared to what's staged (new files: to nothing).
     Unstaged,
+    /// From one commit to another (comparing two commits or branches).
+    Range { from: String, to: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -404,6 +406,15 @@ fn plan(
                 revisions: vec![parent, id],
             }
         }
+        DiffSource::Range { from, to } => {
+            let from = commit_id(repo, from)?.to_string();
+            let to = commit_id(repo, to)?.to_string();
+            Plan {
+                before: Side::Blob(format!("{from}:{before_path}")),
+                after: Side::Blob(format!("{to}:{file}")),
+                revisions: vec![from, to],
+            }
+        }
         DiffSource::Staged => Plan {
             revisions: vec!["--cached".into()],
             before: Side::Blob(format!("HEAD:{before_path}")),
@@ -696,6 +707,10 @@ pub(super) fn open_in_diff_tool(
         DiffSource::Commit { id } => {
             let id = commit_id(repo, &id)?.to_string();
             args.extend([first_parent(repo, &id), id]);
+        }
+        DiffSource::Range { from, to } => {
+            args.push(commit_id(repo, &from)?.to_string());
+            args.push(commit_id(repo, &to)?.to_string());
         }
         DiffSource::Staged => args.push("--cached".into()),
         DiffSource::Unstaged => {

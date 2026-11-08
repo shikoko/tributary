@@ -2,7 +2,7 @@ import type { CommitRow } from "../api";
 import { copyText } from "../lib/clipboard";
 import { shortId } from "../lib/format";
 import { Avatar } from "./Avatar";
-import { CherryIcon, CloseIcon, CopyIcon, RevertIcon } from "./Icons";
+import { CherryIcon, CloseIcon, CompareIcon, CopyIcon, RevertIcon } from "./Icons";
 
 interface Props {
   /** The selected commits, in list order (newest first). */
@@ -12,10 +12,12 @@ interface Props {
   onCherryPick: () => void;
   onRevert: () => void;
   onClose: () => void;
+  /** Compare the two selected commits (shown when exactly two are). */
+  onCompare?: () => void;
 }
 
 /** Shown instead of a commit's details while several commits are selected. */
-export function MultiSelectPanel({ commits, branch, canChange, onCherryPick, onRevert, onClose }: Props) {
+export function MultiSelectPanel({ commits, branch, canChange, onCherryPick, onRevert, onClose, onCompare }: Props) {
   const merges = commits.filter((commit) => commit.parents.length > 1).length;
   const stashes = commits.some((commit) => commit.kind !== "commit");
   const blocked = merges > 0 ? "Merge commits can only be cherry-picked or reverted one at a time." : stashes ? "Stashes can't be cherry-picked this way." : null;
@@ -31,6 +33,12 @@ export function MultiSelectPanel({ commits, branch, canChange, onCherryPick, onR
       </header>
       <div className="details-scroll">
         <div className="details-actions">
+          {onCompare && (
+            <button className="outline-button" onClick={onCompare}>
+              <CompareIcon size={14} />
+              <span className="button-label">Compare these two</span>
+            </button>
+          )}
           <button className="outline-button" onClick={onCherryPick} disabled={disabled}>
             <CherryIcon size={14} />
             <span className="button-label">

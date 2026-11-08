@@ -25,6 +25,11 @@ export function commitTargets(id: string, files: FileChange[], stash = false): D
   return files.filter(showable).map((file) => ({ file, source: { kind: "commit", id }, label }));
 }
 
+/** The files that differ between two commits, from `from` to `to`; labelled like "main → feature". */
+export function rangeTargets(from: string, to: string, files: FileChange[], label: string): DiffTarget[] {
+  return files.filter(showable).map((file) => ({ file, source: { kind: "range", from, to }, label }));
+}
+
 /** Your changes in the order the panel lists them: conflicts, staged, then the rest. */
 export function worktreeTargets(status: WorktreeStatus | null | undefined): DiffTarget[] {
   if (!status) return [];
@@ -37,7 +42,12 @@ export function worktreeTargets(status: WorktreeStatus | null | undefined): Diff
   ];
 }
 
-const sameSource = (a: DiffSource, b: DiffSource) => a.kind === b.kind && (a.kind !== "commit" || (b.kind === "commit" && a.id === b.id));
+const sameSource = (a: DiffSource, b: DiffSource) =>
+  a.kind === "commit"
+    ? b.kind === "commit" && a.id === b.id
+    : a.kind === "range"
+      ? b.kind === "range" && a.from === b.from && a.to === b.to
+      : a.kind === b.kind;
 
 /**
  * Where `path` (shown from `source`) is among `targets`. A file you just staged or unstaged
