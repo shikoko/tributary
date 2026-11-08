@@ -34,7 +34,7 @@ export function signOutOfGitHub(): Promise<void> {
   return invoke<void>("github_sign_out");
 }
 
-/** An open pull request on GitHub. */
+/** An open pull request on GitHub, or merge request on GitLab. */
 export interface PullRequest {
   number: number;
   title: string;
@@ -45,7 +45,10 @@ export interface PullRequest {
   branch: string;
   draft: boolean;
   author: string;
+  /** Checks (GitHub) or the latest pipeline (GitLab). */
   checks: "success" | "failure" | "pending" | null;
+  /** Where it is. Merge requests are numbered like !12. */
+  forge?: "github" | "gitlab";
 }
 
 export function pullRequests(path: string): Promise<PullRequest[]> {

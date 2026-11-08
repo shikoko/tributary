@@ -55,14 +55,11 @@ fn tells_where_each_submodule_is() {
     assert_eq!(library.recorded.as_deref(), Some(first.as_str()));
     assert!(!library.changed);
 
-    // New commits in the submodule, not recorded yet: a change to stage.
+    // New commits in the submodule, not recorded yet.
     let second = commit_inside(&app, "two\n");
     let library = only(&app);
     assert_eq!((library.state, library.ahead), (SubmoduleState::Ahead, 1));
     assert_eq!(library.current.as_deref(), Some(second.as_str()));
-    let snapshot = repo::load(app.path(), 100, true).unwrap();
-    let unstaged = snapshot.worktree.unwrap().unstaged;
-    assert_eq!(files(&unstaged), vec![("vendor/lib", FileStatus::Modified)]);
 
     // Recorded, then left behind (as a pull that moved it would).
     app.git(&["add", "vendor/lib"]);
@@ -84,6 +81,17 @@ fn tells_where_each_submodule_is() {
     // Not set up.
     app.git(&["submodule", "deinit", "--quiet", "--force", "vendor/lib"]);
     assert_eq!(only(&app).state, SubmoduleState::NotSetUp);
+}
+
+#[test]
+fn lists_a_submodule_with_new_commits_among_the_changes() {
+    let (_library, app, _first) = app_with_library("submodule-status");
+    commit_inside(&app, "two\n");
+    // Reading the status can refresh the index in the background afterwards, so nothing
+    // runs git here after it.
+    let snapshot = repo::load(app.path(), 100, true).unwrap();
+    let unstaged = snapshot.worktree.unwrap().unstaged;
+    assert_eq!(files(&unstaged), vec![("vendor/lib", FileStatus::Modified)]);
 }
 
 #[test]

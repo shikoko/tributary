@@ -7,6 +7,7 @@ pub mod diagnostics;
 pub mod error;
 pub mod git;
 pub mod github;
+pub mod gitlab;
 pub mod graph;
 pub mod links;
 pub mod locks;

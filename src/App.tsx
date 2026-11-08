@@ -113,7 +113,7 @@ export default function App() {
   const lfsHealth = useLfsHealth(snapshot);
   const worktrees = useWorktrees(snapshot);
   const overlaps = useChangedElsewhere(snapshot);
-  const prs = usePullRequests(repoPath, Boolean(snapshot?.webRemotes.some((remote) => remote.host === "github")));
+  const prs = usePullRequests(repoPath, Boolean(snapshot?.webRemotes.some((remote) => remote.host === "github" || remote.host === "gitlab")));
   const prLookup = useMemo(() => makeLookup(prs.list, openInBrowser), [prs.list]);
   const checks = useFileChecks(snapshot, preferences.largeFileMB);
 

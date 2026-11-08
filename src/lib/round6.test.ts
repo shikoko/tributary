@@ -32,6 +32,8 @@ describe("pull requests", () => {
   it("describes checks", () => {
     expect(describeChecks(pr(12, "origin", "x", "failure"))).toBe("Pull request #12: Change 12 by rosa · checks failed");
     expect(describeChecks(pr(13, "origin", "x"))).toBe("Pull request #13: Change 13 by rosa");
+    // GitLab's merge requests are numbered with "!", and have pipelines.
+    expect(describeChecks({ ...pr(14, "origin", "x", "success"), forge: "gitlab" })).toBe("Merge request !14: Change 14 by rosa · pipeline passed");
   });
 });
 

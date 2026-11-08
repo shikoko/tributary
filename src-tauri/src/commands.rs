@@ -178,10 +178,11 @@ pub async fn lfs_storage(path: String) -> Result<Option<actions::LfsStorage>> {
     blocking(move || actions::lfs_storage_of(&PathBuf::from(path))).await
 }
 
-/// The open pull requests on the repository's GitHub remote.
+/// The open pull requests on the repository's GitHub remote, or merge requests on its
+/// GitLab one.
 #[tauri::command]
 pub async fn pull_requests(path: String) -> Result<Vec<github::PullRequest>> {
-    github::pull_requests(&PathBuf::from(path)).await
+    github::open_requests(&PathBuf::from(path)).await
 }
 
 /// Who's signed in to GitHub (going by the token git keeps), and how one can sign in.

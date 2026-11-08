@@ -467,8 +467,8 @@ export function buildAssets(root, configFile) {
 
 /** The pull requests the studio's branches would have on GitHub, for the preview's fakes. */
 export const STUDIO_PULL_REQUESTS = [
-  { number: 12, title: "Barber v2: new hair and apron", url: "https://github.com/example/feast/pull/12", remote: "origin", branch: "art/barber-v2", draft: false, author: "rosa-bell", checks: "success" },
-  { number: 14, title: "Make the door creak", url: "https://github.com/example/feast/pull/14", remote: "origin", branch: "fix/door", draft: false, author: "theo-park", checks: "failure" },
+  { number: 12, title: "Barber v2: new hair and apron", url: "https://github.com/example/feast/pull/12", remote: "origin", branch: "art/barber-v2", draft: false, author: "rosa-bell", checks: "success", forge: "github" },
+  { number: 14, title: "Make the door creak", url: "https://github.com/example/feast/pull/14", remote: "origin", branch: "fix/door", draft: false, author: "theo-park", checks: "failure", forge: "github" },
 ];
 
 /** Build every demo repository in `root`. Resolves to their folders. */

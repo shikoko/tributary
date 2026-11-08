@@ -61,6 +61,26 @@ pub struct PullRequest {
     pub author: String,
     /// None when it has no checks (or they couldn't be read).
     pub checks: Option<CheckState>,
+    /// Where it is: a pull request on GitHub, or a merge request on GitLab.
+    pub forge: Forge,
+}
+
+/// The site a pull (or merge) request is on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Forge {
+    GitHub,
+    GitLab,
+}
+
+/// The open pull requests on GitHub, or merge requests on GitLab, of whichever the
+/// repository's remotes are on.
+pub async fn open_requests(path: &Path) -> Result<Vec<PullRequest>, Error> {
+    let pulls = pull_requests(path).await?;
+    if !pulls.is_empty() {
+        return Ok(pulls);
+    }
+    crate::gitlab::merge_requests(path).await
 }
 
 /// How a pull request's checks (GitHub Actions and others) went.
@@ -217,6 +237,7 @@ pub async fn pull_requests(path: &Path) -> Result<Vec<PullRequest>, Error> {
             draft: pull.draft,
             author: pull.user.map(|user| user.login).unwrap_or_default(),
             checks,
+            forge: Forge::GitHub,
         });
     }
     Ok(result)

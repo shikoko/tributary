@@ -1,6 +1,6 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PullRequest } from "../api";
-import { describeChecks, PullRequestsContext } from "../lib/pullRequests";
+import { describeChecks, PullRequestsContext, requestNumber } from "../lib/pullRequests";
 import type { RefLabel } from "../api";
 import { withAlpha } from "../lib/colors";
 import { pressLabel } from "../lib/drag";
@@ -117,7 +117,7 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
   );
 }
 
-/** "#12" with a dot for its checks; click to open the pull request. */
+/** "#12" (or "!12" for a GitLab merge request) with a dot for its checks; click to open it. */
 export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (url: string) => void }) {
   return (
     <span
@@ -131,7 +131,8 @@ export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (url
         onOpen(pr.url);
       }}
     >
-      {pr.checks && <span className="pr-dot" />}#{pr.number}
+      {pr.checks && <span className="pr-dot" />}
+      {requestNumber(pr)}
     </span>
   );
 }

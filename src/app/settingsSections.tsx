@@ -105,6 +105,12 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
             </button>
           ),
         },
+        {
+          kind: "custom",
+          label: "GitLab",
+          hint: "Merge requests show on their branches. For private projects, Tributary uses the token git keeps for your GitLab server (a personal access token that can read the API).",
+          content: null,
+        },
       ],
     },
     {

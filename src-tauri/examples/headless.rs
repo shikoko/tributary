@@ -153,7 +153,7 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "submodules" => to_json(actions::submodules(&path()?)?),
         "pull_requests" => {
             let path = path()?;
-            to_json(tauri::async_runtime::block_on(github::pull_requests(
+            to_json(tauri::async_runtime::block_on(github::open_requests(
                 &path,
             ))?)
         }

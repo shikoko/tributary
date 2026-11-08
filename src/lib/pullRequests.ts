@@ -32,15 +32,28 @@ export function makeLookup(list: PullRequest[], open: (url: string) => void): Pu
   };
 }
 
+/** "#12" for a pull request, "!12" for a GitLab merge request. */
+export function requestNumber(pr: PullRequest): string {
+  return `${pr.forge === "gitlab" ? "!" : "#"}${pr.number}`;
+}
+
 /** "Checks passed", for a pull request's badge. */
 export function describeChecks(pr: PullRequest): string {
+  const gitlab = pr.forge === "gitlab";
+  const what = gitlab ? "pipeline" : "checks";
   const checks =
-    pr.checks === "success" ? "checks passed" : pr.checks === "failure" ? "checks failed" : pr.checks === "pending" ? "checks running" : null;
-  return `Pull request #${pr.number}${pr.draft ? " (draft)" : ""}: ${pr.title}${pr.author ? ` by ${pr.author}` : ""}${checks ? ` · ${checks}` : ""}`;
+    pr.checks === "success"
+      ? `${what} passed`
+      : pr.checks === "failure"
+        ? `${what} failed`
+        : pr.checks === "pending"
+          ? `${what} running`
+          : null;
+  return `${gitlab ? "Merge request" : "Pull request"} ${requestNumber(pr)}${pr.draft ? " (draft)" : ""}: ${pr.title}${pr.author ? ` by ${pr.author}` : ""}${checks ? ` · ${checks}` : ""}`;
 }
 
 /**
- * The open pull requests of the repository's GitHub remote, kept per repository and asked
+ * The open pull requests of the repository's GitHub remote (or merge requests of its GitLab one), kept per repository and asked
  * for again when `refresh` is called (after fetching or coming back to the window).
  */
 export function usePullRequests(path: string | null, enabled: boolean) {
