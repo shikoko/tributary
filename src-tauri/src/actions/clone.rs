@@ -19,6 +19,8 @@ pub struct CloneOptions {
     pub folders: Vec<String>,
     /// Only download this many of the latest commits (a shallow clone).
     pub depth: Option<u32>,
+    /// Also clone its submodules (and theirs), each at the commit it records.
+    pub submodules: bool,
 }
 
 impl CloneOptions {
@@ -110,6 +112,12 @@ pub fn clone_repository(
     if !folders.is_empty() {
         // Only what's checked out is downloaded, so file contents come when they're needed.
         args.extend(["--filter=blob:none", "--sparse"]);
+    }
+    if options.submodules {
+        args.push("--recurse-submodules");
+        if depth.is_some() {
+            args.push("--shallow-submodules");
+        }
     }
     args.extend(["--", url, target_arg]);
     let env: &[(&str, &str)] = if options.skip_lfs {

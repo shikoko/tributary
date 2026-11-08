@@ -150,6 +150,7 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             to_json(actions::changed_elsewhere(&path()?, &changed)?)
         }
         "lfs_health" => to_json(actions::lfs_health(&path()?)?),
+        "submodules" => to_json(actions::submodules(&path()?)?),
         "pull_requests" => {
             let path = path()?;
             to_json(tauri::async_runtime::block_on(github::pull_requests(

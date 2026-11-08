@@ -509,3 +509,11 @@ export const DiffIcon = (p: IconProps) => (
     <path d="M8.5 5v4M6.5 7h4M6.5 11.5h4" />
   </Icon>
 );
+
+/** A submodule: a repository inside another, as a box inside a box. */
+export const SubmoduleIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="1.75" y="1.75" width="12.5" height="12.5" rx="2" />
+    <rect x="5.25" y="5.25" width="5.5" height="5.5" rx="1" />
+  </Icon>
+);

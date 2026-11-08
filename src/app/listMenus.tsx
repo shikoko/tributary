@@ -1,8 +1,8 @@
-import type { Action, CommitRow, RepoSnapshot, Worktree } from "../api";
+import type { Action, CommitRow, RepoSnapshot, Submodule, Worktree } from "../api";
 import type { DetailsAction } from "../components/CommitDetails";
 import type { ColumnOptions } from "../components/CommitList";
 import type { MenuItem } from "../components/ContextMenu";
-import { BroomIcon, ColumnsIcon, CopyIcon, FolderIcon, PushIcon, ResetIcon, StashIcon, TrashIcon } from "../components/Icons";
+import { BroomIcon, ColumnsIcon, CopyIcon, DownloadIcon, FolderIcon, PlusIcon, PushIcon, ResetIcon, StashIcon, SubmoduleIcon, TrashIcon } from "../components/Icons";
 import { copyText } from "../lib/clipboard";
 import { isMac } from "../lib/platform";
 import { stashIndexOf } from "../lib/refs";
@@ -119,4 +119,48 @@ export function worktreeMenuItems(worktree: Worktree, ctx: WorktreeMenuContext):
       onSelect: () => ctx.remove(worktree),
     },
   ];
+}
+
+/** What the submodule menu needs from the app. */
+export interface SubmoduleMenuContext {
+  canChange: boolean;
+  /** Open it in a tab. */
+  open: (submodule: Submodule) => void;
+  update: (paths: string[]) => void;
+  /** Stage it: record the commit it's at. */
+  stage: (path: string) => void;
+  reveal: (submodule: Submodule) => void;
+}
+
+/** A submodule in the sidebar: open it, bring it to the commit recorded for it, or record where it is. */
+export function submoduleMenuItems(submodule: Submodule, ctx: SubmoduleMenuContext): MenuItem[] {
+  const items: MenuItem[] = [];
+  const { state } = submodule;
+  if (state === "notSetUp") {
+    items.push({ label: "Set it up (clone it here)", icon: <DownloadIcon />, disabled: !ctx.canChange, onSelect: () => ctx.update([submodule.path]) });
+  } else {
+    items.push({ label: "Open in a new tab", icon: <SubmoduleIcon />, onSelect: () => ctx.open(submodule) });
+    if (state === "behind" || state === "different" || state === "ahead") {
+      items.push({
+        label: "Update it to the recorded commit",
+        icon: <DownloadIcon />,
+        separated: true,
+        disabled: !ctx.canChange || submodule.changed,
+        onSelect: () => ctx.update([submodule.path]),
+      });
+    }
+    if (state === "ahead" || state === "different" || state === "conflicted") {
+      items.push({
+        label: "Stage it, to record the commit it's at",
+        icon: <PlusIcon />,
+        separated: state === "conflicted",
+        disabled: !ctx.canChange,
+        onSelect: () => ctx.stage(submodule.path),
+      });
+    }
+    items.push({ label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, separated: true, onSelect: () => ctx.reveal(submodule) });
+  }
+  items.push({ label: "Copy path", icon: <CopyIcon />, separated: state === "notSetUp", onSelect: () => copyText(submodule.path) });
+  if (submodule.url) items.push({ label: "Copy its address", icon: <CopyIcon />, onSelect: () => copyText(submodule.url!) });
+  return items;
 }

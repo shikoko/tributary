@@ -3,6 +3,7 @@ import { openInBrowser } from "../lib/weblinks";
 import { CloseIcon } from "../components/Icons";
 import { LfsHealthBanner } from "../components/LfsHealthBanner";
 import { LockReleaseBanner } from "../components/LockReleaseBanner";
+import { SubmoduleBanner } from "../components/SubmoduleBanner";
 import { OperationBar } from "../components/OperationBar";
 import { ProgressStrip } from "../components/ProgressStrip";
 import { ViewBanner } from "../components/ViewBanner";
@@ -14,6 +15,7 @@ import type { LockRelease } from "./useLockRelease";
 import type { Repository } from "./useRepository";
 import type { RepositorySettings } from "./useRepositorySettings";
 import type { Selection } from "./useSelection";
+import type { Submodules } from "./useSubmodules";
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -26,6 +28,9 @@ interface Props {
   lockRelease: LockRelease;
   /** Release locks after every push from now on. */
   alwaysReleaseLocks: () => void;
+  submodules: Submodules;
+  /** Update submodules after every checkout and pull from now on (null when that's already so). */
+  alwaysUpdateSubmodules: (() => void) | null;
   /** Turn off "only the checked-out branch's own history". */
   showWholeHistory: () => void;
   /** Open another working tree, in its tab. */
@@ -96,6 +101,15 @@ export function RepositoryBanners(props: Props) {
           onRelease={lockRelease.release}
           onKeep={lockRelease.keep}
           onAlways={props.alwaysReleaseLocks}
+        />
+      )}
+      {props.submodules.notice && !snapshot.operation && (
+        <SubmoduleBanner
+          notice={props.submodules.notice}
+          busy={running !== null}
+          onUpdate={() => props.submodules.update(props.submodules.notice!.paths)}
+          onDismiss={props.submodules.dismiss}
+          onAlways={props.submodules.notice.action.startsWith("Update") ? props.alwaysUpdateSubmodules : null}
         />
       )}
       {(focus || snapshot.firstParent || settings.soloing) && (

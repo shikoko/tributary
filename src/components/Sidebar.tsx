@@ -1,10 +1,10 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Visibility, type Worktree } from "../api";
+import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Submodule, type Visibility, type Worktree } from "../api";
 import { stepFocus } from "../lib/inputMode";
 import type { RefEntry } from "../lib/refs";
 import { useStoredState } from "../lib/settings";
 import { BranchIcon, BroomIcon, CloudIcon, EyeOffIcon, PinIcon, PlusIcon, SearchIcon, StashIcon, TagIcon, UnlockIcon } from "./Icons";
-import { LockedFileList, WorktreeList } from "./sidebar/OtherLists";
+import { LockedFileList, SubmoduleList, WorktreeList } from "./sidebar/OtherLists";
 import { RefItem, type RefHandlers } from "./sidebar/RefItem";
 import { sidebarLists, stashLabel } from "./sidebar/refTree";
 import { RefTree, SidebarSection, type Folding } from "./sidebar/SidebarSection";
@@ -47,11 +47,15 @@ interface Props {
   worktrees: Worktree[];
   onOpenWorktree: (worktree: Worktree) => void;
   onWorktreeMenu: (worktree: Worktree, x: number, y: number) => void;
+  /** The repository's submodules, if it has any. */
+  submodules: Submodule[];
+  onOpenSubmodule: (submodule: Submodule) => void;
+  onSubmoduleMenu: (submodule: Submodule, x: number, y: number) => void;
 }
 
 /**
  * Every branch, remote branch, tag and stash (click one to jump to its commit), pinned
- * ones first, and the repository's worktrees and Git LFS locks. A filter narrows them all.
+ * ones first, and the repository's worktrees, submodules and Git LFS locks. A filter narrows them all.
  */
 export function Sidebar(props: Props) {
   const { visibility, pins, selectedId, width, aheadBehind } = props;
@@ -90,6 +94,7 @@ export function Sidebar(props: Props) {
   const tags = lists.tags.filter(matches);
   const stashes = lists.stashes.filter(matches);
   const locks = props.locks?.filter((lock) => !needle || lock.path.toLowerCase().includes(needle)) ?? null;
+  const submodules = props.submodules.filter((submodule) => !needle || submodule.path.toLowerCase().includes(needle));
   const remotes = [...lists.remotes.entries()].map(([remote, entries]) => [remote, entries.filter(matches)] as const);
   const remoteCount = remotes.reduce((sum, [, entries]) => sum + entries.length, 0);
   const everything = [...lists.branches, ...[...lists.remotes.values()].flat(), ...lists.tags];
@@ -183,6 +188,11 @@ export function Sidebar(props: Props) {
         {props.worktrees.length > 1 && (
           <SidebarSection id="worktrees" title="Worktrees" count={props.worktrees.length} {...section}>
             <WorktreeList worktrees={props.worktrees} onSelect={props.onSelect} onOpen={props.onOpenWorktree} onMenu={props.onWorktreeMenu} />
+          </SidebarSection>
+        )}
+        {submodules.length > 0 && (
+          <SidebarSection id="submodules" title="Submodules" count={submodules.length} {...section}>
+            <SubmoduleList submodules={submodules} onOpen={props.onOpenSubmodule} onMenu={props.onSubmoduleMenu} />
           </SidebarSection>
         )}
         {locks && (

@@ -1,0 +1,31 @@
+import { CloseIcon, SubmoduleIcon } from "./Icons";
+
+interface Props {
+  notice: { text: string; action: string };
+  busy: boolean;
+  onUpdate: () => void;
+  onDismiss: () => void;
+  /** Update them after every checkout and pull from now on. */
+  onAlways: (() => void) | null;
+}
+
+/** Submodules left behind by a checkout or pull (or never set up), with a button to update them. */
+export function SubmoduleBanner({ notice, busy, onUpdate, onDismiss, onAlways }: Props) {
+  return (
+    <div className="notice-banner info" role="status">
+      <SubmoduleIcon size={14} />
+      <span>{notice.text}</span>
+      {onAlways && (
+        <button className="link-button" onClick={onAlways} disabled={busy} title="Update them now, and after every checkout and pull from now on (Settings, General)">
+          Always
+        </button>
+      )}
+      <button className="notice-action" onClick={onUpdate} disabled={busy}>
+        {notice.action}
+      </button>
+      <button className="icon-button" onClick={onDismiss} aria-label="Not now" title="Not now">
+        <CloseIcon size={14} />
+      </button>
+    </div>
+  );
+}

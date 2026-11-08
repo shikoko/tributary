@@ -33,6 +33,7 @@ export function usePreferences() {
   const [autoLock, setAutoLock] = useStoredState("locks.auto", false);
   /** After pushing: ask to release the locks on the pushed files, release them, or keep them. */
   const [releaseLocks, setReleaseLocks] = useStoredState<ReleaseLocks>("locks.release", "ask");
+  const [submoduleUpdates, setSubmoduleUpdates] = useStoredState<SubmoduleUpdates>("submodules.update", "ask");
   return {
     tabs, setTabs, setActiveTab,
     sidebarOpen, setSidebarOpen, sidebarWidth, setSidebarWidth, detailsWidth, setDetailsWidth,
@@ -41,6 +42,7 @@ export function usePreferences() {
     firstParentOnly, setFirstParentOnly, profilePictures, setProfilePictures, previews, setPreviews,
     activityOpen, setActivityOpen, fetchMinutes, setFetchMinutes, newCommitNotices, setNewCommitNotices,
     autoUpdate, setAutoUpdate, largeFileMB, setLargeFileMB, autoLock, setAutoLock, releaseLocks, setReleaseLocks,
+    submoduleUpdates, setSubmoduleUpdates,
   };
 }
 
@@ -48,3 +50,5 @@ export type Preferences = ReturnType<typeof usePreferences>;
 
 /** What to do with your locks on files you've just pushed. */
 export type ReleaseLocks = "ask" | "always" | "never";
+/** After a checkout or pull leaves submodules behind: offer to update them, update them, or say nothing. */
+export type SubmoduleUpdates = "ask" | "always" | "never";

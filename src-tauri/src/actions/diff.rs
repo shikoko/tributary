@@ -69,6 +69,32 @@ pub struct Images {
     pub after: Option<String>,
 }
 
+/// A submodule moved from one commit to another.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubmoduleChange {
+    pub before: Option<String>,
+    pub after: Option<String>,
+    /// Its own files have uncommitted changes.
+    pub dirty: bool,
+    /// The commits it moved forward by, newest first (or back by, when `rewound`), as far
+    /// as its checked-out copy knows them.
+    pub commits: Vec<SubmoduleCommit>,
+    pub rewound: bool,
+    /// There are more commits than listed.
+    pub more: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubmoduleCommit {
+    pub id: String,
+    pub summary: String,
+}
+
+/// Submodule changes list at most this many commits.
+const MAX_SUBMODULE_COMMITS: usize = 50;
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileDiff {
@@ -86,6 +112,8 @@ pub struct FileDiff {
     pub size_before: Option<u64>,
     pub size_after: Option<u64>,
     pub images: Option<Images>,
+    /// It's a submodule: which commits it moved by.
+    pub submodule: Option<SubmoduleChange>,
 }
 
 /// Where each side of a change is: a blob git can show, a file in the working tree, or
@@ -160,6 +188,13 @@ pub fn file_diff(
             diff.too_large = true;
         }
     }
+    if let Some(change) = submodule_change(&diff) {
+        diff.submodule = Some(with_commits(&git, file, change));
+        diff.hunks.clear();
+        diff.additions = 0;
+        diff.deletions = 0;
+        return Ok(diff);
+    }
     // Git LFS files diff as their small pointer files: show sizes instead.
     if diff.lfs {
         diff.binary = true;
@@ -181,6 +216,69 @@ pub fn file_diff(
         }
     }
     Ok(diff)
+}
+
+/// A submodule's diff is a "Subproject commit <id>" line for each side.
+fn submodule_change(diff: &FileDiff) -> Option<SubmoduleChange> {
+    let lines: Vec<&DiffLine> = diff.hunks.iter().flat_map(|hunk| &hunk.lines).collect();
+    if lines.is_empty() {
+        return None;
+    }
+    let mut change = SubmoduleChange::default();
+    for line in lines {
+        let id = line.text.strip_prefix("Subproject commit ")?;
+        let (id, dirty) = match id.strip_suffix("-dirty") {
+            Some(id) => (id, true),
+            None => (id, false),
+        };
+        match line.kind {
+            LineKind::Removed => change.before = Some(id.to_owned()),
+            LineKind::Added => {
+                change.after = Some(id.to_owned());
+                change.dirty |= dirty;
+            }
+            LineKind::Context => return None,
+        }
+    }
+    Some(change)
+}
+
+/// The commits between a submodule's two commits, from its checked-out copy.
+fn with_commits(git: &Git, file: &str, mut change: SubmoduleChange) -> SubmoduleChange {
+    let (Some(before), Some(after)) = (change.before.clone(), change.after.clone()) else {
+        return change;
+    };
+    let folder = git.workdir().join(file);
+    if before == after || !folder.join(".git").exists() {
+        return change;
+    }
+    let Ok(inside) = Git::find(folder).map(|git| git.in_background()) else {
+        return change;
+    };
+    let limit = (MAX_SUBMODULE_COMMITS + 1).to_string();
+    let log = |range: String| -> Vec<SubmoduleCommit> {
+        inside
+            .run(&["log", "--format=%H%x00%s", "-n", &limit, &range, "--"])
+            .unwrap_or_default()
+            .lines()
+            .filter_map(|line| {
+                let (id, summary) = line.split_once('\0')?;
+                Some(SubmoduleCommit {
+                    id: id.to_owned(),
+                    summary: summary.to_owned(),
+                })
+            })
+            .collect()
+    };
+    let mut commits = log(format!("{before}..{after}"));
+    if commits.is_empty() {
+        commits = log(format!("{after}..{before}"));
+        change.rewound = !commits.is_empty();
+    }
+    change.more = commits.len() > MAX_SUBMODULE_COMMITS;
+    commits.truncate(MAX_SUBMODULE_COMMITS);
+    change.commits = commits;
+    change
 }
 
 /// What to compare: the revisions for `git diff`, and where each side's content is.

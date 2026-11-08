@@ -5,6 +5,7 @@ import { useStoredState } from "../../lib/settings";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon } from "../Icons";
 import { DiffBinary } from "./DiffBinary";
 import { DiffLines } from "./DiffLines";
+import { DiffSubmodule } from "./DiffSubmodule";
 
 interface Props {
   repoPath: string;
@@ -66,6 +67,8 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
   const path = target.file.path;
   const slash = path.lastIndexOf("/");
   const conflicted = target.file.status === "conflicted";
+  /** Shown as something other than lines: whitespace and diff tools don't apply. */
+  const whole = Boolean(diff && (diff.binary || diff.tooLarge || diff.submodule));
   return (
     <section className="diff-view" aria-label={`Changes to ${path}`}>
       <header className="diff-header">
@@ -90,19 +93,19 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           <span className="diff-name">{path.slice(slash + 1)}</span>
           {slash > 0 && <span className="diff-dir">{path.slice(0, slash)}</span>}
           <span className="diff-source">{target.label}</span>
-          {diff && !diff.binary && !diff.tooLarge && (
+          {diff && !whole && (
             <span className="diff-stats">
               <span className="added">+{diff.additions}</span> <span className="removed">−{diff.deletions}</span>
             </span>
           )}
         </div>
-        {!(diff && (diff.binary || diff.tooLarge)) && (
+        {!whole && (
           <label className="checkbox diff-option">
             <input type="checkbox" checked={ignoreWhitespace} onChange={(event) => setIgnoreWhitespace(event.target.checked)} />
             Ignore whitespace
           </label>
         )}
-        {(conflicted || target.file.status !== "untracked") && (
+        {(conflicted || (target.file.status !== "untracked" && !diff?.submodule)) && (
           <button
             className="outline-button"
             onClick={() => run(conflicted ? { kind: "openInMergeTool", path } : { kind: "openInDiffTool", source: target.source, path })}
@@ -124,6 +127,8 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           </div>
         ) : !diff ? (
           <div className="diff-message muted">Loading…</div>
+        ) : diff.submodule ? (
+          <DiffSubmodule change={diff.submodule} />
         ) : diff.binary || diff.tooLarge ? (
           <DiffBinary diff={diff} />
         ) : diff.hunks.length === 0 ? (

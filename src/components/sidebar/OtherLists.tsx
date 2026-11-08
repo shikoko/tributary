@@ -1,8 +1,9 @@
 import type { MouseEvent } from "react";
-import type { Lock, Worktree } from "../../api";
+import type { Lock, Submodule, Worktree } from "../../api";
+import { submoduleName, submoduleNote, submoduleTitle } from "../../lib/submodules";
 import { worktreeName, worktreeNote } from "../../lib/worktrees";
 import { lockTitle } from "../FileLine";
-import { CheckIcon, FolderIcon, LockIcon } from "../Icons";
+import { CheckIcon, FolderIcon, LockIcon, SubmoduleIcon } from "../Icons";
 
 interface WorktreeProps {
   worktrees: Worktree[];
@@ -38,6 +39,48 @@ export function WorktreeList({ worktrees, onSelect, onOpen, onMenu }: WorktreePr
           </div>
         </li>
       ))}
+    </ul>
+  );
+}
+
+interface SubmoduleProps {
+  submodules: Submodule[];
+  /** Double-click or Enter: open it in a tab. */
+  onOpen: (submodule: Submodule) => void;
+  /** Click or right-click: what can be done with it. */
+  onMenu: (submodule: Submodule, x: number, y: number) => void;
+}
+
+/** The repository's submodules, each with a word on where it is when that needs doing something about. */
+export function SubmoduleList({ submodules, onOpen, onMenu }: SubmoduleProps) {
+  return (
+    <ul>
+      {submodules.map((submodule) => {
+        const note = submoduleNote(submodule);
+        return (
+          <li key={submodule.path}>
+            <div
+              className={`sidebar-item sidebar-submodule ${submodule.state}${submodule.state === "notSetUp" ? " hidden-ref" : ""}`}
+              role="button"
+              tabIndex={0}
+              title={submoduleTitle(submodule)}
+              onDoubleClick={() => submodule.state !== "notSetUp" && onOpen(submodule)}
+              onKeyDown={(event) => event.key === "Enter" && submodule.state !== "notSetUp" && onOpen(submodule)}
+              onClick={(event) => onMenu(submodule, event.clientX, event.clientY)}
+              onContextMenu={(event: MouseEvent) => {
+                event.preventDefault();
+                onMenu(submodule, event.clientX, event.clientY);
+              }}
+            >
+              <span className="sidebar-icon">
+                <SubmoduleIcon size={13} />
+              </span>
+              <span className="sidebar-name">{submoduleName(submodule)}</span>
+              {note && <span className="sidebar-lock-owner submodule-note">{note}</span>}
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }

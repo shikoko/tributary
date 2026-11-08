@@ -40,6 +40,21 @@ export interface FileDiff {
   sizeAfter: number | null;
   /** For images: before and after, as data: URLs. */
   images: { before: string | null; after: string | null } | null;
+  /** For a submodule: the commits it moved by. */
+  submodule: SubmoduleChange | null;
+}
+
+/** A submodule moved from one commit to another. */
+export interface SubmoduleChange {
+  before: string | null;
+  after: string | null;
+  /** Its own files have uncommitted changes. */
+  dirty: boolean;
+  /** The commits it moved forward by, newest first (or back by, when `rewound`). */
+  commits: { id: string; summary: string }[];
+  rewound: boolean;
+  /** There are more commits than listed. */
+  more: boolean;
 }
 
 export function fileDiff(path: string, source: DiffSource, file: string, oldPath?: string, ignoreWhitespace = false): Promise<FileDiff> {

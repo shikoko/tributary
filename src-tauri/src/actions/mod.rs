@@ -19,6 +19,7 @@ mod lfs_health;
 mod prune;
 mod remote;
 mod stash;
+mod submodules;
 mod support;
 mod tags;
 mod validate;
@@ -33,7 +34,10 @@ use crate::git::{Git, Progress};
 
 pub use backups::{BACKUP_DAYS, Backup, BackupEvent, backups};
 pub use clone::{CloneOptions, clone_repository, init_repository};
-pub use diff::{DiffLine, DiffSource, FileDiff, Hunk, Images, LineKind, file_diff};
+pub use diff::{
+    DiffLine, DiffSource, FileDiff, Hunk, Images, LineKind, SubmoduleChange, SubmoduleCommit,
+    file_diff,
+};
 pub use elsewhere::{OtherChange, Overlap, changed_elsewhere};
 pub use files::{FileHistory, file_history};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
@@ -41,6 +45,7 @@ pub use lfs_health::{LfsHealth, lfs_health};
 pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
 };
+pub use submodules::{Submodule, SubmoduleState, submodules};
 
 use self::stash::{pop_stash, stash_top};
 
@@ -223,6 +228,12 @@ pub enum Action {
     OpenInDiffTool { source: DiffSource, path: String },
     /// Open a conflicted file in the user's merge tool (`git mergetool`).
     OpenInMergeTool { path: String },
+    /// Check out the recorded commit in these submodules (all of them when empty),
+    /// setting up those that aren't yet (`git submodule update --init --recursive`).
+    UpdateSubmodules {
+        #[serde(default)]
+        paths: Vec<String>,
+    },
     /// Release Git LFS locks, by id (the file may not exist here). `force` releases
     /// someone else's lock.
     UnlockFiles {
@@ -484,6 +495,9 @@ fn perform(
             diff::open_in_diff_tool(&repo, &git, source, path)
         }
         Action::OpenInMergeTool { path } => diff::open_in_merge_tool(&git, path),
+        Action::UpdateSubmodules { paths } => {
+            submodules::update_submodules(&git, paths, on_progress)
+        }
         Action::UnlockFiles { locks, force } => lfs::unlock_files(&git, locks, force),
     }
 }

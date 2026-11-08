@@ -55,6 +55,7 @@ export function CloneDialog({ onCancel, onDone }: Props) {
   const [skipLfs, setSkipLfs] = useState(false);
   const [folders, setFolders] = useState("");
   const [depth, setDepth] = useState<number | null>(null);
+  const [submodules, setSubmodules] = useState(true);
 
   useEffect(() => {
     if (!nameEdited) setName(repoNameFromUrl(url));
@@ -72,7 +73,7 @@ export function CloneDialog({ onCancel, onDone }: Props) {
     setProgress(null);
     const stop = await onProgress(setProgress).catch(() => undefined);
     try {
-      const options: CloneOptions = { skipLfs, folders: parseFolders(folders), depth };
+      const options: CloneOptions = { skipLfs, folders: parseFolders(folders), depth, submodules };
       const path = await cloneRepository(url.trim(), parent, name.trim(), options);
       onDone(path);
     } catch (e) {
@@ -154,6 +155,10 @@ export function CloneDialog({ onCancel, onDone }: Props) {
           />
         </label>
         {parent && name.trim() && <p className="hint">The repository will be in {join(parent, name.trim())}</p>}
+        <label className="checkbox clone-submodules">
+          <input type="checkbox" checked={submodules} onChange={(event) => setSubmodules(event.target.checked)} disabled={running} />
+          Also clone its submodules, if it has any
+        </label>
         {showOptions ? (
           <fieldset className="clone-options" disabled={running}>
             <legend>For big repositories</legend>

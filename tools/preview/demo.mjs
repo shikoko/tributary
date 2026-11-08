@@ -30,6 +30,18 @@ export const DEMO_IDENTITY = {
   GIT_COMMITTER_EMAIL: "maya@example.com",
 };
 
+/**
+ * What the preview runs git with on the demo repositories: Maya Chen's identity, and
+ * permission to clone the notebook's submodule from a folder on this computer (git only
+ * allows that when asked to, since 2.38).
+ */
+export const DEMO_ENV = {
+  ...DEMO_IDENTITY,
+  GIT_CONFIG_COUNT: "1",
+  GIT_CONFIG_KEY_0: "protocol.file.allow",
+  GIT_CONFIG_VALUE_0: "always",
+};
+
 const PEOPLE = {
   maya: ["Maya Chen", "maya@example.com"],
   sam: ["Sam Okafor", "sam@example.com"],
@@ -140,6 +152,28 @@ function remote(root, name, configFile) {
   return bare;
 }
 
+/** A library the notebook keeps as a submodule, with three versions. Resolves to its address and commits. */
+function buildEditorKit(root, configFile) {
+  const remoteFolder = remote(root, "editor-kit", configFile);
+  const folder = join(root, "remotes", "editor-kit-work");
+  setUp(folder, configFile);
+  const kit = repository(folder, { configFile, start: now() - days(9) });
+  const versions = [
+    ["Editor kit: a basic toolbar", "diego", "export const toolbar = [\"bold\", \"italic\"];\n"],
+    ["Add a Markdown preview", "priya", "export const preview = (text: string) => render(text);\n"],
+    ["Render long notes faster", "diego", "export const chunkSize = 4096;\n"],
+  ];
+  const ids = versions.map(([message, who, line]) => {
+    kit.write("src/index.ts", line);
+    kit.run(["add", "-A"]);
+    kit.run(["commit", "-q", "-m", message], { who, hours: 20 });
+    return kit.run(["rev-parse", "HEAD"]);
+  });
+  kit.run(["remote", "add", "origin", remoteFolder]);
+  kit.run(["push", "-q", "origin", "main"]);
+  return { url: remoteFolder, ids };
+}
+
 /** The notebook's storage code, before and after it learned to open large notebooks quickly. */
 const STORE = {
   indexedDb: `import { openDB, type IDBPDatabase } from "idb";
@@ -230,6 +264,12 @@ export function buildNotebook(root, configFile) {
 
   commit("Initial commit", "maya", 0, "README.md");
   commit("Set up the project structure", "maya", 3, "src/app.ts");
+  // The editor kit as a submodule, at its first version.
+  const kit = buildEditorKit(root, configFile);
+  run(["-c", "protocol.file.allow=always", "submodule", "add", "-q", kit.url, "vendor/editor-kit"]);
+  run(["-C", "vendor/editor-kit", "checkout", "-q", kit.ids[0]]);
+  run(["add", "vendor/editor-kit"]);
+  run(["commit", "-q", "-m", "Add the editor kit as a submodule"], { who: "maya", hours: 1 });
   commit("Add the note model", "sam", 3, "src/note.ts");
   run(["tag", "v0.1.0"]);
   branch("feature/sync");
@@ -278,6 +318,10 @@ export function buildNotebook(root, configFile) {
   checkout("feature/themes");
   commit("High-contrast theme", "maya", 2, "src/ui/themes/contrast.ts");
   checkout("main");
+  // A newer editor kit, recorded by Priya.
+  run(["-C", "vendor/editor-kit", "checkout", "-q", kit.ids[2]]);
+  run(["add", "vendor/editor-kit"]);
+  run(["commit", "-q", "-m", "Use the editor kit's faster rendering"], { who: "priya", hours: 1 });
   repo.write("src/ui/sidebar.tsx", "collapsible sidebar experiment\n");
   run(["stash", "push", "-q", "-m", "Try a collapsible sidebar"], { who: "lena", hours: 1 });
   commit("Prepare the 0.3 release notes", "sam", 1.5, "CHANGELOG.md");
@@ -294,6 +338,10 @@ export function buildNotebook(root, configFile) {
   const priya = repository(teammate, { configFile, start: now() - 3600 });
   priya.run(["commit", "-q", "--allow-empty", "-m", "Tidy up the settings screen"], { who: "priya" });
   priya.run(["push", "-q", "origin", "main", "HEAD:refs/heads/feature/onboarding"]);
+
+  // The editor kit here is still at its first version, as after a pull that didn't
+  // update submodules.
+  run(["-C", "vendor/editor-kit", "checkout", "-q", kit.ids[0]]);
 
   // Uncommitted work: a staged file, a changed file and a new one. None of it is in the
   // way of checking out another branch.
@@ -447,7 +495,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const demos = buildDemos(folder ? resolve(folder) : undefined, { lockServer: locks.url });
     console.log(`Demo repositories (paste one into "Open repository"):\n  ${demos.notebook}\n  ${demos.studio}`);
     if (demos.assets) console.log(`A remote with Git LFS files, to clone:\n  ${demos.assets}`);
-    await startPreview({ env: DEMO_IDENTITY });
+    await startPreview({ env: DEMO_ENV });
   } else {
     const demos = buildDemos(folder ? resolve(folder) : undefined);
     console.log(`Demo repositories:\n  ${demos.notebook}\n  ${demos.studio}`);

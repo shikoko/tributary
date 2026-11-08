@@ -7,3 +7,4 @@ export * from "./diff";
 export * from "./github";
 export * from "./lfs";
 export * from "./repository";
+export * from "./submodules";

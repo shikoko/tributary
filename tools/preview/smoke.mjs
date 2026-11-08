@@ -12,7 +12,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { buildDemos, DEMO_IDENTITY, STUDIO_PULL_REQUESTS } from "./demo.mjs";
+import { buildDemos, DEMO_ENV, STUDIO_PULL_REQUESTS } from "./demo.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
 
@@ -34,7 +34,7 @@ const { chromium } = loadPlaywright();
 const folder = mkdtempSync(join(tmpdir(), "tributary-smoke-"));
 const locks = await startLockServer({ port: 0 });
 const demos = buildDemos(folder, { lockServer: locks.url });
-const preview = await startPreview({ port: 0, quiet: true, env: DEMO_IDENTITY });
+const preview = await startPreview({ port: 0, quiet: true, env: DEMO_ENV });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 860 } });
 const errors = [];
@@ -85,6 +85,26 @@ try {
     const rows = await page.locator(".commit-row").count();
     expect(rows > 20, `only ${rows} rows`);
     await page.waitForSelector(".summary.wip", { timeout: 5000 });
+  });
+
+  await step("offers to update a submodule a pull left behind, and updates it", async () => {
+    const banner = page.locator(".notice-banner", { hasText: "editor-kit" });
+    await banner.waitFor({ timeout: 10_000 });
+    await page.locator(".sidebar-submodule", { hasText: "out of date" }).waitFor({ timeout: 5000 });
+    await banner.getByRole("button", { name: "Update it" }).click();
+    await banner.waitFor({ state: "detached", timeout: 15_000 });
+    await page.locator(".sidebar-submodule", { hasText: "out of date" }).waitFor({ state: "detached", timeout: 5000 });
+    await dismissToast();
+  });
+
+  await step("shows a submodule's change as the commits it moved by", async () => {
+    await row("Use the editor kit's faster rendering").click();
+    await page.locator(".details .file", { hasText: "editor-kit" }).click();
+    const view = page.locator(".diff-submodule");
+    await view.waitFor({ timeout: 10_000 });
+    const text = await view.innerText();
+    expect(text.includes("Moved forward by 2 commits") && text.includes("Render long notes faster"), `diff "${text.slice(0, 80)}"`);
+    await page.keyboard.press("Escape");
   });
 
   await step("shows a commit's details", async () => {

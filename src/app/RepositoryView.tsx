@@ -24,7 +24,7 @@ import { RUNNING_LABELS } from "./constants";
 import { DetailsPane } from "./DetailsPane";
 import { RepositoryDialogs } from "./Dialogs";
 import { fileMenuItems, lockMenuItems, type FileMenuContext } from "./fileMenus";
-import { columnMenuItems, detailsActionsFor, pushMenuItems, worktreeMenuItems, type WorktreeMenuContext } from "./listMenus";
+import { columnMenuItems, detailsActionsFor, pushMenuItems, submoduleMenuItems, worktreeMenuItems, type SubmoduleMenuContext, type WorktreeMenuContext } from "./listMenus";
 import { RepositoryBanners } from "./RepositoryBanners";
 import type { Actions } from "./useActions";
 import type { BranchCounts } from "./useBranchCounts";
@@ -38,6 +38,7 @@ import type { Preferences } from "./usePreferences";
 import type { Repository } from "./useRepository";
 import type { RepositorySettings } from "./useRepositorySettings";
 import type { Search } from "./useSearch";
+import type { Submodules } from "./useSubmodules";
 import type { Selection } from "./useSelection";
 import type { ActivityLog } from "./useWindowEvents";
 
@@ -62,6 +63,7 @@ interface Props {
   lockRelease: LockRelease;
   /** Files you're changing that other branches also changed. */
   overlaps: Overlap[];
+  submodules: Submodules;
   checks: FileChecks | null;
   worktrees: Worktree[];
   details: CommitDetailsCache;
@@ -152,6 +154,13 @@ export function RepositoryView(props: Props) {
     remove: (worktree) => openDialog({ kind: "removeWorktree", worktree }),
     prune: () => act({ kind: "pruneWorktrees" }),
   };
+  const submoduleContext: SubmoduleMenuContext = {
+    canChange,
+    open: (submodule) => props.openTab(joinPath(snapshot.path, submodule.path)),
+    update: props.submodules.update,
+    stage: (path) => act({ kind: "stage", paths: [path] }),
+    reveal: (submodule) => revealItemInDir(joinPath(snapshot.path, submodule.path)).catch(() => props.notify({ text: `${submodule.path} isn't there` })),
+  };
   const fileMenu = (file: FileChange, x: number, y: number, source: DiffSource) => menu.show(x, y, fileMenuItems(fileMenuContext, file, source));
   const lockMenu = (lock: Lock, x: number, y: number) => menu.show(x, y, lockMenuItems(fileMenuContext, lock));
   const checkout = (entry: { pill: Parameters<typeof checkoutFor>[1]; commit: CommitRow | undefined }) => {
@@ -209,7 +218,7 @@ export function RepositoryView(props: Props) {
       <Toolbar
         snapshot={snapshot}
         refreshing={repo.busy !== null}
-        running={running === "other" || running === "download" ? null : running}
+        running={running === "fetch" || running === "pull" || running === "push" ? running : null}
         ahead={counts.ahead}
         behind={counts.behind}
         search={search.position}
@@ -235,6 +244,15 @@ export function RepositoryView(props: Props) {
         settings={settings}
         lfsHealth={props.lfsHealth}
         lockRelease={props.lockRelease}
+        submodules={props.submodules}
+        alwaysUpdateSubmodules={
+          preferences.submoduleUpdates === "ask"
+            ? () => {
+                preferences.setSubmoduleUpdates("always");
+                if (props.submodules.notice) props.submodules.update(props.submodules.notice.paths);
+              }
+            : null
+        }
         alwaysReleaseLocks={() => {
           preferences.setReleaseLocks("always");
           props.lockRelease.release();
@@ -273,6 +291,9 @@ export function RepositoryView(props: Props) {
               worktrees={props.worktrees}
               onOpenWorktree={(worktree) => !worktree.current && props.openTab(worktree.path)}
               onWorktreeMenu={(worktree, x, y) => menu.show(x, y, worktreeMenuItems(worktree, worktreeContext))}
+              submodules={props.submodules.list}
+              onOpenSubmodule={submoduleContext.open}
+              onSubmoduleMenu={(submodule, x, y) => menu.show(x, y, submoduleMenuItems(submodule, submoduleContext))}
             />
             <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
           </>

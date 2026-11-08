@@ -4,7 +4,7 @@ import type { RemoteAction } from "../components/Toolbar";
 /** What's loading. */
 export type Busy = { kind: "open"; path: string } | { kind: "refresh" } | { kind: "more" } | null;
 /** A fetch, pull or push, downloading Git LFS files (all with a progress bar), or anything else. */
-export type Running = RemoteAction | "download" | "other" | null;
+export type Running = RemoteAction | "download" | "submodules" | "other" | null;
 /** What's highlighted: a branch's (or commit's) history, an author's commits, or the commits that changed a file or folder. */
 export type Focus =
   | { kind: "history"; name: string; commitId: string }
@@ -42,4 +42,5 @@ export const RUNNING_LABELS: Record<Exclude<Running, "other" | null>, string> = 
   pull: "Pulling",
   push: "Pushing",
   download: "Downloading Git LFS files",
+  submodules: "Updating submodules",
 };

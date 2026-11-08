@@ -145,6 +145,12 @@ pub async fn changed_elsewhere(
     blocking(move || actions::changed_elsewhere(&PathBuf::from(path), &changed)).await
 }
 
+/// The repository's submodules, and whether each is at the commit it records.
+#[tauri::command]
+pub async fn submodules(path: String) -> Result<Vec<actions::Submodule>> {
+    blocking(move || actions::submodules(&PathBuf::from(path))).await
+}
+
 /// What changed in a file: in a commit, staged, or not staged yet.
 #[tauri::command]
 pub async fn file_diff(

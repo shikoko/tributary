@@ -22,6 +22,7 @@ import { useActions } from "./app/useActions";
 import { useBackgroundFetch } from "./app/useBackgroundFetch";
 import { useBranchCounts } from "./app/useBranchCounts";
 import { useChangedElsewhere } from "./app/useChangedElsewhere";
+import { useSubmodules } from "./app/useSubmodules";
 import { useCommitDetails } from "./app/useCommitDetails";
 import { useDraft } from "./app/useDraft";
 import { useAutoLock, useFileChecks } from "./app/useFileChecks";
@@ -132,10 +133,12 @@ export default function App() {
       else if (kind && kind !== "other") lfs.refresh();
       if (kind && kind !== "other") prs.refresh(true);
       if (action.kind === "push" && outcome?.pushedFiles) lockRelease.pushedFiles(outcome.pushedFiles);
+      submodules.ran(action);
     },
   });
   const { act, running } = actions;
   const lockRelease = useLockRelease({ snapshot, locks: lfs.locks ? lfs.byPath : null, mode: preferences.releaseLocks, act });
+  const submodules = useSubmodules({ snapshot, mode: preferences.submoduleUpdates, act });
   useAutoLock({
     enabled: preferences.autoLock,
     repoPath,
@@ -326,6 +329,7 @@ export default function App() {
               lfs={lfs}
               lfsHealth={lfsHealth}
               overlaps={overlaps}
+              submodules={submodules}
               lockRelease={lockRelease}
               checks={checks}
               worktrees={worktrees}

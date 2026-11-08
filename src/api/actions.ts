@@ -76,6 +76,8 @@ export type Action =
   | { kind: "pruneWorktrees" }
   | { kind: "openInDiffTool"; source: DiffSource; path: string }
   | { kind: "openInMergeTool"; path: string }
+  /** Check out the recorded commit in these submodules (all when empty), setting up those that aren't. */
+  | { kind: "updateSubmodules"; paths: string[] }
   | { kind: "unlockFiles"; locks: { id: string; path: string }[]; force?: boolean };
 
 export type StepAction = "pick" | "reword" | "squash" | "fixup" | "drop";
@@ -150,6 +152,8 @@ export interface CloneOptions {
   folders?: string[];
   /** Only download this many of the latest commits. */
   depth?: number | null;
+  /** Also clone its submodules, each at the commit it records. */
+  submodules?: boolean;
 }
 
 /** Clone `url` into a new folder `name` inside `parent`; resolves to the new folder. */

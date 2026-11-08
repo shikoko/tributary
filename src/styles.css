@@ -4759,3 +4759,85 @@ code {
     display: none;
   }
 }
+
+/* Submodules */
+
+.sidebar-submodule .submodule-note {
+  color: var(--text-faint);
+}
+
+.sidebar-submodule.behind .submodule-note,
+.sidebar-submodule.different .submodule-note,
+.sidebar-submodule.conflicted .submodule-note {
+  color: #ffc966;
+}
+
+.sidebar-submodule.ahead .submodule-note {
+  color: var(--accent);
+}
+
+.clone-submodules {
+  margin: 2px 0 4px;
+}
+
+.diff-submodule {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  color: var(--text-secondary);
+}
+
+.diff-submodule-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--text-muted);
+}
+
+.diff-submodule-head strong {
+  display: block;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.diff-submodule-ids {
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+.diff-submodule-ids code {
+  color: var(--accent);
+}
+
+.diff-submodule-commits {
+  margin: 18px 0 0;
+  padding: 6px 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+}
+
+.diff-submodule-commits li {
+  display: flex;
+  gap: 12px;
+  padding: 5px 14px;
+  color: var(--text);
+}
+
+.diff-submodule-commits li code {
+  flex: none;
+  color: #36e07c;
+}
+
+.diff-submodule-commits.rewound li code {
+  color: #ff5c6c;
+}
+
+.diff-submodule p {
+  margin: 14px 0 0;
+}
+
+.diff-submodule-dirty {
+  color: #ffc966;
+}

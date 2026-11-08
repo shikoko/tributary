@@ -49,6 +49,7 @@ pub(super) fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> 
         .status(gix::progress::Discard)
         .ok()?
         .untracked_files(gix::status::UntrackedFiles::Collapsed)
+        // Submodules are compared below, by commit only.
         .index_worktree_submodules(None)
         .into_iter(Vec::<gix::bstr::BString>::new())
         .ok()?;
@@ -141,6 +142,15 @@ pub(super) fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> 
     // Conflicts where one side deleted the file don't show up as conflicts above (the
     // file can even look untracked), so take every unmerged path from the index itself.
     if let Ok(index) = repo.index_or_empty() {
+        for path in moved_submodules(repo, &index) {
+            if !status.unstaged.iter().any(|file| file.path == path) {
+                status.unstaged.push(FileChange {
+                    path,
+                    old_path: None,
+                    status: FileStatus::Modified,
+                });
+            }
+        }
         let mut conflicted: Vec<String> = index
             .entries()
             .iter()
@@ -171,6 +181,30 @@ pub(super) fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> 
     status.staged.sort_by(|a, b| a.path.cmp(&b.path));
     status.unstaged.sort_by(|a, b| a.path.cmp(&b.path));
     Some(status)
+}
+
+/// Submodules checked out at another commit than the one staged for them: a change to
+/// stage (after new commits in them) or to undo by updating them (after a pull). Only
+/// their commits are compared, not the files in them.
+fn moved_submodules(repo: &gix::Repository, index: &gix::index::State) -> Vec<String> {
+    let Some(workdir) = repo.workdir() else {
+        return Vec::new();
+    };
+    index
+        .entries()
+        .iter()
+        .filter(|entry| entry.stage_raw() == 0 && entry.mode == gix::index::entry::Mode::COMMIT)
+        .filter_map(|entry| {
+            let path = entry.path(index).to_str_lossy().into_owned();
+            let folder = workdir.join(&path);
+            // Not set up: nothing checked out to compare.
+            if !folder.join(".git").exists() {
+                return None;
+            }
+            let head = gix::open(&folder).ok()?.head_id().ok()?.detach();
+            (head != entry.id).then_some(path)
+        })
+        .collect()
 }
 
 /// Files whose timestamps changed but whose content didn't (after a tool touched them, or

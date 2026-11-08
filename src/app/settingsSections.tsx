@@ -5,7 +5,7 @@ import { NameList, type SettingsSection } from "../components/SettingsDialog";
 import type { GitHubStatus } from "../api";
 import type { Updates } from "../lib/updates";
 import { FETCH_MINUTES, ZOOM_LEVELS } from "./constants";
-import type { NewCommitNotices, Preferences, ReleaseLocks } from "./usePreferences";
+import type { NewCommitNotices, Preferences, ReleaseLocks, SubmoduleUpdates } from "./usePreferences";
 
 interface Options {
   preferences: Preferences;
@@ -34,7 +34,7 @@ interface Options {
 export function settingsSections({ preferences, version, updates, onInstallUpdate, github, repository }: Options): SettingsSection[] {
   const { reopenTabs, setReopenTabs, autoUpdate, setAutoUpdate, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
-  const { releaseLocks, setReleaseLocks } = preferences;
+  const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
   const { daySeparators, setDaySeparators, previews, setPreviews, profilePictures, setProfilePictures } = preferences;
   const { columnOptions, setColumnOptions, zoom, setZoom } = preferences;
   const sections: SettingsSection[] = [
@@ -43,6 +43,18 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
       icon: <GearIcon size={15} />,
       rows: [
         { kind: "toggle", label: "Reopen tabs on launch", value: reopenTabs, set: setReopenTabs },
+        {
+          kind: "select",
+          label: "Submodules after a checkout or pull",
+          hint: "When the commit recorded for a submodule changes, git leaves the submodule where it was until it's updated.",
+          value: submoduleUpdates,
+          options: [
+            { value: "ask", label: "Offer to update them" },
+            { value: "always", label: "Update them" },
+            { value: "never", label: "Leave them as they are" },
+          ],
+          set: (value) => setSubmoduleUpdates(value as SubmoduleUpdates),
+        },
         {
           kind: "toggle",
           label: "Check for updates automatically",
