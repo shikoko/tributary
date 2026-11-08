@@ -24,7 +24,7 @@ interface Props {
   pruneHint: { count: number; remote: string } | null;
   /** Files you're changing that other branches also changed (some can't be merged: `assets`). */
   elsewhere: { count: number; assets: boolean } | null;
-  /** Show them, in a menu under `anchor`. */
+  /** Show the branches and files, in a panel over `anchor`. */
   onElsewhere: (anchor: HTMLElement) => void;
   onPrune: (() => void) | null;
   onDismissPruneHint: () => void;
@@ -88,7 +88,8 @@ export function StatusBar(props: Props) {
         <button
           className={`status-item status-button elsewhere${props.elsewhere.assets ? " assets" : ""}`}
           onClick={(event) => props.onElsewhere(event.currentTarget)}
-          title="Files you're changing that someone also changed on another branch"
+          title="Files you're changing that someone also changed recently on another branch: click to see the branches"
+          aria-haspopup="dialog"
         >
           <BranchIcon size={12} />
           {props.elsewhere.count} {props.elsewhere.count === 1 ? "file" : "files"} also changed elsewhere

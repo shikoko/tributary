@@ -1,9 +1,14 @@
-//! Files you're working on that someone also changed on another branch, since yours split
-//! off from it. For code, git can usually merge the two; for assets that can't be merged
-//! (stored with Git LFS, lockable, or binary), one version will have to win, so it's
-//! better to know before spending a day on it.
+//! Files you're working on that someone also changed recently on another branch, since
+//! yours split off from it. For code, git can usually merge the two; for assets that can't
+//! be merged (stored with Git LFS, lockable, or binary), one version will have to win, so
+//! it's better to know before spending a day on it.
+//!
+//! The files you're working on are your uncommitted changes and your branch's own commits:
+//! those that aren't on the main branch (or, on the main branch itself, not pushed yet).
+//! Everyone else's work that reached your branch through the main branch isn't yours, and
+//! counting it buried the few files that matter under thousands that don't.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 
 use serde::Serialize;
@@ -12,7 +17,8 @@ use super::support::{LITERAL, in_batches};
 use crate::error::{Error, Result};
 use crate::git::Git;
 
-/// Branches changed longer ago than this aren't looked at.
+/// Only other branches' commits from the last this many days count: older work isn't
+/// "being worked on".
 const RECENT_DAYS: i64 = 30;
 /// At most this many branches are looked at, the most recently changed first.
 const MAX_BRANCHES: usize = 40;
@@ -41,8 +47,9 @@ pub struct OtherChange {
     pub time: i64,
 }
 
-/// Files among `changed` (your uncommitted changes) and the files your branch changed,
-/// that recently changed branches also changed since yours split off from them.
+/// Files among `changed` (your uncommitted changes) and the files your branch's own commits
+/// changed, that other branches changed in the last [`RECENT_DAYS`] days, since yours split
+/// off from them.
 pub fn changed_elsewhere(path: &Path, changed: &[String]) -> Result<Vec<Overlap>, Error> {
     let repo = gix::discover(path).map_err(|e| Error::not_a_repository(path, e))?;
     let Some(workdir) = repo.workdir().map(Path::to_owned) else {
@@ -59,8 +66,12 @@ pub fn changed_elsewhere(path: &Path, changed: &[String]) -> Result<Vec<Overlap>
         .filter(|file| !file.is_empty() && !file.ends_with('/'))
         .collect();
 
+    let committed = own_work(&git);
+    let since = format!(
+        "--since=@{}",
+        super::support::now_millis() / 1000 - RECENT_DAYS * 24 * 3600
+    );
     let mut found: BTreeMap<String, Overlap> = BTreeMap::new();
-    let mut mine_since: HashMap<String, HashSet<String>> = HashMap::new();
     for branch in other_branches(&git, &head)? {
         let Ok(base) = git.run(&["merge-base", &head, &branch.tip]) else {
             continue;
@@ -70,20 +81,17 @@ pub fn changed_elsewhere(path: &Path, changed: &[String]) -> Result<Vec<Overlap>
             // Everything on it is already on yours.
             continue;
         }
-        let theirs = changed_between(&git, &base, &branch.tip);
+        let theirs = changed_since(&git, &since, &base, &branch.tip);
         if theirs.is_empty() {
             continue;
         }
-        let committed = mine_since
-            .entry(base.clone())
-            .or_insert_with(|| changed_between(&git, &base, &head));
         let mut overlapping: Vec<&String> = theirs
             .iter()
             .filter(|file| committed.contains(*file) || uncommitted.contains(file.as_str()))
             .collect();
         overlapping.sort();
         for file in overlapping {
-            let Some(change) = last_change(&git, &base, &branch, file) else {
+            let Some(change) = last_change(&git, &since, &base, &branch, file) else {
                 continue;
             };
             found
@@ -163,12 +171,25 @@ fn other_branches(git: &Git, head: &str) -> Result<Vec<Branch>> {
     Ok(branches)
 }
 
-/// The files that changed between two commits (renames count as both paths).
-fn changed_between(git: &Git, from: &str, to: &str) -> HashSet<String> {
-    git.run(&["diff", "--name-only", "--no-renames", "-z", from, to])
+/// The files changed by the commits in `from..to` made `since` then (renames count as both paths).
+fn changed_since(git: &Git, since: &str, from: &str, to: &str) -> HashSet<String> {
+    let range = format!("{from}..{to}");
+    files_of(git.run(&[
+        "log",
+        "--format=",
+        "--name-only",
+        "--no-renames",
+        "-z",
+        since,
+        &range,
+    ]))
+}
+
+fn files_of(listing: Result<String>) -> HashSet<String> {
+    listing
         .map(|output| {
             output
-                .split('\0')
+                .split(['\0', '\n'])
                 .filter(|file| !file.is_empty())
                 .map(str::to_owned)
                 .collect()
@@ -176,8 +197,68 @@ fn changed_between(git: &Git, from: &str, to: &str) -> HashSet<String> {
         .unwrap_or_default()
 }
 
-/// The latest commit on `branch` (since `base`) that changed `file`.
-fn last_change(git: &Git, base: &str, branch: &Branch, file: &str) -> Option<OtherChange> {
+/// The files your branch's own commits changed: those not on the main branch, or, on the
+/// main branch itself, not pushed yet. Nothing when there's no main branch to go by.
+fn own_work(git: &Git) -> HashSet<String> {
+    let exists = |reference: &str| {
+        git.run(&["rev-parse", "--verify", "--quiet", reference])
+            .is_ok()
+    };
+    // The remote's main branch: what its HEAD points to, or else main or master.
+    let remote_main = git
+        .run(&["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"])
+        .ok()
+        .map(|reference| reference.trim().to_owned())
+        .filter(|reference| exists(reference))
+        .or_else(|| {
+            ["refs/remotes/origin/main", "refs/remotes/origin/master"]
+                .into_iter()
+                .find(|reference| exists(reference))
+                .map(str::to_owned)
+        });
+    let local_main = match &remote_main {
+        Some(remote) => remote
+            .strip_prefix("refs/remotes/origin/")
+            .map(|name| format!("refs/heads/{name}")),
+        None => ["refs/heads/main", "refs/heads/master"]
+            .into_iter()
+            .find(|reference| exists(reference))
+            .map(str::to_owned),
+    };
+    let current = git
+        .run(&["symbolic-ref", "--quiet", "HEAD"])
+        .ok()
+        .map(|reference| reference.trim().to_owned());
+    let mut not: Vec<String> = remote_main.into_iter().collect();
+    // On a branch of its own, the local main branch isn't yours either.
+    if let Some(local) = local_main.filter(|local| exists(local) && current.as_ref() != Some(local))
+    {
+        not.push(local);
+    }
+    if not.is_empty() {
+        return HashSet::new();
+    }
+    let mut args = vec![
+        "log",
+        "--format=",
+        "--name-only",
+        "--no-renames",
+        "-z",
+        "HEAD",
+        "--not",
+    ];
+    args.extend(not.iter().map(String::as_str));
+    files_of(git.run(&args))
+}
+
+/// The latest commit on `branch` (since `base`, and recent) that changed `file`.
+fn last_change(
+    git: &Git,
+    since: &str,
+    base: &str,
+    branch: &Branch,
+    file: &str,
+) -> Option<OtherChange> {
     let range = format!("{base}..{}", branch.tip);
     let output = git
         .run_with_env(
@@ -185,6 +266,7 @@ fn last_change(git: &Git, base: &str, branch: &Branch, file: &str) -> Option<Oth
                 "log",
                 "-1",
                 "--format=%H%x00%an%x00%at%x00%s",
+                since,
                 &range,
                 "--",
                 file,

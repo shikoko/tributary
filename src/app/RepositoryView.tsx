@@ -11,9 +11,10 @@ import { openInBrowser } from "../lib/weblinks";
 import { checkoutFor, commitMenu, dropMenu, pillForEntry, pillMenu, selectionMenu, type MenuContext, type OpenDialog } from "../menus";
 import { ActivityPanel } from "../components/ActivityPanel";
 import { CommitList } from "../components/CommitList";
+import { ElsewherePanel } from "../components/ElsewherePanel";
 import { DiffView } from "../components/diff/DiffView";
 import type { MenuItem } from "../components/ContextMenu";
-import { BranchIcon, EyeIcon, PlusIcon } from "../components/Icons";
+import { EyeIcon, PlusIcon } from "../components/Icons";
 import { MessageTools } from "../components/MessageTools";
 import { ResizeHandle } from "../components/ResizeHandle";
 import { Sidebar } from "../components/Sidebar";
@@ -196,19 +197,14 @@ export function RepositoryView(props: Props) {
 
   const myLocks = lfs.locks?.locks.filter((lock) => lock.mine) ?? [];
   const notLoaded = () => props.notify({ text: "That commit isn't loaded: load more commits, or fetch" });
-  /** The status bar's "changed elsewhere": every overlapping file, to show the other branch's change. */
-  const elsewhereMenu = (anchor: HTMLElement) =>
-    menu.under(
-      anchor,
-      props.overlaps.flatMap((overlap) =>
-        overlap.elsewhere.map((change, index) => ({
-          label: `${baseName(overlap.path)}: ${change.branch}, ${change.author}`,
-          icon: index === 0 ? <BranchIcon /> : undefined,
-          onSelect: () => (byId.has(change.commit) ? select(change.commit) : notLoaded()),
-        })),
-      ),
-      360,
-    );
+  /** The status bar's "changed elsewhere": the branches, and your files on each. */
+  const [elsewhereAt, setElsewhereAt] = useState<HTMLElement | null>(null);
+  const showBranch = (branch: string) => {
+    const tip = snapshot.commits.find((commit) => commit.refs.some((ref) => (ref.kind === "branch" || ref.kind === "remote") && ref.name === branch));
+    if (!tip) return notLoaded();
+    select(tip.id);
+    highlight.highlightHistory(branch, tip.id);
+  };
   const activityHere = props.activity.entries;
   const lastHere = [...activityHere].reverse().find((entry) => entry.folder === snapshot.path && !entry.background);
   const canFetch = !snapshot.bare && snapshot.remotes.length > 0;
@@ -399,8 +395,17 @@ export function RepositoryView(props: Props) {
         onPrune={canChange ? () => openDialog({ kind: "prune" }) : null}
         onDismissPruneHint={settings.dismissPruneHint}
         elsewhere={props.overlaps.length > 0 ? { count: props.overlaps.length, assets: props.overlaps.some((overlap) => overlap.unmergeable) } : null}
-        onElsewhere={elsewhereMenu}
+        onElsewhere={(anchor) => setElsewhereAt(elsewhereAt ? null : anchor)}
       />
+      {elsewhereAt && props.overlaps.length > 0 && (
+        <ElsewherePanel
+          overlaps={props.overlaps}
+          anchor={elsewhereAt}
+          onClose={() => setElsewhereAt(null)}
+          onShowCommit={(id) => (byId.has(id) ? select(id) : notLoaded())}
+          onShowBranch={showBranch}
+        />
+      )}
       <RepositoryDialogs
         dialog={props.dialog}
         snapshot={snapshot}

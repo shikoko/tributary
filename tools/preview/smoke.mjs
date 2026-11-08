@@ -268,6 +268,22 @@ try {
     await page.locator(".status-item.elsewhere").waitFor({ timeout: 5000 });
   });
 
+  await step("lists the branches your files are also changed on, from the status bar", async () => {
+    await page.locator(".status-item.elsewhere").click();
+    const panel = page.getByRole("dialog", { name: "Also changed on other branches" });
+    await panel.waitFor({ timeout: 5000 });
+    const branch = panel.locator(".elsewhere-branch-entry", { hasText: "art/barber-v2" });
+    const text = await branch.innerText();
+    expect(text.includes("Barber.uasset") && text.includes("Rosa Bell"), `panel "${text.slice(0, 90)}"`);
+    // The eye highlights that branch's history.
+    await branch.getByRole("button", { name: "Highlight art/barber-v2" }).click();
+    await page.locator(".view-banner", { hasText: "art/barber-v2" }).waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await panel.waitFor({ state: "detached", timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await page.locator(".view-banner", { hasText: "art/barber-v2" }).waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("offers to release your locks after pushing", async () => {
     await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
     await page.getByRole("button", { name: "Unstage all" }).click();
