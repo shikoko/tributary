@@ -54,7 +54,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
     async (action: Action, kind: Running = "other", options: ActOptions = {}): Promise<boolean> => {
       if (!snapshot) return false;
       const { openDialog, setError, notify, after, showChanges } = callbacks.current;
-      if (!options.confirmed && protectedHead && (action.kind === "rebase" || action.kind === "interactiveRebase")) {
+      if (!options.confirmed && protectedHead && (action.kind === "rebase" || action.kind === "interactiveRebase" || action.kind === "fixupInto")) {
         openDialog({ kind: "protectedAction", action, branch: protectedHead });
         return false;
       }

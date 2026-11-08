@@ -174,6 +174,9 @@ pub enum Action {
         onto: String,
         steps: Vec<RebaseStep>,
     },
+    /// Fold the staged changes into an earlier commit of the checked-out branch: commit
+    /// them as a fixup of it, then rebase the commits after it with the fixup squashed in.
+    FixupInto { id: String },
     /// Create a tag on a commit: annotated when there is a message, lightweight otherwise.
     CreateTag {
         name: String,
@@ -501,6 +504,7 @@ fn perform(
         Action::InteractiveRebase { onto, steps } => {
             history::interactive_rebase(&repo, &git, onto, steps)
         }
+        Action::FixupInto { id } => history::fixup_into(&repo, &git, id),
         Action::CreateTag { name, id, message } => tags::create_tag(&repo, &git, name, id, message),
         Action::DeleteTag { name } => tags::delete_tag(&repo, &git, name),
         Action::RestoreTag { name, id } => tags::restore_tag(&repo, &git, name, id),

@@ -54,6 +54,7 @@ export type Action =
   | { kind: "revertMany"; ids: string[] }
   /** Every commit after `onto` on the checked-out branch, oldest first. */
   | { kind: "interactiveRebase"; onto: string; steps: RebaseStep[] }
+  | { kind: "fixupInto"; id: string }
   | { kind: "createTag"; name: string; id: string; message: string | null }
   | { kind: "deleteTag"; name: string }
   | { kind: "restoreTag"; name: string; id: string }

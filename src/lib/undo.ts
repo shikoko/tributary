@@ -22,6 +22,8 @@ export function undoFor(action: Action, before: Pick<RepoSnapshot, "headBranch" 
     case "interactiveRebase":
       return before.headCommit ? { kind: "resetHard", id: before.headCommit } : null;
     case "commit":
+    case "fixupInto":
+      // The staged changes go back to being staged.
       return before.headCommit ? { kind: "resetSoft", id: before.headCommit } : null;
     case "deleteBranches":
       // Branches that weren't deleted are skipped when restoring.

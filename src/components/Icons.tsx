@@ -35,6 +35,14 @@ export const BlameIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** An arrow into a commit: folding changes into it (a fixup). */
+export const FixupIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="10.25" r="2.5" />
+    <path d="M8 1.5v4.5M5.75 3.9 8 6.15l2.25-2.25M8 12.75v1.75" />
+  </Icon>
+);
+
 /** Two columns: before and after, side by side. */
 export const SplitIcon = (p: IconProps) => (
   <Icon {...p}>

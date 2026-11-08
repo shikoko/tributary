@@ -284,6 +284,28 @@ try {
     writeFileSync(store, before);
   });
 
+  await step("fixes up an earlier commit with the staged changes, and undoes it", async () => {
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" }).trim();
+    const head = git("rev-parse", "HEAD");
+    const staged = git("diff", "--cached", "--name-only");
+    expect(staged !== "", "nothing staged in the demo");
+    await row("Fix the note counter in the sidebar").click({ button: "right" });
+    await page.locator(".menu-item", { hasText: "Fix up this commit with the staged changes" }).click();
+    // main is protected: rewriting it is confirmed first.
+    const dialog = page.getByRole("alertdialog");
+    await dialog.getByRole("textbox").fill("main", { timeout: 5000 });
+    await dialog.getByRole("button", { name: "Fix it up" }).click();
+    await page.locator(".toast", { hasText: "with your staged changes" }).waitFor({ timeout: 15_000 });
+    expect(git("log", "-3", "--format=%s") === "Prepare the 0.3 release notes\nUse the editor kit's faster rendering\nFix the note counter in the sidebar", "the commits changed");
+    expect(git("diff", "--cached", "--name-only") === "", "the staged changes weren't folded in");
+    expect(git("show", "--name-only", "--format=", "HEAD~2").split("\n").includes(staged.split("\n")[0]), "the fix went into the wrong commit");
+    await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
+    for (let tries = 0; git("rev-parse", "HEAD") !== head && tries < 50; tries++) await page.waitForTimeout(100);
+    expect(git("rev-parse", "HEAD") === head, "undo didn't put the branch back");
+    expect(git("diff", "--cached", "--name-only") === staged, "undo didn't stage the changes again");
+    await dismissToast();
+  });
+
   await step("resolves a merge conflict here, conflict by conflict, and undoes it", async () => {
     const folder = demos.notebook;
     const who = { GIT_AUTHOR_NAME: "Priya Nair", GIT_AUTHOR_EMAIL: "priya@example.com", GIT_COMMITTER_NAME: "Priya Nair", GIT_COMMITTER_EMAIL: "priya@example.com" };

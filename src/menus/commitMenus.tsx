@@ -16,6 +16,7 @@ import {
   CopyIcon,
   ExternalLinkIcon,
   RewriteIcon,
+  FixupIcon,
   UserIcon,
   MinusIcon,
   PlusIcon,
@@ -169,6 +170,23 @@ export function commitMenu(ctx: MenuContext, commit: CommitRow): MenuItem[] {
     separated: true,
     disabled: busy || typeof rewritable === "string",
     onSelect: () => typeof rewritable !== "string" && ctx.open({ kind: "interactiveRebase", onto: commit, commits: rewritable }),
+  });
+  // Folding the staged changes into this commit rewrites it and the commits after it.
+  const staged = snapshot.worktree?.staged.length ?? 0;
+  const fixupBlocked = !snapshot.headBranch
+    ? "check out a branch first"
+    : commit.parents.length > 1
+      ? "a merge commit can't be fixed up"
+      : !isHead && typeof rewritable === "string"
+        ? rewritable
+        : staged === 0
+          ? "stage the changes to fold in first"
+          : null;
+  items.push({
+    label: fixupBlocked ? `Fix up this commit: ${fixupBlocked}` : `Fix up this commit with the staged changes (${staged === 1 ? "1 file" : `${staged} files`})`,
+    icon: <FixupIcon />,
+    disabled: busy || fixupBlocked !== null,
+    onSelect: () => ctx.run({ kind: "fixupInto", id: commit.id }),
   });
   items.push(
     {

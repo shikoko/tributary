@@ -122,8 +122,8 @@ export function RepositoryDialogs(props: Props) {
       <ProtectedActionDialog
         branch={dialog.branch}
         title={`Rewrite ${dialog.branch}?`}
-        explanation={`${dialog.action.kind === "interactiveRebase" ? "This interactive rebase" : "Rebasing"} rewrites ${dialog.branch}'s history: its commits get new ids, so anyone who already has them will have to reconcile. Tributary keeps a backup of where it was.`}
-        confirmLabel={dialog.action.kind === "interactiveRebase" ? "Start rebase" : `Rebase ${dialog.branch}`}
+        explanation={`${dialog.action.kind === "interactiveRebase" ? "This interactive rebase" : dialog.action.kind === "fixupInto" ? "Fixing up an earlier commit" : "Rebasing"} rewrites ${dialog.branch}'s history: its commits get new ids, so anyone who already has them will have to reconcile. Tributary keeps a backup of where it was.`}
+        confirmLabel={dialog.action.kind === "interactiveRebase" ? "Start rebase" : dialog.action.kind === "fixupInto" ? "Fix it up" : `Rebase ${dialog.branch}`}
         onCancel={() => onClose()}
         onConfirm={() => {
           onClose();

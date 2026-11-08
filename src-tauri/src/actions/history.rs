@@ -140,6 +140,54 @@ pub(super) fn interactive_rebase(
     result
 }
 
+/// Fold the staged changes into commit `id` of the checked-out branch. Unstaged changes
+/// are put aside while the commits after it are rewritten, and put back after.
+pub(super) fn fixup_into(repo: &gix::Repository, git: &Git, id: String) -> Result<String> {
+    let branch = current_branch(repo)?;
+    let id = commit_id(repo, &id)?;
+    let target = id.to_string();
+    let short_id = id.to_hex_with_len(7).to_string();
+    if git
+        .run(&["merge-base", "--is-ancestor", &target, "HEAD"])
+        .is_err()
+    {
+        return Err(format!("{short_id} isn't part of {branch}'s history.").into());
+    }
+    if is_merge(repo, id) {
+        return Err("A merge commit can't be fixed up.".into());
+    }
+    let range = format!("{target}..HEAD");
+    if !git
+        .run(&["rev-list", "--merges", &range])?
+        .trim()
+        .is_empty()
+    {
+        return Err(format!(
+            "The commits after {short_id} include merges, which can't be rewritten this way."
+        )
+        .into());
+    }
+    if git.run(&["diff", "--cached", "--quiet"]).is_ok() {
+        return Err("Stage the changes to fix it up with first.".into());
+    }
+    let parent = repo
+        .find_commit(id)
+        .map_err(|e| format!("Could not read {short_id}: {e}"))?
+        .parent_ids()
+        .next()
+        .map(|parent| parent.detach().to_string());
+
+    let before = ref_id(repo, &format!("refs/heads/{branch}"));
+    git.run(&["commit", "--quiet", "--fixup", &target])?;
+    // The rebase's to-do list already has the fixup in place (--autosquash): nothing to edit.
+    let mut args = vec!["rebase", "--interactive", "--autosquash", "--autostash"];
+    args.push(parent.as_deref().unwrap_or("--root"));
+    let result = git.run_with_env(&args, &[("GIT_SEQUENCE_EDITOR", ":")]);
+    back_up_rewrite(repo, git, &branch, before);
+    result?;
+    Ok(format!("Fixed up {short_id} with your staged changes"))
+}
+
 /// Rewrite the commits after `onto`: git's own interactive rebase, with the to-do list
 /// written for it instead of edited by hand.
 fn rewrite(

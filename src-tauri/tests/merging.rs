@@ -644,3 +644,48 @@ fn resolves_a_conflict_with_text_worked_out_in_the_app() {
     .unwrap();
     assert!(read(&repo, "a.txt").contains("<<<<<<<"));
 }
+
+#[test]
+fn fixes_up_an_earlier_commit_with_the_staged_changes() {
+    let mut repo = TempRepo::new("fixup");
+    with_identity(&repo);
+    let root = repo.commit("base.txt", "base");
+    let a = repo.commit("a.txt", "Add a");
+    repo.commit("b.txt", "Add b");
+
+    let nothing = run(&repo, Action::FixupInto { id: a.clone() });
+    assert!(nothing.unwrap_err().contains("Stage"));
+
+    // The fix for a, staged; an unrelated edit to b, not staged.
+    std::fs::write(repo.path().join("a.txt"), "a, fixed\n").unwrap();
+    std::fs::write(repo.path().join("b.txt"), "b, still working on it\n").unwrap();
+    repo.git(&["add", "a.txt"]);
+    let message = run(&repo, Action::FixupInto { id: a.clone() }).unwrap();
+    assert_eq!(
+        message,
+        format!("Fixed up {} with your staged changes", &a[..7])
+    );
+    assert_eq!(
+        repo.git(&["log", "--format=%s", &format!("{root}..HEAD")]),
+        "Add b\nAdd a",
+        "no fixup commit left"
+    );
+    assert_eq!(repo.git(&["show", "HEAD~1:a.txt"]), "a, fixed");
+    assert_eq!(read(&repo, "b.txt"), "b, still working on it\n");
+    assert_eq!(repo.git(&["status", "--porcelain"]), "M b.txt");
+
+    // The very first commit can be fixed up too.
+    std::fs::write(repo.path().join("base.txt"), "base, fixed\n").unwrap();
+    repo.git(&["add", "base.txt"]);
+    run(&repo, Action::FixupInto { id: root }).unwrap();
+    assert_eq!(repo.git(&["show", "HEAD~2:base.txt"]), "base, fixed");
+    assert_eq!(repo.git(&["rev-list", "--count", "HEAD"]), "3");
+
+    // Not on the checked-out branch: refused.
+    repo.git(&["switch", "--quiet", "--create", "side"]);
+    let side = repo.commit("side.txt", "side");
+    repo.git(&["switch", "--quiet", "main"]);
+    repo.git(&["add", "b.txt"]);
+    let elsewhere = run(&repo, Action::FixupInto { id: side });
+    assert!(elsewhere.unwrap_err().contains("isn't part of"));
+}
