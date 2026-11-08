@@ -142,7 +142,8 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
     const hasRemotes = snapshot.remotes.length > 0 && !snapshot.bare;
     const canChange = !snapshot.bare && !ctx.running;
     const remote = webRemote(snapshot);
-    const prUrl = remote && snapshot.headBranch && snapshot.upstream ? newPullRequestUrl(remote, splitRemoteBranch(snapshot.upstream.name, snapshot.remotes).branch) : null;
+    const prBranch = snapshot.headBranch && snapshot.upstream ? splitRemoteBranch(snapshot.upstream.name, snapshot.remotes).branch : null;
+    const prUrl = remote && prBranch ? newPullRequestUrl(remote, prBranch) : null;
     const head = ctx.head;
     return [
       {
@@ -211,7 +212,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
             ? [
                 { id: "open-web", label: `Open on ${siteName(remote)}`, icon: <ExternalLinkIcon />, run: () => openInBrowser(remote.url) },
                 ...(prUrl
-                  ? [{ id: "pull-request", label: remote.host === "gitlab" ? "Create Merge Request…" : "Create Pull Request…", icon: <PullRequestIcon />, run: () => openInBrowser(prUrl) }]
+                  ? [{ id: "pull-request", label: remote.host === "gitlab" ? "Create Merge Request…" : "Create Pull Request…", icon: <PullRequestIcon />, run: () => run.dialog({ kind: "createPullRequest", branch: prBranch!, local: snapshot.headBranch, url: prUrl }) }]
                   : []),
               ]
             : []),

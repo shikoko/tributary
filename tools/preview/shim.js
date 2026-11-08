@@ -5,7 +5,9 @@
 // Scripts can set `window.__PREVIEW__` before the page loads to steer the fakes:
 //   pick           what the file / folder picker returns (a path, a list of them, or null);
 //                  without it, the picker asks with a prompt
-//   pullRequests   the pull requests to show, instead of asking GitHub
+//   pullRequests   the pull requests to show, instead of asking GitHub; with it, opening
+//                  one is faked too, and their details come from pullRequestDetails (by
+//                  number) and the new pull request dialog from newRequest
 //   update         an update to offer, like { version: "0.2.0", notes: "…", date: null }
 //   github         a stand-in GitHub sign-in, like { account: null, browserSignIn: true },
 //                  instead of git's real credential helper
@@ -77,6 +79,57 @@
       }, 400),
     );
 
+  /** Pull requests, when they're faked: their details, and opening new ones. */
+  const faking = () => preview.pullRequests !== undefined;
+  const fakeDetails = ({ number }) => {
+    const known = preview.pullRequestDetails?.[number];
+    if (known) return known;
+    const pr = (preview.pullRequests || []).find((each) => each.number === number);
+    if (!pr) return Promise.reject(`GitHub didn't show pull request #${number}: it isn't there.`);
+    return {
+      number,
+      title: pr.title,
+      url: pr.url,
+      body: "",
+      author: pr.author,
+      state: pr.draft ? "draft" : "open",
+      base: "main",
+      branch: pr.branch,
+      created: new Date().toISOString(),
+      additions: null,
+      deletions: null,
+      files: null,
+      comments: 0,
+      mergeable: pr.draft ? null : "checking",
+      reviews: [],
+      checks: [],
+      forge: pr.forge || "github",
+    };
+  };
+  const fakeCreate = ({ request }) =>
+    new Promise((resolve, reject) =>
+      setTimeout(() => {
+        const list = preview.pullRequests || [];
+        if (list.some((pr) => pr.branch === request.branch)) return reject(`GitHub didn't open it: A pull request already exists for example:${request.branch}.`);
+        const number = Math.max(14, ...list.map((pr) => pr.number)) + 1;
+        const pr = { number, title: request.title, url: `https://github.com/example/feast/pull/${number}`, remote: "origin", branch: request.branch, draft: request.draft, author: "maya-chen", checks: null, forge: "github" };
+        preview.pullRequests = [...list, pr];
+        preview.created = request;
+        resolve(pr);
+      }, 300),
+    );
+  const fakeRequestInfo = ({ branch }) => ({
+    forge: "github",
+    remote: "origin",
+    bases: ["main"],
+    base: "main",
+    signedIn: true,
+    onRemote: true,
+    unpushed: 0,
+    commits: [{ summary: `Work on ${branch}`, body: "" }],
+    ...(preview.newRequest || {}),
+  });
+
   /** Commands that don't need the server, by name. */
   const local = {
     "plugin:event|listen": ({ event, handler }) => {
@@ -113,7 +166,10 @@
     },
     check_for_update: () => preview.update,
     install_update: installUpdate,
-    pull_requests: (args) => (preview.pullRequests !== undefined ? preview.pullRequests : server("pull_requests", args)),
+    pull_requests: (args) => (faking() ? preview.pullRequests : server("pull_requests", args)),
+    pull_request_details: (args) => (faking() ? fakeDetails(args) : server("pull_request_details", args)),
+    create_pull_request: (args) => (faking() ? fakeCreate(args) : server("create_pull_request", args)),
+    new_request_info: (args) => (faking() ? fakeRequestInfo(args) : server("new_request_info", args)),
     github_status: () =>
       preview.github
         ? { account: preview.github.account ?? null, tokenRejected: false, canKeepToken: true, browserSignIn: Boolean(preview.github.browserSignIn) }

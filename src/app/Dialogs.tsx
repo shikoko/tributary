@@ -1,4 +1,6 @@
-import type { Action, CommitDetails, CommitRow, RepoSnapshot, Worktree } from "../api";
+import type { Action, CommitDetails, CommitRow, PullRequest, RepoSnapshot, Worktree } from "../api";
+import { CreatePullRequestDialog } from "../components/CreatePullRequestDialog";
+import { openInBrowser } from "../lib/weblinks";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DeleteBranchDialog, DeleteRemoteBranchDialog } from "../components/DeleteBranchDialogs";
 import { ForcePushDialog } from "../components/ForcePushDialog";
@@ -43,6 +45,11 @@ interface Props {
   localBranches: string[];
   /** Open a working tree in a tab. */
   openWorktree: (path: string) => void;
+  /** Push the checked-out branch: resolves to whether it worked. */
+  push: () => Promise<boolean>;
+  onRequestCreated: (pr: PullRequest) => void;
+  /** Sign in to GitHub, in Settings. */
+  signIn: () => void;
 }
 
 /** The dialog that's open over a repository, if any. */
@@ -51,6 +58,20 @@ export function RepositoryDialogs(props: Props) {
   const { worktrees, localBranches, openWorktree } = props;
   return (
     <>
+    {dialog?.kind === "createPullRequest" && (
+      <CreatePullRequestDialog
+        repoPath={snapshot.path}
+        branch={dialog.branch}
+        local={dialog.local}
+        checkedOut={dialog.local !== null && dialog.local === snapshot.headBranch}
+        browserUrl={dialog.url}
+        onCancel={onClose}
+        onCreated={props.onRequestCreated}
+        openUrl={openInBrowser}
+        push={props.push}
+        signIn={props.signIn}
+      />
+    )}
     {dialog?.kind === "reset" && (
       <ResetDialog
         snapshot={snapshot}

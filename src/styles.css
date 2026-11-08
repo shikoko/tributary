@@ -5305,7 +5305,7 @@ code {
 }
 
 @container diff-header (max-width: 760px) {
-  .diff-header .outline-button .button-label {
+  .diff-header .outline-button.tool-button .button-label {
     display: none;
   }
 }
@@ -6933,4 +6933,331 @@ select:disabled {
 
 .hljs-strong {
   font-weight: 700;
+}
+
+/* Pull requests: the dialog to open one. */
+.dialog-buttons .spacer {
+  flex: 1;
+}
+
+.request-branches {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.request-branch {
+  max-width: 280px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-into {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+select.request-base {
+  width: auto;
+  min-width: 150px;
+  height: 30px;
+  font-size: 12px;
+}
+
+.request-commits {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.request-dialog input.text-input,
+textarea.request-body {
+  font-family: var(--font);
+}
+
+textarea.request-body {
+  min-height: 140px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.request-sign-in .link-button {
+  font-size: inherit;
+}
+
+/* Pull requests: one in full, over the commit list. */
+.request-number {
+  flex: none;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.request-title {
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.request-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 940px;
+  padding: 18px 22px 32px;
+}
+
+.request-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.request-meta strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.request-state {
+  flex: none;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.request-state.open {
+  background: rgb(var(--success-rgb) / 0.16);
+  color: var(--success-text);
+}
+
+.request-state.draft {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+}
+
+.request-state.merged {
+  background: rgb(var(--purple-rgb) / 0.18);
+  color: var(--purple);
+}
+
+.request-state.closed {
+  background: rgb(var(--danger-rgb) / 0.14);
+  color: var(--danger-text);
+}
+
+.request-ref {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: 12px;
+}
+
+button.request-ref:hover {
+  border-color: var(--border-hover);
+}
+
+.request-facts {
+  display: flex;
+  gap: 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.request-lines {
+  font-family: var(--mono);
+}
+
+.request-lines .added {
+  color: var(--added);
+}
+
+.request-lines .removed {
+  color: var(--removed);
+}
+
+.request-merge {
+  padding: 10px 12px;
+  border: 1px solid;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.request-merge.good {
+  border-color: rgb(var(--success-rgb) / 0.4);
+  background: rgb(var(--success-rgb) / 0.08);
+  color: var(--success-text);
+}
+
+.request-merge.bad {
+  border-color: rgb(var(--danger-rgb) / 0.4);
+  background: rgb(var(--danger-rgb) / 0.08);
+  color: var(--danger-text);
+}
+
+.request-merge.waiting {
+  border-color: rgb(var(--warning-rgb) / 0.4);
+  background: rgb(var(--warning-rgb) / 0.08);
+  color: var(--warning-text);
+}
+
+.request-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 6px 28px;
+}
+
+.request-section .team-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.request-check-summary {
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.request-empty {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.request-reviews,
+.request-checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.request-reviews li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 0;
+}
+
+.request-reviewer {
+  font-weight: 500;
+}
+
+.request-review {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.request-review.approved {
+  color: var(--success-text);
+}
+
+.request-review.changesRequested {
+  color: var(--danger-text);
+}
+
+.request-review.commented {
+  color: var(--text-secondary);
+}
+
+.request-review.requested {
+  color: var(--text-muted);
+}
+
+.request-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 28px;
+  border-bottom: 1px solid var(--border);
+}
+
+.request-check:last-child {
+  border-bottom: none;
+}
+
+.request-check-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.request-check.success .request-check-dot {
+  background: var(--success);
+}
+
+.request-check.failure .request-check-dot {
+  background: var(--danger);
+}
+
+.request-check.pending .request-check-dot {
+  background: var(--warning);
+  animation: request-pending 1.4s ease-in-out infinite;
+}
+
+@keyframes request-pending {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.request-check-name {
+  flex: 0 1 auto;
+  max-width: 65%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-check.skipped .request-check-name {
+  color: var(--text-muted);
+}
+
+.request-check-detail {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-check-link {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.request-description {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.request-stale {
+  margin: 0;
+  color: var(--warning-text);
+  font-size: 12px;
 }

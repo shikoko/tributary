@@ -1,5 +1,6 @@
 // What the menus need from the app, and helpers they share with the dialogs.
-import type { Action, CommitRow, Lock, RepoSnapshot, Visibility, Worktree } from "../api";
+import type { Action, CommitRow, Lock, PullRequest, RepoSnapshot, Visibility, Worktree } from "../api";
+import type { PullRequestLookup } from "../lib/pullRequests";
 import { type RefPill } from "../lib/refs";
 import { shortId } from "../lib/format";
 import type { CompareRequest } from "../app/useComparison";
@@ -38,6 +39,8 @@ export type OpenDialog =
   | { kind: "removeWorktree"; worktree: Worktree }
   /** The repository's own settings: protected branches, who commits are made as, Git LFS. */
   | { kind: "repoSettings" }
+  /** Open a pull request for `branch` (its name on the remote); `url` opens it on the site instead. */
+  | { kind: "createPullRequest"; branch: string; local: string | null; url: string | null }
   | null;
 
 /** What the menus need from the app. */
@@ -49,6 +52,10 @@ export interface MenuContext {
   localBranches: Set<string>;
   run: (action: Action) => void;
   open: (dialog: OpenDialog) => void;
+  /** The open pull requests, to find a branch's. */
+  requests: PullRequestLookup | null;
+  /** Show a pull request in the app. */
+  showRequest: (pr: PullRequest) => void;
   /** Highlight the history of a branch, tag or commit. */
   focus: (name: string, commitId: string) => void;
   /** Highlight everything an author committed. */

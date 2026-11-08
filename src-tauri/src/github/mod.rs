@@ -3,6 +3,7 @@
 //! (see [`account`] for signing in).
 
 pub mod account;
+pub(crate) mod pulls;
 
 use std::path::Path;
 use std::time::Duration;

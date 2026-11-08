@@ -1,4 +1,5 @@
 // Menu items that several menus have: hiding and soloing, opening on the website, merging.
+import { requestNumber } from "../lib/pullRequests";
 import { type RefPill } from "../lib/refs";
 import { branchUrl, newPullRequestUrl, siteName, webRemote } from "../lib/weblinks";
 import type { MenuItem } from "../components/ContextMenu";
@@ -54,30 +55,45 @@ export function webItems(ctx: MenuContext, pill: RefPill): MenuItem[] {
   // The remote copy of the branch: the one it tracks, or one with the same name.
   let remoteName: string | undefined;
   let branch = pill.name;
+  const upstream = pill.local ? snapshot.commits.flatMap((c) => c.refs).find((ref) => ref.kind === "branch" && ref.name === pill.name)?.upstream : undefined;
   if (pill.local) {
-    const upstream = snapshot.commits.flatMap((c) => c.refs).find((ref) => ref.kind === "branch" && ref.name === pill.name)?.upstream;
     if (upstream) {
       ({ remote: remoteName, branch } = splitRemoteBranch(upstream, snapshot.remotes));
     } else if (pill.remotes.length > 0) {
       remoteName = pill.remotes[0];
+    } else {
+      // Not pushed yet: a pull request opens it on the remote that pushing would use.
+      remoteName = webRemote(snapshot)?.name;
     }
   } else {
     ({ remote: remoteName, branch } = splitRemoteBranch(pill.name, snapshot.remotes));
   }
-  if (!remoteName) return [];
-  const remote = snapshot.webRemotes.find((r) => r.name === remoteName);
+  // The branch's own remote on a site, or else the repository's site (like a GitHub
+  // remote next to an origin elsewhere), for opening pull requests.
+  const own = remoteName ? snapshot.webRemotes.find((r) => r.name === remoteName) : undefined;
+  const remote = own ?? webRemote(snapshot);
   if (!remote) return [];
-  const site = siteName(remote);
   const items: MenuItem[] = [];
-  const page = branchUrl(remote, branch);
-  if (page) items.push({ label: `Open ${branch} on ${site}`, icon: <ExternalLinkIcon />, separated: true, onSelect: () => ctx.openUrl(page) });
-  const pullRequest = newPullRequestUrl(remote, branch);
-  if (pullRequest) {
+  const onRemote = !pill.local || Boolean(upstream) || pill.remotes.length > 0;
+  const page = own && onRemote ? branchUrl(own, branch) : null;
+  if (page) items.push({ label: `Open ${branch} on ${siteName(remote)}`, icon: <ExternalLinkIcon />, separated: true, onSelect: () => ctx.openUrl(page) });
+  const existing = ctx.requests?.find(pill.name, pill.local, pill.remotes, upstream);
+  const noun = remote.host === "gitlab" ? "merge request" : "pull request";
+  if (existing) {
     items.push({
-      label: remote.host === "gitlab" ? "Create merge request…" : "Create pull request…",
+      label: `Show ${noun} ${requestNumber(existing)}`,
       icon: <PullRequestIcon />,
       separated: !page,
-      onSelect: () => ctx.openUrl(pullRequest),
+      onSelect: () => ctx.showRequest(existing),
+    });
+  } else if (remote.host === "github" || remote.host === "gitlab") {
+    const url = newPullRequestUrl(remote, branch);
+    items.push({
+      label: `Create ${noun}…`,
+      icon: <PullRequestIcon />,
+      separated: !page,
+      disabled: snapshot.bare,
+      onSelect: () => ctx.open({ kind: "createPullRequest", branch, local: pill.local ? pill.name : null, url }),
     });
   }
   return items;

@@ -13,7 +13,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { buildDemos, demoEnv, STUDIO_PULL_REQUESTS } from "./demo.mjs";
+import { buildDemos, demoEnv, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
 
@@ -586,6 +586,50 @@ try {
 
   await step("shows pull requests on their branches", async () => {
     await page.locator(".pr-badge").first().waitFor({ timeout: 10_000 });
+  });
+
+  await step("shows a pull request's reviews and checks", async () => {
+    await page.evaluate((details) => Object.assign(window.__PREVIEW__, { pullRequestDetails: details }), STUDIO_PULL_REQUEST_DETAILS);
+    await page.locator(".pr-badge", { hasText: "#14" }).first().click();
+    const view = page.locator(".request-view");
+    await view.locator(".request-merge", { hasText: "changes were asked for" }).waitFor({ timeout: 10_000 });
+    await view.locator(".request-check.failure", { hasText: "Audio loudness" }).waitFor({ timeout: 5000 });
+    await view.locator(".request-reviews li", { hasText: "diego-ramos" }).locator(".request-review", { hasText: "Asked for changes" }).waitFor({ timeout: 5000 });
+    // The details button opens the check's page.
+    await view.locator(".request-check", { hasText: "Audio loudness" }).getByRole("button", { name: "Details" }).click();
+    expect((await page.evaluate(() => window.__PREVIEW__.opened)).some((url) => url.endsWith("/actions/runs/7")), "the check's page didn't open");
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+  });
+
+  await step("opens a pull request from a branch's menu", async () => {
+    const git = (...args) => execFileSync("git", ["-C", demos.studio, ...args], { encoding: "utf8" }).trim();
+    // On a commit with no other labels, so its label shows (not folded into "+N").
+    git("branch", "smoke/lights", git("log", "-1", "--format=%H", "--grep=Seat guests by the fire", "--all"));
+    git("push", "-q", "origin", "smoke/lights");
+    await page.evaluate(() => Object.assign(window.__PREVIEW__, { newRequest: { commits: [{ summary: "Warmer lights in the tavern", body: "Candles flicker now." }] } }));
+    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await page.locator(".ref-pill", { hasText: "smoke/lights" }).first().click({ button: "right" });
+    await page.locator(".menu-item", { hasText: "Create pull request…" }).click();
+    const dialog = page.locator(".request-dialog");
+    const title = dialog.getByLabel("Title");
+    await title.waitFor({ timeout: 10_000 });
+    expect((await title.inputValue()) === "Warmer lights in the tavern", "the title wasn't suggested from the commit");
+    await dialog.getByLabel("Draft: not ready for review yet").check();
+    await dialog.getByRole("button", { name: "Open pull request" }).click();
+    await page.locator(".toast", { hasText: "Opened pull request #15" }).waitFor({ timeout: 10_000 });
+    const created = await page.evaluate(() => window.__PREVIEW__.created);
+    expect(created.branch === "smoke/lights" && created.base === "main" && created.draft && created.body === "Candles flicker now.", JSON.stringify(created));
+    await page.locator(".pr-badge", { hasText: "#15" }).first().waitFor({ timeout: 10_000 });
+    await page.locator(".toast").getByRole("button", { name: "Show" }).click();
+    await page.locator(".request-view", { hasText: "Warmer lights in the tavern" }).waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    // As it was, for the steps after this one.
+    git("branch", "-D", "smoke/lights");
+    git("push", "-q", "origin", "--delete", "smoke/lights");
+    await page.evaluate((list) => Object.assign(window.__PREVIEW__, { pullRequests: list }), STUDIO_PULL_REQUESTS);
+    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await dismissToast();
   });
 
   if (demos.assets) {

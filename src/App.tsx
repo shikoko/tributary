@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { WORKTREE_ID, type Action } from "./api";
+import { WORKTREE_ID, type Action, type PullRequest } from "./api";
 import { useLfsLocks } from "./lib/locks";
-import { makeLookup, PullRequestsContext, usePullRequests } from "./lib/pullRequests";
+import { makeLookup, PullRequestsContext, requestNumber, usePullRequests } from "./lib/pullRequests";
 import { useUpdates } from "./lib/updates";
-import { openInBrowser } from "./lib/weblinks";
 import type { OpenDialog } from "./menus";
 import { ProfilePictures } from "./components/Avatar";
 import { DownloadIcon } from "./components/Icons";
@@ -73,6 +72,13 @@ export default function App() {
   /** The team activity view, over the commit list. */
   const [teamOpen, setTeamOpen] = useState(false);
   const closeTeam = useCallback(() => setTeamOpen(false), []);
+  /** A pull request shown over the commit list. */
+  const [shownRequest, setShownRequest] = useState<PullRequest | null>(null);
+  const closeRequest = useCallback(() => setShownRequest(null), []);
+  const showRequest = useCallback((pr: PullRequest) => {
+    setTeamOpen(false);
+    setShownRequest(pr);
+  }, []);
   /** The Settings section to open at (like "Diff and merge"), or the first. */
   const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
 
@@ -151,7 +157,9 @@ export default function App() {
   const worktrees = useWorktrees(snapshot);
   const overlaps = useChangedElsewhere(snapshot);
   const prs = usePullRequests(repoPath, Boolean(snapshot?.webRemotes.some((remote) => remote.host === "github" || remote.host === "gitlab")));
-  const prLookup = useMemo(() => makeLookup(prs.list, openInBrowser), [prs.list]);
+  const prLookup = useMemo(() => makeLookup(prs.list, showRequest), [prs.list, showRequest]);
+  // Another repository: its own pull requests.
+  useEffect(() => setShownRequest(null), [repoPath]);
   const checks = useFileChecks(snapshot, preferences.largeFileMB);
 
   const actions = useActions({
@@ -396,6 +404,15 @@ export default function App() {
               notify={setToast}
               teamOpen={teamOpen}
               onCloseTeam={closeTeam}
+              request={shownRequest}
+              onShowRequest={showRequest}
+              onCloseRequest={closeRequest}
+              onRequestCreated={(pr) => {
+                setDialog(null);
+                prs.refresh(true);
+                const what = pr.forge === "gitlab" ? "merge request" : "pull request";
+                setToast({ text: `Opened ${what} ${requestNumber(pr)}`, action: { label: "Show", onClick: () => showRequest(pr) } });
+              }}
             />
           ) : (
             <StartView repo={repo} tabBar={showTabBar} onClone={() => setDialog({ kind: "clone" })} />

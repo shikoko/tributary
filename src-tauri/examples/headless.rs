@@ -200,6 +200,19 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
                 &path,
             ))?)
         }
+        "new_request_info" => to_json(tauri::async_runtime::block_on(
+            tributary_lib::requests::new_request_info(
+                &path()?,
+                arg(args, "branch")?,
+                optional(args, "local")?,
+            ),
+        )?),
+        "create_pull_request" => to_json(tauri::async_runtime::block_on(
+            tributary_lib::requests::create_request(&path()?, arg(args, "request")?),
+        )?),
+        "pull_request_details" => to_json(tauri::async_runtime::block_on(
+            tributary_lib::requests::request_details(&path()?, arg(args, "number")?),
+        )?),
         "avatars" => {
             let emails: Vec<String> = arg(args, "emails")?;
             to_json(tauri::async_runtime::block_on(

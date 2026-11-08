@@ -13,6 +13,7 @@ pub mod graph;
 pub mod links;
 pub mod locks;
 pub mod repo;
+pub mod requests;
 pub mod updates;
 pub mod watch;
 
@@ -64,6 +65,9 @@ pub fn run() {
             commands::lfs_health,
             commands::diagnostics,
             commands::pull_requests,
+            commands::new_request_info,
+            commands::create_pull_request,
+            commands::pull_request_details,
             commands::avatars,
             commands::github_status,
             commands::github_sign_in,

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { usePresence } from "../lib/usePresence";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { fullRefName, PAGE_SIZE, WORKTREE_ID, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type RepoSnapshot, type Worktree } from "../api";
+import { fullRefName, PAGE_SIZE, WORKTREE_ID, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type PullRequest, type RepoSnapshot, type Worktree } from "../api";
 import { commitTargets, findTarget, highlightedFirst, isShown, rangeTargets, worktreeTargets, type DiffTarget, type ShownDiff } from "../lib/diffTargets";
 import { withCoAuthor } from "../lib/commitMessage";
 import { rewritable } from "../lib/graph";
@@ -19,6 +19,8 @@ import { conflictSides } from "../components/WorktreeDetails";
 import { ComparePanel } from "../components/ComparePanel";
 import { BlameView } from "../components/BlameView";
 import { TeamView } from "../components/TeamView";
+import { PullRequestView } from "../components/PullRequestView";
+import { PullRequestsContext } from "../lib/pullRequests";
 import { useComparison } from "./useComparison";
 import type { MenuItem } from "../components/ContextMenu";
 import { BranchIcon, EyeIcon, PlusIcon, StashIcon, TagIcon } from "../components/Icons";
@@ -95,6 +97,12 @@ interface Props {
   /** The team activity view (from the View menu). */
   teamOpen: boolean;
   onCloseTeam: () => void;
+  /** A pull request shown over the commit list. */
+  request: PullRequest | null;
+  onShowRequest: (pr: PullRequest) => void;
+  onCloseRequest: () => void;
+  /** A pull request was opened from the app. */
+  onRequestCreated: (pr: PullRequest) => void;
 }
 
 /** An open repository: the toolbar, the sidebar, the commit list and graph, the details, and the status bar. */
@@ -136,6 +144,7 @@ export function RepositoryView(props: Props) {
   const showChanges = (file: FileChange, source: DiffSource) => {
     setBlameAt(null);
     if (props.teamOpen) props.onCloseTeam();
+    if (props.request) props.onCloseRequest();
     if (origin) setDiffAt({ origin, source, path: file.path });
   };
   // Who changed each line of a file: at a commit, or as it is in your working tree.
@@ -143,6 +152,7 @@ export function RepositoryView(props: Props) {
   const showBlame = (path: string, source: DiffSource) => {
     setDiffAt(null);
     if (props.teamOpen) props.onCloseTeam();
+    if (props.request) props.onCloseRequest();
     setBlameAt({ path, at: source.kind === "commit" ? source.id : source.kind === "range" ? source.to : null });
   };
   const closeBlame = useCallback(() => setBlameAt(null), []);
@@ -152,12 +162,15 @@ export function RepositoryView(props: Props) {
   };
 
   // What the commit, branch and selection menus need.
+  const requests = useContext(PullRequestsContext);
   const ctx: MenuContext = {
     snapshot,
     canChange,
     localBranches: counts.localBranches,
     run,
     open: openDialog,
+    requests,
+    showRequest: props.onShowRequest,
     focus: highlight.highlightHistory,
     focusAuthor: highlight.highlightAuthor,
     visibility: settings.visibility,
@@ -468,6 +481,24 @@ export function RepositoryView(props: Props) {
               }}
             />
           )}
+          {props.request && (
+            <PullRequestView
+              repoPath={snapshot.path}
+              request={props.request}
+              onClose={props.onCloseRequest}
+              openUrl={openInBrowser}
+              onShowBranch={(branch) => {
+                const remote = props.request?.remote ?? "origin";
+                const ref = snapshot.commits.find((commit) => commit.refs.some((r) => r.kind === "branch" && (r.name === `${remote}/${branch}` || r.name === branch)));
+                if (!ref) {
+                  notLoaded();
+                  return;
+                }
+                highlight.highlightHistory(branch, ref.id);
+                props.onCloseRequest();
+              }}
+            />
+          )}
           {blameAt && (
             <BlameView
               repoPath={snapshot.path}
@@ -549,6 +580,12 @@ export function RepositoryView(props: Props) {
         worktrees={props.worktrees}
         localBranches={[...counts.localBranches]}
         openWorktree={props.openTab}
+        push={() => act({ kind: "push", force: false }, "push")}
+        onRequestCreated={props.onRequestCreated}
+        signIn={() => {
+          openDialog(null);
+          props.openSettings("Accounts");
+        }}
       />
     </>
   );

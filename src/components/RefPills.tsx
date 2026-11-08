@@ -162,18 +162,18 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
   );
 }
 
-/** "#12" (or "!12" for a GitLab merge request) with a dot for its checks; click to open it. */
-export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (url: string) => void }) {
+/** "#12" (or "!12" for a GitLab merge request) with a dot for its checks; click to see it. */
+export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (pr: PullRequest) => void }) {
   return (
     <span
       className={`pr-badge${pr.checks ? ` ${pr.checks}` : ""}${pr.draft ? " draft" : ""}`}
-      title={`${describeChecks(pr)}\nClick to open it`}
+      title={`${describeChecks(pr)}\nClick to see its reviews and checks`}
       role="link"
       onPointerDown={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.stopPropagation();
-        onOpen(pr.url);
+        onOpen(pr);
       }}
     >
       {pr.checks && <span className="pr-dot" />}

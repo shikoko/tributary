@@ -195,7 +195,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         )}
         {(conflicted || (target.file.status !== "untracked" && !diff?.submodule)) && (
           <button
-            className="outline-button"
+            className="outline-button tool-button"
             onClick={openInTool}
             title={`${toolButton}: ${
               tools && !tool

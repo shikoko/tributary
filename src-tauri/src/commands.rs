@@ -300,6 +300,34 @@ pub async fn pull_requests(path: String) -> Result<Vec<github::PullRequest>> {
     github::open_requests(&PathBuf::from(path)).await
 }
 
+/// What opening a pull request needs: the branches to merge into, and whether git has a token.
+#[tauri::command]
+pub async fn new_request_info(
+    path: String,
+    branch: String,
+    local: Option<String>,
+) -> Result<crate::requests::NewRequestInfo> {
+    crate::requests::new_request_info(&PathBuf::from(path), branch, local).await
+}
+
+/// Open a pull request (GitHub) or merge request (GitLab).
+#[tauri::command]
+pub async fn create_pull_request(
+    path: String,
+    request: crate::requests::NewRequest,
+) -> Result<github::PullRequest> {
+    crate::requests::create_request(&PathBuf::from(path), request).await
+}
+
+/// A pull (or merge) request's description, reviews and checks.
+#[tauri::command]
+pub async fn pull_request_details(
+    path: String,
+    number: u64,
+) -> Result<crate::requests::RequestDetails> {
+    crate::requests::request_details(&PathBuf::from(path), number).await
+}
+
 /// Who's signed in to GitHub (going by the token git keeps), and how one can sign in.
 #[tauri::command]
 pub async fn github_status() -> Result<github::account::GitHubStatus> {

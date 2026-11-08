@@ -599,6 +599,65 @@ export const STUDIO_PULL_REQUESTS = [
   { number: 14, title: "Make the door creak", url: "https://github.com/example/feast/pull/14", remote: "origin", branch: "fix/door", draft: false, author: "theo-park", checks: "failure", forge: "github" },
 ];
 
+/** The studio's pull requests in full, as the preview shows them (window.__PREVIEW__.pullRequestDetails). */
+const daysAgo = (days) => new Date(Date.now() - days * 86_400_000).toISOString();
+export const STUDIO_PULL_REQUEST_DETAILS = {
+  12: {
+    number: 12,
+    title: "Barber v2: new hair and apron",
+    url: "https://github.com/example/feast/pull/12",
+    body: "The barber's second pass, from the art review:\n\n- New hair cards and a leather apron\n- Scissors moved to their own socket, so the cutting animation can swap them\n\nTextures stay at 2K. Tested in the tavern level on a low-end laptop.",
+    author: "rosa-bell",
+    state: "open",
+    base: "main",
+    branch: "art/barber-v2",
+    created: daysAgo(2),
+    additions: 412,
+    deletions: 37,
+    files: 9,
+    comments: 5,
+    mergeable: "ready",
+    reviews: [
+      { author: "maya-chen", state: "approved" },
+      { author: "lena-fischer", state: "commented" },
+      { author: "sam-okafor", state: "requested" },
+    ],
+    checks: [
+      { name: "Build (Windows)", state: "success", url: "https://github.com/example/feast/actions/runs/1", detail: null },
+      { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/2", detail: null },
+      { name: "Asset sizes", state: "success", url: "https://github.com/example/feast/actions/runs/3", detail: null },
+      { name: "Deploy preview", state: null, url: null, detail: "Skipped" },
+    ],
+    forge: "github",
+  },
+  14: {
+    number: 14,
+    title: "Make the door creak",
+    url: "https://github.com/example/feast/pull/14",
+    body: "Plays door_creak.wav when the tavern door swings open.",
+    author: "theo-park",
+    state: "open",
+    base: "main",
+    branch: "fix/door",
+    created: daysAgo(1),
+    additions: 18,
+    deletions: 2,
+    files: 3,
+    comments: 2,
+    mergeable: "blocked",
+    reviews: [
+      { author: "diego-ramos", state: "changesRequested" },
+      { author: "maya-chen", state: "requested" },
+    ],
+    checks: [
+      { name: "Audio loudness", state: "failure", url: "https://github.com/example/feast/actions/runs/7", detail: "door_creak.wav peaks at -0.4 dB" },
+      { name: "Build (Windows)", state: "pending", url: "https://github.com/example/feast/actions/runs/8", detail: null },
+      { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/9", detail: null },
+    ],
+    forge: "github",
+  },
+};
+
 /**
  * A stand-in for your global git config while the preview works on the demos: Maya Chen
  * as the usual identity, and Git LFS set up, so screenshots show neither your name nor

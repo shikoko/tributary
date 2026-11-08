@@ -4,7 +4,7 @@ import { involvesUntrackedFiles, isLocalChangesError } from "../lib/errors";
 import { undoFor } from "../lib/undo";
 import { openInBrowser } from "../lib/weblinks";
 import type { ToastMessage } from "../components/Toast";
-import type { OpenDialog } from "../menus";
+import { splitRemoteBranch, type OpenDialog } from "../menus";
 import { PROGRESS_DELAY, RETRYABLE, RUNNING_LABELS, type Running } from "./constants";
 import type { LoadMode, RepoError } from "./useRepository";
 
@@ -106,7 +106,17 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       const { message, pullRequest, backup } = outcome;
       if (action.kind === "merge" && action.mode === "squash") showChanges();
       if (pullRequest) {
-        notify({ text: message ?? "Pushed", action: { label: "Create pull request", onClick: () => openInBrowser(pullRequest) } });
+        // Open it here: the branch as it's called on the remote it was pushed to.
+        const local = before.headBranch;
+        const branch = local && before.upstream ? splitRemoteBranch(before.upstream.name, before.remotes).branch : local;
+        const gitlab = pullRequest.includes("merge_requests");
+        notify({
+          text: message ?? "Pushed",
+          action: {
+            label: gitlab ? "Create merge request" : "Create pull request",
+            onClick: () => (branch ? openDialog({ kind: "createPullRequest", branch, local, url: pullRequest }) : openInBrowser(pullRequest)),
+          },
+        });
       } else if (!options.quiet && message) {
         // Discarded files and lines are kept for a while, to put back.
         const discarded = action.kind === "discardFiles" || action.kind === "applyLines";
