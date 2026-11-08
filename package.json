@@ -10,6 +10,7 @@
     "preview:build": "vite build && cargo build --manifest-path src-tauri/Cargo.toml --example headless",
     "preview:demo": "node tools/preview/demo.mjs --serve",
     "preview:smoke": "node tools/preview/smoke.mjs",
+    "preview:screenshots": "node tools/preview/screenshots.mjs",
     "tauri": "tauri",
     "test": "vitest run"
   },

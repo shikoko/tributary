@@ -30,6 +30,17 @@ reads a stand-in global config (Maya Chen, with Git LFS set up) instead of yours
 To use your own repositories instead, run `npm run preview` and paste any path. That runs
 git as you, with your settings, just like the app.
 
+## Screenshots
+
+```bash
+npm run preview:screenshots
+```
+
+Takes the README's pictures (`docs/images`) from fresh demo repositories, at twice the
+size for sharp screens: each one sets up its scene (a merge conflict, a bisect, a pull
+request, …) and captures it. `-- --only blame,bisect` takes just those, and a folder after
+`--` saves them somewhere else.
+
 ## Smoke test
 
 ```bash
