@@ -39,3 +39,18 @@ export interface SigningSettings {
 export function signingSettings(path: string): Promise<SigningSettings> {
   return invoke<SigningSettings>("signing_settings", { path });
 }
+
+/** A remote and where it is. */
+export interface RemoteInfo {
+  name: string;
+  /** Its address, without a password or token in it. */
+  url: string;
+  /** Where pushes go, when it's another address. */
+  pushUrl: string | null;
+  /** Its address has a password or token in it (left out of `url`). */
+  hasCredentials: boolean;
+}
+
+export function remotes(path: string): Promise<RemoteInfo[]> {
+  return invoke<RemoteInfo[]>("remotes", { path });
+}

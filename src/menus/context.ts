@@ -38,7 +38,7 @@ export type OpenDialog =
   | { kind: "newWorktree"; branch?: string; start: CommitRow }
   | { kind: "removeWorktree"; worktree: Worktree }
   /** The repository's own settings: protected branches, who commits are made as, Git LFS. */
-  | { kind: "repoSettings" }
+  | { kind: "repoSettings"; section?: string }
   /** Open a pull request for `branch` (its name on the remote); `url` opens it on the site instead. */
   | { kind: "createPullRequest"; branch: string; local: string | null; url: string | null }
   | null;

@@ -32,6 +32,10 @@ export function undoFor(action: Action, before: Pick<RepoSnapshot, "headBranch" 
       return { kind: "recreateConflicts", paths: action.paths };
     case "resolveWithText":
       return { kind: "recreateConflicts", paths: [action.file] };
+    case "addRemote":
+      return { kind: "removeRemote", name: action.name };
+    case "renameRemote":
+      return { kind: "renameRemote", from: action.to.trim(), to: action.from };
     case "ignorePaths":
       return { kind: "unignorePaths", patterns: action.patterns };
     case "stashAndRetry": {

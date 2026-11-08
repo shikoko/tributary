@@ -456,3 +456,139 @@ fn counts_ahead_and_behind_over_the_whole_history() {
         .expect("main is loaded");
     assert_eq!((main.ahead, main.behind), (Some(1), Some(5)));
 }
+
+#[test]
+fn adds_renames_repoints_and_removes_remotes() {
+    let _turn = remote_turn();
+    let mut repo = TempRepo::new("remotes");
+    repo.commit("a.txt", "a");
+    let origin = TempRepo::bare("remotes-origin");
+    let added = run(
+        &repo,
+        Action::AddRemote {
+            name: "origin".into(),
+            url: origin.url().into(),
+        },
+    )
+    .unwrap();
+    assert_eq!(added, "Added the remote origin");
+    assert!(
+        run(
+            &repo,
+            Action::AddRemote {
+                name: "origin".into(),
+                url: "x".into()
+            }
+        )
+        .unwrap_err()
+        .contains("already")
+    );
+    assert!(
+        run(
+            &repo,
+            Action::AddRemote {
+                name: "bad name".into(),
+                url: "x".into()
+            }
+        )
+        .unwrap_err()
+        .contains("can't be")
+    );
+    assert!(
+        run(
+            &repo,
+            Action::AddRemote {
+                name: "up".into(),
+                url: "--upload-pack=evil".into()
+            }
+        )
+        .unwrap_err()
+        .contains("isn't")
+    );
+
+    // A token in an address stays out of the list (and the activity log).
+    run(
+        &repo,
+        Action::AddRemote {
+            name: "fork".into(),
+            url: "https://maya:ghp_secret@github.com/maya/app.git".into(),
+        },
+    )
+    .unwrap();
+    let list = actions::remotes(repo.path()).unwrap();
+    let fork = list.iter().find(|remote| remote.name == "fork").unwrap();
+    assert_eq!(fork.url, "https://github.com/maya/app.git");
+    assert!(fork.has_credentials);
+    let logged: Vec<String> = git::activity()
+        .into_iter()
+        .flat_map(|entry| entry.args)
+        .collect();
+    assert!(
+        !logged.iter().any(|arg| arg.contains("ghp_secret")),
+        "{logged:?}"
+    );
+
+    run(&repo, Action::Push { force: false }).unwrap();
+    assert!(repo.git(&["branch", "-r"]).contains("origin/main"));
+    run(
+        &repo,
+        Action::RenameRemote {
+            from: "origin".into(),
+            to: "upstream".into(),
+        },
+    )
+    .unwrap();
+    assert!(repo.git(&["branch", "-r"]).contains("upstream/main"));
+    assert_eq!(repo.git(&["config", "branch.main.remote"]), "upstream");
+
+    run(
+        &repo,
+        Action::SetRemoteUrl {
+            name: "upstream".into(),
+            url: "https://example.com/push.git".into(),
+            push: true,
+        },
+    )
+    .unwrap();
+    let upstream = actions::remotes(repo.path())
+        .unwrap()
+        .into_iter()
+        .find(|r| r.name == "upstream")
+        .unwrap();
+    assert_eq!(
+        upstream.push_url.as_deref(),
+        Some("https://example.com/push.git")
+    );
+    run(
+        &repo,
+        Action::SetRemoteUrl {
+            name: "upstream".into(),
+            url: String::new(),
+            push: true,
+        },
+    )
+    .unwrap();
+    let upstream = actions::remotes(repo.path())
+        .unwrap()
+        .into_iter()
+        .find(|r| r.name == "upstream")
+        .unwrap();
+    assert_eq!(upstream.push_url, None);
+
+    run(
+        &repo,
+        Action::RemoveRemote {
+            name: "fork".into(),
+        },
+    )
+    .unwrap();
+    run(
+        &repo,
+        Action::RemoveRemote {
+            name: "upstream".into(),
+        },
+    )
+    .unwrap();
+    assert!(actions::remotes(repo.path()).unwrap().is_empty());
+    assert_eq!(repo.git(&["branch", "-r"]), "");
+}

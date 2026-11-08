@@ -222,6 +222,12 @@ pub async fn repo_identity(path: String) -> Result<actions::RepoIdentity> {
     blocking(move || actions::repo_identity(&PathBuf::from(path))).await
 }
 
+/// The repository's remotes and their addresses (without passwords or tokens).
+#[tauri::command]
+pub async fn remotes(path: String) -> Result<Vec<actions::RemoteInfo>> {
+    blocking(move || actions::remotes(&PathBuf::from(path))).await
+}
+
 /// How commits in a repository are signed, and the keys there are to sign with.
 #[tauri::command]
 pub async fn signing_settings(path: String) -> Result<actions::SigningSettings> {

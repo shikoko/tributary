@@ -7319,3 +7319,24 @@ button.request-ref:hover {
   flex-direction: column;
   gap: 6px;
 }
+
+/* Remotes, in a repository's settings. */
+.remote-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(360px, 100%);
+}
+
+.remote-form-buttons,
+.remote-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.remote-confirm {
+  color: var(--text-muted);
+  font-size: 12px;
+}

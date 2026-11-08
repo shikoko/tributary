@@ -35,6 +35,14 @@ export const BlameIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A globe: places on the network (remotes). */
+export const GlobeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M2 8h12M8 2c1.9 1.7 2.75 3.8 2.75 6S9.9 12.3 8 14M8 2C6.1 3.7 5.25 5.8 5.25 8S6.1 12.3 8 14" />
+  </Icon>
+);
+
 /** A key: signing commits. */
 export const KeyIcon = (p: IconProps) => (
   <Icon {...p}>

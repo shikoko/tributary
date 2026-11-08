@@ -803,6 +803,31 @@ try {
     }
   });
 
+  await step("adds, renames and removes a remote", async () => {
+    await page.getByRole("button", { name: "Manage remotes" }).click();
+    const dialog = page.locator(".dialog", { hasText: "Settings for notebook" });
+    await dialog.getByRole("tab", { name: "Remotes", selected: true }).waitFor({ timeout: 10_000 });
+    await dialog.getByLabel("New remote's name").fill("upstream");
+    await dialog.getByLabel("New remote's address").fill("https://maya:ghp_example@github.com/example/notebook.git");
+    await dialog.getByRole("button", { name: "Add remote" }).click();
+    await page.locator(".toast", { hasText: "Added the remote upstream" }).waitFor({ timeout: 10_000 });
+    // The token isn't shown.
+    await dialog.getByText("https://github.com/example/notebook.git · (with a saved password or token)").waitFor({ timeout: 5000 });
+    expect((await dialog.getByText("ghp_example").count()) === 0, "the token is shown");
+    await dialog.getByRole("button", { name: "Edit upstream" }).click();
+    await dialog.getByLabel("Name", { exact: true }).fill("mirror");
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await page.locator(".toast", { hasText: "Renamed the remote upstream to mirror" }).waitFor({ timeout: 10_000 });
+    expect(execFileSync("git", ["-C", demos.notebook, "remote"], { encoding: "utf8" }).split("\n").includes("mirror"), "not renamed");
+    await dialog.getByRole("button", { name: "Remove mirror" }).click();
+    await dialog.getByRole("button", { name: "Remove", exact: true }).click();
+    await page.locator(".toast", { hasText: "Removed the remote mirror" }).waitFor({ timeout: 10_000 });
+    expect(!execFileSync("git", ["-C", demos.notebook, "remote"], { encoding: "utf8" }).includes("mirror"), "not removed");
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "detached", timeout: 5000 });
+    await dismissToast();
+  });
+
   await step("shows diagnostics to copy", async () => {
     await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
     await page.locator(".menu-item", { hasText: "Copy Diagnostics" }).click();

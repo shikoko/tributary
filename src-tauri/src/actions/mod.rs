@@ -23,6 +23,7 @@ mod lfs_settings;
 mod partial;
 mod prune;
 mod remote;
+mod remote_settings;
 mod search;
 mod signing;
 mod stash;
@@ -59,6 +60,7 @@ pub use partial::LineMode;
 pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
 };
+pub use remote_settings::{RemoteInfo, remotes};
 pub use search::{SearchMode, SearchResult, search_commits};
 pub use signing::{SigningKey, SigningMode, SigningSettings, signing_settings};
 pub use submodules::{Submodule, SubmoduleState, submodules};
@@ -275,6 +277,18 @@ pub enum Action {
     /// Commit as this name and email in this repository (`git config --local`); both
     /// empty go back to the usual ones.
     SetIdentity { name: String, email: String },
+    /// Add a remote called `name` at `url`.
+    AddRemote { name: String, url: String },
+    /// Rename a remote (its remote branches follow).
+    RenameRemote { from: String, to: String },
+    /// Remove a remote and its remote branches.
+    RemoveRemote { name: String },
+    /// Point a remote at another address, or only its pushes (`push`; empty: none of its own).
+    SetRemoteUrl {
+        name: String,
+        url: String,
+        push: bool,
+    },
     /// Sign commits in this repository: as usual, never, or with a GPG or SSH key.
     SetSigning {
         mode: SigningMode,
@@ -564,6 +578,12 @@ fn perform(
         Action::OpenInMergeTool { path } => diff::open_in_merge_tool(&git, path),
         Action::SetIdentity { name, email } => identity::set_identity(&git, name, email),
         Action::SetSigning { mode, key } => signing::set_signing(&git, mode, key),
+        Action::AddRemote { name, url } => remote_settings::add_remote(&git, name, url),
+        Action::RenameRemote { from, to } => remote_settings::rename_remote(&git, from, to),
+        Action::RemoveRemote { name } => remote_settings::remove_remote(&git, name),
+        Action::SetRemoteUrl { name, url, push } => {
+            remote_settings::set_remote_url(&git, name, url, push)
+        }
         Action::UntrackWithLfs { patterns } => lfs_settings::untrack_with_lfs(&git, patterns),
         Action::UpdateSubmodules { paths } => {
             submodules::update_submodules(&git, paths, on_progress)

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { repoIdentity, signingSettings, type Action, type RepoIdentity, type SigningMode, type SigningSettings } from "../api";
-import { CloudIcon, KeyIcon, LockIcon, UserIcon } from "./Icons";
+import { CloudIcon, GlobeIcon, KeyIcon, LockIcon, UserIcon } from "./Icons";
+import { useRemoteRows } from "./RemoteSettingsRows";
 import { useLfsSettingsRows } from "./LfsSettingsRows";
 import { NameList, SettingsDialog, type SettingRow, type SettingsSection } from "./SettingsDialog";
 
@@ -15,6 +16,8 @@ interface Props {
   /** Open the Git LFS clean-up (this window closes for it). */
   onCleanUpLfs: () => void;
   onClose: () => void;
+  /** The section to open at, like "Remotes". */
+  section?: string;
 }
 
 /** "Maya Chen <maya@example.com>", or what's missing. */
@@ -28,7 +31,7 @@ function describe(name: string | null, email: string | null): string {
  * One repository's own settings, from its tab's menu or the Repository menu: who commits
  * are made as here, its protected branches, and its Git LFS files.
  */
-export function RepoSettingsDialog({ name, path, protectedBranches, setProtectedBranches, run, onCleanUpLfs, onClose }: Props) {
+export function RepoSettingsDialog({ name, path, protectedBranches, setProtectedBranches, run, onCleanUpLfs, onClose, section }: Props) {
   const [identity, setIdentity] = useState<RepoIdentity | null>(null);
   const [draft, setDraft] = useState({ name: "", email: "" });
   const [saving, setSaving] = useState(false);
@@ -45,6 +48,7 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
 
   const lfsRows = useLfsSettingsRows({ path, run, onCleanUp: onCleanUpLfs });
   const signingRows = useSigningRows(path, run);
+  const remoteRows = useRemoteRows(path, run);
   const own = Boolean(identity?.localName || identity?.localEmail);
   const usual = identity ? describe(identity.globalName, identity.globalEmail) : "…";
   const changed = identity !== null && (draft.name.trim() !== (identity.localName ?? "") || draft.email.trim() !== (identity.localEmail ?? ""));
@@ -122,6 +126,11 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
       rows: signingRows,
     },
     {
+      title: "Remotes",
+      icon: <GlobeIcon size={15} />,
+      rows: remoteRows,
+    },
+    {
       title: "Branches",
       icon: <LockIcon size={15} />,
       rows: [
@@ -139,7 +148,7 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
       rows: lfsRows,
     },
   ];
-  return <SettingsDialog title={`Settings for ${name}`} sections={sections} onClose={onClose} />;
+  return <SettingsDialog title={`Settings for ${name}`} sections={sections} initial={section} onClose={onClose} />;
 }
 
 const FORMATS: Record<string, string> = { openpgp: "GPG", ssh: "SSH", x509: "X.509" };

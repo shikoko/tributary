@@ -14,6 +14,7 @@ use std::time::{Instant, SystemTime};
 use self::activity::record;
 use crate::error::{Error, Result};
 
+pub(crate) use activity::without_credentials;
 pub use activity::{LogEntry, activity, on_activity};
 pub(crate) use credentials::Credential;
 pub use progress::{Progress, cancel, parse_progress};
@@ -256,11 +257,12 @@ pub(super) fn error_message(
              (or set up a credential helper), then try again.\n\n{message}"
         );
     }
-    if message.is_empty() {
+    let message = if message.is_empty() {
         format!("git {} failed ({status})", args.join(" "))
     } else {
         message
-    }
+    };
+    activity::without_credentials(&message)
 }
 
 pub(crate) fn command(executable: &Path) -> Command {

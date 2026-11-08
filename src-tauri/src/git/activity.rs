@@ -63,6 +63,33 @@ const UNLOGGED: &[&str] = &[
     "cat-file",
 ];
 
+/// `text` with the user names and passwords (or tokens) taken out of the web addresses in
+/// it: `https://user:token@host/path` → `https://host/path`. SSH addresses keep their user.
+pub(crate) fn without_credentials(text: &str) -> String {
+    let mut result = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(at) = rest.find("://") {
+        let (before, after) = rest.split_at(at + 3);
+        result.push_str(before);
+        // The address's authority: up to its path, or the end of the address.
+        let end = after
+            .find(|c: char| c == '/' || c.is_whitespace() || matches!(c, '\'' | '"' | '<' | '>'))
+            .unwrap_or(after.len());
+        let (authority, remainder) = after.split_at(end);
+        let scheme = before[..before.len() - 3]
+            .rsplit(|c: char| !c.is_ascii_alphanumeric() && c != '+' && c != '-' && c != '.')
+            .next()
+            .unwrap_or_default();
+        match authority.rsplit_once('@') {
+            Some((_, host)) if !scheme.eq_ignore_ascii_case("ssh") => result.push_str(host),
+            _ => result.push_str(authority),
+        }
+        rest = remainder;
+    }
+    result.push_str(rest);
+    result
+}
+
 pub(crate) fn record(
     git: &Git,
     args: &[&str],
@@ -78,7 +105,7 @@ pub(crate) fn record(
         return;
     }
     static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-    let output = output.trim();
+    let output = without_credentials(output.trim());
     let output = match output.char_indices().nth(LOG_OUTPUT) {
         Some((cut, _)) => format!("{}\n…", &output[..cut]),
         None => output.to_owned(),
@@ -91,7 +118,7 @@ pub(crate) fn record(
             .unwrap_or(0),
         duration_ms: took.elapsed().as_millis() as u64,
         folder: git.workdir.display().to_string(),
-        args: args.iter().map(|arg| (*arg).to_owned()).collect(),
+        args: args.iter().map(|arg| without_credentials(arg)).collect(),
         success,
         output,
         background: git.background,
@@ -105,5 +132,39 @@ pub(crate) fn record(
     }
     if let Some(listener) = LISTENER.get() {
         listener(&entry);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::without_credentials;
+
+    #[test]
+    fn takes_credentials_out_of_addresses() {
+        assert_eq!(
+            without_credentials(
+                "remote add origin https://maya:ghp_secret@github.com/acme/app.git"
+            ),
+            "remote add origin https://github.com/acme/app.git"
+        );
+        assert_eq!(
+            without_credentials(
+                "fatal: repository 'https://oauth2:glpat-x@gitlab.com/g/app/' not found"
+            ),
+            "fatal: repository 'https://gitlab.com/g/app/' not found"
+        );
+        assert_eq!(
+            without_credentials("ssh://git@host:22/repo.git"),
+            "ssh://git@host:22/repo.git"
+        );
+        assert_eq!(
+            without_credentials("git@github.com:acme/app.git"),
+            "git@github.com:acme/app.git"
+        );
+        assert_eq!(without_credentials("https://token@host"), "https://host");
+        assert_eq!(
+            without_credentials("no addresses here"),
+            "no addresses here"
+        );
     }
 }

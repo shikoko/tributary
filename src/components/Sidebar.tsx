@@ -4,7 +4,7 @@ import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Submodule,
 import { stepFocus } from "../lib/inputMode";
 import type { RefEntry } from "../lib/refs";
 import { useStoredState } from "../lib/settings";
-import { BranchIcon, BroomIcon, CloudIcon, EyeOffIcon, PinIcon, PlusIcon, SearchIcon, StashIcon, TagIcon, UnlockIcon } from "./Icons";
+import { BranchIcon, BroomIcon, CloudIcon, EyeOffIcon, GearIcon, PinIcon, PlusIcon, SearchIcon, StashIcon, TagIcon, UnlockIcon } from "./Icons";
 import { LockedFileList, SubmoduleList, WorktreeList } from "./sidebar/OtherLists";
 import { RefItem, type RefHandlers } from "./sidebar/RefItem";
 import { sidebarLists, stashLabel } from "./sidebar/refTree";
@@ -31,6 +31,8 @@ interface Props {
   onShowAll: () => void;
   /** Open the prune branches dialog (null while that can't be done). */
   onPrune: (() => void) | null;
+  /** Open the repository's settings at its remotes. */
+  onManageRemotes: (() => void) | null;
   /** Protected branch names, shown with a padlock. */
   protectedBranches: string[];
   /** For local branches that track a remote branch: commits to push and to pull. */
@@ -169,7 +171,19 @@ export function Sidebar(props: Props) {
         >
           {tree("branches", branches, (e) => e.name, <BranchIcon size={13} />)}
         </SidebarSection>
-        <SidebarSection id="remotes" title="Remotes" count={remoteCount} {...section}>
+        <SidebarSection
+          id="remotes"
+          title="Remotes"
+          count={remoteCount}
+          {...section}
+          action={
+            props.onManageRemotes && (
+              <button className="sidebar-heading-action" onClick={props.onManageRemotes} title="Add, rename or remove remotes" aria-label="Manage remotes">
+                <GearIcon size={13} />
+              </button>
+            )
+          }
+        >
           {remotes.map(
             ([remote, entries]) =>
               entries.length > 0 && (

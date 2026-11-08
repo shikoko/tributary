@@ -51,6 +51,7 @@ pub fn run() {
             commands::submodules,
             commands::repo_identity,
             commands::signing_settings,
+            commands::remotes,
             commands::lfs_settings,
             commands::diff_tool_settings,
             commands::set_diff_tool,

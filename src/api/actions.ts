@@ -92,6 +92,10 @@ export type Action =
   /** Commit as this name and email in this repository; both empty go back to the usual ones. */
   | { kind: "setIdentity"; name: string; email: string }
   | { kind: "setSigning"; mode: SigningMode; key: string | null }
+  | { kind: "addRemote"; name: string; url: string }
+  | { kind: "renameRemote"; from: string; to: string }
+  | { kind: "removeRemote"; name: string }
+  | { kind: "setRemoteUrl"; name: string; url: string; push: boolean }
   /** Check out the recorded commit in these submodules (all when empty), setting up those that aren't. */
   | { kind: "updateSubmodules"; paths: string[] }
   | { kind: "unlockFiles"; locks: { id: string; path: string }[]; force?: boolean };

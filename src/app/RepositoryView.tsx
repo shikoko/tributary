@@ -282,6 +282,7 @@ export function RepositoryView(props: Props) {
         }}
         onShowAll={settings.showAllBranches}
         onPrune={canChange ? () => openDialog({ kind: "prune" }) : null}
+        onManageRemotes={snapshot.bare ? null : () => openDialog({ kind: "repoSettings", section: "Remotes" })}
         protectedBranches={settings.protectedBranches}
         locks={lfs.locks?.locks ?? null}
         locksError={lfs.locks?.error ?? null}
@@ -548,6 +549,7 @@ export function RepositoryView(props: Props) {
           run={(action) => act(action)}
           onCleanUpLfs={() => openDialog({ kind: "pruneLfs" })}
           onClose={() => openDialog(null)}
+          section={props.dialog.section}
         />
       )}
       {elsewhereAt && props.overlaps.length > 0 && (
