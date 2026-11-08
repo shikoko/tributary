@@ -5212,3 +5212,28 @@ code {
 .diff-message .diff-message-action {
   margin-top: 10px;
 }
+
+/* Menus (select boxes) draw their own chevron, with room from the edge, instead of the
+   browser's, which sits tight against it. */
+select.settings-select,
+select.text-input,
+select.rebase-action {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%23aab1bf' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 12px;
+  cursor: pointer;
+}
+
+select.rebase-action {
+  padding-right: 26px;
+  background-position: right 8px center;
+}
+
+select:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
