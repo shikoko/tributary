@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { commitDetails, type CommitDetails, type CommitRow, type FileChange, type Lock, type Person, type WebRemote } from "../api";
+import { useThemeColors } from "../app/useAppearance";
 import { laneColor } from "../lib/colors";
 import { dateInZone, fullDate, plural, shortId, utcOffset } from "../lib/format";
 import { copyText } from "../lib/clipboard";
@@ -51,6 +52,7 @@ export interface DetailsAction {
 type Loaded = { id: string; details?: CommitDetails; error?: string };
 
 export function CommitDetailsPanel(props: Props) {
+  const colors = useThemeColors();
   const { repoPath, commit, cache, hasCommit, onSelect, onClose, actions, remote, resolveCommit } = props;
   const { onFileMenu, isHighlighted, lockOf, onOpenFile, isShown } = props;
   const [loaded, setLoaded] = useState<Loaded>({ id: commit.id, details: cache.get(commit.id) });
@@ -137,7 +139,7 @@ export function CommitDetailsPanel(props: Props) {
 
         {commit.refs.length > 0 && (
           <div className="details-refs">
-            <RefPills refs={commit.refs} color={laneColor(commit.graph.column)} />
+            <RefPills refs={commit.refs} color={laneColor(commit.graph.column, colors.lanes)} />
           </div>
         )}
 

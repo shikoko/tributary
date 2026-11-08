@@ -1,20 +1,20 @@
 import type { ReactNode } from "react";
 import type { FileChange, Lock, Overlap } from "../api";
 import { overlapTitle } from "../lib/elsewhere";
-import { withAlpha } from "../lib/colors";
 import { lockOwner } from "../lib/locks";
 import { relativeTime } from "../lib/format";
 import { FileKindIcon } from "./FileKindIcon";
 import { BranchIcon, LockIcon } from "./Icons";
 
-const STATUS: Record<FileChange["status"], { letter: string; color: string; label: string }> = {
-  added: { letter: "A", color: "#36e07c", label: "Added" },
-  modified: { letter: "M", color: "#ffad1f", label: "Modified" },
-  deleted: { letter: "D", color: "#ff5c6c", label: "Deleted" },
-  renamed: { letter: "R", color: "#1fb5ff", label: "Renamed" },
-  copied: { letter: "C", color: "#a77bff", label: "Copied" },
-  untracked: { letter: "?", color: "#19d7b4", label: "Untracked" },
-  conflicted: { letter: "!", color: "#ff5c6c", label: "Conflicted" },
+/** Each status's letter, and its colour role in the stylesheet (--added, --added-rgb, …). */
+const STATUS: Record<FileChange["status"], { letter: string; role: string; label: string }> = {
+  added: { letter: "A", role: "added", label: "Added" },
+  modified: { letter: "M", role: "warning", label: "Modified" },
+  deleted: { letter: "D", role: "removed", label: "Deleted" },
+  renamed: { letter: "R", role: "info", label: "Renamed" },
+  copied: { letter: "C", role: "purple", label: "Copied" },
+  untracked: { letter: "?", role: "teal", label: "Untracked" },
+  conflicted: { letter: "!", role: "danger", label: "Conflicted" },
 };
 
 interface FileLineProps {
@@ -75,7 +75,7 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
         })
       }
     >
-      <span className="file-status" style={{ color: status.color, background: withAlpha(status.color, 0.14) }}>
+      <span className="file-status" style={{ color: `var(--${status.role})`, background: `rgb(var(--${status.role}-rgb) / 0.14)` }}>
         {status.letter}
       </span>
       <FileKindIcon path={file.path} />

@@ -1,20 +1,108 @@
+/* Colours come from these roles, so the light theme, the accent colour and the diff colours
+   can change them. The accent's variations are set from JavaScript (lib/appearance.ts),
+   from the colour chosen in Settings; these are the defaults. Roles ending in -rgb are the
+   same colour as channels, for see-through versions: rgb(var(--accent-rgb) / 0.1). */
 :root {
-  /* Surfaces. --bg and --bg-selected are also used by the graph canvas (CommitList.tsx). */
+  /* Surfaces. The graph canvas reads --bg, --bg-selected, --graph-ring and --match. */
   --bg: #14161b;
+  --bg-rgb: 20 22 27;
   --bg-panel: #1a1d24;
   --bg-raised: #222631;
   --bg-hover: #1c2028;
   --bg-selected: #252b38;
+  --bg-selected-rgb: 37 43 56;
+  --bg-active: #2d3341;
+  /* The tab bar, around the open repositories. */
+  --chrome: #101216;
+  --chrome-raised: #15181e;
+  --chrome-hover: #171a20;
+  /* The squares behind see-through images. */
+  --checker-a: #1c1f26;
+  --checker-b: #171a20;
   --border: #282d38;
   --border-strong: #353b48;
+  --border-hover: #4a5162;
 
   --text: #e4e7ee;
   --text-secondary: #aab1bf;
   --text-muted: #7b8393;
   --text-faint: #596071;
 
+  --scrollbar: rgba(88, 97, 116, 0.6);
+  --scrollbar-hover: rgba(110, 120, 140, 0.75);
+  /* Lightens what's under it (in the light theme, darkens it). */
+  --overlay-rgb: 255 255 255;
+  --shadow: rgba(0, 0, 0, 0.45);
+  --shadow-strong: rgba(0, 0, 0, 0.55);
+  --scrim: rgba(8, 9, 12, 0.6);
+  --scrim-soft: rgba(8, 9, 12, 0.45);
+  --sunken: rgba(0, 0, 0, 0.12);
+  --knob: #cfd5e0;
+  /* Text on bright fills (avatars), and on the graph's colours (a checked-out branch's label). */
+  --on-bright: #0d0f13;
+  --on-lane: #0d0f13;
+  --on-lane-rgb: 13 15 19;
+  /* The ring around the selected commit, and search matches next to the scrollbar. */
+  --graph-ring: #ffffff;
+  --match: #ffd23f;
+
   --accent: #1fb5ff;
+  --accent-rgb: 31 181 255;
+  /* Where buttons' gradients end. */
+  --accent-2: #4d7cff;
+  --on-accent: #ffffff;
+  /* Text and icons in the accent colour (readable on the background), lighter text for
+     links and the checked-out branch, softer for notes, stronger for buttons in them. */
+  --accent-ink: #1fb5ff;
+  --accent-text: #8fd8ff;
+  --accent-soft-text: #a9dcf7;
+  --accent-strong-text: #d6efff;
+
+  /* Information: notes and hints. Blue whatever the accent, so they don't look like warnings. */
+  --info: #1fb5ff;
+  --info-rgb: 31 181 255;
+  --info-text: #a9dcf7;
+  --info-strong-text: #d6efff;
+
   --danger: #ff5c6c;
+  --danger-rgb: 255 92 108;
+  --danger-text: #ffb3bb;
+  --danger-strong-text: #ff8a96;
+  --danger-bright-text: #ffd5da;
+  --danger-solid: #e5484d;
+  --danger-solid-hover: #f05a5f;
+
+  --warning: #ffad1f;
+  --warning-rgb: 255 173 31;
+  --warning-text: #ffc966;
+  --warning-soft-text: #ffd48a;
+  --warning-strong-text: #ffe2ad;
+  /* Notices: softer than warnings. */
+  --notice: #f0b44c;
+  --notice-rgb: 240 180 76;
+  --notice-text: #f3d29b;
+
+  --success: #36e07c;
+  --success-rgb: 54 224 124;
+  --success-text: #b8f5cf;
+  --success-strong-text: #d8fbe6;
+  /* Branches that are safe to delete. */
+  --safe-rgb: 140 224 74;
+  --safe-text: #a9e57b;
+
+  /* Lines added and removed, in diffs and change counts. */
+  --added: #36e07c;
+  --added-rgb: 54 224 124;
+  --added-number: #5fbf86;
+  --removed: #ff5c6c;
+  --removed-rgb: 255 92 108;
+  --removed-number: #c9737d;
+
+  --purple: #a77bff;
+  --purple-rgb: 167 123 255;
+  --teal: #19d7b4;
+  --teal-rgb: 25 215 180;
+  --pink-rgb: 255 79 154;
 
   /* Google Sans for the interface, JetBrains Mono for what you'd type in a terminal:
      SHAs, branch and tag labels, file names, git commands, shortcuts. */
@@ -28,6 +116,115 @@
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-rgb: 255 255 255;
+  --bg-panel: #f5f6f8;
+  --bg-raised: #ffffff;
+  --bg-hover: #eef0f3;
+  --bg-selected: #e1e6ef;
+  --bg-selected-rgb: 225 230 239;
+  --bg-active: #e3e7ee;
+  --chrome: #e6e8ec;
+  --chrome-raised: #eef0f3;
+  --chrome-hover: #dee1e6;
+  --checker-a: #e8eaee;
+  --checker-b: #f6f7f9;
+  --border: #dde0e6;
+  --border-strong: #c8cdd6;
+  --border-hover: #a9b0bc;
+
+  --text: #1b1f26;
+  --text-secondary: #464e5c;
+  --text-muted: #667083;
+  --text-faint: #959cab;
+
+  --scrollbar: rgba(120, 128, 145, 0.45);
+  --scrollbar-hover: rgba(95, 103, 120, 0.6);
+  --overlay-rgb: 0 0 0;
+  --shadow: rgba(25, 32, 45, 0.16);
+  --shadow-strong: rgba(25, 32, 45, 0.24);
+  --scrim: rgba(25, 30, 40, 0.32);
+  --scrim-soft: rgba(25, 30, 40, 0.22);
+  --sunken: rgba(0, 0, 0, 0.025);
+  --knob: #ffffff;
+  --on-lane: #ffffff;
+  --on-lane-rgb: 255 255 255;
+  --graph-ring: #1b1f26;
+  --match: #c99700;
+
+  --accent: #1fb5ff;
+  --accent-rgb: 31 181 255;
+  --accent-2: #4d7cff;
+  --accent-ink: #0f77a9;
+  --accent-text: #0f6fa3;
+  --accent-soft-text: #1b6690;
+  --accent-strong-text: #0b4c70;
+
+  --info: #0a8bd1;
+  --info-rgb: 10 139 209;
+  --info-text: #1b6690;
+  --info-strong-text: #0b4c70;
+
+  --danger: #d63040;
+  --danger-rgb: 214 48 64;
+  --danger-text: #a3202d;
+  --danger-strong-text: #c42a39;
+  --danger-bright-text: #8a1a25;
+  --danger-solid: #d63040;
+  --danger-solid-hover: #bf2534;
+
+  --warning: #d68000;
+  --warning-rgb: 214 128 0;
+  --warning-text: #93570a;
+  --warning-soft-text: #875008;
+  --warning-strong-text: #6b4006;
+  --notice: #c98a12;
+  --notice-rgb: 214 150 30;
+  --notice-text: #7a5308;
+
+  --success: #189e52;
+  --success-rgb: 24 158 82;
+  --success-text: #136b39;
+  --success-strong-text: #0d4f29;
+  --safe-rgb: 80 150 20;
+  --safe-text: #3b7010;
+
+  --added: #189e52;
+  --added-rgb: 24 158 82;
+  --added-number: #2b8452;
+  --removed: #d63040;
+  --removed-rgb: 214 48 64;
+  --removed-number: #b0505b;
+
+  --purple: #7a4ce3;
+  --purple-rgb: 122 76 227;
+  --teal: #00957f;
+  --teal-rgb: 0 149 127;
+  --pink-rgb: 230 60 130;
+
+  color-scheme: light;
+}
+
+/* Added and removed in blue and orange, which people with red-green colour blindness tell apart. */
+:root[data-diff-colors="blue-orange"] {
+  --added: #4aa3ff;
+  --added-rgb: 74 163 255;
+  --added-number: #75abe0;
+  --removed: #ff8f2e;
+  --removed-rgb: 255 143 46;
+  --removed-number: #d29a66;
+}
+
+:root[data-theme="light"][data-diff-colors="blue-orange"] {
+  --added: #0969da;
+  --added-rgb: 9 105 218;
+  --added-number: #3c77bf;
+  --removed: #c25100;
+  --removed-rgb: 194 81 0;
+  --removed-number: #a5693c;
 }
 
 * {
@@ -94,14 +291,14 @@ button:disabled {
 
 ::-webkit-scrollbar-thumb {
   /* A little see-through, so the commit list's marks show under it. */
-  background: rgba(88, 97, 116, 0.6);
+  background: var(--scrollbar);
   border: 3px solid transparent;
   border-radius: 6px;
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(110, 120, 140, 0.75);
+  background-color: var(--scrollbar-hover);
 }
 
 @keyframes spin {
@@ -149,7 +346,7 @@ button:disabled {
 }
 
 .tool-button:hover:not(:disabled) {
-  border-color: #4a5162;
+  border-color: var(--border-hover);
   color: var(--text);
 }
 
@@ -165,11 +362,11 @@ button:disabled {
   padding: 0 18px;
   border: none;
   border-radius: 8px;
-  background: linear-gradient(135deg, #1fb5ff, #4d7cff);
-  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--on-accent);
   font-size: 14px;
   font-weight: 600;
-  box-shadow: 0 6px 20px rgba(31, 181, 255, 0.25);
+  box-shadow: 0 6px 20px rgb(var(--accent-rgb) / 0.25);
 }
 
 .primary-button:hover:not(:disabled) {
@@ -192,10 +389,10 @@ button:disabled {
 
 .error-banner {
   padding: 10px 12px;
-  border: 1px solid rgba(255, 92, 108, 0.4);
+  border: 1px solid rgb(var(--danger-rgb) / 0.4);
   border-radius: 8px;
-  background: rgba(255, 92, 108, 0.1);
-  color: #ffb3bb;
+  background: rgb(var(--danger-rgb) / 0.1);
+  color: var(--danger-text);
   user-select: text;
   -webkit-user-select: text;
   overflow-wrap: anywhere;
@@ -223,10 +420,10 @@ button:disabled {
   justify-content: center;
   padding: 32px;
   background:
-    radial-gradient(circle at 20% 15%, rgba(255, 79, 154, 0.09), transparent 40%),
+    radial-gradient(circle at 20% 15%, rgb(var(--pink-rgb) / 0.09), transparent 40%),
     /* The logo's colours: pink, amber and blue. */
-    radial-gradient(circle at 80% 20%, rgba(255, 173, 31, 0.07), transparent 40%),
-    radial-gradient(circle at 50% 90%, rgba(31, 181, 255, 0.1), transparent 45%),
+    radial-gradient(circle at 80% 20%, rgb(var(--warning-rgb) / 0.07), transparent 40%),
+    radial-gradient(circle at 50% 90%, rgb(var(--accent-rgb) / 0.1), transparent 45%),
     var(--bg);
 }
 
@@ -386,7 +583,7 @@ button:disabled {
 }
 
 .icon-button.active {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .head-chip {
@@ -398,8 +595,8 @@ button:disabled {
   height: 26px;
   padding: 0 10px;
   border-radius: 13px;
-  background: rgba(31, 181, 255, 0.14);
-  color: #8fd8ff;
+  background: rgb(var(--accent-rgb) / 0.14);
+  color: var(--accent-text);
   font-weight: 600;
   white-space: nowrap;
   flex: none;
@@ -415,8 +612,8 @@ button:disabled {
 }
 
 .head-chip.detached {
-  background: rgba(255, 173, 31, 0.14);
-  color: #ffd48a;
+  background: rgb(var(--warning-rgb) / 0.14);
+  color: var(--warning-soft-text);
 }
 
 .toolbar-actions {
@@ -504,7 +701,7 @@ button:disabled {
   padding: 0 5px;
   border-radius: 9px;
   background: var(--accent);
-  color: #0d0f13;
+  color: var(--on-accent);
   font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -747,19 +944,19 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
 }
 
 .change-count.added {
-  color: #36e07c;
-  background: rgba(54, 224, 124, 0.13);
+  color: var(--added);
+  background: rgb(var(--added-rgb) / 0.13);
 }
 
 .change-count.modified {
-  color: #ffad1f;
-  background: rgba(255, 173, 31, 0.13);
+  color: var(--warning);
+  background: rgb(var(--warning-rgb) / 0.13);
 }
 
 .change-count.deleted,
 .change-count.conflicted {
-  color: #ff5c6c;
-  background: rgba(255, 92, 108, 0.13);
+  color: var(--danger);
+  background: rgb(var(--danger-rgb) / 0.13);
 }
 
 .author {
@@ -813,7 +1010,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: #0d0f13;
+  color: var(--on-bright);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -1185,7 +1382,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
   border: 1px solid var(--border-strong);
   border-radius: 4px;
   background: var(--bg-raised);
-  color: #8fd8ff;
+  color: var(--accent-text);
   font-family: var(--mono);
   font-size: 12px;
 }
@@ -1284,7 +1481,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
 }
 
 .details-error {
-  color: #ffb3bb;
+  color: var(--danger-text);
   overflow-wrap: anywhere;
 }
 
@@ -1303,7 +1500,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   background: var(--bg-raised);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 30px var(--shadow);
   outline: none;
 }
 
@@ -1323,7 +1520,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
 
 .menu-item:hover:not(:disabled),
 .menu-item:focus-visible {
-  background: #2d3341;
+  background: var(--bg-active);
 }
 
 .menu-item:focus-visible {
@@ -1332,7 +1529,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
 }
 
 .menu-item.danger {
-  color: #ff8a96;
+  color: var(--danger-strong-text);
 }
 
 .menu-icon {
@@ -1370,7 +1567,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(8, 9, 12, 0.6);
+  background: var(--scrim);
 }
 
 .dialog:focus-visible {
@@ -1383,7 +1580,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
   border: 1px solid var(--border-strong);
   border-radius: 12px;
   background: var(--bg-panel);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 60px var(--shadow-strong);
 }
 
 .dialog h2 {
@@ -1441,7 +1638,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
 }
 
 .dialog .hint.warning {
-  color: #f3d29b;
+  color: var(--notice-text);
 }
 
 .diagnostics-text {
@@ -1465,7 +1662,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
 .dialog code {
   font-family: var(--mono);
   font-size: 12px;
-  color: #8fd8ff;
+  color: var(--accent-text);
 }
 
 .commit-ref {
@@ -1483,7 +1680,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
 }
 
 .dialog-consequences .danger {
-  color: #ffb3bb;
+  color: var(--danger-text);
 }
 
 .dialog .error-banner {
@@ -1513,12 +1710,12 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
 
 .danger-button {
   border: none;
-  background: #e5484d;
+  background: var(--danger-solid);
   color: #fff;
 }
 
 .danger-button:hover:not(:disabled) {
-  background: #f05a5f;
+  background: var(--danger-solid-hover);
 }
 
 .secondary-button:disabled,
@@ -1536,14 +1733,14 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
   gap: 6px;
   height: 28px;
   padding: 0 10px;
-  border: 1px solid rgba(255, 92, 108, 0.45);
+  border: 1px solid rgb(var(--danger-rgb) / 0.45);
   background: transparent;
-  color: #ff8a96;
+  color: var(--danger-strong-text);
   font-weight: 500;
 }
 
 .danger-outline-button:hover {
-  background: rgba(255, 92, 108, 0.1);
+  background: rgb(var(--danger-rgb) / 0.1);
 }
 
 /* A button's text, trimmed to its capital letters, so an icon next to it lines up with the
@@ -1620,8 +1817,8 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
   padding: 0 14px;
   border: none;
   border-radius: 6px;
-  background: linear-gradient(135deg, #1fb5ff, #4d7cff);
-  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -1651,11 +1848,11 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
   align-items: center;
   gap: 8px;
   padding: 9px 14px;
-  border: 1px solid rgba(54, 224, 124, 0.35);
+  border: 1px solid rgb(var(--success-rgb) / 0.35);
   border-radius: 8px;
-  background: #1b2a22;
-  color: #b8f5cf;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(rgb(var(--success-rgb) / 0.1), rgb(var(--success-rgb) / 0.1)) var(--bg);
+  color: var(--success-text);
+  box-shadow: 0 10px 30px var(--shadow);
   transform: translateX(-50%);
   animation: toast-in 0.18s ease-out;
   cursor: pointer;
@@ -1846,7 +2043,7 @@ body.resizing * {
 }
 
 .sidebar-item.current {
-  color: #8fd8ff;
+  color: var(--accent-text);
   font-weight: 600;
 }
 
@@ -1857,7 +2054,7 @@ body.resizing * {
 }
 
 .sidebar-item.current .sidebar-icon {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .sidebar-name {
@@ -1905,31 +2102,31 @@ body.resizing * {
 .toast-button {
   margin-left: 6px;
   padding: 3px 10px;
-  border: 1px solid rgba(184, 245, 207, 0.4);
+  border: 1px solid rgb(var(--success-rgb) / 0.4);
   border-radius: 5px;
   background: transparent;
-  color: #d8fbe6;
+  color: var(--success-strong-text);
   font-weight: 600;
 }
 
 .toast-button:hover {
-  background: rgba(184, 245, 207, 0.12);
+  background: rgb(var(--success-rgb) / 0.12);
 }
 
 .error-action {
   flex: none;
   margin-left: 8px;
   padding: 4px 10px;
-  border: 1px solid rgba(255, 179, 187, 0.5);
+  border: 1px solid rgb(var(--danger-rgb) / 0.5);
   border-radius: 5px;
-  background: rgba(255, 92, 108, 0.15);
-  color: #ffd5da;
+  background: rgb(var(--danger-rgb) / 0.15);
+  color: var(--danger-bright-text);
   font-weight: 600;
   white-space: nowrap;
 }
 
 .error-action:hover:not(:disabled) {
-  background: rgba(255, 92, 108, 0.25);
+  background: rgb(var(--danger-rgb) / 0.25);
 }
 
 .dialog .error-banner {
@@ -1961,7 +2158,7 @@ body.resizing * {
 }
 
 .outline-button:hover {
-  border-color: #4a5162;
+  border-color: var(--border-hover);
   color: var(--text);
 }
 
@@ -1969,7 +2166,7 @@ body.resizing * {
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: 12px;
   font-weight: 500;
 }
@@ -2065,7 +2262,7 @@ body.resizing * {
   align-items: stretch;
   height: 36px;
   padding: 0 8px;
-  background: #101216;
+  background: var(--chrome);
   border-bottom: 1px solid var(--border);
   flex: none;
   user-select: none;
@@ -2112,7 +2309,7 @@ body.resizing * {
 }
 
 .tab:hover {
-  background: #171a20;
+  background: var(--chrome-hover);
   color: var(--text-secondary);
 }
 
@@ -2185,7 +2382,7 @@ body.resizing * {
   padding: 0;
   border: none;
   border-radius: 7px 7px 0 0;
-  background: #15181e;
+  background: var(--chrome-raised);
   color: var(--text-secondary);
   flex: none;
 }
@@ -2271,8 +2468,8 @@ body.resizing * {
 
 .operation-bar {
   flex-wrap: wrap;
-  background: rgba(255, 173, 31, 0.08);
-  border-bottom-color: rgba(255, 173, 31, 0.3);
+  background: rgb(var(--warning-rgb) / 0.08);
+  border-bottom-color: rgb(var(--warning-rgb) / 0.3);
 }
 
 .operation-text {
@@ -2286,7 +2483,7 @@ body.resizing * {
 }
 
 .operation-text strong {
-  color: #ffd48a;
+  color: var(--warning-soft-text);
 }
 
 .operation-buttons {
@@ -2300,12 +2497,12 @@ body.resizing * {
 
 .view-banner {
   padding: 5px 14px;
-  background: rgba(31, 181, 255, 0.07);
+  background: rgb(var(--accent-rgb) / 0.07);
   color: var(--text-secondary);
 }
 
 .view-banner svg {
-  color: var(--accent);
+  color: var(--accent-ink);
   flex: none;
 }
 
@@ -2320,10 +2517,10 @@ body.resizing * {
   gap: 10px;
   margin: 8px 12px 0;
   padding: 7px 8px 7px 12px;
-  border: 1px solid rgba(240, 180, 76, 0.35);
+  border: 1px solid rgb(var(--notice-rgb) / 0.35);
   border-radius: 8px;
-  background: rgba(240, 180, 76, 0.08);
-  color: #f3d29b;
+  background: rgb(var(--notice-rgb) / 0.08);
+  color: var(--notice-text);
   flex: none;
 }
 
@@ -2335,7 +2532,7 @@ body.resizing * {
 
 .notice-banner > svg {
   flex: none;
-  color: #f0b44c;
+  color: var(--notice);
 }
 
 .notice-banner span {
@@ -2346,43 +2543,43 @@ body.resizing * {
 .notice-action {
   flex: none;
   padding: 4px 10px;
-  border: 1px solid rgba(240, 180, 76, 0.5);
+  border: 1px solid rgb(var(--notice-rgb) / 0.5);
   border-radius: 5px;
-  background: rgba(240, 180, 76, 0.14);
-  color: #ffe2ad;
+  background: rgb(var(--notice-rgb) / 0.14);
+  color: var(--warning-strong-text);
   font-weight: 600;
   white-space: nowrap;
 }
 
 .notice-action:hover:not(:disabled) {
-  background: rgba(240, 180, 76, 0.24);
+  background: rgb(var(--notice-rgb) / 0.24);
 }
 
 /* An offer rather than a problem, like releasing locks after a push. */
 .notice-banner.info {
-  border-color: rgba(31, 181, 255, 0.35);
-  background: rgba(31, 181, 255, 0.08);
-  color: #a9dcf7;
+  border-color: rgb(var(--info-rgb) / 0.35);
+  background: rgb(var(--info-rgb) / 0.08);
+  color: var(--info-text);
 }
 
 .notice-banner.info > svg {
-  color: var(--accent);
+  color: var(--info);
 }
 
 .notice-banner.info .notice-action {
-  border-color: rgba(31, 181, 255, 0.5);
-  background: rgba(31, 181, 255, 0.14);
-  color: #d6efff;
+  border-color: rgb(var(--info-rgb) / 0.5);
+  background: rgb(var(--info-rgb) / 0.14);
+  color: var(--info-strong-text);
 }
 
 .notice-banner.info .notice-action:hover:not(:disabled) {
-  background: rgba(31, 181, 255, 0.24);
+  background: rgb(var(--info-rgb) / 0.24);
 }
 
 /* Commit list extras */
 
 .commit-row.drop-target {
-  background: rgba(31, 181, 255, 0.16);
+  background: rgb(var(--accent-rgb) / 0.16);
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
@@ -2395,7 +2592,7 @@ body.resizing * {
   padding: 2px 8px;
   border: 1px solid var(--accent);
   border-radius: 5px;
-  background: rgba(31, 181, 255, 0.22);
+  background: rgb(var(--accent-rgb) / 0.22);
   color: var(--text);
   font-size: 12px;
   font-weight: 600;
@@ -2440,7 +2637,7 @@ body.dragging-label * {
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: var(--bg-raised);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 12px 32px var(--shadow-strong);
   pointer-events: none;
 }
 
@@ -2506,7 +2703,7 @@ body.dragging-label * {
   display: flex;
   justify-content: center;
   padding-top: 12vh;
-  background: rgba(8, 9, 12, 0.45);
+  background: var(--scrim-soft);
 }
 
 .palette {
@@ -2517,7 +2714,7 @@ body.dragging-label * {
   border: 1px solid var(--border-strong);
   border-radius: 12px;
   background: var(--bg-panel);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 24px 64px var(--shadow-strong);
   overflow: hidden;
   align-self: flex-start;
 }
@@ -2624,7 +2821,7 @@ body.dragging-label * {
 
 /* Multiple selected commits: all highlighted, the last one clicked marked by its lane colour. */
 .commit-row.selected:not(.primary) {
-  background: rgba(37, 43, 56, 0.85);
+  background: rgb(var(--bg-selected-rgb) / 0.85);
 }
 
 /* Day separators: a row with the period's name, which the graph's lanes pass through. */
@@ -2732,14 +2929,14 @@ body.dragging-label * {
 }
 
 .sidebar-eye.solo {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .sidebar-item.hidden-ref .sidebar-name,
 .sidebar-item.hidden-ref .sidebar-icon {
   opacity: 0.45;
   text-decoration: line-through;
-  text-decoration-color: rgba(255, 255, 255, 0.25);
+  text-decoration-color: rgb(var(--overlay-rgb) / 0.25);
 }
 
 .sidebar-visibility {
@@ -2749,7 +2946,7 @@ body.dragging-label * {
   margin: 0 10px 6px;
   padding: 5px 8px;
   border-radius: 6px;
-  background: rgba(31, 181, 255, 0.08);
+  background: rgb(var(--accent-rgb) / 0.08);
   color: var(--text-secondary);
   font-size: 12px;
 }
@@ -2800,11 +2997,11 @@ body.dragging-label * {
 }
 
 .status-item.running {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .status-item.warning {
-  color: #ffd48a;
+  color: var(--warning-soft-text);
 }
 
 .status-button:hover {
@@ -2818,7 +3015,7 @@ body.dragging-label * {
 }
 
 .status-count {
-  color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 600;
 }
 
@@ -2920,7 +3117,7 @@ body.dragging-label * {
 }
 
 .activity-status.ok {
-  color: #36e07c;
+  color: var(--success);
 }
 
 .activity-command {
@@ -2935,7 +3132,7 @@ body.dragging-label * {
 }
 
 .activity-entry.failed .activity-command {
-  color: #ffb3bb;
+  color: var(--danger-text);
 }
 
 .activity-badge,
@@ -3032,7 +3229,7 @@ body.dragging-label * {
   gap: 10px;
   border: 2px dashed var(--accent);
   border-radius: 14px;
-  background: rgba(20, 22, 27, 0.82);
+  background: rgb(var(--bg-rgb) / 0.82);
   color: var(--text);
   font-size: 16px;
   font-weight: 600;
@@ -3129,7 +3326,7 @@ body.dragging-label * {
 }
 
 .recent-pin.pinned {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .recent-divider {
@@ -3179,8 +3376,8 @@ body.dragging-label * {
   margin-top: 10px;
   padding: 8px 10px;
   border-radius: 6px;
-  background: rgba(255, 173, 31, 0.1);
-  color: #ffd48a;
+  background: rgb(var(--warning-rgb) / 0.1);
+  color: var(--warning-soft-text);
   font-size: 12px;
 }
 
@@ -3225,7 +3422,7 @@ textarea.text-input {
 
 .rebase-row.lifted {
   background: var(--bg-selected);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 18px var(--shadow);
 }
 
 .rebase-main {
@@ -3322,7 +3519,7 @@ textarea.text-input {
 
 /* Links in commit messages */
 .message-link {
-  color: var(--accent);
+  color: var(--accent-ink);
   text-decoration: none;
 }
 
@@ -3367,7 +3564,7 @@ textarea.text-input {
 
 .prune-row input {
   margin-top: 3px;
-  accent-color: #e5484d;
+  accent-color: var(--danger-solid);
   flex: none;
 }
 
@@ -3404,18 +3601,18 @@ textarea.text-input {
 }
 
 .prune-tag.gone {
-  background: rgba(255, 173, 31, 0.12);
-  color: #ffc966;
+  background: rgb(var(--warning-rgb) / 0.12);
+  color: var(--warning-text);
 }
 
 .prune-tag.merged {
-  background: rgba(140, 224, 74, 0.12);
-  color: #a9e57b;
+  background: rgb(var(--safe-rgb) / 0.12);
+  color: var(--safe-text);
 }
 
 .prune-tag.unmerged {
-  background: rgba(255, 92, 108, 0.12);
-  color: #ff97a1;
+  background: rgb(var(--danger-rgb) / 0.12);
+  color: var(--danger-strong-text);
 }
 
 .prune-summary {
@@ -3479,7 +3676,7 @@ textarea.text-input {
 .status-hint {
   gap: 0;
   padding: 0;
-  color: #ffc966;
+  color: var(--warning-text);
 }
 
 .status-hint .status-button {
@@ -3490,7 +3687,7 @@ textarea.text-input {
   padding: 0 6px;
   border: none;
   border-radius: 4px 0 0 4px;
-  background: rgba(255, 173, 31, 0.1);
+  background: rgb(var(--warning-rgb) / 0.1);
   color: inherit;
   font: inherit;
 }
@@ -3510,14 +3707,14 @@ textarea.text-input {
   padding: 0;
   border: none;
   border-radius: 0 4px 4px 0;
-  background: rgba(255, 173, 31, 0.1);
+  background: rgb(var(--warning-rgb) / 0.1);
   color: inherit;
   opacity: 0.7;
 }
 
 .status-hint-close:hover,
 .status-hint .status-button:hover {
-  background: rgba(255, 173, 31, 0.18);
+  background: rgb(var(--warning-rgb) / 0.18);
   opacity: 1;
 }
 
@@ -3546,8 +3743,8 @@ textarea.text-input {
   margin: 10px 0 0;
   padding: 8px 10px;
   border-radius: 6px;
-  background: rgba(140, 224, 74, 0.08);
-  color: #b5e88f;
+  background: rgb(var(--safe-rgb) / 0.08);
+  color: var(--safe-text);
   font-size: 12px;
 }
 
@@ -3568,7 +3765,7 @@ textarea.text-input {
 }
 
 .lost-commits li .mono {
-  color: #ffc966;
+  color: var(--warning-text);
 }
 
 .restore-list {
@@ -3624,15 +3821,15 @@ textarea.text-input {
 
 .restore-event.deleted,
 .restore-event.deletedFromRemote {
-  background: rgba(255, 92, 108, 0.12);
-  color: #ff97a1;
+  background: rgb(var(--danger-rgb) / 0.12);
+  color: var(--danger-strong-text);
 }
 
 .restore-event.forcePushed,
 .restore-event.reset,
 .restore-event.rebased {
-  background: rgba(255, 173, 31, 0.12);
-  color: #ffc966;
+  background: rgb(var(--warning-rgb) / 0.12);
+  color: var(--warning-text);
 }
 
 .restore-when {
@@ -3671,11 +3868,11 @@ textarea.text-input {
 }
 
 .file-lock.mine {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .file-lock.theirs {
-  color: #ffad1f;
+  color: var(--warning);
 }
 
 .file-lock-owner {
@@ -3691,8 +3888,8 @@ textarea.text-input {
   margin: 4px 0 10px;
   padding: 8px 10px;
   border-radius: 6px;
-  background: rgba(255, 173, 31, 0.1);
-  color: #ffd48a;
+  background: rgb(var(--warning-rgb) / 0.1);
+  color: var(--warning-soft-text);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -3703,15 +3900,15 @@ textarea.text-input {
 }
 
 .lock-warning strong {
-  color: #ffe2ad;
+  color: var(--warning-strong-text);
 }
 
 .sidebar-locked .sidebar-icon {
-  color: #ffad1f;
+  color: var(--warning);
 }
 
 .sidebar-locked.mine .sidebar-icon {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .sidebar-lock-owner {
@@ -3774,7 +3971,7 @@ textarea.text-input {
 /* File history */
 
 .file.highlighted {
-  background: rgba(31, 181, 255, 0.1);
+  background: rgb(var(--accent-rgb) / 0.1);
 }
 
 .file.highlighted .file-name {
@@ -3827,12 +4024,12 @@ textarea.text-input {
 }
 
 .window-control:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgb(var(--overlay-rgb) / 0.08);
   color: var(--text);
 }
 
 .window-control:active {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgb(var(--overlay-rgb) / 0.05);
 }
 
 .window-control.close:hover {
@@ -3869,7 +4066,7 @@ textarea.text-input {
   padding: 10px;
   overflow-y: auto;
   border-right: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--sunken);
 }
 
 .settings-tab {
@@ -3901,7 +4098,7 @@ textarea.text-input {
 }
 
 .settings-tab.selected .settings-tab-icon {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .settings-tab-text {
@@ -4002,6 +4199,192 @@ textarea.text-input {
   gap: 14px;
 }
 
+/* Appearance: theme, accent and graph colour pickers. */
+
+.theme-picker,
+.lane-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.theme-choice,
+.lane-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 5px 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.theme-choice:hover,
+.lane-choice:hover {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.theme-choice.chosen,
+.lane-choice.chosen {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  color: var(--text);
+}
+
+/* A tiny window: a sidebar and a few rows, in each theme's colours. */
+.theme-sample {
+  display: flex;
+  width: 58px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 4px;
+  border: 1px solid rgb(var(--overlay-rgb) / 0.12);
+}
+
+.theme-sample-sidebar {
+  width: 16px;
+}
+
+.theme-sample-rows {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 5px;
+}
+
+.theme-sample-rows > span {
+  height: 3px;
+  border-radius: 2px;
+}
+
+.theme-sample.dark {
+  background: #14161b;
+}
+
+.theme-sample.dark .theme-sample-sidebar {
+  background: #1a1d24;
+}
+
+.theme-sample.dark .theme-sample-rows > span {
+  background: #3a4050;
+}
+
+.theme-sample.light {
+  background: #ffffff;
+}
+
+.theme-sample.light .theme-sample-sidebar {
+  background: #eceef2;
+}
+
+.theme-sample.light .theme-sample-rows > span {
+  background: #d3d7df;
+}
+
+/* Half and half. */
+.theme-sample.system {
+  background: linear-gradient(135deg, #14161b 50%, #ffffff 50%);
+}
+
+.theme-sample.system .theme-sample-sidebar {
+  background: #1a1d24;
+}
+
+.theme-sample.system .theme-sample-rows > span {
+  background: #8a909c;
+}
+
+/* The first row is selected, in the accent colour. */
+.theme-sample > .theme-sample-rows > span:first-child {
+  width: 70%;
+  background: var(--accent);
+}
+
+.accent-picker {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 300px;
+}
+
+.accent-swatch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgb(var(--overlay-rgb) / 0.12);
+  transition: transform 0.12s;
+}
+
+.accent-swatch:hover {
+  transform: scale(1.1);
+}
+
+.accent-swatch.chosen {
+  box-shadow: 0 0 0 2px var(--bg-panel), 0 0 0 4px var(--accent);
+}
+
+.accent-swatch svg {
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.6));
+}
+
+/* Any colour: a rainbow ring until one is picked. */
+.accent-custom {
+  background: conic-gradient(#ff4f9a, #ffad1f, #ffe24a, #36e07c, #1fb5ff, #a77bff, #ff4f9a);
+  cursor: pointer;
+}
+
+.accent-custom > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg-panel);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.accent-custom input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.accent-custom:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.lane-sample {
+  display: flex;
+  gap: 2px;
+  padding: 3px 0;
+}
+
+.lane-sample > span {
+  width: 6px;
+  height: 18px;
+  border-radius: 3px;
+}
+
 .switch {
   position: relative;
   width: 34px;
@@ -4015,7 +4398,7 @@ textarea.text-input {
 
 .switch.on {
   border-color: transparent;
-  background: linear-gradient(135deg, #1fb5ff, #4d7cff);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
 
 .switch-knob {
@@ -4025,7 +4408,7 @@ textarea.text-input {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #cfd5e0;
+  background: var(--knob);
   transition: transform 0.15s;
 }
 
@@ -4098,18 +4481,18 @@ textarea.text-input {
   height: 24px;
   margin-left: 8px;
   padding: 0 10px;
-  border: 1px solid rgba(31, 181, 255, 0.45);
+  border: 1px solid rgb(var(--accent-rgb) / 0.45);
   border-radius: 12px;
-  background: rgba(31, 181, 255, 0.12);
-  box-shadow: 0 0 12px rgba(31, 181, 255, 0.25);
-  color: #8fd8ff;
+  background: rgb(var(--accent-rgb) / 0.12);
+  box-shadow: 0 0 12px rgb(var(--accent-rgb) / 0.25);
+  color: var(--accent-text);
   font-size: 12px;
   flex: none;
 }
 
 .update-pill:hover {
-  background: rgba(31, 181, 255, 0.2);
-  color: #fff;
+  background: rgb(var(--accent-rgb) / 0.2);
+  color: var(--accent-strong-text);
 }
 
 .update-notes {
@@ -4164,21 +4547,21 @@ textarea.text-input {
 }
 
 .file-warning.large {
-  background: rgba(255, 92, 108, 0.1);
-  color: #ffb3bb;
+  background: rgb(var(--danger-rgb) / 0.1);
+  color: var(--danger-text);
 }
 
 .file-warning.large strong {
-  color: #ffd2d7;
+  color: var(--danger-bright-text);
 }
 
 .file-warning.lockable {
-  background: rgba(31, 181, 255, 0.08);
-  color: #a9dcf7;
+  background: rgb(var(--info-rgb) / 0.08);
+  color: var(--info-text);
 }
 
 .file-warning.lockable strong {
-  color: #d6efff;
+  color: var(--info-strong-text);
 }
 
 .file-warning-actions {
@@ -4206,8 +4589,8 @@ textarea.text-input {
   gap: 10px;
   padding: 7px 10px;
   border-radius: 6px;
-  background: rgba(255, 92, 108, 0.1);
-  color: #ffb3bb;
+  background: rgb(var(--danger-rgb) / 0.1);
+  color: var(--danger-text);
   font-size: 12px;
 }
 
@@ -4263,7 +4646,7 @@ textarea.text-input {
   height: 15px;
   padding: 0 4px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(var(--overlay-rgb) / 0.1);
   color: var(--text-secondary);
   font-size: 10.5px;
   font-weight: 600;
@@ -4273,13 +4656,13 @@ textarea.text-input {
 }
 
 .pr-badge:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgb(var(--overlay-rgb) / 0.18);
   color: var(--text);
 }
 
 .ref-pill.current .pr-badge {
-  background: rgba(13, 15, 19, 0.22);
-  color: #0d0f13;
+  background: rgb(var(--on-lane-rgb) / 0.22);
+  color: var(--on-lane);
 }
 
 .pr-badge.draft {
@@ -4295,15 +4678,15 @@ textarea.text-input {
 }
 
 .pr-badge.success .pr-dot {
-  background: #36e07c;
+  background: var(--success);
 }
 
 .pr-badge.failure .pr-dot {
-  background: #ff5c6c;
+  background: var(--danger);
 }
 
 .pr-badge.pending .pr-dot {
-  background: #ffad1f;
+  background: var(--warning);
 }
 
 .sidebar-item .pr-badge {
@@ -4322,7 +4705,7 @@ textarea.text-input {
   margin-left: -2px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 6px rgba(31, 181, 255, 0.7);
+  box-shadow: 0 0 6px rgb(var(--accent-rgb) / 0.7);
   flex: none;
 }
 
@@ -4350,7 +4733,7 @@ textarea.text-input {
 }
 
 .recover-row.lost {
-  background: rgba(255, 173, 31, 0.04);
+  background: rgb(var(--warning-rgb) / 0.04);
 }
 
 .recover-main {
@@ -4407,8 +4790,8 @@ textarea.text-input {
   margin-left: 8px;
   padding: 1px 6px;
   border-radius: 4px;
-  background: rgba(255, 173, 31, 0.12);
-  color: #ffc966;
+  background: rgb(var(--warning-rgb) / 0.12);
+  color: var(--warning-text);
   font-size: 11px;
 }
 
@@ -4432,7 +4815,7 @@ textarea.text-input {
 }
 
 .message-tool:hover:not(:disabled) {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .message-tool:disabled {
@@ -4461,11 +4844,11 @@ textarea.text-input {
 }
 
 .summary-count.long {
-  color: #ffad1f;
+  color: var(--warning);
 }
 
 .summary-count.over {
-  color: #ff5c6c;
+  color: var(--danger);
 }
 
 /* People who ask for less motion get none: no spinners, pulses or sliding panels. */
@@ -4497,13 +4880,13 @@ code {
 /* Files you're changing that other branches also changed: a note for code, a warning
    for assets that can't be merged. */
 .file-warning.elsewhere {
-  background: rgba(31, 181, 255, 0.08);
-  color: #a9dcf7;
+  background: rgb(var(--info-rgb) / 0.08);
+  color: var(--info-text);
 }
 
 .file-warning.elsewhere.assets {
-  background: rgba(240, 180, 76, 0.1);
-  color: #f3d29b;
+  background: rgb(var(--notice-rgb) / 0.1);
+  color: var(--notice-text);
 }
 
 /* Long names shorten instead of widening the panel. */
@@ -4566,19 +4949,19 @@ code {
   display: inline-flex;
   align-items: center;
   flex: none;
-  color: #6fc6f2;
+  color: var(--info-text);
 }
 
 .file-elsewhere.assets {
-  color: #f0b44c;
+  color: var(--notice);
 }
 
 .status-item.elsewhere {
-  color: #8fd3f7;
+  color: var(--info-text);
 }
 
 .status-item.elsewhere.assets {
-  color: #ffc966;
+  color: var(--warning-text);
 }
 
 /* Diff view: a file's changes, over the commit list. */
@@ -4687,11 +5070,11 @@ code {
 }
 
 .diff-stats .added {
-  color: #36e07c;
+  color: var(--added);
 }
 
 .diff-stats .removed {
-  color: #ff5c6c;
+  color: var(--removed);
 }
 
 .diff-option {
@@ -4723,7 +5106,7 @@ code {
   align-items: center;
   margin-top: 8px;
   padding: 0 12px;
-  background: rgba(31, 181, 255, 0.06);
+  background: rgb(var(--accent-rgb) / 0.06);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   color: var(--text-muted);
@@ -4778,29 +5161,29 @@ code {
 }
 
 .diff-row.added {
-  background: rgba(54, 224, 124, 0.09);
+  background: rgb(var(--added-rgb) / 0.09);
 }
 
 .diff-row.added .diff-number {
-  background: #172a20;
-  color: #5fbf86;
+  background: linear-gradient(rgb(var(--added-rgb) / 0.1), rgb(var(--added-rgb) / 0.1)) var(--bg);
+  color: var(--added-number);
 }
 
 .diff-row.added .diff-sign {
-  color: #36e07c;
+  color: var(--added);
 }
 
 .diff-row.removed {
-  background: rgba(255, 92, 108, 0.09);
+  background: rgb(var(--removed-rgb) / 0.09);
 }
 
 .diff-row.removed .diff-number {
-  background: #2c1a1e;
-  color: #c9737d;
+  background: linear-gradient(rgb(var(--removed-rgb) / 0.1), rgb(var(--removed-rgb) / 0.1)) var(--bg);
+  color: var(--removed-number);
 }
 
 .diff-row.removed .diff-sign {
-  color: #ff5c6c;
+  color: var(--removed);
 }
 
 .diff-row mark {
@@ -4809,11 +5192,11 @@ code {
 }
 
 .diff-row.added mark {
-  background: rgba(54, 224, 124, 0.3);
+  background: rgb(var(--added-rgb) / 0.3);
 }
 
 .diff-row.removed mark {
-  background: rgba(255, 92, 108, 0.32);
+  background: rgb(var(--removed-rgb) / 0.32);
 }
 
 .diff-message {
@@ -4842,7 +5225,7 @@ code {
   border: 1px solid var(--border);
   border-radius: 8px;
   /* A checkerboard, so transparent parts show. */
-  background: repeating-conic-gradient(#1c1f26 0 25%, #171a20 0 50%) 0 0 / 16px 16px;
+  background: repeating-conic-gradient(var(--checker-a) 0 25%, var(--checker-b) 0 50%) 0 0 / 16px 16px;
 }
 
 .diff-image-frame img {
@@ -4882,11 +5265,11 @@ code {
 .sidebar-submodule.behind .submodule-note,
 .sidebar-submodule.different .submodule-note,
 .sidebar-submodule.conflicted .submodule-note {
-  color: #ffc966;
+  color: var(--warning-text);
 }
 
 .sidebar-submodule.ahead .submodule-note {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .clone-submodules {
@@ -4919,7 +5302,7 @@ code {
 }
 
 .diff-submodule-ids code {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .diff-submodule-commits {
@@ -4940,11 +5323,11 @@ code {
 
 .diff-submodule-commits li code {
   flex: none;
-  color: #36e07c;
+  color: var(--added);
 }
 
 .diff-submodule-commits.rewound li code {
-  color: #ff5c6c;
+  color: var(--removed);
 }
 
 .diff-submodule p {
@@ -4952,7 +5335,7 @@ code {
 }
 
 .diff-submodule-dirty {
-  color: #ffc966;
+  color: var(--warning-text);
 }
 
 /* "Also changed elsewhere": the branches, over the status bar */
@@ -4966,7 +5349,7 @@ code {
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: var(--bg-raised);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 14px 40px var(--shadow-strong);
   outline: none;
 }
 
@@ -5062,7 +5445,7 @@ code {
 }
 
 .elsewhere-branch-entry.assets .elsewhere-branch-count {
-  color: #ffc966;
+  color: var(--warning-text);
 }
 
 .elsewhere-branch-who {
@@ -5113,7 +5496,7 @@ code {
 }
 
 .elsewhere-file-name.asset {
-  color: #ffc966;
+  color: var(--warning-text);
 }
 
 .elsewhere-file-dir {
@@ -5311,7 +5694,7 @@ select:disabled {
   height: min(52vh, 460px);
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: radial-gradient(circle at 50% 40%, #222631, #15171c);
+  background: radial-gradient(circle at 50% 40%, var(--bg-raised), var(--chrome-raised));
   overflow: hidden;
 }
 
@@ -5363,7 +5746,7 @@ select:disabled {
 }
 
 .diff-model-facts tr.changed td:last-child {
-  color: #ffc966;
+  color: var(--warning-text);
 }
 
 /* 3D or text, for models stored as text */

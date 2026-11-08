@@ -27,6 +27,8 @@ interface RowProps {
   top: number;
   height: number;
   metrics: GraphMetrics;
+  /** The lane colours in use. */
+  lanes: string[];
   visible: VisibleColumns;
   options: ColumnOptions;
   /** For the uncommitted changes row: how many files changed. */
@@ -47,11 +49,11 @@ interface RowProps {
  * width doesn't re-render the rows, and a row re-renders only when what it shows changes.
  */
 export const ListRow = memo(function ListRow(props: RowProps) {
-  const { commit, top, height, metrics, visible, options, changes, narrow, dense, handlers } = props;
+  const { commit, top, height, metrics, lanes, visible, options, changes, narrow, dense, handlers } = props;
   const { selected, primary, dimmed } = props;
   const on = () => handlers.current!;
   const onSelect = (id: string, how?: SelectHow) => on().onSelect(id, how);
-  const color = laneColor(commit.graph.column);
+  const color = laneColor(commit.graph.column, lanes);
   // A line from the label to the commit's node in the graph (which can be narrower than its lane).
   const lane = laneX(commit.graph.column, metrics);
   const time = options.dateKind === "committed" ? commit.commitTime : commit.time;

@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { PAGE_SIZE, type CommitDetails, type CommitRow, type RepoSnapshot } from "../api";
 import { countChanges } from "../lib/changes";
 import { slotsFor } from "../lib/days";
 import { onLabelDrop } from "../lib/drag";
 import type { RefPill } from "../lib/refs";
 import type { SelectHow } from "../lib/selection";
+import { ThemeContext } from "../app/useAppearance";
 import { useGraphCanvas, useScrollMarkers } from "./commitList/canvases";
 import { DENSE_ROW_HEIGHT, FOOTER_HEIGHT, GRAPH_PADDING, LANE_WIDTH, ROW_HEIGHT, useColumnLayout, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
 import { ListHeader } from "./commitList/ListHeader";
@@ -143,9 +144,10 @@ export function CommitList(props: Props) {
     [indexById, commits],
   );
 
-  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: props.focusIds });
+  const { colors, curves } = useContext(ThemeContext);
+  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: props.focusIds, colors, curves });
   const marked = useMemo(() => selectedIds ?? new Set(selectedId ? [selectedId] : []), [selectedIds, selectedId]);
-  useScrollMarkers(markerCanvas, { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId: headCommit, selectedIds: marked });
+  useScrollMarkers(markerCanvas, { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId: headCommit, selectedIds: marked, colors });
 
   // Bring the selected commit into view when it changes.
   useEffect(() => {
@@ -222,6 +224,7 @@ export function CommitList(props: Props) {
         top={slotIndex * rowHeight}
         height={rowHeight}
         metrics={metrics}
+        lanes={colors.lanes}
         visible={layout.visible}
         options={show}
         changes={commit.kind === "worktree" ? changeCounts : undefined}

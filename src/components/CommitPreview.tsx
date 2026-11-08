@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CommitDetails, CommitRow } from "../api";
+import { useThemeColors } from "../app/useAppearance";
 import { laneColor } from "../lib/colors";
 import { fullDate, plural, shortId } from "../lib/format";
 import { Avatar } from "./Avatar";
@@ -15,6 +16,7 @@ interface Props {
 
 /** A card with a commit's full message and changed-file counts, shown on hover. */
 export function CommitPreview({ commit, x, y, loadDetails }: Props) {
+  const colors = useThemeColors();
   const [details, setDetails] = useState<CommitDetails | null>(null);
   const card = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ left: x + 16, top: y + 16 });
@@ -53,7 +55,7 @@ export function CommitPreview({ commit, x, y, loadDetails }: Props) {
       {body && <div className="preview-body">{body}</div>}
       {commit.refs.length > 0 && (
         <div className="preview-refs">
-          <RefPills refs={commit.refs} color={laneColor(commit.graph.column)} />
+          <RefPills refs={commit.refs} color={laneColor(commit.graph.column, colors.lanes)} />
         </div>
       )}
       <div className="preview-meta">

@@ -36,6 +36,7 @@ import { useNativeMenu } from "./app/useNativeMenu";
 import { useOverlays } from "./app/useOverlays";
 import { usePlace } from "./app/usePlace";
 import { usePreferences } from "./app/usePreferences";
+import { ThemeContext, useAppearance } from "./app/useAppearance";
 import { useRepository } from "./app/useRepository";
 import { useRepositorySettings } from "./app/useRepositorySettings";
 import { useSearch } from "./app/useSearch";
@@ -55,6 +56,7 @@ export default function App() {
   const preferences = usePreferences();
   const { tabs, setTabs, setActiveTab, firstParentOnly } = preferences;
   const updates = useUpdates(preferences.autoUpdate);
+  const theme = useAppearance(preferences.appearance);
   const overlays = useOverlays();
   const openSettings = (section?: string) => {
     setSettingsSection(section);
@@ -322,6 +324,7 @@ export default function App() {
 
   const showTabBar = Boolean(snapshot) || tabs.length > 0 || menuBar.element !== undefined;
   return (
+    <ThemeContext.Provider value={theme}>
     <ProfilePictures.Provider value={preferences.profilePictures ? repoPath : null}>
       <PullRequestsContext.Provider value={prs.list.length > 0 ? prLookup : null}>
         <div className="app">
@@ -406,5 +409,6 @@ export default function App() {
         </div>
       </PullRequestsContext.Provider>
     </ProfilePictures.Provider>
+    </ThemeContext.Provider>
   );
 }

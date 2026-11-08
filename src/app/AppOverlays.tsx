@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { signOutOfGitHub } from "../api";
 import type { Updates } from "../lib/updates";
@@ -18,6 +18,7 @@ import { useGitHubStatus } from "./useGitHub";
 import type { ContextMenuState } from "./useMenus";
 import type { Overlays } from "./useOverlays";
 import type { Preferences } from "./usePreferences";
+import { ThemeContext } from "./useAppearance";
 
 interface Props {
   overlays: Overlays;
@@ -45,6 +46,7 @@ interface Props {
 /** Everything that opens over the app, whether a repository is open or not. */
 export function AppOverlays(props: Props) {
   const { overlays, menu, preferences, updates, notify } = props;
+  const { theme } = useContext(ThemeContext);
   const { open, hide, show } = overlays;
   const github = useGitHubStatus(open.settings);
   const diffTools = useDiffToolRows({ open: open.settings, repoPath: props.repoPath, notify: (text) => notify({ text }) });
@@ -65,6 +67,7 @@ export function AppOverlays(props: Props) {
           initial={props.settingsSection}
           sections={settingsSections({
             diffTools,
+            theme,
             preferences,
             version,
             updates,

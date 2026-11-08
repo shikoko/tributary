@@ -27,6 +27,14 @@ export const FolderIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A circle, half filled: light and dark, for the appearance settings. */
+export const ContrastIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="8" r="5.75" />
+    <path d="M8 2.25a5.75 5.75 0 0 1 0 11.5z" fill="currentColor" stroke="none" />
+  </Icon>
+);
+
 export const RefreshIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" />
@@ -177,8 +185,8 @@ export const PencilIcon = (p: IconProps) => (
 export const ViewIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M2.5 5h11M2.5 11h11" />
-    <circle cx="6" cy="5" r="1.75" fill="#1a1d24" />
-    <circle cx="10.5" cy="11" r="1.75" fill="#1a1d24" />
+    <circle cx="6" cy="5" r="1.75" style={{ fill: "var(--bg-panel)" }} />
+    <circle cx="10.5" cy="11" r="1.75" style={{ fill: "var(--bg-panel)" }} />
   </Icon>
 );
 
@@ -388,9 +396,9 @@ export function Logo({ size = 32 }: { size?: number }) {
       <circle cx="702" cy="315" r="48" fill="#ffad1f" />
       <circle cx="512" cy="560" r="38" fill="#1fb5ff" />
       <circle cx="512" cy="760" r="38" fill="#1fb5ff" />
-      {/* The checked-out commit, ringed in white as in the graph. */}
+      {/* The checked-out commit, ringed as in the graph. */}
       <circle cx="512" cy="270" r="44" fill="#1fb5ff" />
-      <circle cx="512" cy="270" r="61" fill="none" stroke="#fff" strokeWidth="14" />
+      <circle cx="512" cy="270" r="61" fill="none" style={{ stroke: "var(--graph-ring)" }} strokeWidth="14" />
     </svg>
   );
 }

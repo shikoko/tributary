@@ -70,7 +70,7 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
   const pr = pill.kind === "branch" ? pullRequests?.find(pill.name, pill.local, pill.remotes) : undefined;
   const style: React.CSSProperties = pill.current
     ? // --pill-glow: the glow it gets in the commit list.
-      ({ background: color, borderColor: color, color: "#0d0f13", "--pill-glow": withAlpha(color, 0.5) } as React.CSSProperties)
+      ({ background: color, borderColor: color, color: "var(--on-lane)", "--pill-glow": withAlpha(color, 0.5) } as React.CSSProperties)
     : pill.kind === "tag" || pill.kind === "stash"
       ? { background: withAlpha(color, 0.08), borderColor: withAlpha(color, 0.45) }
       : // Branches other than the checked-out one: a tint, no outline.

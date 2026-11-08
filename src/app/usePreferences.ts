@@ -1,6 +1,8 @@
 import type { Tab } from "../components/TabBar";
 import { DEFAULT_COLUMNS, type ColumnOptions, type ColumnWidths } from "../components/CommitList";
+import type { Appearance } from "../lib/appearance";
 import { useStoredState } from "../lib/settings";
+import { APPEARANCE_KEY } from "./useAppearance";
 
 /** How new commits found by a background fetch are announced. */
 export type NewCommitNotices = "off" | "app" | "system";
@@ -34,6 +36,8 @@ export function usePreferences() {
   /** After pushing: ask to release the locks on the pushed files, release them, or keep them. */
   const [releaseLocks, setReleaseLocks] = useStoredState<ReleaseLocks>("locks.release", "ask");
   const [submoduleUpdates, setSubmoduleUpdates] = useStoredState<SubmoduleUpdates>("submodules.update", "ask");
+  /** Light or dark, the accent colour, the graph's and the diffs' colours (filled in by normalizeAppearance). */
+  const [appearance, setAppearance] = useStoredState<Partial<Appearance>>(APPEARANCE_KEY, {});
   return {
     tabs, setTabs, setActiveTab,
     sidebarOpen, setSidebarOpen, sidebarWidth, setSidebarWidth, detailsWidth, setDetailsWidth,
@@ -42,7 +46,7 @@ export function usePreferences() {
     firstParentOnly, setFirstParentOnly, profilePictures, setProfilePictures, previews, setPreviews,
     activityOpen, setActivityOpen, fetchMinutes, setFetchMinutes, newCommitNotices, setNewCommitNotices,
     autoUpdate, setAutoUpdate, largeFileMB, setLargeFileMB, autoLock, setAutoLock, releaseLocks, setReleaseLocks,
-    submoduleUpdates, setSubmoduleUpdates,
+    submoduleUpdates, setSubmoduleUpdates, appearance, setAppearance,
   };
 }
 

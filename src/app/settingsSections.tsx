@@ -1,7 +1,9 @@
 import type { ColumnOptions } from "../components/CommitList";
-import { ColumnsIcon, DiffIcon, DownloadIcon, FetchIcon, GearIcon, LockIcon, UserIcon } from "../components/Icons";
+import { appearanceRows } from "../components/AppearanceRows";
+import { ColumnsIcon, ContrastIcon, DiffIcon, DownloadIcon, FetchIcon, GearIcon, LockIcon, UserIcon } from "../components/Icons";
 import type { SettingRow, SettingsSection } from "../components/SettingsDialog";
 import type { GitHubStatus } from "../api";
+import type { Theme } from "../lib/appearance";
 import type { Updates } from "../lib/updates";
 import { FETCH_MINUTES, ZOOM_LEVELS } from "./constants";
 import type { NewCommitNotices, Preferences, ReleaseLocks, SubmoduleUpdates } from "./usePreferences";
@@ -24,10 +26,12 @@ interface Options {
   };
   /** Which diff and merge tools git opens. */
   diffTools: SettingRow[];
+  /** The theme in use (for "Same as the system", the system's). */
+  theme: Theme;
 }
 
 /** Everything in the Settings window: the app's own settings (each repository has its own window). */
-export function settingsSections({ preferences, version, updates, onInstallUpdate, github, diffTools }: Options): SettingsSection[] {
+export function settingsSections({ preferences, version, updates, onInstallUpdate, github, diffTools, theme }: Options): SettingsSection[] {
   const { reopenTabs, setReopenTabs, autoUpdate, setAutoUpdate, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
@@ -74,6 +78,11 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
           ),
         },
       ],
+    },
+    {
+      title: "Appearance",
+      icon: <ContrastIcon size={15} />,
+      rows: appearanceRows(preferences.appearance, preferences.setAppearance, theme),
     },
     {
       title: "Accounts",

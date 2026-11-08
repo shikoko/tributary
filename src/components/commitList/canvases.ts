@@ -1,15 +1,10 @@
 import { useLayoutEffect, type RefObject } from "react";
 import type { CommitRow } from "../../api";
 import { laneColor } from "../../lib/colors";
+import type { CanvasColors, CurveStyle } from "../../lib/appearance";
 import type { Slot } from "../../lib/days";
 import { paintGraph } from "../graphPainter";
 import { GRAPH_PADDING, LANE_WIDTH } from "./layout";
-
-// Keep in sync with --bg, --bg-selected and --accent in styles.css.
-const BACKGROUND = "#14161b";
-const SELECTED_BACKGROUND = "#252b38";
-const ACCENT = "#1fb5ff";
-const MATCH_COLOR = "#ffd23f";
 
 /** Size a canvas for the screen's pixel density, and get it ready to draw in CSS pixels. */
 function prepare(element: HTMLCanvasElement, width: number, height: number) {
@@ -38,11 +33,13 @@ interface GraphInput {
   headId: string | null;
   selectedId: string | null;
   focusIds: Set<string> | null;
+  colors: CanvasColors;
+  curves: CurveStyle;
 }
 
 /** Draw the graph for the rendered rows. */
 export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, input: GraphInput) {
-  const { commits, slots, first, last, width, rowHeight, headId, selectedId, focusIds } = input;
+  const { commits, slots, first, last, width, rowHeight, headId, selectedId, focusIds, colors, curves } = input;
   useLayoutEffect(() => {
     if (!canvas.current) return;
     const ctx = prepare(canvas.current, width, Math.max(0, last - first) * rowHeight);
@@ -54,10 +51,13 @@ export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, inpu
       headId,
       selectedId,
       focusIds,
-      background: BACKGROUND,
-      selectedBackground: SELECTED_BACKGROUND,
+      background: colors.background,
+      selectedBackground: colors.selectedBackground,
+      ring: colors.ring,
+      lanes: colors.lanes,
+      curves,
     });
-  }, [canvas, commits, slots, first, last, width, headId, selectedId, rowHeight, focusIds]);
+  }, [canvas, commits, slots, first, last, width, headId, selectedId, rowHeight, focusIds, colors, curves]);
 }
 
 interface MarkerInput {
@@ -72,11 +72,12 @@ interface MarkerInput {
   matchIds: Set<string> | null;
   headId: string | null;
   selectedIds: Set<string>;
+  colors: CanvasColors;
 }
 
 /** Marks next to the scrollbar: branch tips, search matches, the checked-out commit and the selection. */
 export function useScrollMarkers(canvas: RefObject<HTMLCanvasElement | null>, input: MarkerInput) {
-  const { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId, selectedIds } = input;
+  const { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId, selectedIds, colors } = input;
   useLayoutEffect(() => {
     // Under the scrollbar; with scrollbars that overlay the content, a thin strip at the edge.
     const width = viewport.scrollbar || 6;
@@ -92,10 +93,10 @@ export function useScrollMarkers(canvas: RefObject<HTMLCanvasElement | null>, in
       ctx.fillRect(inset, Math.round(y - size / 2), width - inset * 2, size);
     };
     commits.forEach((commit, index) => {
-      if (commit.refs.some((ref) => ref.kind === "branch")) mark(index, laneColor(commit.graph.column), 2, 3);
+      if (commit.refs.some((ref) => ref.kind === "branch")) mark(index, laneColor(commit.graph.column, colors.lanes), 2, 3);
     });
-    matchIds?.forEach((id) => mark(indexById.get(id), MATCH_COLOR, 2, 1));
-    if (headId) mark(indexById.get(headId), ACCENT, 3, 0);
-    selectedIds.forEach((id) => mark(indexById.get(id), "#ffffff", 2, 0));
-  }, [canvas, viewport, commits, slotOf, rowHeight, contentHeight, matchIds, headId, selectedIds, indexById]);
+    matchIds?.forEach((id) => mark(indexById.get(id), colors.match, 2, 1));
+    if (headId) mark(indexById.get(headId), colors.accent, 3, 0);
+    selectedIds.forEach((id) => mark(indexById.get(id), colors.ring, 2, 0));
+  }, [canvas, viewport, commits, slotOf, rowHeight, contentHeight, matchIds, headId, selectedIds, indexById, colors]);
 }

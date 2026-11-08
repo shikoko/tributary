@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FileDiff, Media } from "../../api";
+import { useThemeColors } from "../../app/useAppearance";
 import { dataUrlBytes, formatDuration, missingSide } from "../../lib/media";
 
 interface Decoded {
@@ -76,6 +77,7 @@ function Sound({ url, info, longest }: { url: string; info: Decoded | null; long
   const canvas = useRef<HTMLCanvasElement>(null);
   const audio = useRef<HTMLAudioElement>(null);
   const [position, setPosition] = useState(0);
+  const colors = useThemeColors();
 
   useEffect(() => {
     const element = canvas.current;
@@ -96,10 +98,10 @@ function Sound({ url, info, longest }: { url: string; info: Decoded | null; long
     for (let x = 0; x < drawn; x++) {
       const peak = info.peaks[Math.min(info.peaks.length - 1, Math.floor((x / drawn) * info.peaks.length))];
       const half = Math.max(0.5, peak * (middle - 2));
-      context.fillStyle = x < played ? "#1fb5ff" : "#596071";
+      context.fillStyle = x < played ? colors.accent : colors.faint;
       context.fillRect(x, middle - half, 1, half * 2);
     }
-  }, [info, longest, position]);
+  }, [info, longest, position, colors]);
 
   return (
     <div className="diff-sound">

@@ -1,21 +1,11 @@
-/** Lane colours, picked to stay distinct from their neighbours on a dark background. */
-export const LANE_COLORS = [
-  "#1fb5ff", // azure
-  "#ff4f9a", // pink
-  "#8ce04a", // lime
-  "#ffad1f", // amber
-  "#a77bff", // violet
-  "#19d7b4", // teal
-  "#ff6a45", // coral
-  "#ffe24a", // yellow
-  "#4d7cff", // blue
-  "#e65cff", // magenta
-  "#36e07c", // green
-  "#ff8e3c", // orange
-];
+import { LANE_PALETTES } from "./appearance";
 
-export function laneColor(column: number): string {
-  return LANE_COLORS[column % LANE_COLORS.length];
+/** Avatars keep the vivid colours in both themes: their initials are dark. */
+const AVATAR_COLORS = LANE_PALETTES.vivid.dark;
+
+/** A lane's colour, from the graph colours in use (ThemeContext). */
+export function laneColor(column: number, lanes: string[]): string {
+  return lanes[column % lanes.length];
 }
 
 /** `#rrggbb` → `rgba(r, g, b, alpha)`. */
@@ -30,5 +20,5 @@ export function avatarColor(key: string): string {
   for (let i = 0; i < key.length; i++) {
     hash = (hash * 31 + key.charCodeAt(i)) | 0;
   }
-  return LANE_COLORS[Math.abs(hash) % LANE_COLORS.length];
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }

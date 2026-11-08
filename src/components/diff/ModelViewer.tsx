@@ -9,6 +9,7 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import type { FileDiff, Media } from "../../api";
+import { useThemeColors } from "../../app/useAppearance";
 import { dataUrlBytes, missingSide } from "../../lib/media";
 
 /** What's in a model, to compare. */
@@ -90,6 +91,7 @@ export default function ModelViewer({ diff, media }: { diff: FileDiff; media: Me
   /** This computer can't draw in 3D (no WebGL): the numbers still compare the two. */
   const [noWebGL, setNoWebGL] = useState(false);
   const scenes = useRef<{ render: () => void; setWireframe: (on: boolean) => void } | null>(null);
+  const colors = useThemeColors();
 
   // Read both models.
   useEffect(() => {
@@ -150,7 +152,7 @@ export default function ModelViewer({ diff, media }: { diff: FileDiff; media: Me
       const light = new THREE.DirectionalLight(0xffffff, 2.5);
       light.position.set(1, 2, 3);
       scene.add(light);
-      const grid = new THREE.GridHelper(radius * 4, 16, 0x353b48, 0x282d38);
+      const grid = new THREE.GridHelper(radius * 4, 16, colors.borderStrong, colors.border);
       grid.position.set(center.x, box.min.y, center.z);
       scene.add(grid);
       scene.add((loaded[side] as { object: THREE.Object3D }).object);
@@ -217,11 +219,11 @@ export default function ModelViewer({ diff, media }: { diff: FileDiff; media: Me
     };
     // Canvases are fixed refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded]);
+  }, [loaded, colors]);
 
   useEffect(() => {
     scenes.current?.setWireframe(wireframe);
-  }, [wireframe, loaded]);
+  }, [wireframe, loaded, colors]);
 
   const facts = (side: Side) => {
     const model = loaded[side];

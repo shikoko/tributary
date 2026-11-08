@@ -1,4 +1,5 @@
 import type { CommitRow, GraphLine } from "../api";
+import type { CurveStyle } from "../lib/appearance";
 import { laneColor } from "../lib/colors";
 import type { Slot } from "../lib/days";
 
@@ -17,6 +18,54 @@ export interface PaintOptions extends GraphMetrics {
   /** Colours behind the graph, used to outline nodes. */
   background: string;
   selectedBackground: string;
+  /** The ring around the selected commit. */
+  ring: string;
+  /** The lane colours. */
+  lanes: string[];
+  /**
+   * How lines turn from one lane to another: "round" with a quarter circle; "smooth" with a
+   * corner whose curvature eases in and out (like Apple's rounded corners); "tight" with a
+   * small radius, like a metro map; "sweep" in one long curve across the whole distance.
+   */
+  curves?: CurveStyle;
+}
+
+
+type Point = [number, number];
+
+/**
+ * From `start` along a straight line to the corner `at`, turning there, and along a straight
+ * line to `end`, in `style`. `radius` is the corner's size for round corners.
+ */
+function turn(path: Path2D, start: Point, at: Point, end: Point, radius: number, style: CurveStyle) {
+  const toward = (from: Point, to: Point, distance: number): Point => {
+    const length = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
+    return [to[0] + ((from[0] - to[0]) / length) * distance, to[1] + ((from[1] - to[1]) / length) * distance];
+  };
+  const first = Math.hypot(start[0] - at[0], start[1] - at[1]);
+  const second = Math.hypot(end[0] - at[0], end[1] - at[1]);
+  path.moveTo(...start);
+  if (style === "round" || style === "tight") {
+    path.arcTo(at[0], at[1], end[0], end[1], style === "tight" ? Math.min(radius, 7) : radius);
+    path.lineTo(...end);
+    return;
+  }
+  // A cubic corner: from a point on each leg, with handles pulled towards the corner.
+  // Pulled 55% of the way it's close to a circle; further, the curve starts gently and
+  // turns harder in the middle, as Apple's corners do.
+  const [legs, pull] = style === "sweep" ? [[first, second], 0.5523] : [[Math.min(first, radius + 1), Math.min(second, radius + 1)], 0.8];
+  const from = toward(start, at, legs[0]);
+  const to = toward(end, at, legs[1]);
+  path.lineTo(...from);
+  path.bezierCurveTo(
+    from[0] + (at[0] - from[0]) * pull,
+    from[1] + (at[1] - from[1]) * pull,
+    to[0] + (at[0] - to[0]) * pull,
+    to[1] + (at[1] - to[1]) * pull,
+    to[0],
+    to[1],
+  );
+  path.lineTo(...end);
 }
 
 const LINE_WIDTH = 2;
@@ -54,6 +103,7 @@ export function paintGraph(
   const { rowHeight } = options;
   const x = (column: number) => laneX(column, options);
   const corner = Math.min(rowHeight / 2, options.laneWidth) - 1;
+  const curves = options.curves ?? "round";
   const focus = options.focusIds;
   // A line is part of the highlighted history when the commit it links from is.
   const inFocus = (child: number | number[]) =>
@@ -76,7 +126,7 @@ export function paintGraph(
     const lines = typeof row === "number" ? commits[row].graph.lines : passingLines(commits[row.before]);
 
     for (const [kind, from, to, child, dashed] of lines) {
-      const color = laneColor(kind === 2 ? to : from);
+      const color = laneColor(kind === 2 ? to : from, options.lanes);
       const alpha = focus ? (inFocus(child) ? 1 : FADED) : 1;
       const key = `${color} ${alpha} ${dashed ? 1 : 0}`;
       let batch = batches.get(key);
@@ -87,21 +137,19 @@ export function paintGraph(
         path.lineTo(x(from), bottom);
       } else if (kind === 1) {
         // Down from the top of the row, then across into the node.
-        path.moveTo(x(from), top);
         if (from === to) {
+          path.moveTo(x(from), top);
           path.lineTo(x(to), middle);
         } else {
-          path.arcTo(x(from), middle, x(to), middle, corner);
-          path.lineTo(x(to), middle);
+          turn(path, [x(from), top], [x(from), middle], [x(to), middle], corner, curves);
         }
       } else {
         // Across from the node, then down to the bottom of the row.
-        path.moveTo(x(from), middle);
         if (from === to) {
+          path.moveTo(x(from), middle);
           path.lineTo(x(to), bottom);
         } else {
-          path.arcTo(x(to), middle, x(to), bottom, corner);
-          path.lineTo(x(to), bottom);
+          turn(path, [x(from), middle], [x(to), middle], [x(to), bottom], corner, curves);
         }
       }
     }
@@ -123,7 +171,7 @@ export function paintGraph(
     ctx.globalAlpha = focus && !focus.has(commit.id) ? FADED : 1;
     const cx = x(commit.graph.column);
     const cy = (slot - first) * rowHeight + rowHeight / 2;
-    const color = laneColor(commit.graph.column);
+    const color = laneColor(commit.graph.column, options.lanes);
     const selected = commit.id === options.selectedId;
     const background = selected ? options.selectedBackground : options.background;
 
@@ -134,7 +182,7 @@ export function paintGraph(
       ctx.fillStyle = background;
       ctx.fill();
       ctx.lineWidth = 2;
-      ctx.strokeStyle = selected ? "#ffffff" : color;
+      ctx.strokeStyle = selected ? options.ring : color;
       ctx.stroke();
     }
 
