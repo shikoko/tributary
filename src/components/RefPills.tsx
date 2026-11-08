@@ -3,6 +3,7 @@ import type { PullRequest } from "../api";
 import { BranchSyncContext, describeSync } from "../lib/branchSync";
 import { describeChecks, PullRequestsContext, requestNumber } from "../lib/pullRequests";
 import type { RefLabel } from "../api";
+import { textOn } from "../lib/appearance";
 import { withAlpha } from "../lib/colors";
 import { pressLabel } from "../lib/drag";
 import { describePill, refPills, type RefPill } from "../lib/refs";
@@ -74,7 +75,15 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
   const syncText = sync ? describeSync(sync) : null;
   const style: React.CSSProperties = pill.current
     ? // --pill-glow: the glow it gets in the commit list.
-      ({ background: color, borderColor: color, color: "var(--on-lane)", "--pill-glow": withAlpha(color, 0.5) } as React.CSSProperties)
+      ({
+        background: color,
+        borderColor: color,
+        // Dark or white text, whichever reads on the lane's colour (yours can be any).
+        color: textOn(color),
+        "--on-lane": textOn(color),
+        "--on-lane-rgb": textOn(color) === "#ffffff" ? "255 255 255" : "13 15 19",
+        "--pill-glow": withAlpha(color, 0.5),
+      } as React.CSSProperties)
     : pill.kind === "tag" || pill.kind === "stash"
       ? { background: withAlpha(color, 0.08), borderColor: withAlpha(color, 0.45) }
       : // Branches other than the checked-out one: a tint, no outline.

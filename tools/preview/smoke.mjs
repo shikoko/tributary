@@ -176,6 +176,25 @@ try {
     await scrollList("top");
   });
 
+  await step("offers a hard reset from a branch label, and uses your own colours", async () => {
+    await page.locator(".commit-list .ref-pill[title^='Branch feature/export (local']").first().click({ button: "right" });
+    await page.locator(".menu-item", { hasText: "Hard reset main to feature/export…" }).waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Control+,");
+    const settings = page.locator(".dialog", { hasText: "Settings" }).first();
+    await settings.locator(".settings-nav").getByText("Appearance").click();
+    await settings.getByRole("radio", { name: /Your own/ }).click();
+    expect((await settings.locator(".lane-editor-swatch").count()) >= 8, "your own colours didn't start from the vivid ones");
+    await settings.getByLabel("Accent colour, as a hex code").fill("#e8702a");
+    const accent = () => page.evaluate(() => document.documentElement.style.getPropertyValue("--accent"));
+    await page.waitForFunction(() => document.documentElement.style.getPropertyValue("--accent") === "#e8702a", null, { timeout: 5000 });
+    await settings.getByRole("button", { name: "Reset appearance" }).click();
+    await page.waitForFunction(() => document.documentElement.style.getPropertyValue("--accent") === "#1fb5ff", null, { timeout: 5000 });
+    expect((await accent()) === "#1fb5ff", "the accent wasn't reset");
+    await page.keyboard.press("Escape");
+    await settings.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("highlights a file's history, until Esc", async () => {
     await row("Speed up opening large notebooks").click();
     await page.locator(".details .file", { hasText: "store.ts" }).first().click({ button: "right" });

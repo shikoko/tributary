@@ -5,6 +5,7 @@ import {
   DEFAULT_APPEARANCE,
   effectiveTheme,
   LANE_PALETTES,
+  lanePalette,
   normalizeAppearance,
   readCanvasColors,
   type Appearance,
@@ -27,7 +28,7 @@ export interface ThemeInfo {
 
 const FALLBACK: ThemeInfo = {
   theme: "dark",
-  curves: "round",
+  curves: "mixed",
   colors: {
     background: "#14161b",
     selectedBackground: "#252b38",
@@ -84,7 +85,7 @@ export function useAppearance(value: Partial<Appearance> | undefined): ThemeInfo
   const [info, setInfo] = useState<ThemeInfo>(FALLBACK);
   useLayoutEffect(() => {
     applyAppearance(appearance, theme);
-    const colors = readCanvasColors(LANE_PALETTES[appearance.lanes][theme]);
+    const colors = readCanvasColors(lanePalette(appearance, theme));
     setInfo({ theme, colors, curves: appearance.curves });
     applyToWindow(appearance.theme, colors.background);
   }, [appearance, theme]);

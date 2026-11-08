@@ -5,16 +5,23 @@
 export type ThemeChoice = "dark" | "light" | "system";
 export type Theme = "dark" | "light";
 export type LanePaletteName = "vivid" | "soft" | "safe";
+/** A built-in palette, or the colours you chose. */
+export type LaneChoice = LanePaletteName | "custom";
 export type DiffColors = "green-red" | "blue-orange";
-/** How the graph's lines turn between lanes (graphPainter.ts). */
-export type CurveStyle = "round" | "smooth" | "tight" | "sweep";
-export const CURVE_STYLES: CurveStyle[] = ["round", "smooth", "tight", "sweep"];
+/**
+ * How the graph's lines turn between lanes (graphPainter.ts). "mixed": smooth (like
+ * Apple's corners) into the next lane, round for longer jumps.
+ */
+export type CurveStyle = "mixed" | "round" | "smooth" | "tight" | "sweep";
+export const CURVE_STYLES: CurveStyle[] = ["mixed", "round", "smooth", "tight", "sweep"];
 
 export interface Appearance {
   theme: ThemeChoice;
   /** `#rrggbb`. */
   accent: string;
-  lanes: LanePaletteName;
+  lanes: LaneChoice;
+  /** Your own lane colours (`#rrggbb`), used with `lanes: "custom"` in both themes. */
+  customLanes: string[];
   diffColors: DiffColors;
   curves: CurveStyle;
 }
@@ -25,9 +32,13 @@ export const DEFAULT_APPEARANCE: Appearance = {
   theme: "dark",
   accent: DEFAULT_ACCENT,
   lanes: "vivid",
+  customLanes: [],
   diffColors: "green-red",
-  curves: "round",
+  curves: "mixed",
 };
+
+/** Your own lane colours: from two to this many. */
+export const MAX_CUSTOM_LANES = 16;
 
 /** Accent colours to pick from, with where their gradient ends. */
 export const ACCENTS: { name: string; color: string; end: string }[] = [
@@ -174,10 +185,27 @@ export function effectiveTheme(choice: ThemeChoice, systemDark: boolean): Theme 
 export function normalizeAppearance(value: Partial<Appearance> | null | undefined): Appearance {
   const theme = value?.theme === "light" || value?.theme === "system" ? value.theme : "dark";
   const accent = value?.accent && parseHex(value.accent) ? toHex(parseHex(value.accent) as Rgb) : DEFAULT_ACCENT;
-  const lanes = value?.lanes && value.lanes in LANE_PALETTES ? value.lanes : "vivid";
+  const customLanes = (Array.isArray(value?.customLanes) ? value.customLanes : [])
+    .map((color) => (typeof color === "string" ? parseHex(color) : null))
+    .filter((color): color is Rgb => color !== null)
+    .map(toHex)
+    .slice(0, MAX_CUSTOM_LANES);
+  const lanes: LaneChoice =
+    value?.lanes === "custom" ? (customLanes.length >= 2 ? "custom" : "vivid") : value?.lanes && value.lanes in LANE_PALETTES ? value.lanes : "vivid";
   const diffColors = value?.diffColors === "blue-orange" ? "blue-orange" : "green-red";
-  const curves = value?.curves && CURVE_STYLES.includes(value.curves) ? value.curves : "round";
-  return { theme, accent, lanes, diffColors, curves };
+  const curves = value?.curves && CURVE_STYLES.includes(value.curves) ? value.curves : "mixed";
+  return { theme, accent, lanes, customLanes, diffColors, curves };
+}
+
+/** The lane colours in use: a built-in palette for the theme, or your own. */
+export function lanePalette(appearance: Appearance, theme: Theme): string[] {
+  return appearance.lanes === "custom" ? appearance.customLanes : LANE_PALETTES[appearance.lanes][theme];
+}
+
+/** Text that reads on `color`: near-black on light colours, white on dark ones. */
+export function textOn(color: string): string {
+  const rgb = parseHex(color);
+  return rgb && luminance(rgb) > 0.4 ? "#0d0f13" : "#ffffff";
 }
 
 /** Switch the page to these colours. */

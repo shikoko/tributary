@@ -37,7 +37,7 @@ type Point = [number, number];
  * From `start` along a straight line to the corner `at`, turning there, and along a straight
  * line to `end`, in `style`. `radius` is the corner's size for round corners.
  */
-function turn(path: Path2D, start: Point, at: Point, end: Point, radius: number, style: CurveStyle) {
+function turn(path: Path2D, start: Point, at: Point, end: Point, radius: number, style: Exclude<CurveStyle, "mixed">) {
   const toward = (from: Point, to: Point, distance: number): Point => {
     const length = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
     return [to[0] + ((from[0] - to[0]) / length) * distance, to[1] + ((from[1] - to[1]) / length) * distance];
@@ -103,7 +103,9 @@ export function paintGraph(
   const { rowHeight } = options;
   const x = (column: number) => laneX(column, options);
   const corner = Math.min(rowHeight / 2, options.laneWidth) - 1;
-  const curves = options.curves ?? "round";
+  const curves = options.curves ?? "mixed";
+  /** "mixed": smooth into the next lane, round for longer jumps. */
+  const bend = (from: number, to: number) => (curves === "mixed" ? (Math.abs(to - from) === 1 ? "smooth" : "round") : curves);
   const focus = options.focusIds;
   // A line is part of the highlighted history when the commit it links from is.
   const inFocus = (child: number | number[]) =>
@@ -141,7 +143,7 @@ export function paintGraph(
           path.moveTo(x(from), top);
           path.lineTo(x(to), middle);
         } else {
-          turn(path, [x(from), top], [x(from), middle], [x(to), middle], corner, curves);
+          turn(path, [x(from), top], [x(from), middle], [x(to), middle], corner, bend(from, to));
         }
       } else {
         // Across from the node, then down to the bottom of the row.
@@ -149,7 +151,7 @@ export function paintGraph(
           path.moveTo(x(from), middle);
           path.lineTo(x(to), bottom);
         } else {
-          turn(path, [x(from), middle], [x(to), middle], [x(to), bottom], corner, curves);
+          turn(path, [x(from), middle], [x(to), middle], [x(to), bottom], corner, bend(from, to));
         }
       }
     }

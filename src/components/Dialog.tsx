@@ -51,6 +51,24 @@ export function Dialog({ title, children, buttons, error, errorAction, busy, wid
       else document.querySelector<HTMLElement>(".dialog[aria-modal]")?.focus();
     };
   }, []);
+  // A button that was clicked and then disabled (or removed) drops the focus outside the
+  // dialog: Esc still closes it, if it's the one on top.
+  const cancel = useRef({ onCancel, busy });
+  cancel.current = { onCancel, busy };
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const active = document.activeElement;
+      if (active && active !== document.body) return;
+      const dialogs = document.querySelectorAll(".dialog[aria-modal]");
+      if (dialogs[dialogs.length - 1] !== box.current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!cancel.current.busy) cancel.current.onCancel();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
   return (
     <div className="dialog-backdrop" onMouseDown={() => !busy && onCancel()}>
       <div

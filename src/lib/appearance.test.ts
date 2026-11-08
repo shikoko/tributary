@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accentRoles, ACCENTS, contrast, DEFAULT_APPEARANCE, effectiveTheme, LANE_PALETTES, normalizeAppearance, parseHex } from "./appearance";
+import { accentRoles, ACCENTS, contrast, DEFAULT_APPEARANCE, effectiveTheme, LANE_PALETTES, lanePalette, normalizeAppearance, parseHex, textOn } from "./appearance";
 
 const rgb = (hex: string) => parseHex(hex)!;
 
@@ -52,5 +52,26 @@ describe("appearance", () => {
       // Light-theme lanes stand out from the white list.
       for (const color of palette.light) expect(contrast(rgb(color), rgb("#ffffff"))).toBeGreaterThanOrEqual(2.2);
     }
+  });
+
+  it("keeps your own graph colours, when there are enough of them", () => {
+    const yours = normalizeAppearance({ lanes: "custom", customLanes: ["#FF0000", "00ff00", "nope", "#00f"] });
+    expect(yours.lanes).toBe("custom");
+    expect(yours.customLanes).toEqual(["#ff0000", "#00ff00", "#0000ff"]);
+    expect(lanePalette(yours, "light")).toEqual(yours.customLanes);
+    // One colour isn't a palette: back to the vivid one.
+    expect(normalizeAppearance({ lanes: "custom", customLanes: ["#ff0000"] }).lanes).toBe("vivid");
+    expect(lanePalette(DEFAULT_APPEARANCE, "dark")).toEqual(LANE_PALETTES.vivid.dark);
+  });
+
+  it("bends lines smoothly next door and round further out, unless asked otherwise", () => {
+    expect(DEFAULT_APPEARANCE.curves).toBe("mixed");
+    expect(normalizeAppearance({ curves: "round" }).curves).toBe("round");
+    expect(normalizeAppearance({ curves: "wiggly" as never }).curves).toBe("mixed");
+  });
+
+  it("picks label text that reads on any colour", () => {
+    expect(textOn("#ffe24a")).toBe("#0d0f13");
+    expect(textOn("#1b3a8a")).toBe("#ffffff");
   });
 });

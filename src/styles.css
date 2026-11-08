@@ -4418,6 +4418,102 @@ textarea.text-input {
   padding: 3px 0;
 }
 
+/* The accent swatches with the colour as a hex code next to them. */
+.accent-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.hex-field {
+  width: 88px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.hex-field:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.lane-sample-empty {
+  width: auto !important;
+  height: auto !important;
+  padding: 0 10px;
+  color: var(--text-muted);
+  line-height: 18px;
+}
+
+/* Your own graph colours: each one a swatch to click and change. */
+.lane-editor {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 320px;
+}
+
+.lane-editor-swatch {
+  position: relative;
+}
+
+.lane-editor-swatch label,
+.lane-editor-add {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px rgb(var(--overlay-rgb) / 0.15);
+  cursor: pointer;
+}
+
+.lane-editor-swatch input,
+.lane-editor-add input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.lane-editor-add {
+  border: 1px dashed var(--border-hover);
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.lane-editor-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 13px;
+}
+
+.lane-editor-swatch:hover .lane-editor-remove,
+.lane-editor-remove:focus-visible {
+  display: block;
+}
+
 .lane-sample > span {
   width: 6px;
   height: 18px;

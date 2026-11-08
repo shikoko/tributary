@@ -15,8 +15,9 @@ import {
   PushIcon,
   TagIcon,
   TrashIcon,
-  CompareIcon } from "../components/Icons";
-import { worktreeOf, splitRemoteBranch, headSide, type MenuContext } from "./context";
+  CompareIcon,
+  ResetIcon } from "../components/Icons";
+import { worktreeOf, splitRemoteBranch, headSide, canResetTo, type MenuContext } from "./context";
 import { mergeItems, visibilityItems, webItems } from "./shared";
 import { stashMenu } from "./commitMenus";
 
@@ -44,6 +45,20 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
     onSelect: () => ctx.focus(pill.name, commit.id),
   };
   const head = headSide(snapshot);
+  /** Move the checked-out branch here, throwing away what's after (asks first, with what would be lost). */
+  const reset: MenuItem[] =
+    snapshot.headBranch && canResetTo(snapshot, commit)
+      ? [
+          {
+            label: `Hard reset ${snapshot.headBranch} to ${pill.name}…`,
+            icon: <ResetIcon />,
+            danger: true,
+            separated: true,
+            disabled: !canChange,
+            onSelect: () => ctx.open({ kind: "reset", target: commit }),
+          },
+        ]
+      : [];
   /** A branch: what it has that the checked-out one doesn't (like a pull request). A tag: what's changed since. */
   const compare: MenuItem[] =
     head && commit.id !== head.id
@@ -103,6 +118,7 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
             },
           ]
         : []),
+      ...reset,
       { label: "Copy tag name", icon: <CopyIcon />, separated: true, onSelect: () => copyText(pill.name) },
     ];
   }
@@ -173,6 +189,7 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
       onSelect: () => ctx.open({ kind: "deleteRemoteBranch", name }),
     });
   });
+  if (!pill.current) items.push(...reset);
   items.push({
     label: "Copy branch name",
     icon: <CopyIcon />,

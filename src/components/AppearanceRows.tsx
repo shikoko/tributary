@@ -1,11 +1,16 @@
-import type { KeyboardEvent } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import {
   ACCENTS,
   DEFAULT_APPEARANCE,
   LANE_PALETTE_LABELS,
   LANE_PALETTES,
+  lanePalette,
+  MAX_CUSTOM_LANES,
   normalizeAppearance,
+  parseHex,
+  toHex,
   type Appearance,
+  type LaneChoice,
   type LanePaletteName,
   type Theme,
   type ThemeChoice,
@@ -60,63 +65,128 @@ function ThemePicker({ value, onChange }: { value: ThemeChoice; onChange: (value
   );
 }
 
-/** The accent colours, and any colour you like. */
+/** A colour typed as `#rrggbb` (or `rrggbb`, or `#rgb`): applied once it's a whole colour. */
+function HexField({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const commit = (text: string) => {
+    const rgb = parseHex(text);
+    if (rgb) onChange(toHex(rgb));
+    else setDraft(value);
+  };
+  return (
+    <input
+      className="hex-field mono"
+      value={draft}
+      spellCheck={false}
+      maxLength={7}
+      aria-label={label}
+      onChange={(event) => {
+        setDraft(event.target.value);
+        // Applied as soon as it's six digits, without waiting for Enter.
+        if (/^#?[0-9a-f]{6}$/i.test(event.target.value.trim())) commit(event.target.value);
+      }}
+      onBlur={() => commit(draft)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") commit(draft);
+        if (event.key === "Escape" && draft !== value) {
+          event.stopPropagation();
+          setDraft(value);
+        }
+      }}
+    />
+  );
+}
+
+/** The accent colours, and any colour you like (from the picker, or typed). */
 function AccentPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const custom = !ACCENTS.some((accent) => accent.color === value);
   return (
-    <div className="accent-picker" role="radiogroup" aria-label="Accent colour" onKeyDown={arrowKeys}>
-      {ACCENTS.map((accent) => {
-        const chosen = accent.color === value;
-        return (
-          <button
-            key={accent.color}
-            role="radio"
-            aria-checked={chosen}
-            aria-label={accent.name}
-            title={accent.name}
-            tabIndex={chosen || (custom && accent === ACCENTS[0]) ? 0 : -1}
-            className={`accent-swatch${chosen ? " chosen" : ""}`}
-            style={{ background: `linear-gradient(135deg, ${accent.color}, ${accent.end})` }}
-            onClick={() => onChange(accent.color)}
-          >
-            {chosen && <CheckIcon size={12} />}
-          </button>
-        );
-      })}
-      <label className={`accent-swatch accent-custom${custom ? " chosen" : ""}`} title="Any colour" style={custom ? { background: value } : undefined}>
-        <input
-          type="color"
-          value={value}
-          aria-label="Any colour"
-          onChange={(event) => onChange(event.target.value)}
-        />
-        {custom ? <CheckIcon size={12} /> : <span aria-hidden>+</span>}
-      </label>
+    <div className="accent-row">
+      <div className="accent-picker" role="radiogroup" aria-label="Accent colour" onKeyDown={arrowKeys}>
+        {ACCENTS.map((accent) => {
+          const chosen = accent.color === value;
+          return (
+            <button
+              key={accent.color}
+              role="radio"
+              aria-checked={chosen}
+              aria-label={accent.name}
+              title={accent.name}
+              tabIndex={chosen || (custom && accent === ACCENTS[0]) ? 0 : -1}
+              className={`accent-swatch${chosen ? " chosen" : ""}`}
+              style={{ background: `linear-gradient(135deg, ${accent.color}, ${accent.end})` }}
+              onClick={() => onChange(accent.color)}
+            >
+              {chosen && <CheckIcon size={12} />}
+            </button>
+          );
+        })}
+        <label className={`accent-swatch accent-custom${custom ? " chosen" : ""}`} title="Pick any colour" style={custom ? { background: value } : undefined}>
+          <input type="color" value={value} aria-label="Pick any accent colour" onChange={(event) => onChange(event.target.value)} />
+          {custom ? <CheckIcon size={12} /> : <span aria-hidden>+</span>}
+        </label>
+      </div>
+      <HexField value={value} onChange={onChange} label="Accent colour, as a hex code" />
     </div>
   );
 }
 
-/** A row of the lane colours, for each choice. */
-function LanePicker({ value, theme, onChange }: { value: LanePaletteName; theme: Theme; onChange: (value: LanePaletteName) => void }) {
+/** A row of the lane colours, for each choice, and yours. */
+function LanePicker({ value, custom, theme, onChange }: { value: LaneChoice; custom: string[]; theme: Theme; onChange: (value: LaneChoice) => void }) {
+  const choices: LaneChoice[] = [...(Object.keys(LANE_PALETTES) as LanePaletteName[]), "custom"];
   return (
     <div className="lane-picker" role="radiogroup" aria-label="Graph colours" onKeyDown={arrowKeys}>
-      {(Object.keys(LANE_PALETTES) as LanePaletteName[]).map((name) => (
-        <button
-          key={name}
-          role="radio"
-          aria-checked={value === name}
-          tabIndex={value === name ? 0 : -1}
-          className={`lane-choice${value === name ? " chosen" : ""}`}
-          onClick={() => onChange(name)}
-        >
-          <span className="lane-sample" aria-hidden>
-            {LANE_PALETTES[name][theme].slice(0, 8).map((color) => (
-              <span key={color} style={{ background: color }} />
-            ))}
-          </span>
-          <span>{LANE_PALETTE_LABELS[name]}</span>
-        </button>
+      {choices.map((name) => {
+        const colors = name === "custom" ? custom : LANE_PALETTES[name][theme];
+        return (
+          <button
+            key={name}
+            role="radio"
+            aria-checked={value === name}
+            tabIndex={value === name ? 0 : -1}
+            className={`lane-choice${value === name ? " chosen" : ""}`}
+            onClick={() => onChange(name)}
+          >
+            <span className="lane-sample" aria-hidden>
+              {colors.length > 0 ? colors.slice(0, 8).map((color, index) => <span key={`${color}-${index}`} style={{ background: color }} />) : <span className="lane-sample-empty">+</span>}
+            </span>
+            <span>{name === "custom" ? "Your own" : LANE_PALETTE_LABELS[name]}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Your own lane colours: click one to change it, × to take it out, + to add one. */
+function LaneEditor({ colors, onChange }: { colors: string[]; onChange: (colors: string[]) => void }) {
+  const set = (index: number, color: string) => onChange(colors.map((each, i) => (i === index ? color : each)));
+  return (
+    <div className="lane-editor">
+      {colors.map((color, index) => (
+        <span key={index} className="lane-editor-swatch">
+          <label style={{ background: color }} title={`Lane ${index + 1}: ${color}. Click to change it.`}>
+            <input type="color" value={color} aria-label={`Lane ${index + 1} colour`} onChange={(event) => set(index, event.target.value)} />
+          </label>
+          {colors.length > 2 && (
+            <button className="lane-editor-remove" onClick={() => onChange(colors.filter((_, i) => i !== index))} aria-label={`Remove lane ${index + 1}'s colour`} title="Take it out">
+              ×
+            </button>
+          )}
+        </span>
       ))}
+      {colors.length < MAX_CUSTOM_LANES && (
+        <label className="lane-editor-add" title="Add a colour">
+          <input
+            type="color"
+            value="#888888"
+            aria-label="Add a lane colour"
+            onChange={(event) => onChange([...colors, event.target.value])}
+          />
+          +
+        </label>
+      )}
     </div>
   );
 }
@@ -143,14 +213,39 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
       kind: "custom",
       label: "Graph colours",
       hint: "The branches' lines and labels in the commit list.",
-      content: <LanePicker value={appearance.lanes} theme={theme} onChange={(value) => change({ lanes: value })} />,
+      content: (
+        <LanePicker
+          value={appearance.lanes}
+          custom={appearance.customLanes}
+          theme={theme}
+          onChange={(value) =>
+            change(
+              value === "custom" && appearance.customLanes.length < 2
+                ? // Start your own from the colours you're looking at.
+                  { lanes: "custom", customLanes: [...lanePalette(appearance, theme)] }
+                : { lanes: value },
+            )
+          }
+        />
+      ),
     },
+    ...(appearance.lanes === "custom"
+      ? [
+          {
+            kind: "custom" as const,
+            label: "Your graph colours",
+            hint: "Click a colour to change it. The branches take them in turn, in light and dark themes alike.",
+            content: <LaneEditor colors={appearance.customLanes} onChange={(colors) => change({ customLanes: colors })} />,
+          },
+        ]
+      : []),
     {
       kind: "select",
       label: "Graph line bends",
       hint: "How the lines turn from one branch's lane to another's.",
       value: appearance.curves,
       options: [
+        { value: "mixed", label: "Smooth next door, round further" },
         { value: "round", label: "Round" },
         { value: "smooth", label: "Smooth (like Apple's corners)" },
         { value: "tight", label: "Tight" },
