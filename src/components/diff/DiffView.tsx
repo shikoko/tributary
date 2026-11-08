@@ -6,6 +6,7 @@ import { useStoredState } from "../../lib/settings";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon } from "../Icons";
 import { DiffBinary } from "./DiffBinary";
 import { DiffMedia } from "./DiffMedia";
+import { FileKindIcon } from "../FileKindIcon";
 import { DiffLines } from "./DiffLines";
 import { DiffSubmodule } from "./DiffSubmodule";
 
@@ -104,6 +105,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           </span>
         </div>
         <div className="diff-title" title={target.file.oldPath ? `${target.file.oldPath} → ${path}` : path}>
+          <FileKindIcon path={path} size={14} className="file-kind diff-kind" />
           <span className="diff-name">{path.slice(slash + 1)}</span>
           {slash > 0 && <span className="diff-dir">{path.slice(0, slash)}</span>}
           <span className="diff-source">{target.label}</span>

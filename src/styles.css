@@ -5388,3 +5388,20 @@ select:disabled {
   background: var(--bg-raised);
   color: var(--text);
 }
+
+/* The kind of each file (picture, sound, code, …): a small icon, quieter than its name. */
+.file-kind {
+  flex: none;
+  color: var(--text-faint);
+  opacity: 0.9;
+}
+
+.file:hover .file-kind,
+.file.shown .file-kind {
+  color: var(--text-muted);
+}
+
+.diff-kind {
+  align-self: center;
+  color: var(--text-muted);
+}

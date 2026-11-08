@@ -4,6 +4,7 @@ import { overlapTitle } from "../lib/elsewhere";
 import { withAlpha } from "../lib/colors";
 import { lockOwner } from "../lib/locks";
 import { relativeTime } from "../lib/format";
+import { FileKindIcon } from "./FileKindIcon";
 import { BranchIcon, LockIcon } from "./Icons";
 
 const STATUS: Record<FileChange["status"], { letter: string; color: string; label: string }> = {
@@ -77,6 +78,7 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
       <span className="file-status" style={{ color: status.color, background: withAlpha(status.color, 0.14) }}>
         {status.letter}
       </span>
+      <FileKindIcon path={file.path} />
       <span className="file-name">{name}</span>
       {lock && (
         <span className={`file-lock ${lock.mine ? "mine" : "theirs"}`}>
