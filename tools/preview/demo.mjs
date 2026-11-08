@@ -471,6 +471,35 @@ export const STUDIO_PULL_REQUESTS = [
   { number: 14, title: "Make the door creak", url: "https://github.com/example/feast/pull/14", remote: "origin", branch: "fix/door", draft: false, author: "theo-park", checks: "failure", forge: "github" },
 ];
 
+/**
+ * A stand-in for your global git config while the preview works on the demos: Maya Chen
+ * as the usual identity, and Git LFS set up, so screenshots show neither your name nor
+ * this computer's settings.
+ */
+function writeDemoGlobalConfig(root) {
+  const file = join(root, "demo-global.gitconfig");
+  writeFileSync(
+    file,
+    [
+      "[user]",
+      `\tname = ${PEOPLE.maya[0]}`,
+      `\temail = ${PEOPLE.maya[1]}`,
+      '[filter "lfs"]',
+      "\tclean = git-lfs clean -- %f",
+      "\tsmudge = git-lfs smudge -- %f",
+      "\tprocess = git-lfs filter-process",
+      "\trequired = true",
+      "",
+    ].join("\n"),
+  );
+  return file;
+}
+
+/** What to run the preview's git with on these demos (see DEMO_ENV and writeDemoGlobalConfig). */
+export function demoEnv(demos) {
+  return { ...DEMO_ENV, GIT_CONFIG_GLOBAL: demos.globalConfig };
+}
+
 /** Build every demo repository in `root`. Resolves to their folders. */
 export function buildDemos(root = join(tmpdir(), "tributary-demo"), options = {}) {
   mkdirSync(root, { recursive: true });
@@ -478,6 +507,7 @@ export function buildDemos(root = join(tmpdir(), "tributary-demo"), options = {}
   writeFileSync(configFile, "");
   return {
     root,
+    globalConfig: writeDemoGlobalConfig(root),
     notebook: buildNotebook(root, configFile),
     studio: buildStudio(root, configFile, options),
     assets: buildAssets(root, configFile),
@@ -495,7 +525,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const demos = buildDemos(folder ? resolve(folder) : undefined, { lockServer: locks.url });
     console.log(`Demo repositories (paste one into "Open repository"):\n  ${demos.notebook}\n  ${demos.studio}`);
     if (demos.assets) console.log(`A remote with Git LFS files, to clone:\n  ${demos.assets}`);
-    await startPreview({ env: DEMO_ENV });
+    await startPreview({ env: demoEnv(demos) });
   } else {
     const demos = buildDemos(folder ? resolve(folder) : undefined);
     console.log(`Demo repositories:\n  ${demos.notebook}\n  ${demos.studio}`);

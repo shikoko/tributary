@@ -23,6 +23,7 @@ import { useBackgroundFetch } from "./app/useBackgroundFetch";
 import { useBranchCounts } from "./app/useBranchCounts";
 import { useChangedElsewhere } from "./app/useChangedElsewhere";
 import { useSubmodules } from "./app/useSubmodules";
+import { tabMenuItems } from "./app/tabMenu";
 import { useCommitDetails } from "./app/useCommitDetails";
 import { useDraft } from "./app/useDraft";
 import { useAutoLock, useFileChecks } from "./app/useFileChecks";
@@ -91,6 +92,30 @@ export default function App() {
   const selection = useSelection(snapshot?.commits);
   const location = usePlace(snapshot, selection.selectedId);
   const tabbing = useTabs({ tabs, setTabs, snapshot, load: repo.load, close: repo.close, rememberPlace: location.rememberPlace });
+  // A tab's "Repository Settings…": once that tab's repository is open.
+  const [settingsFor, setSettingsFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (settingsFor && snapshot?.path === settingsFor) {
+      setSettingsFor(null);
+      setDialog({ kind: "repoSettings" });
+    }
+  }, [settingsFor, snapshot?.path]);
+  const tabMenu = (path: string, x: number, y: number) =>
+    menu.show(
+      x,
+      y,
+      tabMenuItems({
+        path,
+        count: tabs.length,
+        settings: () => {
+          setSettingsFor(path);
+          tabbing.switchTab(path);
+        },
+        reveal: () => revealItemInDir(path).catch((e) => repo.setError({ message: String(e) })),
+        close: () => tabbing.closeTab(path),
+        closeOthers: () => tabbing.closeOthers(path),
+      }),
+    );
   const search = useSearch(snapshot?.commits, selection.select, selection.selectedIndex);
   const highlight = useHighlight({
     repoPath,
@@ -303,6 +328,7 @@ export default function App() {
               onClose={tabbing.closeTab}
               onCloseStart={tabbing.closeStartTab}
               onNew={tabbing.newTab}
+              onContextMenu={tabMenu}
               menuBar={menuBar.element}
               extra={
                 updates.available && (
@@ -355,18 +381,6 @@ export default function App() {
             commands={commands}
             preferences={preferences}
             updates={updates}
-            repository={
-              snapshot && {
-                name: snapshot.name,
-                path: snapshot.path,
-                protectedBranches: settings.protectedBranches,
-                setProtectedBranches: settings.setProtectedBranches,
-                onCleanUpLfs: () => {
-                  overlays.hide("settings");
-                  setDialog({ kind: "pruneLfs" });
-                },
-              }
-            }
             repoPath={repoPath}
             cloning={dialog?.kind === "clone"}
             onCloneCancel={() => setDialog(null)}

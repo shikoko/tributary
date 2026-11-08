@@ -76,6 +76,8 @@ export type Action =
   | { kind: "pruneWorktrees" }
   | { kind: "openInDiffTool"; source: DiffSource; path: string }
   | { kind: "openInMergeTool"; path: string }
+  /** Commit as this name and email in this repository; both empty go back to the usual ones. */
+  | { kind: "setIdentity"; name: string; email: string }
   /** Check out the recorded commit in these submodules (all when empty), setting up those that aren't. */
   | { kind: "updateSubmodules"; paths: string[] }
   | { kind: "unlockFiles"; locks: { id: string; path: string }[]; force?: boolean };

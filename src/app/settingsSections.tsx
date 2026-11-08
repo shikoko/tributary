@@ -1,7 +1,6 @@
 import type { ColumnOptions } from "../components/CommitList";
-import { ColumnsIcon, DownloadIcon, FetchIcon, FolderIcon, GearIcon, LockIcon, UserIcon } from "../components/Icons";
-import { LfsStorageSummary } from "../components/LfsCleanup";
-import { NameList, type SettingsSection } from "../components/SettingsDialog";
+import { ColumnsIcon, DownloadIcon, FetchIcon, GearIcon, LockIcon, UserIcon } from "../components/Icons";
+import type { SettingsSection } from "../components/SettingsDialog";
 import type { GitHubStatus } from "../api";
 import type { Updates } from "../lib/updates";
 import { FETCH_MINUTES, ZOOM_LEVELS } from "./constants";
@@ -20,18 +19,10 @@ interface Options {
     onSignIn: () => void;
     onSignOut: () => void;
   };
-  /** The open repository's own settings, if one is open. */
-  repository: {
-    name: string;
-    path: string;
-    protectedBranches: string[];
-    setProtectedBranches: (names: string[]) => void;
-    onCleanUpLfs: () => void;
-  } | null;
 }
 
-/** Everything in the Settings window. */
-export function settingsSections({ preferences, version, updates, onInstallUpdate, github, repository }: Options): SettingsSection[] {
+/** Everything in the Settings window: the app's own settings (each repository has its own window). */
+export function settingsSections({ preferences, version, updates, onInstallUpdate, github }: Options): SettingsSection[] {
   const { reopenTabs, setReopenTabs, autoUpdate, setAutoUpdate, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
@@ -244,28 +235,5 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
       ],
     },
   ];
-  if (repository) {
-    sections.push({
-      title: "This repository",
-      subtitle: repository.name,
-      icon: <FolderIcon size={15} />,
-      rows: [
-        {
-          kind: "custom",
-          label: "Protected branches",
-          hint: "Can't be deleted; rebasing, hard resetting or force pushing them needs their name typed.",
-          content: <NameList names={repository.protectedBranches} onChange={repository.setProtectedBranches} placeholder="Add a branch" />,
-        },
-        {
-          kind: "custom",
-          label: "Git LFS files on this computer",
-          hint: "Copies of every version you've downloaded. Cleaning up keeps what you still need.",
-          content: (
-            <LfsStorageSummary repoPath={repository.path} onCleanUp={repository.onCleanUpLfs} />
-          ),
-        },
-      ],
-    });
-  }
   return sections;
 }

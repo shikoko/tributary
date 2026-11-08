@@ -145,6 +145,12 @@ pub async fn changed_elsewhere(
     blocking(move || actions::changed_elsewhere(&PathBuf::from(path), &changed)).await
 }
 
+/// Who commits are made as in the repository, here and usually.
+#[tauri::command]
+pub async fn repo_identity(path: String) -> Result<actions::RepoIdentity> {
+    blocking(move || actions::repo_identity(&PathBuf::from(path))).await
+}
+
 /// The repository's submodules, and whether each is at the commit it records.
 #[tauri::command]
 pub async fn submodules(path: String) -> Result<Vec<actions::Submodule>> {

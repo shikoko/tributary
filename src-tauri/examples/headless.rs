@@ -151,6 +151,7 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         }
         "lfs_health" => to_json(actions::lfs_health(&path()?)?),
         "submodules" => to_json(actions::submodules(&path()?)?),
+        "repo_identity" => to_json(actions::repo_identity(&path()?)?),
         "pull_requests" => {
             let path = path()?;
             to_json(tauri::async_runtime::block_on(github::open_requests(

@@ -12,7 +12,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { buildDemos, DEMO_ENV, STUDIO_PULL_REQUESTS } from "./demo.mjs";
+import { buildDemos, demoEnv, STUDIO_PULL_REQUESTS } from "./demo.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
 
@@ -34,7 +34,7 @@ const { chromium } = loadPlaywright();
 const folder = mkdtempSync(join(tmpdir(), "tributary-smoke-"));
 const locks = await startLockServer({ port: 0 });
 const demos = buildDemos(folder, { lockServer: locks.url });
-const preview = await startPreview({ port: 0, quiet: true, env: DEMO_ENV });
+const preview = await startPreview({ port: 0, quiet: true, env: demoEnv(demos) });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 860 } });
 const errors = [];
@@ -381,6 +381,29 @@ try {
     await page.getByText("Signed in as maya-chen").waitFor({ timeout: 5000 });
     await page.keyboard.press("Escape");
     await dismissToast();
+  });
+
+  await step("sets who you commit as in one repository, from its tab's menu", async () => {
+    await page.locator(".tab", { hasText: "notebook" }).first().click({ button: "right" });
+    await page.locator(".menu-item", { hasText: "Repository Settings…" }).click();
+    const dialog = page.locator(".dialog", { hasText: "Settings for notebook" });
+    await dialog.waitFor({ timeout: 10_000 });
+    await dialog.getByLabel("Name for commits in this repository").fill("Maya Chen");
+    await dialog.getByLabel("Email for commits in this repository").fill("maya@work.example.com");
+    // "Save" when the repository already has a name and email of its own (the demos do).
+    await dialog.getByRole("button", { name: /^(Save|Use for this repository)$/ }).click();
+    await dialog.getByText("Here you commit as Maya Chen <maya@work.example.com>").waitFor({ timeout: 10_000 });
+    await dialog.getByRole("tab", { name: "Branches" }).click();
+    await dialog.getByText("Protected branches").waitFor();
+    await dialog.getByRole("button", { name: "Done" }).click();
+    await dialog.waitFor({ state: "detached", timeout: 5000 });
+    await dismissToast();
+    // The app's own Settings don't have it any more.
+    await page.keyboard.press("Control+,");
+    const settings = page.locator(".dialog", { hasText: "Settings" }).first();
+    await settings.waitFor();
+    expect((await settings.getByRole("tab", { name: /This repository/ }).count()) === 0, "Settings still has This repository");
+    await page.keyboard.press("Escape");
   });
 
   await step("shows diagnostics to copy", async () => {

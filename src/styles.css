@@ -5048,3 +5048,11 @@ code {
   padding: 4px 8px;
   font-size: 12px;
 }
+
+/* A repository's own settings */
+
+.settings-input {
+  width: 260px;
+  height: 30px;
+  font-family: var(--font);
+}

@@ -14,6 +14,7 @@ mod diff;
 mod elsewhere;
 mod files;
 mod history;
+mod identity;
 mod lfs;
 mod lfs_health;
 mod prune;
@@ -40,6 +41,7 @@ pub use diff::{
 };
 pub use elsewhere::{OtherChange, Overlap, changed_elsewhere};
 pub use files::{FileHistory, file_history};
+pub use identity::{RepoIdentity, repo_identity};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
 pub use lfs_health::{LfsHealth, lfs_health};
 pub use prune::{
@@ -228,6 +230,9 @@ pub enum Action {
     OpenInDiffTool { source: DiffSource, path: String },
     /// Open a conflicted file in the user's merge tool (`git mergetool`).
     OpenInMergeTool { path: String },
+    /// Commit as this name and email in this repository (`git config --local`); both
+    /// empty go back to the usual ones.
+    SetIdentity { name: String, email: String },
     /// Check out the recorded commit in these submodules (all of them when empty),
     /// setting up those that aren't yet (`git submodule update --init --recursive`).
     UpdateSubmodules {
@@ -495,6 +500,7 @@ fn perform(
             diff::open_in_diff_tool(&repo, &git, source, path)
         }
         Action::OpenInMergeTool { path } => diff::open_in_merge_tool(&git, path),
+        Action::SetIdentity { name, email } => identity::set_identity(&git, name, email),
         Action::UpdateSubmodules { paths } => {
             submodules::update_submodules(&git, paths, on_progress)
         }

@@ -46,6 +46,7 @@ pub fn run() {
             commands::file_checks,
             commands::changed_elsewhere,
             commands::submodules,
+            commands::repo_identity,
             commands::file_diff,
             commands::lfs_storage,
             commands::lfs_health,

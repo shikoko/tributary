@@ -25,13 +25,15 @@ interface Props {
   extra?: ReactNode;
   /** Tabs whose background fetch found new commits: what arrived, by path. */
   news?: Record<string, string>;
+  /** Right-click on a repository's tab (or the menu key on it). */
+  onContextMenu?: (path: string, x: number, y: number) => void;
 }
 
 /**
  * One tab per open repository. It's also the title bar: the empty space drags the window,
  * and on Windows the minimize, maximize and close buttons are at its right.
  */
-export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseStart, onNew, menuBar, extra, news }: Props) {
+export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseStart, onNew, menuBar, extra, news, onContextMenu }: Props) {
   return (
     <div className={`tab-bar${isWindows ? " with-window-controls" : ""}`} data-tauri-drag-region>
       <span className="tab-logo" data-tauri-drag-region>
@@ -70,6 +72,16 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
               // Middle-click closes, like in a browser.
               if (event.button === 1) onClose(tab.path);
             }}
+            onContextMenu={
+              onContextMenu &&
+              ((event) => {
+                event.preventDefault();
+                // From the keyboard there's no pointer: open under the tab.
+                const rect = event.currentTarget.getBoundingClientRect();
+                const keyboard = event.clientX === 0 && event.clientY === 0;
+                onContextMenu(tab.path, keyboard ? rect.left : event.clientX, keyboard ? rect.bottom : event.clientY);
+              })
+            }
           >
             <span className="tab-name" data-text={tab.name}>
               <span>{tab.name}</span>

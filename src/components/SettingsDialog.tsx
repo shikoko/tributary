@@ -29,12 +29,23 @@ export interface SettingsSection {
  * Every setting in one place, a section at a time: the sections on the left, the chosen
  * one's settings on the right. Changes apply right away.
  */
-export function SettingsDialog({ sections, initial, onClose }: { sections: SettingsSection[]; initial?: string; onClose: () => void }) {
+export function SettingsDialog({
+  sections,
+  initial,
+  title = "Settings",
+  onClose,
+}: {
+  sections: SettingsSection[];
+  initial?: string;
+  /** Like "Settings for notebook". */
+  title?: string;
+  onClose: () => void;
+}) {
   const [chosen, setChosen] = useState(initial ?? sections[0]?.title);
   const section = sections.find((candidate) => candidate.title === chosen) ?? sections[0];
   return (
     <Dialog
-      title="Settings"
+      title={title}
       className="settings-window"
       onCancel={onClose}
       buttons={

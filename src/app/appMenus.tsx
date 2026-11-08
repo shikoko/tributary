@@ -212,6 +212,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
               ]
             : []),
           { id: "reveal", label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, run: run.reveal },
+          { id: "repo-settings", label: "Repository Settings…", icon: <GearIcon />, run: () => run.dialog({ kind: "repoSettings" }) },
           "-",
           settingCommands[2],
         ],

@@ -341,3 +341,47 @@ fn stashes_only_the_chosen_files() {
     assert_eq!(read(&repo, "a.txt"), "a");
     assert_eq!(read(&repo, "b.txt"), "b edited");
 }
+
+#[test]
+fn sets_who_commits_are_made_as_in_one_repository() {
+    use tributary_lib::actions::repo_identity;
+    let mut repo = TempRepo::new("identity");
+    repo.commit("a.txt", "a");
+    // Nothing set for this repository yet (the usual identity is whatever this computer has).
+    assert_eq!(repo_identity(repo.path()).unwrap().local_name, None);
+
+    let set = Action::SetIdentity {
+        name: "Maya Chen".into(),
+        email: "maya@work.example.com".into(),
+    };
+    assert_eq!(
+        run(&repo, set).unwrap(),
+        "Commits here are made as Maya Chen <maya@work.example.com>"
+    );
+    let here = repo_identity(repo.path()).unwrap();
+    assert_eq!(here.local_name.as_deref(), Some("Maya Chen"));
+    assert_eq!(here.local_email.as_deref(), Some("maya@work.example.com"));
+    repo.git(&["commit", "--quiet", "--allow-empty", "-m", "As Maya"]);
+
+    // Half an identity, or a bad address, isn't taken.
+    let half = Action::SetIdentity {
+        name: "Maya".into(),
+        email: String::new(),
+    };
+    assert!(run(&repo, half).is_err());
+    let bad = Action::SetIdentity {
+        name: "Maya".into(),
+        email: "not an address".into(),
+    };
+    assert!(run(&repo, bad).is_err());
+
+    // Both empty: back to the usual one (twice is fine).
+    for _ in 0..2 {
+        let reset = Action::SetIdentity {
+            name: String::new(),
+            email: String::new(),
+        };
+        run(&repo, reset).unwrap();
+    }
+    assert_eq!(repo_identity(repo.path()).unwrap().local_email, None);
+}

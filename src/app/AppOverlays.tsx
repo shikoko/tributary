@@ -25,8 +25,6 @@ interface Props {
   commands: () => Command[];
   preferences: Preferences;
   updates: Updates;
-  /** The open repository's own settings, for the Settings window. */
-  repository: Parameters<typeof settingsSections>[0]["repository"];
   repoPath: string | null;
   /** The clone dialog is open. */
   cloning: boolean;
@@ -75,7 +73,6 @@ export function AppOverlays(props: Props) {
                   .catch((e) => notify({ text: `Couldn't sign out: ${e}` }))
                   .finally(github.recheck),
             },
-            repository: props.repository,
           })}
           onClose={() => hide("settings")}
         />

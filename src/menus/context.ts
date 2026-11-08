@@ -34,6 +34,8 @@ export type OpenDialog =
   | { kind: "recover" }
   | { kind: "newWorktree"; branch?: string; start: CommitRow }
   | { kind: "removeWorktree"; worktree: Worktree }
+  /** The repository's own settings: protected branches, who commits are made as, Git LFS. */
+  | { kind: "repoSettings" }
   | null;
 
 /** What the menus need from the app. */

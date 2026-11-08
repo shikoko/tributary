@@ -12,6 +12,7 @@ import { checkoutFor, commitMenu, dropMenu, pillForEntry, pillMenu, selectionMen
 import { ActivityPanel } from "../components/ActivityPanel";
 import { CommitList } from "../components/CommitList";
 import { ElsewherePanel } from "../components/ElsewherePanel";
+import { RepoSettingsDialog } from "../components/RepoSettingsDialog";
 import { DiffView } from "../components/diff/DiffView";
 import type { MenuItem } from "../components/ContextMenu";
 import { EyeIcon, PlusIcon } from "../components/Icons";
@@ -397,6 +398,17 @@ export function RepositoryView(props: Props) {
         elsewhere={props.overlaps.length > 0 ? { count: props.overlaps.length, assets: props.overlaps.some((overlap) => overlap.unmergeable) } : null}
         onElsewhere={(anchor) => setElsewhereAt(elsewhereAt ? null : anchor)}
       />
+      {props.dialog?.kind === "repoSettings" && (
+        <RepoSettingsDialog
+          name={snapshot.name}
+          path={snapshot.path}
+          protectedBranches={settings.protectedBranches}
+          setProtectedBranches={settings.setProtectedBranches}
+          run={(action) => act(action)}
+          onCleanUpLfs={() => openDialog({ kind: "pruneLfs" })}
+          onClose={() => openDialog(null)}
+        />
+      )}
       {elsewhereAt && props.overlaps.length > 0 && (
         <ElsewherePanel
           overlaps={props.overlaps}

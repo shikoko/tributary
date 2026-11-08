@@ -24,7 +24,8 @@ That builds two demo repositories and opens the preview on <http://127.0.0.1:417
   branches with pull requests.
 
 The people in them are made up, and the preview's own commits and stashes in them are made
-as Maya Chen, so screenshots don't show your name.
+as Maya Chen, so screenshots don't show your name. While it works on the demos, git also
+reads a stand-in global config (Maya Chen, with Git LFS set up) instead of yours.
 
 To use your own repositories instead, run `npm run preview` and paste any path. That runs
 git as you, with your settings, just like the app.

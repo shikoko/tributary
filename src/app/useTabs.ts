@@ -48,6 +48,20 @@ export function useTabs({ tabs, setTabs, snapshot, load, close, rememberPlace }:
     [tabs, setTabs, snapshot, rememberPlace, load, close],
   );
 
+  /** Close every tab but this one, switching to it. */
+  const closeOthers = useCallback(
+    (path: string) => {
+      const kept = tabs.filter((tab) => tab.path === path);
+      if (kept.length === 0) return;
+      setTabs(kept);
+      if (snapshot?.path !== path) {
+        rememberPlace();
+        load(path, "open");
+      }
+    },
+    [tabs, setTabs, snapshot, rememberPlace, load],
+  );
+
   const newTab = useCallback(() => {
     // Without a repository open, the start screen is already showing.
     if (!snapshot) return;
@@ -76,5 +90,5 @@ export function useTabs({ tabs, setTabs, snapshot, load, close, rememberPlace }:
     switchTab(tabs[(index + (backwards ? tabs.length - 1 : 1)) % tabs.length].path);
   };
 
-  return { startTab: startTab !== null, switchTab, closeTab, newTab, closeStartTab, closeCurrent, cycle };
+  return { startTab: startTab !== null, switchTab, closeTab, closeOthers, newTab, closeStartTab, closeCurrent, cycle };
 }
