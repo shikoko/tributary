@@ -14,6 +14,7 @@ import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { appendFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { crc32, deflateSync } from "node:zlib";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -77,6 +78,47 @@ function repository(folder, { configFile, start }) {
   return { folder, run, write, binary, commit };
 }
 
+/** A square RGBA PNG, `paint(x, y)` giving each pixel's [r, g, b, a]. */
+function png(size, paint) {
+  const stride = size * 4 + 1;
+  const rows = Buffer.alloc(stride * size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) rows.set(paint(x, y), y * stride + 1 + x * 4);
+  }
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([length, body, crc]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(size, 0);
+  header.writeUInt32BE(size, 4);
+  header[8] = 8; // bits per channel
+  header[9] = 6; // RGBA
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  return Buffer.concat([signature, chunk("IHDR", header), chunk("IDAT", deflateSync(rows)), chunk("IEND", Buffer.alloc(0))]);
+}
+
+/** A coin icon: dull bronze, or shiny gold with a glint. */
+function coin(shiny) {
+  const [r, g, b] = shiny ? [255, 196, 46] : [168, 112, 62];
+  return png(96, (x, y) => {
+    const dx = x - 47.5;
+    const dy = y - 47.5;
+    const distance = Math.hypot(dx, dy);
+    const alpha = Math.max(0, Math.min(1, 44 - distance));
+    if (alpha === 0) return [0, 0, 0, 0];
+    let light = 1 - (dx + dy) / 160 - (distance > 37 ? 0.25 : 0);
+    if (shiny) light += Math.max(0, 0.6 - Math.hypot(dx + 16, dy + 16) / 14);
+    if (Math.abs(dx) < 4 && Math.abs(dy) < 18 && distance < 37) light -= 0.3;
+    const shade = (channel) => Math.max(0, Math.min(255, Math.round(channel * light)));
+    return [shade(r), shade(g), shade(b), Math.round(alpha * 255)];
+  });
+}
+
 const days = (n) => n * 86400;
 const now = () => Math.floor(Date.now() / 1000);
 
@@ -98,6 +140,85 @@ function remote(root, name, configFile) {
   return bare;
 }
 
+/** The notebook's storage code, before and after it learned to open large notebooks quickly. */
+const STORE = {
+  indexedDb: `import { openDB, type IDBPDatabase } from "idb";
+import type { Note } from "./note";
+
+const DATABASE = "notebook";
+const VERSION = 1;
+
+let database: Promise<IDBPDatabase> | null = null;
+
+function open(): Promise<IDBPDatabase> {
+  database ??= openDB(DATABASE, VERSION, {
+    upgrade(db) {
+      db.createObjectStore("notes", { keyPath: "id" });
+    },
+  });
+  return database;
+}
+
+export async function saveNote(note: Note): Promise<void> {
+  const db = await open();
+  await db.put("notes", note);
+}
+
+export async function loadNotes(): Promise<Note[]> {
+  const db = await open();
+  const notes = await db.getAll("notes");
+  return notes.sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  const db = await open();
+  await db.delete("notes", id);
+}
+`,
+  paged: `import { openDB, type IDBPDatabase } from "idb";
+import type { Note } from "./note";
+
+const DATABASE = "notebook";
+const VERSION = 2;
+/** Notes shown before scrolling; the rest load as you scroll. */
+const PAGE_SIZE = 200;
+
+let database: Promise<IDBPDatabase> | null = null;
+
+function open(): Promise<IDBPDatabase> {
+  database ??= openDB(DATABASE, VERSION, {
+    upgrade(db, oldVersion, _newVersion, transaction) {
+      if (oldVersion < 1) db.createObjectStore("notes", { keyPath: "id" });
+      if (oldVersion < 2) transaction.objectStore("notes").createIndex("updatedAt", "updatedAt");
+    },
+  });
+  return database;
+}
+
+export async function saveNote(note: Note): Promise<void> {
+  const db = await open();
+  await db.put("notes", note);
+}
+
+export async function loadNotes(before?: number): Promise<Note[]> {
+  const db = await open();
+  const range = before === undefined ? null : IDBKeyRange.upperBound(before, true);
+  const notes: Note[] = [];
+  let cursor = await db.transaction("notes").store.index("updatedAt").openCursor(range, "prev");
+  while (cursor && notes.length < PAGE_SIZE) {
+    notes.push(cursor.value);
+    cursor = await cursor.continue();
+  }
+  return notes;
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  const db = await open();
+  await db.delete("notes", id);
+}
+`,
+};
+
 export function buildNotebook(root, configFile) {
   const folder = join(root, "notebook");
   setUp(folder, configFile);
@@ -115,7 +236,8 @@ export function buildNotebook(root, configFile) {
   commit("Add a sync client skeleton", "diego", 5, "src/sync/client.ts");
   commit("Retry failed sync requests", "diego", 4, "src/sync/retry.ts");
   checkout("main");
-  commit("Store notes in IndexedDB", "maya", 3, "src/store.ts");
+  repo.write("src/store.ts", STORE.indexedDb, { append: false });
+  commit("Store notes in IndexedDB", "maya", 3);
   commit("Show the last edited time on notes", "sam", 6, "src/ui/note.tsx");
   branch("fix/search-crash");
   commit("Fix a crash when searching an empty notebook", "priya", 4, "src/search.ts");
@@ -147,7 +269,8 @@ export function buildNotebook(root, configFile) {
   checkout("feature/export");
   commit("Export a whole notebook as a zip", "sam", 4, "src/export/zip.ts");
   checkout("main");
-  commit("Speed up opening large notebooks", "priya", 5, "src/store.ts");
+  repo.write("src/store.ts", STORE.paged, { append: false });
+  commit("Speed up opening large notebooks", "priya", 5);
   branch("feature/themes");
   commit("Add a theme picker", "maya", 3, "src/ui/theme.tsx");
   checkout("main");
@@ -201,6 +324,7 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   binary("Content/Maps/Tavern.umap", 2000);
   binary("Content/UI/MainMenu.uasset", 2000);
   binary("Content/Characters/Innkeeper.uasset", 1500);
+  write("Content/UI/Icons/Coin.png", coin(false), { append: false });
   commit("Set up the project", "maya", 0);
   binary("Content/Characters/Barber.uasset", 2100);
   commit("Rig the barber", "rosa");
@@ -226,6 +350,8 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   commit("Barber: shorter beard, drop the old innkeeper", "maya");
   write("Source/Feast/FeastGameMode.cpp", "// Seating\n");
   commit("Seat guests by the fire", "theo");
+  write("Content/UI/Icons/Coin.png", coin(true), { append: false });
+  commit("Shinier coins for the tip jar", "rosa");
   run(["push", "-q", "origin", "main"]);
 
   run(["switch", "-q", "-c", "fix/door"]);

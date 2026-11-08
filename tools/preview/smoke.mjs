@@ -157,6 +157,41 @@ try {
     await banner.waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("shows a file's changes in a commit, with the changed words marked", async () => {
+    await row("Speed up opening large notebooks").click();
+    await page.locator(".details .file", { hasText: "store.ts" }).first().click();
+    const view = page.locator(".diff-view");
+    await view.locator(".diff-row.added mark").first().waitFor({ timeout: 10_000 });
+    const stats = await view.locator(".diff-stats").innerText();
+    expect(/^\+\d+ −\d+$/.test(stats.trim()), `stats "${stats}"`);
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+    // Esc closed the changes, not the details.
+    await page.locator(".details", { hasText: "Priya Nair" }).waitFor({ timeout: 5000 });
+  });
+
+  await step("shows your changes, and follows a file you stage", async () => {
+    await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+    await page.locator(".details .file", { hasText: "README.md" }).click();
+    const view = page.locator(".diff-view");
+    await view.locator(".diff-row.added", { hasText: "Onboarding" }).first().waitFor({ timeout: 10_000 });
+    await view.locator(".diff-source", { hasText: "Not staged" }).waitFor({ timeout: 5000 });
+    // Step to another file and back with [ and ].
+    const [at, of] = (await view.locator(".diff-count").innerText()).split(" of ").map(Number);
+    await page.keyboard.press(at < of ? "]" : "[");
+    await view.locator(".diff-name", { hasText: "README.md" }).waitFor({ state: "detached", timeout: 5000 });
+    await page.keyboard.press(at < of ? "[" : "]");
+    await view.locator(".diff-name", { hasText: "README.md" }).waitFor({ timeout: 5000 });
+    await page.locator(".details .file", { hasText: "README.md" }).hover();
+    await page.getByRole("button", { name: "Stage README.md", exact: true }).click();
+    await view.locator(".diff-source", { hasText: "Staged" }).waitFor({ timeout: 10_000 });
+    await page.locator(".details .file.shown", { hasText: "README.md" }).hover();
+    await page.getByRole("button", { name: "Unstage README.md", exact: true }).click();
+    await view.locator(".diff-source", { hasText: "Not staged" }).waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("hides a branch, then shows everything again", async () => {
     const themes = page.locator(".sidebar-item", { hasText: /^themes/ }).first();
     await themes.hover();
@@ -230,6 +265,15 @@ try {
     await banner.getByRole("button", { name: "Release lock" }).click();
     await page.locator(".sidebar-locked", { hasText: "Barber" }).waitFor({ state: "detached", timeout: 15_000 });
     await dismissToast();
+  });
+
+  await step("shows an image before and after", async () => {
+    await row("Shinier coins for the tip jar").click();
+    await page.locator(".details .file", { hasText: "Coin.png" }).click();
+    await page.locator(".diff-image img").nth(1).waitFor({ timeout: 10_000 });
+    const sizes = await page.locator(".diff-binary-sizes").innerText();
+    expect(/→/.test(sizes), `sizes "${sizes}"`);
+    await page.keyboard.press("Escape");
   });
 
   await step("shows pull requests on their branches", async () => {

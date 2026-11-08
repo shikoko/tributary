@@ -48,9 +48,8 @@ pub fn on_activity(listener: impl Fn(&LogEntry) + Send + Sync + 'static) {
     let _ = LISTENER.set(Box::new(listener));
 }
 
-/// Read-only helpers that would only clutter the log.
-/// Reading commands, and Tributary's own backups (see [`back_up`]), stay out of the log.
-const UNLOGGED: [&str; 9] = [
+/// Reading commands, and Tributary's own backups (see `back_up`), stay out of the log.
+const UNLOGGED: &[&str] = &[
     "check-attr",
     "rev-parse",
     "rev-list",
@@ -60,6 +59,8 @@ const UNLOGGED: [&str; 9] = [
     "update-ref",
     "ls-files",
     "log",
+    "diff",
+    "cat-file",
 ];
 
 pub(crate) fn record(

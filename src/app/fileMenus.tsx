@@ -1,9 +1,11 @@
-import type { Action, FileChange, FileChecks, Lock, RepoSnapshot } from "../api";
+import type { Action, DiffSource, FileChange, FileChecks, Lock, RepoSnapshot } from "../api";
 import type { MenuItem } from "../components/ContextMenu";
 import {
   CheckIcon,
   CloudIcon,
   CopyIcon,
+  DiffIcon,
+  ExternalLinkIcon,
   FileHistoryIcon,
   FolderIcon,
   IgnoreIcon,
@@ -32,6 +34,8 @@ export interface FileMenuContext {
   checks: FileChecks | null;
   /** Show a file in Finder or Explorer. */
   reveal: (path: string) => void;
+  /** Show a file's changes in the diff view. */
+  showChanges: (file: FileChange, source: DiffSource) => void;
 }
 
 /** Lock, unlock or force-unlock a file. */
@@ -57,17 +61,33 @@ function lockItems(ctx: FileMenuContext, path: string, lock: Lock | undefined, s
   ];
 }
 
-/** Right-click on a file in a commit (`where` "commit") or in the uncommitted changes. */
-export function fileMenuItems(ctx: FileMenuContext, file: FileChange, where: "worktree" | "commit"): MenuItem[] {
+/** Right-click on a file in a commit (a "commit" source) or in your changes (staged or unstaged). */
+export function fileMenuItems(ctx: FileMenuContext, file: FileChange, source: DiffSource): MenuItem[] {
   const { snapshot, canChange, run, openDialog, showHistory, locks, checks, reveal } = ctx;
+  const where = source.kind === "commit" ? "commit" : "worktree";
   const folder = file.path.endsWith("/");
   const path = file.path.replace(/\/+$/, "");
   const dir = folderOf(path);
   const items: MenuItem[] = [];
-  if (where === "worktree" && file.status === "conflicted") {
+  const conflicted = where === "worktree" && file.status === "conflicted";
+  if (!folder) {
+    items.push(
+      { label: "Show changes", icon: <DiffIcon />, onSelect: () => ctx.showChanges(file, source) },
+      conflicted
+        ? { label: "Open in merge tool", icon: <ExternalLinkIcon />, disabled: !canChange, onSelect: () => run({ kind: "openInMergeTool", path }) }
+        : { label: "Open in diff tool", icon: <ExternalLinkIcon />, disabled: file.status === "untracked", onSelect: () => run({ kind: "openInDiffTool", source, path }) },
+    );
+  }
+  if (conflicted) {
     const sides = conflictSides(snapshot);
     items.push(
-      { label: `Keep mine (${sides.mine})`, icon: <CheckIcon />, disabled: !canChange, onSelect: () => run({ kind: "resolveConflicts", paths: [path], keep: "mine" }) },
+      {
+        label: `Keep mine (${sides.mine})`,
+        icon: <CheckIcon />,
+        separated: items.length > 0,
+        disabled: !canChange,
+        onSelect: () => run({ kind: "resolveConflicts", paths: [path], keep: "mine" }),
+      },
       { label: `Take theirs (${sides.theirs})`, icon: <MergeIcon />, disabled: !canChange, onSelect: () => run({ kind: "resolveConflicts", paths: [path], keep: "theirs" }) },
     );
   }

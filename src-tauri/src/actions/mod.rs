@@ -10,6 +10,7 @@ mod branches;
 mod changes;
 mod clone;
 mod conflicts;
+mod diff;
 mod elsewhere;
 mod files;
 mod history;
@@ -32,6 +33,7 @@ use crate::git::{Git, Progress};
 
 pub use backups::{BACKUP_DAYS, Backup, BackupEvent, backups};
 pub use clone::{CloneOptions, clone_repository, init_repository};
+pub use diff::{DiffLine, DiffSource, FileDiff, Hunk, Images, LineKind, file_diff};
 pub use elsewhere::{OtherChange, Overlap, changed_elsewhere};
 pub use files::{FileHistory, file_history};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
@@ -217,6 +219,10 @@ pub enum Action {
     },
     /// Forget working trees whose folders are gone.
     PruneWorktrees,
+    /// Open a file's change in the user's diff tool (`git difftool`).
+    OpenInDiffTool { source: DiffSource, path: String },
+    /// Open a conflicted file in the user's merge tool (`git mergetool`).
+    OpenInMergeTool { path: String },
     /// Release Git LFS locks, by id (the file may not exist here). `force` releases
     /// someone else's lock.
     UnlockFiles {
@@ -474,6 +480,10 @@ fn perform(
             worktrees::remove_worktree(&repo, &git, path, force)
         }
         Action::PruneWorktrees => worktrees::prune_worktrees(&git),
+        Action::OpenInDiffTool { source, path } => {
+            diff::open_in_diff_tool(&repo, &git, source, path)
+        }
+        Action::OpenInMergeTool { path } => diff::open_in_merge_tool(&git, path),
         Action::UnlockFiles { locks, force } => lfs::unlock_files(&git, locks, force),
     }
 }

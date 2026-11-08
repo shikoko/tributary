@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Action, FileChange, FileChecks, Lock, Overlap, RepoSnapshot } from "../api";
+import type { Action, DiffSource, FileChange, FileChecks, Lock, Overlap, RepoSnapshot } from "../api";
 import { CloseIcon, MinusIcon, PlusIcon, StashIcon, TrashIcon } from "./Icons";
 import { ChangeWarnings } from "./worktree/ChangeWarnings";
 import { CommitBox, type CommitDraft } from "./worktree/CommitBox";
@@ -23,8 +23,12 @@ interface Props {
   onClose: () => void;
   /** A file's Git LFS lock. */
   lockOf: (path: string) => Lock | undefined;
-  /** Right-click on a file. */
-  onFileMenu: (file: FileChange, x: number, y: number) => void;
+  /** Right-click on a file, staged or not. */
+  onFileMenu: (file: FileChange, x: number, y: number, source: DiffSource) => void;
+  /** Show a file's changes. */
+  onOpenFile: (file: FileChange, source: DiffSource) => void;
+  /** The file whose changes are shown. */
+  isShown: (path: string, source: DiffSource) => boolean;
   /** Big files outside Git LFS and lockable files among the changes. */
   checks: FileChecks | null;
   /** The repository's server supports locking. */
@@ -49,6 +53,7 @@ export function conflictSides(snapshot: RepoSnapshot): { mine: string; theirs: s
 /** The "Uncommitted changes" panel: warnings, conflicts, staging files, then committing. */
 export function WorktreeDetailsPanel(props: Props) {
   const { snapshot, run, busy, lockOf, onFileMenu, checks } = props;
+  const opening = { onOpen: props.onOpenFile, isShown: props.isShown };
   const status = snapshot.worktree ?? { staged: [], unstaged: [] };
   const conflicted = status.unstaged.filter((file) => file.status === "conflicted");
   const unstaged = status.unstaged.filter((file) => file.status !== "conflicted");
@@ -79,11 +84,13 @@ export function WorktreeDetailsPanel(props: Props) {
         <ElsewhereWarning overlaps={props.overlaps} onShow={props.onShowCommit} />
         <ChangeWarnings staged={status.staged} unstaged={status.unstaged} lockOf={lockOf} checks={checks} canLock={props.canLock} busy={busy} run={run} />
         {conflicted.length > 0 && (
-          <ConflictList conflicted={conflicted} {...conflictSides(snapshot)} busy={busy} lockOf={lockOf} onFileMenu={onFileMenu} run={run} elsewhereOf={elsewhereOf} />
+          <ConflictList conflicted={conflicted} {...conflictSides(snapshot)} busy={busy} lockOf={lockOf} onFileMenu={onFileMenu} run={run} elsewhereOf={elsewhereOf} {...opening} />
         )}
         <FileSection
           title="Staged"
           files={status.staged}
+          source={{ kind: "staged" }}
+          {...opening}
           empty="Nothing staged yet. Stage the files you want to commit."
           bulk={{ label: "Unstage all", onClick: () => quietly({ kind: "unstageAll" }) }}
           lockOf={lockOf}
@@ -95,6 +102,8 @@ export function WorktreeDetailsPanel(props: Props) {
         <FileSection
           title="Unstaged"
           files={unstaged}
+          source={{ kind: "unstaged" }}
+          {...opening}
           empty="No other changes."
           bulk={{ label: "Stage all", onClick: () => quietly({ kind: "stageAll" }) }}
           lockOf={lockOf}

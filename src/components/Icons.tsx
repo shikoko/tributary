@@ -501,3 +501,11 @@ export const SquashIcon = (p: IconProps) => (
     <path d="M3 8h10" />
   </Icon>
 );
+
+/** A file's changes: a page with a plus and a minus. */
+export const DiffIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 1.5h5.5L12.5 4.5v10h-8.5z" />
+    <path d="M8.5 5v4M6.5 7h4M6.5 11.5h4" />
+  </Icon>
+);

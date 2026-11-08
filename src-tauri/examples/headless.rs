@@ -132,6 +132,19 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             to_json(actions::file_checks(&path()?, &files, threshold)?)
         }
         "lfs_storage" => to_json(actions::lfs_storage_of(&path()?)?),
+        "file_diff" => {
+            let source: actions::DiffSource = arg(args, "source")?;
+            let file: String = arg(args, "file")?;
+            let old_path: Option<String> = optional(args, "oldPath")?;
+            let ignore_whitespace = optional(args, "ignoreWhitespace")?.unwrap_or(false);
+            to_json(actions::file_diff(
+                &path()?,
+                source,
+                &file,
+                old_path.as_deref(),
+                ignore_whitespace,
+            )?)
+        }
         "changed_elsewhere" => {
             let changed: Vec<String> = arg(args, "changed")?;
             to_json(actions::changed_elsewhere(&path()?, &changed)?)

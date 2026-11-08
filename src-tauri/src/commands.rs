@@ -145,6 +145,27 @@ pub async fn changed_elsewhere(
     blocking(move || actions::changed_elsewhere(&PathBuf::from(path), &changed)).await
 }
 
+/// What changed in a file: in a commit, staged, or not staged yet.
+#[tauri::command]
+pub async fn file_diff(
+    path: String,
+    source: actions::DiffSource,
+    file: String,
+    old_path: Option<String>,
+    ignore_whitespace: Option<bool>,
+) -> Result<actions::FileDiff> {
+    blocking(move || {
+        actions::file_diff(
+            &PathBuf::from(path),
+            source,
+            &file,
+            old_path.as_deref(),
+            ignore_whitespace.unwrap_or(false),
+        )
+    })
+    .await
+}
+
 /// How much space the local copies of Git LFS files take.
 #[tauri::command]
 pub async fn lfs_storage(path: String) -> Result<Option<actions::LfsStorage>> {

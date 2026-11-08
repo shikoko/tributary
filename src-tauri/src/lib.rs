@@ -43,6 +43,7 @@ pub fn run() {
             commands::file_history,
             commands::file_checks,
             commands::changed_elsewhere,
+            commands::file_diff,
             commands::lfs_storage,
             commands::lfs_health,
             commands::diagnostics,

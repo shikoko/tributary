@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { FileChange, Lock, Overlap } from "../../api";
+import type { DiffSource, FileChange, Lock, Overlap } from "../../api";
 import { plural } from "../../lib/format";
 import { FileLine } from "../FileLine";
 
@@ -11,13 +11,18 @@ interface Props {
   fileAction: (file: FileChange) => { label: string; icon: ReactNode; onClick: () => void };
   busy: boolean;
   lockOf: (path: string) => Lock | undefined;
-  onFileMenu: (file: FileChange, x: number, y: number) => void;
+  onFileMenu: (file: FileChange, x: number, y: number, source: DiffSource) => void;
   /** Where else a file was changed, if anywhere. */
   elsewhereOf?: (path: string) => Overlap | undefined;
+  /** Staged or unstaged: what a file's changes are compared against. */
+  source: DiffSource;
+  onOpen: (file: FileChange, source: DiffSource) => void;
+  /** The file whose changes are shown. */
+  isShown: (path: string, source: DiffSource) => boolean;
 }
 
 /** Staged or unstaged files, each with a button to move it to the other list, and one for all of them. */
-export function FileSection({ title, files, empty, bulk, fileAction, busy, lockOf, onFileMenu, elsewhereOf }: Props) {
+export function FileSection({ title, files, empty, bulk, fileAction, busy, lockOf, onFileMenu, elsewhereOf, source, onOpen, isShown }: Props) {
   return (
     <section className="files">
       <h3>
@@ -41,7 +46,9 @@ export function FileSection({ title, files, empty, bulk, fileAction, busy, lockO
               action={{ ...fileAction(file), disabled: busy }}
               lock={lockOf(file.path)}
               elsewhere={elsewhereOf?.(file.path)}
-              onContextMenu={onFileMenu}
+              onContextMenu={(file, x, y) => onFileMenu(file, x, y, source)}
+              onOpen={(file) => onOpen(file, source)}
+              shown={isShown(file.path, source)}
             />
           ))}
         </ul>

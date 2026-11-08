@@ -8,7 +8,7 @@ mod progress;
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::time::{Instant, SystemTime};
 
 use self::activity::record;
@@ -108,6 +108,104 @@ impl Git {
             &stdout,
             &stderr,
         )))
+    }
+
+    /// Run git with `args` (a command that only reads, like `cat-file`), returning exactly
+    /// what it printed, which may not be text. Feeds it `input`, if there is any.
+    pub(crate) fn run_bytes(&self, args: &[&str], input: Option<&[u8]>) -> Result<Vec<u8>> {
+        use std::io::Write;
+        let mut child = command(&self.executable)
+            .arg("-C")
+            .arg(&self.workdir)
+            .args(args)
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .stdin(if input.is_some() {
+                Stdio::piped()
+            } else {
+                Stdio::null()
+            })
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Could not run git: {e}"))?;
+        if let (Some(input), Some(mut stdin)) = (input, child.stdin.take()) {
+            // Written on its own thread, so a big input can't block on a full output pipe.
+            let input = input.to_vec();
+            std::thread::spawn(move || {
+                let _ = stdin.write_all(&input);
+            });
+        }
+        let output = child
+            .wait_with_output()
+            .map_err(|e| format!("Could not run git: {e}"))?;
+        if output.status.success() {
+            Ok(output.stdout)
+        } else {
+            Err(Error::Git(
+                String::from_utf8_lossy(&output.stderr).trim().to_owned(),
+            ))
+        }
+    }
+
+    /// Start git with `args` and leave it running, like a diff tool that stays open until
+    /// it's closed. Waits up to `settle` for a quick failure (no tool set up, say), to
+    /// report it.
+    pub(crate) fn spawn(&self, args: &[&str], settle: std::time::Duration) -> Result<()> {
+        let (started, took) = (SystemTime::now(), Instant::now());
+        let mut child = command(&self.executable)
+            .arg("-C")
+            .arg(&self.workdir)
+            .args(args)
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Could not run git: {e}"))?;
+        // Read what it says on its own thread, so it can't block on a full pipe.
+        let stderr = child.stderr.take();
+        let said = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
+        let collected = said.clone();
+        std::thread::spawn(move || {
+            if let Some(stderr) = stderr {
+                read_lines(stderr, |line| {
+                    if let Ok(mut text) = collected.lock() {
+                        text.push_str(&line);
+                        text.push('\n');
+                    }
+                });
+            }
+        });
+        while took.elapsed() < settle {
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    // Give the reader a moment to catch the last lines.
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                    let message = said
+                        .lock()
+                        .map(|text| text.trim().to_owned())
+                        .unwrap_or_default();
+                    record(self, args, started, took, status.success(), &message);
+                    return if status.success() {
+                        Ok(())
+                    } else if message.is_empty() {
+                        Err(Error::Git(format!(
+                            "git {} failed ({status})",
+                            args.join(" ")
+                        )))
+                    } else {
+                        Err(Error::Git(message))
+                    };
+                }
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
+                Err(e) => return Err(format!("Could not run git: {e}").into()),
+            }
+        }
+        record(self, args, started, took, true, "(still open)");
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
+        Ok(())
     }
 }
 

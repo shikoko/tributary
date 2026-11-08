@@ -1,0 +1,137 @@
+import { useEffect, useState } from "react";
+import { fileDiff, type Action, type FileDiff } from "../../api";
+import type { DiffTarget } from "../../lib/diffTargets";
+import { useStoredState } from "../../lib/settings";
+import { ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon } from "../Icons";
+import { DiffBinary } from "./DiffBinary";
+import { DiffLines } from "./DiffLines";
+
+interface Props {
+  repoPath: string;
+  /** The files to step through, and the one shown. */
+  targets: DiffTarget[];
+  index: number;
+  onIndex: (index: number) => void;
+  onClose: () => void;
+  /** For opening the diff or merge tool. */
+  run: (action: Action) => void;
+  /** Changes when the repository reloads: your changes are read again. */
+  version: unknown;
+}
+
+/**
+ * A file's changes over the commit list: text line by line, images side by side, other
+ * files by their size. Esc closes, [ and ] go to the previous and next file.
+ */
+export function DiffView({ repoPath, targets, index, onIndex, onClose, run, version }: Props) {
+  const target = targets[index];
+  const [ignoreWhitespace, setIgnoreWhitespace] = useStoredState("diff.ignoreWhitespace", false);
+  const [loaded, setLoaded] = useState<{ key: string; diff: FileDiff | null; error: string | null } | null>(null);
+  const live = target.source.kind !== "commit";
+  const key = JSON.stringify([target.source, target.file.path, target.file.oldPath, ignoreWhitespace]);
+
+  useEffect(() => {
+    let current = true;
+    fileDiff(repoPath, target.source, target.file.path, target.file.oldPath ?? undefined, ignoreWhitespace)
+      .then((diff) => current && setLoaded({ key, diff, error: null }))
+      .catch((e) => current && setLoaded({ key, diff: null, error: String(e) }));
+    return () => {
+      current = false;
+    };
+    // Your own changes are read again whenever the repository reloads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, repoPath, live ? version : null]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      // Typing in a text field (the whitespace checkbox doesn't count).
+      const typing = (event.target as HTMLElement | null)?.closest?.('textarea, select, [contenteditable], input:not([type="checkbox"])');
+      // Menus and dialogs over this one close first.
+      const above = document.querySelector('[role="menu"], [role="dialog"], [aria-modal="true"]');
+      if (typing || above || event.metaKey || event.ctrlKey || event.altKey) return;
+      const step = event.key === "[" ? -1 : event.key === "]" ? 1 : 0;
+      if (event.key === "Escape") onClose();
+      else if (step && targets[index + step]) onIndex(index + step);
+      else return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    // Before the app's own shortcuts, so Esc closes this first.
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [index, targets, onIndex, onClose]);
+
+  const diff = loaded?.key === key ? loaded.diff : null;
+  const error = loaded?.key === key ? loaded.error : null;
+  const path = target.file.path;
+  const slash = path.lastIndexOf("/");
+  const conflicted = target.file.status === "conflicted";
+  return (
+    <section className="diff-view" aria-label={`Changes to ${path}`}>
+      <header className="diff-header">
+        <div className="diff-steps">
+          <button className="icon-button" onClick={() => onIndex(index - 1)} disabled={index === 0} title="Previous file ([)" aria-label="Previous file">
+            <ChevronUpIcon size={14} />
+          </button>
+          <button
+            className="icon-button"
+            onClick={() => onIndex(index + 1)}
+            disabled={index === targets.length - 1}
+            title="Next file (])"
+            aria-label="Next file"
+          >
+            <ChevronDownIcon size={14} />
+          </button>
+          <span className="diff-count">
+            {index + 1} of {targets.length}
+          </span>
+        </div>
+        <div className="diff-title" title={target.file.oldPath ? `${target.file.oldPath} → ${path}` : path}>
+          <span className="diff-name">{path.slice(slash + 1)}</span>
+          {slash > 0 && <span className="diff-dir">{path.slice(0, slash)}</span>}
+          <span className="diff-source">{target.label}</span>
+          {diff && !diff.binary && !diff.tooLarge && (
+            <span className="diff-stats">
+              <span className="added">+{diff.additions}</span> <span className="removed">−{diff.deletions}</span>
+            </span>
+          )}
+        </div>
+        {!(diff && (diff.binary || diff.tooLarge)) && (
+          <label className="checkbox diff-option">
+            <input type="checkbox" checked={ignoreWhitespace} onChange={(event) => setIgnoreWhitespace(event.target.checked)} />
+            Ignore whitespace
+          </label>
+        )}
+        {(conflicted || target.file.status !== "untracked") && (
+          <button
+            className="outline-button"
+            onClick={() => run(conflicted ? { kind: "openInMergeTool", path } : { kind: "openInDiffTool", source: target.source, path })}
+            title={conflicted ? "Resolve it in the merge tool set up in git (merge.tool)" : "Compare it in the diff tool set up in git (diff.tool)"}
+          >
+            <ExternalLinkIcon size={13} />
+            <span className="button-label">{conflicted ? "Open in merge tool" : "Open in diff tool"}</span>
+          </button>
+        )}
+        <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close the changes">
+          <CloseIcon />
+        </button>
+      </header>
+      <div className="diff-body">
+        {error ? (
+          <div className="diff-message">
+            <strong>Couldn't read the changes</strong>
+            <span>{error}</span>
+          </div>
+        ) : !diff ? (
+          <div className="diff-message muted">Loading…</div>
+        ) : diff.binary || diff.tooLarge ? (
+          <DiffBinary diff={diff} />
+        ) : diff.hunks.length === 0 ? (
+          <div className="diff-message muted">{ignoreWhitespace ? "Only whitespace changed." : "No changes to show (only the file's name or mode changed)."}</div>
+        ) : (
+          <DiffLines hunks={diff.hunks} />
+        )}
+      </div>
+    </section>
+  );
+}

@@ -1,4 +1,4 @@
-import type { Action, FileChange, Lock, Overlap } from "../../api";
+import type { Action, DiffSource, FileChange, Lock, Overlap } from "../../api";
 import { plural } from "../../lib/format";
 import { FileLine } from "../FileLine";
 import { PlusIcon } from "../Icons";
@@ -10,13 +10,17 @@ interface Props {
   theirs: string;
   busy: boolean;
   lockOf: (path: string) => Lock | undefined;
-  onFileMenu: (file: FileChange, x: number, y: number) => void;
+  onFileMenu: (file: FileChange, x: number, y: number, source: DiffSource) => void;
+  onOpen: (file: FileChange, source: DiffSource) => void;
+  isShown: (path: string, source: DiffSource) => boolean;
   run: (action: Action, options?: { quiet?: boolean }) => void;
   elsewhereOf?: (path: string) => Overlap | undefined;
 }
 
 /** Conflicted files, each resolved by keeping one side's whole version (best for files that can't be merged), or fixed by hand and staged. */
-export function ConflictList({ conflicted, mine, theirs, busy, lockOf, onFileMenu, run, elsewhereOf }: Props) {
+const SOURCE: DiffSource = { kind: "unstaged" };
+
+export function ConflictList({ conflicted, mine, theirs, busy, lockOf, onFileMenu, onOpen, isShown, run, elsewhereOf }: Props) {
   const resolve = (paths: string[], keep: "mine" | "theirs") => run({ kind: "resolveConflicts", paths, keep });
   return (
     <section className="files conflicts">
@@ -41,7 +45,9 @@ export function ConflictList({ conflicted, mine, theirs, busy, lockOf, onFileMen
             file={file}
             lock={lockOf(file.path)}
             elsewhere={elsewhereOf?.(file.path)}
-            onContextMenu={onFileMenu}
+            onContextMenu={(file, x, y) => onFileMenu(file, x, y, SOURCE)}
+            onOpen={(file) => onOpen(file, SOURCE)}
+            shown={isShown(file.path, SOURCE)}
             choices={[
               { label: "Mine", title: `Keep ${mine}'s version`, onClick: () => resolve([file.path], "mine"), disabled: busy },
               { label: "Theirs", title: `Take ${theirs}'s version`, onClick: () => resolve([file.path], "theirs"), disabled: busy },

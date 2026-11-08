@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import type { CommitRow, FileChange, FileChecks, Lock, Overlap, RepoSnapshot } from "../api";
+import type { CommitRow, DiffSource, FileChange, FileChecks, Lock, Overlap, RepoSnapshot } from "../api";
+import { isShown, type ShownDiff } from "../lib/diffTargets";
 import { webRemote } from "../lib/weblinks";
 import type { DetailsAction } from "../components/CommitDetails";
 import { CommitDetailsPanel } from "../components/CommitDetails";
@@ -28,7 +29,11 @@ interface Props {
   /** Commit message help: recent messages, co-authors. */
   messageTools: ReactNode;
   openDialog: (dialog: OpenDialog) => void;
-  onFileMenu: (file: FileChange, x: number, y: number, where: "worktree" | "commit") => void;
+  onFileMenu: (file: FileChange, x: number, y: number, source: DiffSource) => void;
+  /** Show a file's changes. */
+  onOpenFile: (file: FileChange, source: DiffSource) => void;
+  /** The file whose changes are shown, if any. */
+  shownDiff: ShownDiff | null;
   /** Files you're changing that other branches also changed. */
   overlaps: Overlap[];
   /** A commit to show isn't among the loaded ones. */
@@ -69,7 +74,9 @@ export function DetailsPane(props: Props) {
         onDiscard={() => head && props.openDialog({ kind: "reset", target: head })}
         onClose={() => select(null)}
         lockOf={(path) => locks?.get(path)}
-        onFileMenu={(file, x, y) => props.onFileMenu(file, x, y, "worktree")}
+        onFileMenu={props.onFileMenu}
+        onOpenFile={props.onOpenFile}
+        isShown={(path, source) => isShown(props.shownDiff, source, path)}
         checks={props.checks}
         canLock={locks !== null}
         messageTools={props.messageTools}
@@ -78,6 +85,7 @@ export function DetailsPane(props: Props) {
       />
     );
   }
+  const source: DiffSource = { kind: "commit", id: selected.id };
   return (
     <CommitDetailsPanel
       repoPath={snapshot.path}
@@ -89,7 +97,9 @@ export function DetailsPane(props: Props) {
       actions={props.detailsActions(selected)}
       remote={webRemote(snapshot)}
       resolveCommit={details.resolve}
-      onFileMenu={(file, x, y) => props.onFileMenu(file, x, y, "commit")}
+      onFileMenu={(file, x, y) => props.onFileMenu(file, x, y, source)}
+      onOpenFile={(file) => props.onOpenFile(file, source)}
+      isShown={(path) => isShown(props.shownDiff, source, path)}
       isHighlighted={props.isHistoryFile}
       lockOf={locks ? (path) => locks.get(path) : undefined}
     />

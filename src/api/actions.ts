@@ -2,6 +2,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { BranchTip } from "./branches";
+import type { DiffSource } from "./diff";
 
 /** Something that changes the repository. These run the installed git. */
 export type Action =
@@ -73,6 +74,8 @@ export type Action =
   | { kind: "addWorktree"; path: string; branch: string; create: boolean; start?: string | null }
   | { kind: "removeWorktree"; path: string; force?: boolean }
   | { kind: "pruneWorktrees" }
+  | { kind: "openInDiffTool"; source: DiffSource; path: string }
+  | { kind: "openInMergeTool"; path: string }
   | { kind: "unlockFiles"; locks: { id: string; path: string }[]; force?: boolean };
 
 export type StepAction = "pick" | "reword" | "squash" | "fixup" | "drop";

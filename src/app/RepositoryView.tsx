@@ -1,6 +1,7 @@
-import { useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { fullRefName, PAGE_SIZE, type Action, type CommitRow, type FileChange, type FileChecks, type Lock, type Overlap, type RepoSnapshot, type Worktree } from "../api";
+import { fullRefName, PAGE_SIZE, WORKTREE_ID, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type RepoSnapshot, type Worktree } from "../api";
+import { commitTargets, findTarget, highlightedFirst, worktreeTargets, type DiffTarget, type ShownDiff } from "../lib/diffTargets";
 import { withCoAuthor } from "../lib/commitMessage";
 import { rewritable } from "../lib/graph";
 import type { LfsLocks } from "../lib/locks";
@@ -10,6 +11,7 @@ import { openInBrowser } from "../lib/weblinks";
 import { checkoutFor, commitMenu, dropMenu, pillForEntry, pillMenu, selectionMenu, type MenuContext, type OpenDialog } from "../menus";
 import { ActivityPanel } from "../components/ActivityPanel";
 import { CommitList } from "../components/CommitList";
+import { DiffView } from "../components/diff/DiffView";
 import type { MenuItem } from "../components/ContextMenu";
 import { BranchIcon, EyeIcon, PlusIcon } from "../components/Icons";
 import { MessageTools } from "../components/MessageTools";
@@ -90,6 +92,27 @@ export function RepositoryView(props: Props) {
   /** Sizes when a panel resize started. */
   const resizeStart = useRef({ sidebar: 0, details: 0 });
 
+  // The diff view: a file's changes in the selected commit, or in your changes.
+  const [diffAt, setDiffAt] = useState<(ShownDiff & { origin: string }) | null>(null);
+  const origin = selection.selected && !selection.multi ? selection.selectedId : null;
+  const commitFiles = diffAt && diffAt.origin !== WORKTREE_ID ? props.details.cache.current.get(diffAt.origin)?.files : undefined;
+  const diffTargets: DiffTarget[] = useMemo(() => {
+    if (!diffAt) return [];
+    if (diffAt.origin === WORKTREE_ID) return worktreeTargets(snapshot.worktree);
+    return commitTargets(diffAt.origin, highlightedFirst(commitFiles ?? [], highlight.isHistoryFile), byId.get(diffAt.origin)?.kind === "stash");
+  }, [diffAt, snapshot.worktree, commitFiles, highlight.isHistoryFile, byId]);
+  const diffIndex = diffAt && diffAt.origin === origin ? findTarget(diffTargets, diffAt.source, diffAt.path) : -1;
+  const shownDiff = diffIndex >= 0 ? diffTargets[diffIndex] : null;
+  // Another commit was selected, or the file isn't changed any more.
+  useEffect(() => {
+    if (diffAt && !shownDiff) setDiffAt(null);
+  }, [diffAt, shownDiff]);
+  const showChanges = (file: FileChange, source: DiffSource) => origin && setDiffAt({ origin, source, path: file.path });
+  const stepDiff = (index: number) => {
+    const target = diffTargets[index];
+    if (target && diffAt) setDiffAt({ origin: diffAt.origin, source: target.source, path: target.file.path });
+  };
+
   // What the commit, branch and selection menus need.
   const ctx: MenuContext = {
     snapshot,
@@ -120,6 +143,7 @@ export function RepositoryView(props: Props) {
     locks: lfs.locks ? lfs.byPath : null,
     checks: props.checks,
     reveal: (path) => revealItemInDir(joinPath(snapshot.path, path)).catch(() => props.notify({ text: `${baseName(path)} isn't in the working tree` })),
+    showChanges,
   };
   const worktreeContext: WorktreeMenuContext = {
     canChange,
@@ -128,7 +152,7 @@ export function RepositoryView(props: Props) {
     remove: (worktree) => openDialog({ kind: "removeWorktree", worktree }),
     prune: () => act({ kind: "pruneWorktrees" }),
   };
-  const fileMenu = (file: FileChange, x: number, y: number, where: "worktree" | "commit") => menu.show(x, y, fileMenuItems(fileMenuContext, file, where));
+  const fileMenu = (file: FileChange, x: number, y: number, source: DiffSource) => menu.show(x, y, fileMenuItems(fileMenuContext, file, source));
   const lockMenu = (lock: Lock, x: number, y: number) => menu.show(x, y, lockMenuItems(fileMenuContext, lock));
   const checkout = (entry: { pill: Parameters<typeof checkoutFor>[1]; commit: CommitRow | undefined }) => {
     const action = entry.commit && checkoutFor(ctx, entry.pill, entry.commit);
@@ -253,38 +277,51 @@ export function RepositoryView(props: Props) {
             <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
           </>
         )}
-        <CommitList
-          key={snapshot.path}
-          snapshot={snapshot}
-          selectedId={selection.selectedId}
-          selectedIds={selectedIds}
-          onSelect={select}
-          matchIds={search.matchIds}
-          focusIds={highlight.focusIds}
-          dense={preferences.dense}
-          columnWidths={preferences.columnWidths}
-          onColumnWidths={preferences.setColumnWidths}
-          columnOptions={preferences.columnOptions}
-          daySeparators={preferences.daySeparators}
-          onHeaderContextMenu={(x, y) =>
-            menu.show(x, y, columnMenuItems(preferences.columnOptions, preferences.setColumnOptions, preferences.daySeparators, preferences.setDaySeparators))
-          }
-          previews={preferences.previews}
-          loadDetails={props.details.load}
-          initialScrollTop={props.place.initialScroll}
-          onScrollChange={props.place.onScroll}
-          onContextMenu={(commit, x, y) =>
-            menu.show(x, y, selection.multi && selectedIds?.has(commit.id) ? selectionMenu(ctx, selectedCommits) : commitMenu(ctx, commit))
-          }
-          onPillActivate={(pill, commit) => checkout({ pill, commit })}
-          onPillContextMenu={(pill, commit, x, y) => menu.show(x, y, pillMenu(ctx, pill, commit))}
-          onPillFocus={(pill, commit) => highlight.highlightHistory(pill.name, commit.id)}
-          onDropRef={(revision, _commit, x, y) => {
-            if (revision !== snapshot.headBranch) menu.show(x, y, dropMenu(ctx, revision));
-          }}
-          onLoadMore={() => repo.load(snapshot.path, "more", snapshot.commits.length + PAGE_SIZE)}
-          loadingMore={repo.busy?.kind === "more"}
-        />
+        <div className="center-pane">
+          <CommitList
+            key={snapshot.path}
+            snapshot={snapshot}
+            selectedId={selection.selectedId}
+            selectedIds={selectedIds}
+            onSelect={select}
+            matchIds={search.matchIds}
+            focusIds={highlight.focusIds}
+            dense={preferences.dense}
+            columnWidths={preferences.columnWidths}
+            onColumnWidths={preferences.setColumnWidths}
+            columnOptions={preferences.columnOptions}
+            daySeparators={preferences.daySeparators}
+            onHeaderContextMenu={(x, y) =>
+              menu.show(x, y, columnMenuItems(preferences.columnOptions, preferences.setColumnOptions, preferences.daySeparators, preferences.setDaySeparators))
+            }
+            previews={preferences.previews}
+            loadDetails={props.details.load}
+            initialScrollTop={props.place.initialScroll}
+            onScrollChange={props.place.onScroll}
+            onContextMenu={(commit, x, y) =>
+              menu.show(x, y, selection.multi && selectedIds?.has(commit.id) ? selectionMenu(ctx, selectedCommits) : commitMenu(ctx, commit))
+            }
+            onPillActivate={(pill, commit) => checkout({ pill, commit })}
+            onPillContextMenu={(pill, commit, x, y) => menu.show(x, y, pillMenu(ctx, pill, commit))}
+            onPillFocus={(pill, commit) => highlight.highlightHistory(pill.name, commit.id)}
+            onDropRef={(revision, _commit, x, y) => {
+              if (revision !== snapshot.headBranch) menu.show(x, y, dropMenu(ctx, revision));
+            }}
+            onLoadMore={() => repo.load(snapshot.path, "more", snapshot.commits.length + PAGE_SIZE)}
+            loadingMore={repo.busy?.kind === "more"}
+          />
+          {shownDiff && (
+            <DiffView
+              repoPath={snapshot.path}
+              targets={diffTargets}
+              index={diffIndex}
+              onIndex={stepDiff}
+              onClose={() => setDiffAt(null)}
+              run={run}
+              version={snapshot.worktree}
+            />
+          )}
+        </div>
         {(selection.selected || selection.multi) && (
           <>
             <ResizeHandle className="panel-handle" {...panelResize("details")} />
@@ -314,6 +351,8 @@ export function RepositoryView(props: Props) {
                 }
                 openDialog={openDialog}
                 onFileMenu={fileMenu}
+                onOpenFile={showChanges}
+                shownDiff={shownDiff && { source: shownDiff.source, path: shownDiff.file.path }}
                 overlaps={props.overlaps}
                 onNotLoaded={notLoaded}
               />

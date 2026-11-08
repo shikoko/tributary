@@ -29,6 +29,10 @@ interface FileLineProps {
   /** Another branch also changed it since yours split off. */
   elsewhere?: Overlap;
   onContextMenu?: (file: FileChange, x: number, y: number) => void;
+  /** Show its changes (on click, Enter or Space). */
+  onOpen?: (file: FileChange) => void;
+  /** Its changes are the ones shown. */
+  shown?: boolean;
 }
 
 /** "Locked by you" or "Locked by rosa 2 days ago". */
@@ -37,7 +41,7 @@ export function lockTitle(lock: Lock): string {
   return `Locked by ${lockOwner(lock)}${Number.isNaN(when) ? "" : ` ${relativeTime(when / 1000)}`}`;
 }
 
-export function FileLine({ file, action, choices, lock, highlighted, onContextMenu, elsewhere }: FileLineProps) {
+export function FileLine({ file, action, choices, lock, highlighted, onContextMenu, elsewhere, onOpen, shown }: FileLineProps) {
   const status = STATUS[file.status];
   // Untracked folders are listed as "dir/" when everything inside them is new.
   const isFolder = file.path.endsWith("/");
@@ -46,10 +50,22 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
   const name = path.slice(slash + 1) + (isFolder ? "/" : "");
   const dir = slash >= 0 ? path.slice(0, slash) : "";
   const title = file.oldPath ? `${status.label}: ${file.oldPath} → ${file.path}` : `${status.label}: ${file.path}`;
+  const open = onOpen && !isFolder ? () => onOpen(file) : undefined;
   return (
     <li
-      className={`file${highlighted ? " highlighted" : ""}${choices ? " with-choices" : ""}`}
+      className={`file${highlighted ? " highlighted" : ""}${choices ? " with-choices" : ""}${open ? " openable" : ""}${shown ? " shown" : ""}`}
       title={lock ? `${title}\n${lockTitle(lock)}` : title}
+      tabIndex={open ? 0 : undefined}
+      aria-current={shown || undefined}
+      onClick={open && ((event) => !(event.target as HTMLElement).closest("button") && open())}
+      onKeyDown={
+        open &&
+        ((event) => {
+          if (event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) return;
+          event.preventDefault();
+          open();
+        })
+      }
       onContextMenu={
         onContextMenu &&
         ((event) => {

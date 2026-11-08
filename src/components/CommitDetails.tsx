@@ -9,6 +9,7 @@ import { CheckIcon, CloseIcon, CopyIcon } from "./Icons";
 import { MessageText } from "./MessageText";
 import { RefPills } from "./RefPills";
 import { FileLine } from "./FileLine";
+import { highlightedFirst } from "../lib/diffTargets";
 import { reflowBody } from "../lib/message";
 
 /** Very large commits only list their first files, to keep the panel responsive. */
@@ -34,6 +35,10 @@ interface Props {
   isHighlighted?: (path: string) => boolean;
   /** A file's Git LFS lock. */
   lockOf?: (path: string) => Lock | undefined;
+  /** Show a file's changes. */
+  onOpenFile?: (file: FileChange) => void;
+  /** The file whose changes are shown. */
+  isShown?: (path: string) => boolean;
 }
 
 export interface DetailsAction {
@@ -47,7 +52,7 @@ type Loaded = { id: string; details?: CommitDetails; error?: string };
 
 export function CommitDetailsPanel(props: Props) {
   const { repoPath, commit, cache, hasCommit, onSelect, onClose, actions, remote, resolveCommit } = props;
-  const { onFileMenu, isHighlighted, lockOf } = props;
+  const { onFileMenu, isHighlighted, lockOf, onOpenFile, isShown } = props;
   const [loaded, setLoaded] = useState<Loaded>({ id: commit.id, details: cache.get(commit.id) });
 
   useEffect(() => {
@@ -198,6 +203,8 @@ export function CommitDetailsPanel(props: Props) {
                     highlighted={isHighlighted?.(file.path) || (file.oldPath ? isHighlighted?.(file.oldPath) : false)}
                     lock={lockOf?.(file.path)}
                     onContextMenu={onFileMenu}
+                    onOpen={onOpenFile}
+                    shown={isShown?.(file.path)}
                   />
                 ))}
               {details.files.length > MAX_FILES && (
@@ -209,13 +216,6 @@ export function CommitDetailsPanel(props: Props) {
       </div>
     </aside>
   );
-}
-
-/** The highlighted files first, keeping the order otherwise. */
-function highlightedFirst(files: FileChange[], isHighlighted?: (path: string) => boolean): FileChange[] {
-  if (!isHighlighted) return files;
-  const hit = (file: FileChange) => isHighlighted(file.path) || (file.oldPath !== null && isHighlighted(file.oldPath));
-  return [...files.filter(hit), ...files.filter((file) => !hit(file))];
 }
 
 function PersonLine({ role, person, exact }: { role: string; person: Person; exact: boolean }) {

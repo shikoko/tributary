@@ -21,6 +21,8 @@ const SHORTCUTS: [string, string][] = [
   ["Alt+click a branch label", "Highlight the branch's history"],
   ["Drag a branch label onto a commit", "Merge or rebase"],
   ["Right-click the column headings", "Choose columns and how dates are shown"],
+  ["Click a changed file, or Enter", "Show its changes"],
+  ["[ ]", "The previous and next file's changes (Esc closes them)"],
   ["Esc", "Stop highlighting, clear the selection, close the details panel"],
   ["?", "This list"],
   ...(isMac ? [] : ([["F10", "Open the menu bar (← → move between its menus)"]] as [string, string][])),
