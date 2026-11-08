@@ -4,7 +4,7 @@ import { laneColor } from "../../lib/colors";
 import type { CanvasColors, CurveStyle } from "../../lib/appearance";
 import type { Slot } from "../../lib/days";
 import { paintGraph } from "../graphPainter";
-import { GRAPH_PADDING, LANE_WIDTH } from "./layout";
+import { GRAPH_PADDING } from "./layout";
 
 /** Size a canvas for the screen's pixel density, and get it ready to draw in CSS pixels. */
 function prepare(element: HTMLCanvasElement, width: number, height: number) {
@@ -35,18 +35,21 @@ interface GraphInput {
   focusIds: Set<string> | null;
   colors: CanvasColors;
   curves: CurveStyle;
+  laneWidth: number;
+  /** Commits are authors' pictures (ListRow): the painter leaves them out. */
+  avatars: boolean;
 }
 
 /** Draw the graph for the rendered rows. */
 export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, input: GraphInput) {
-  const { commits, slots, first, last, width, rowHeight, headId, selectedId, focusIds, colors, curves } = input;
+  const { commits, slots, first, last, width, rowHeight, headId, selectedId, focusIds, colors, curves, laneWidth, avatars } = input;
   useLayoutEffect(() => {
     if (!canvas.current) return;
     const ctx = prepare(canvas.current, width, Math.max(0, last - first) * rowHeight);
     if (!ctx) return;
     paintGraph(ctx, commits, slots, first, last, {
       rowHeight,
-      laneWidth: LANE_WIDTH,
+      laneWidth,
       padding: GRAPH_PADDING,
       headId,
       selectedId,
@@ -56,8 +59,9 @@ export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, inpu
       ring: colors.ring,
       lanes: colors.lanes,
       curves,
+      avatars,
     });
-  }, [canvas, commits, slots, first, last, width, headId, selectedId, rowHeight, focusIds, colors, curves]);
+  }, [canvas, commits, slots, first, last, width, headId, selectedId, rowHeight, focusIds, colors, curves, laneWidth, avatars]);
 }
 
 interface MarkerInput {

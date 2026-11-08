@@ -5,6 +5,14 @@ import type { Slot } from "../../lib/days";
 export const ROW_HEIGHT = 36;
 export const DENSE_ROW_HEIGHT = 24;
 export const LANE_WIDTH = 20;
+/** Lanes are further apart with authors' pictures on the commits, so the pictures don't touch. */
+export function laneWidthFor(avatars: boolean, dense: boolean): number {
+  return avatars ? (dense ? 22 : 28) : LANE_WIDTH;
+}
+/** How big an author's picture is on the graph, without its ring. */
+export function nodeAvatarSize(dense: boolean): number {
+  return dense ? 15 : 21;
+}
 export const GRAPH_PADDING = 10;
 /** Default width of the branch and tag column, left of the graph. */
 const REFS_WIDTH = 180;
@@ -72,6 +80,10 @@ interface LayoutInput {
   settledWidth: number;
   columnWidths: ColumnWidths;
   show: ColumnOptions;
+  /** How far apart the lanes are (wider with authors' pictures on the commits). */
+  laneWidth: number;
+  /** Authors' pictures are on the graph: a narrow list needs no column of them too. */
+  authorsOnGraph: boolean;
 }
 
 /**
@@ -79,10 +91,10 @@ interface LayoutInput {
  * of the rows on screen (not every lane in the history) need, leaving room for the commit
  * message in narrow windows, unless a width was chosen by dragging.
  */
-export function useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport, settledWidth, columnWidths, show }: LayoutInput) {
+export function useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport, settledWidth, columnWidths, show, laneWidth, authorsOnGraph }: LayoutInput) {
   const narrow = settledWidth > 0 && settledWidth < NARROW_WIDTH;
   const refsWidth = columnWidths.refs ?? (narrow ? NARROW_REFS_WIDTH : REFS_WIDTH);
-  const authorWidth = show.author ? (narrow ? 44 : 180) : 0;
+  const authorWidth = show.author ? (narrow ? (authorsOnGraph ? 0 : 44) : 180) : 0;
   const dateWidth = show.date ? (show.dateFormat === "exact" ? (narrow ? 132 : 164) : 116) : 0;
   const shaWidth = show.sha && !narrow ? 80 : 0;
   const first = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN);
@@ -118,7 +130,7 @@ export function useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport
     columnWidths.graph ??
     Math.min(
       MAX_GRAPH_WIDTH,
-      Math.max(MIN_GRAPH_WIDTH, GRAPH_PADDING * 2 + lanes * LANE_WIDTH),
+      Math.max(MIN_GRAPH_WIDTH, GRAPH_PADDING * 2 + lanes * laneWidth),
       Math.max(MIN_GRAPH_WIDTH, viewport.width - refsWidth - authorWidth - dateWidth - shaWidth - MIN_MESSAGE_WIDTH),
     );
   // Widening for new lanes happens at once (easing it would let them run over the messages

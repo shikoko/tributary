@@ -11,6 +11,7 @@ import {
   type Appearance,
   type CanvasColors,
   type CurveStyle,
+  type GraphNodes,
   type Theme,
 } from "../lib/appearance";
 import { readSetting } from "../lib/settings";
@@ -24,11 +25,13 @@ export interface ThemeInfo {
   theme: Theme;
   colors: CanvasColors;
   curves: CurveStyle;
+  nodes: GraphNodes;
 }
 
 const FALLBACK: ThemeInfo = {
   theme: "dark",
   curves: "mixed",
+  nodes: "authors",
   colors: {
     background: "#14161b",
     selectedBackground: "#252b38",
@@ -86,7 +89,7 @@ export function useAppearance(value: Partial<Appearance> | undefined): ThemeInfo
   useLayoutEffect(() => {
     applyAppearance(appearance, theme);
     const colors = readCanvasColors(lanePalette(appearance, theme));
-    setInfo({ theme, colors, curves: appearance.curves });
+    setInfo({ theme, colors, curves: appearance.curves, nodes: appearance.nodes });
     applyToWindow(appearance.theme, colors.background);
   }, [appearance, theme]);
   return info;

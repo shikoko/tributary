@@ -28,6 +28,8 @@ export interface PaintOptions extends GraphMetrics {
    * small radius, like a metro map; "sweep" in one long curve across the whole distance.
    */
   curves?: CurveStyle;
+  /** Commits (not merges) are shown as their authors' pictures over the graph: leave room. */
+  avatars?: boolean;
 }
 
 
@@ -177,15 +179,19 @@ export function paintGraph(
     const selected = commit.id === options.selectedId;
     const background = selected ? options.selectedBackground : options.background;
 
-    if (selected || commit.id === options.headId) {
-      // A ring around the checked-out or selected commit.
+    const merge = commit.kind === "commit" && commit.parents.length > 1;
+    // An author's picture goes over this one (ListRow): nothing to draw.
+    if (options.avatars && commit.kind === "commit" && !merge) continue;
+    const head = commit.id === options.headId;
+    // The checked-out commit's dot is a little bigger, with a light centre.
+    const radius = (merge ? MERGE_RADIUS : NODE_RADIUS) + (head && commit.kind === "commit" ? 1.5 : 0);
+
+    if (selected) {
+      // A ring right around the selected commit, with no gap.
       ctx.beginPath();
-      ctx.arc(cx, cy, NODE_RADIUS + 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = background;
+      ctx.arc(cx, cy, radius + 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = options.ring;
       ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = selected ? options.ring : color;
-      ctx.stroke();
     }
 
     ctx.lineWidth = 2;
@@ -207,12 +213,17 @@ export function paintGraph(
       ctx.strokeStyle = color;
       ctx.stroke();
     } else {
+      // A dot, straight on its lines.
       ctx.beginPath();
-      ctx.arc(cx, cy, commit.parents.length > 1 ? MERGE_RADIUS : NODE_RADIUS, 0, Math.PI * 2);
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.strokeStyle = background;
-      ctx.stroke();
+      if (head) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, Math.max(1.5, radius - 4), 0, Math.PI * 2);
+        ctx.fillStyle = options.ring;
+        ctx.fill();
+      }
     }
   }
   ctx.globalAlpha = 1;

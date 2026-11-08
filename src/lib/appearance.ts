@@ -14,6 +14,8 @@ export type DiffColors = "green-red" | "blue-orange";
  */
 export type CurveStyle = "mixed" | "round" | "smooth" | "tight" | "sweep";
 export const CURVE_STYLES: CurveStyle[] = ["mixed", "round", "smooth", "tight", "sweep"];
+/** Commits in the graph: their authors' pictures (or initials), or dots. Merges are dots either way. */
+export type GraphNodes = "authors" | "dots";
 
 export interface Appearance {
   theme: ThemeChoice;
@@ -24,6 +26,7 @@ export interface Appearance {
   customLanes: string[];
   diffColors: DiffColors;
   curves: CurveStyle;
+  nodes: GraphNodes;
 }
 
 export const DEFAULT_ACCENT = "#1fb5ff";
@@ -35,6 +38,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   customLanes: [],
   diffColors: "green-red",
   curves: "mixed",
+  nodes: "authors",
 };
 
 /** Your own lane colours: from two to this many. */
@@ -194,7 +198,8 @@ export function normalizeAppearance(value: Partial<Appearance> | null | undefine
     value?.lanes === "custom" ? (customLanes.length >= 2 ? "custom" : "vivid") : value?.lanes && value.lanes in LANE_PALETTES ? value.lanes : "vivid";
   const diffColors = value?.diffColors === "blue-orange" ? "blue-orange" : "green-red";
   const curves = value?.curves && CURVE_STYLES.includes(value.curves) ? value.curves : "mixed";
-  return { theme, accent, lanes, customLanes, diffColors, curves };
+  const nodes = value?.nodes === "dots" ? "dots" : "authors";
+  return { theme, accent, lanes, customLanes, diffColors, curves, nodes };
 }
 
 /** The lane colours in use: a built-in palette for the theme, or your own. */

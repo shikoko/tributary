@@ -9,7 +9,7 @@ import { Avatar } from "../Avatar";
 import { ChangeCounts } from "../ChangeCounts";
 import { laneX, type GraphMetrics } from "../graphPainter";
 import { RefPills } from "../RefPills";
-import { REFS_PADDING, type ColumnOptions, type VisibleColumns } from "./layout";
+import { nodeAvatarSize, REFS_PADDING, type ColumnOptions, type VisibleColumns } from "./layout";
 
 /** What a row does when it's clicked, hovered, … (the list's latest, read at the time). */
 export interface RowHandlers {
@@ -40,6 +40,10 @@ interface RowProps {
   selected: boolean;
   /** The commit whose details are shown (the last one clicked). */
   primary: boolean;
+  /** Shown on the graph as its author's picture (or initials), ringed in its lane's colour. */
+  authorNode: boolean;
+  /** The checked-out commit. */
+  head: boolean;
   /** Not a search match, or outside the highlighted history. */
   dimmed: boolean;
   handlers: RefObject<RowHandlers>;
@@ -52,7 +56,7 @@ interface RowProps {
  */
 export const ListRow = memo(function ListRow(props: RowProps) {
   const { commit, top, height, metrics, lanes, visible, options, changes, narrow, dense, handlers } = props;
-  const { selected, primary, dimmed } = props;
+  const { selected, primary, dimmed, authorNode, head } = props;
   const on = () => handlers.current!;
   const onSelect = (id: string, how?: SelectHow) => on().onSelect(id, how);
   const color = laneColor(commit.graph.column, lanes);
@@ -119,7 +123,17 @@ export const ListRow = memo(function ListRow(props: RowProps) {
           }}
         />
       )}
-      <div />
+      <div className="graph-cell">
+        {authorNode && (
+          <span
+            className={`graph-node${head ? " head" : ""}${selected ? " selected" : ""}`}
+            style={{ left: lane, ["--lane" as string]: color }}
+            title={`${commit.authorName} <${commit.authorEmail}>`}
+          >
+            <Avatar name={commit.authorName} email={commit.authorEmail} size={nodeAvatarSize(dense)} />
+          </span>
+        )}
+      </div>
       {commit.kind === "worktree" ? (
         <>
           <div className="cell description">
@@ -142,7 +156,8 @@ export const ListRow = memo(function ListRow(props: RowProps) {
           </div>
           {visible.author && (
             <div className="cell author" title={`${commit.authorName} <${commit.authorEmail}>`}>
-              <Avatar name={commit.authorName} email={commit.authorEmail} size={dense ? 18 : 22} />
+              {/* On the graph already: the name is enough here. */}
+              {!authorNode && <Avatar name={commit.authorName} email={commit.authorEmail} size={dense ? 18 : 22} />}
               {!narrow && <span className="author-name">{commit.authorName}</span>}
             </div>
           )}

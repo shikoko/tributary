@@ -241,6 +241,17 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
       : []),
     {
       kind: "select",
+      label: "Commits on the graph",
+      hint: "Merges are small dots either way.",
+      value: appearance.nodes,
+      options: [
+        { value: "authors", label: "Their authors' pictures" },
+        { value: "dots", label: "Dots" },
+      ],
+      set: (value) => change({ nodes: value as Appearance["nodes"] }),
+    },
+    {
+      kind: "select",
       label: "Graph line bends",
       hint: "How the lines turn from one branch's lane to another's.",
       value: appearance.curves,

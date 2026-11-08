@@ -728,6 +728,47 @@ button:disabled {
   opacity: 0.32;
 }
 
+/* Commits on the graph as their authors' pictures (or initials), ringed in the lane's
+   colour, right on the lines. */
+.commit-row > .graph-cell {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.graph-node {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: flex;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--lane);
+  transform: translate(-50%, -50%);
+}
+
+.graph-node .avatar {
+  display: flex;
+}
+
+.commit-list.dense .graph-node {
+  padding: 1.5px;
+}
+
+/* The checked-out commit: a thicker ring, glowing a little. */
+.graph-node.head {
+  padding: 3px;
+  box-shadow: 0 0 9px -1px var(--lane);
+}
+
+.graph-node.selected {
+  background: var(--graph-ring);
+}
+
+.commit-row.dimmed .graph-node {
+  opacity: 0.2;
+}
+
 /* Fetch / Pull / Push */
 
 .tool-button .count {

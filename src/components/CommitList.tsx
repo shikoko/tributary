@@ -7,7 +7,7 @@ import type { RefPill } from "../lib/refs";
 import type { SelectHow } from "../lib/selection";
 import { ThemeContext } from "../app/useAppearance";
 import { useGraphCanvas, useScrollMarkers } from "./commitList/canvases";
-import { DENSE_ROW_HEIGHT, FOOTER_HEIGHT, GRAPH_PADDING, LANE_WIDTH, ROW_HEIGHT, useColumnLayout, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
+import { DENSE_ROW_HEIGHT, FOOTER_HEIGHT, GRAPH_PADDING, laneWidthFor, ROW_HEIGHT, useColumnLayout, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
 import { ListHeader } from "./commitList/ListHeader";
 import { DaySeparator, ListRow, type RowHandlers } from "./commitList/ListRow";
 import { CommitPreview } from "./CommitPreview";
@@ -94,7 +94,11 @@ export function CommitList(props: Props) {
   const selectedIndex = selectedId ? (indexById.get(selectedId) ?? -1) : -1;
   const contentHeight = slots.length * rowHeight + (snapshot.truncated ? FOOTER_HEIGHT : 0);
   const [settledWidth, setSettledWidth] = useState(0);
-  const layout = useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport, settledWidth, columnWidths, show });
+  // Commits as their authors' pictures (or dots), from Appearance.
+  const { colors, curves, nodes } = useContext(ThemeContext);
+  const avatars = nodes === "authors";
+  const laneWidth = laneWidthFor(avatars, dense);
+  const layout = useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport, settledWidth, columnWidths, show, laneWidth, authorsOnGraph: avatars });
   const { first, last, columns, refsWidth, graphWidth } = layout;
 
   useLayoutEffect(() => {
@@ -146,8 +150,7 @@ export function CommitList(props: Props) {
     [indexById, commits],
   );
 
-  const { colors, curves } = useContext(ThemeContext);
-  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: props.focusIds, colors, curves });
+  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: props.focusIds, colors, curves, laneWidth, avatars });
   const marked = useMemo(() => selectedIds ?? new Set(selectedId ? [selectedId] : []), [selectedIds, selectedId]);
   useScrollMarkers(markerCanvas, { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId: headCommit, selectedIds: marked, colors });
 
@@ -187,7 +190,7 @@ export function CommitList(props: Props) {
     event.preventDefault();
   };
 
-  const metrics = useMemo(() => ({ rowHeight, laneWidth: LANE_WIDTH, padding: GRAPH_PADDING }), [rowHeight]);
+  const metrics = useMemo(() => ({ rowHeight, laneWidth, padding: GRAPH_PADDING }), [rowHeight, laneWidth]);
   // One set of handlers for every row, reading the latest props when called, so rows don't
   // re-render just because the list did.
   const handlers = useRef<RowHandlers>(null!);
@@ -235,6 +238,8 @@ export function CommitList(props: Props) {
         dense={dense}
         selected={commit.id === selectedId || Boolean(selectedIds?.has(commit.id))}
         primary={commit.id === selectedId}
+        authorNode={avatars && commit.kind === "commit" && commit.parents.length <= 1}
+        head={commit.id === headCommit}
         dimmed={(matchIds !== null && !matchIds.has(commit.id)) || (props.focusIds !== null && !props.focusIds.has(commit.id))}
         handlers={handlers}
       />,
