@@ -142,6 +142,20 @@ export function cancelAction(): Promise<boolean> {
   return invoke<boolean>("cancel_action");
 }
 
+/** Watch the open repository for changes made outside the app (one at a time). */
+export function watchRepository(path: string): Promise<void> {
+  return invoke<void>("watch_repository", { path });
+}
+
+export function stopWatching(): Promise<void> {
+  return invoke<void>("stop_watching");
+}
+
+/** Calls `handler` with a repository's path when its files change outside the app. */
+export function onRepoChanged(handler: (path: string) => void): Promise<() => void> {
+  return listen<string>("repo-changed", (event) => handler(event.payload));
+}
+
 /** Calls `handler` with progress updates; resolves to a function that stops listening. */
 export function onProgress(handler: (progress: Progress) => void): Promise<() => void> {
   return listen<Progress>("action-progress", (event) => handler(event.payload));

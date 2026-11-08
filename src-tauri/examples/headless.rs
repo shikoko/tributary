@@ -151,6 +151,8 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
                 ignore_whitespace,
             )?)
         }
+        // The preview has no window to tell about changes: refreshing on focus does.
+        "watch_repository" | "stop_watching" => to_json(()),
         "team_activity" => to_json(actions::team_activity(&path()?, arg(args, "days")?)?),
         "search_commits" => {
             let mode: actions::SearchMode = arg(args, "mode")?;

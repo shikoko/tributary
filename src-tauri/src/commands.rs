@@ -50,6 +50,28 @@ pub async fn commit_details(path: String, id: String) -> Result<repo::CommitDeta
     blocking(move || repo::details(&PathBuf::from(path), &id)).await
 }
 
+/// Watch the open repository for changes made outside the app, emitting `repo-changed`
+/// (with its path) after each burst of them. Replaces the repository watched before.
+#[tauri::command]
+pub async fn watch_repository(
+    app: AppHandle,
+    state: tauri::State<'_, crate::watch::Watching>,
+    path: String,
+) -> Result<()> {
+    let workdir = PathBuf::from(&path);
+    let emitter = app.clone();
+    crate::watch::watch(&state, &workdir, move || {
+        let _ = emitter.emit("repo-changed", path.clone());
+    })
+    .map_err(Into::into)
+}
+
+/// Stop watching (no repository is open).
+#[tauri::command]
+pub fn stop_watching(state: tauri::State<'_, crate::watch::Watching>) {
+    crate::watch::stop(&state);
+}
+
 /// The files that differ between two commits (directly, or since they split), and how
 /// many commits each has that the other doesn't.
 #[tauri::command]

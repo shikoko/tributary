@@ -43,7 +43,7 @@ import { useRepositorySettings } from "./app/useRepositorySettings";
 import { useSearch } from "./app/useSearch";
 import { useSelection } from "./app/useSelection";
 import { useTabs } from "./app/useTabs";
-import { useActivityLog, useFolderDrop, useWindowFocus } from "./app/useWindowEvents";
+import { useActivityLog, useFolderDrop, useRepositoryWatch, useWindowFocus } from "./app/useWindowEvents";
 import { useWorktrees } from "./app/useWorktrees";
 import { useZoom } from "./app/window";
 import { DEFAULT_COLUMNS } from "./components/CommitList";
@@ -210,6 +210,12 @@ export default function App() {
     if (Date.now() - repo.lastLoad.current < FOCUS_REFRESH_INTERVAL) return;
     latest.current.refresh();
     refreshAround();
+  });
+  // Changes made outside the app show at once (while nothing of the app's own is running:
+  // its own actions reload when they finish).
+  useRepositoryWatch(repoPath ?? null, () => {
+    if (!latest.current.snapshot || !idle() || repo.blockFocusRefresh.current) return;
+    latest.current.refresh();
   });
   const tabNews = useBackgroundFetch({
     snapshot,

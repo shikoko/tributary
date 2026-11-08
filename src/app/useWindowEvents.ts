@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { activityLog, onActivity, type LogEntry } from "../api";
+import { activityLog, onActivity, onRepoChanged, stopWatching, watchRepository, type LogEntry } from "../api";
 import { ACTIVITY_SIZE } from "./constants";
 
 /** Call `listen` once, and its unlisten when the component goes away (even if that's before it resolved). */
@@ -75,3 +75,20 @@ export function useWindowFocus(onFocus: () => void) {
   useSubscription(() => getCurrentWindow().onFocusChanged(({ payload: focused }) => focused && handler.current()));
 }
 export type ActivityLog = ReturnType<typeof useActivityLog>;
+
+/**
+ * Watch the repository at `path` for changes made outside the app (an editor, the terminal,
+ * an agent), calling `onChange` after each burst of them. Without a repository, nothing is
+ * watched. If watching isn't possible (too many folders, say), coming back to the window
+ * still picks changes up.
+ */
+export function useRepositoryWatch(path: string | null, onChange: () => void) {
+  const handler = useRef(onChange);
+  handler.current = onChange;
+  const watched = useRef(path);
+  watched.current = path;
+  useEffect(() => {
+    (path ? watchRepository(path) : stopWatching()).catch(() => {});
+  }, [path]);
+  useSubscription(() => onRepoChanged((changed) => changed === watched.current && handler.current()));
+}

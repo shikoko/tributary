@@ -14,6 +14,7 @@ pub mod links;
 pub mod locks;
 pub mod repo;
 pub mod updates;
+pub mod watch;
 
 use tauri::Emitter;
 
@@ -25,6 +26,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(updates::Pending::default())
+        .manage(watch::Watching::default())
         .setup(|app| {
             let handle = app.handle().clone();
             git::on_activity(move |entry| {
@@ -56,6 +58,8 @@ pub fn run() {
             commands::blame_file,
             commands::search_commits,
             commands::team_activity,
+            commands::watch_repository,
+            commands::stop_watching,
             commands::lfs_storage,
             commands::lfs_health,
             commands::diagnostics,
