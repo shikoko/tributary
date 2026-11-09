@@ -92,6 +92,11 @@ export type Action =
   /** Commit as this name and email in this repository; both empty go back to the usual ones. */
   | { kind: "setIdentity"; name: string; email: string }
   | { kind: "setSigning"; mode: SigningMode; key: string | null }
+  /** Merge Unity's scenes, prefabs and other YAML files with Smart Merge (`tool`) here from now on. */
+  | { kind: "setUpUnityMerge"; tool: string }
+  | { kind: "removeUnityMerge" }
+  /** Merge a conflicted Unity file with Smart Merge, and stage it. */
+  | { kind: "unitySmartMerge"; file: string; tool: string }
   | { kind: "bisectStart"; bad: string; good: string }
   /** Mark the commit being tested (or `id`). */
   | { kind: "bisectMark"; verdict: "good" | "bad" | "skip"; id: string | null }

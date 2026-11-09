@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isExternalActor } from "../api/unreal";
+import { isExternalActor } from "../api/engines";
 import { describeActor } from "./actorNames";
 
 describe("Unreal actors saved in their own files", () => {

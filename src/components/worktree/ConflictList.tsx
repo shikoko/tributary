@@ -1,4 +1,4 @@
-import type { Action, DiffSource, FileChange, Lock, Overlap } from "../../api";
+import { isUnityYaml, type Action, type DiffSource, type FileChange, type Lock, type Overlap } from "../../api";
 import { plural } from "../../lib/format";
 import { FileLine } from "../FileLine";
 import { PlusIcon } from "../Icons";
@@ -15,12 +15,14 @@ interface Props {
   isShown: (path: string, source: DiffSource) => boolean;
   run: (action: Action, options?: { quiet?: boolean }) => void;
   elsewhereOf?: (path: string) => Overlap | undefined;
+  /** Unity's Smart Merge (UnityYAMLMerge), in a Unity project where it's found. */
+  smartMerge?: string | null;
 }
 
 /** Conflicted files, each resolved by keeping one side's whole version (best for files that can't be merged), or fixed by hand and staged. */
 const SOURCE: DiffSource = { kind: "unstaged" };
 
-export function ConflictList({ conflicted, mine, theirs, busy, lockOf, onFileMenu, onOpen, isShown, run, elsewhereOf }: Props) {
+export function ConflictList({ conflicted, mine, theirs, busy, lockOf, onFileMenu, onOpen, isShown, run, elsewhereOf, smartMerge }: Props) {
   const resolve = (paths: string[], keep: "mine" | "theirs") => run({ kind: "resolveConflicts", paths, keep });
   return (
     <section className="files conflicts">
@@ -37,6 +39,7 @@ export function ConflictList({ conflicted, mine, theirs, busy, lockOf, onFileMen
       </h3>
       <div className="conflict-help">
         Pick a whole version of each file (best for files that can't be merged, like assets), or click a text file to resolve its conflicts one by one.
+        {smartMerge && conflicted.some((file) => isUnityYaml(file.path)) && " Scenes and prefabs can be merged with Unity's Smart Merge."}
       </div>
       <ul className="file-list">
         {conflicted.map((file) => (
@@ -49,6 +52,16 @@ export function ConflictList({ conflicted, mine, theirs, busy, lockOf, onFileMen
             onOpen={(file) => onOpen(file, SOURCE)}
             shown={isShown(file.path, SOURCE)}
             choices={[
+              ...(smartMerge && isUnityYaml(file.path)
+                ? [
+                    {
+                      label: "Smart Merge",
+                      title: "Merge both versions with Unity's Smart Merge, by what changed in the scene or prefab",
+                      onClick: () => run({ kind: "unitySmartMerge", file: file.path, tool: smartMerge }),
+                      disabled: busy,
+                    },
+                  ]
+                : []),
               { label: "Mine", title: `Keep ${mine}'s version`, onClick: () => resolve([file.path], "mine"), disabled: busy },
               { label: "Theirs", title: `Take ${theirs}'s version`, onClick: () => resolve([file.path], "theirs"), disabled: busy },
             ]}

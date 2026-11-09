@@ -55,6 +55,7 @@ pub fn run() {
             commands::submodules,
             commands::repo_identity,
             commands::signing_settings,
+            commands::unity_setup,
             commands::remotes,
             commands::repo_summary,
             commands::set_app_icon,

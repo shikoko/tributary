@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import type { Action, DiffSource, FileChange, FileChecks, Lock, Overlap, RepoSnapshot } from "../api";
 import { ActorNames, useActorNames } from "../lib/actorNames";
+import { useUnitySetup } from "./UnitySettingsRows";
 import { FILTER_FROM, filterFiles } from "../lib/fileFilter";
 import { FileFilter } from "./FileList";
 import { CloseIcon, MinusIcon, PlusIcon, StashIcon, TrashIcon } from "./Icons";
@@ -64,6 +65,8 @@ export function WorktreeDetailsPanel(props: Props) {
   const filtering = query.trim() !== "" && total > FILTER_FROM;
   // Unreal actors among the files, named as they are in the editor.
   const actors = useActorNames(snapshot.path, null, null, [...status.staged, ...status.unstaged]);
+  // In a Unity project, conflicted scenes and prefabs can be merged with Smart Merge.
+  const [unity] = useUnitySetup(snapshot.path);
   const staged = filtering ? filterFiles(status.staged, query, actors) : status.staged;
   const allUnstaged = filtering ? filterFiles(status.unstaged, query, actors) : status.unstaged;
   const conflicted = allUnstaged.filter((file) => file.status === "conflicted");
@@ -97,7 +100,17 @@ export function WorktreeDetailsPanel(props: Props) {
           <ChangeWarnings staged={status.staged} unstaged={status.unstaged} lockOf={lockOf} checks={checks} canLock={props.canLock} busy={busy} run={run} />
           {total > FILTER_FROM && <FileFilter value={query} onChange={setQuery} shown={staged.length + allUnstaged.length} total={total} />}
           {conflicted.length > 0 && (
-            <ConflictList conflicted={conflicted} {...conflictSides(snapshot)} busy={busy} lockOf={lockOf} onFileMenu={onFileMenu} run={run} elsewhereOf={elsewhereOf} {...opening} />
+            <ConflictList
+              conflicted={conflicted}
+              {...conflictSides(snapshot)}
+              busy={busy}
+              lockOf={lockOf}
+              onFileMenu={onFileMenu}
+              run={run}
+              elsewhereOf={elsewhereOf}
+              smartMerge={unity?.configuredTool ?? unity?.tools[0] ?? null}
+              {...opening}
+            />
           )}
           <FileSection
             title="Staged"

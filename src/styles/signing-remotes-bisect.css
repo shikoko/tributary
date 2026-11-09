@@ -216,3 +216,15 @@
 .recent li.missing .recent-path {
   opacity: 0.6;
 }
+
+/* Unity's Smart Merge program, in a Unity project's settings. */
+.unity-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unity-tool .settings-select {
+  min-width: 0;
+  flex: 1;
+}

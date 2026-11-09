@@ -31,6 +31,7 @@ export function undoFor(action: Action, before: Pick<RepoSnapshot, "headBranch" 
     case "resolveConflicts":
       return { kind: "recreateConflicts", paths: action.paths };
     case "resolveWithText":
+    case "unitySmartMerge":
       return { kind: "recreateConflicts", paths: [action.file] };
     case "addRemote":
       return { kind: "removeRemote", name: action.name };

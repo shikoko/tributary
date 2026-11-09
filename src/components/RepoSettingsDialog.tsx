@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { repoIdentity, signingSettings, type Action, type RepoIdentity, type SigningMode, type SigningSettings } from "../api";
-import { CloudIcon, GlobeIcon, KeyIcon, LockIcon, UserIcon } from "./Icons";
+import { CloudIcon, GlobeIcon, KeyIcon, LockIcon, MergeIcon, UserIcon } from "./Icons";
 import { useRemoteRows } from "./RemoteSettingsRows";
 import { useLfsSettingsRows } from "./LfsSettingsRows";
+import { useUnityRows } from "./UnitySettingsRows";
 import { NameList, SettingsDialog, type SettingRow, type SettingsSection } from "./SettingsDialog";
 
 interface Props {
@@ -49,6 +50,7 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
   const lfsRows = useLfsSettingsRows({ path, run, onCleanUp: onCleanUpLfs });
   const signingRows = useSigningRows(path, run);
   const remoteRows = useRemoteRows(path, run);
+  const unityRows = useUnityRows(path, run);
   const own = Boolean(identity?.localName || identity?.localEmail);
   const usual = identity ? describe(identity.globalName, identity.globalEmail) : "…";
   const changed = identity !== null && (draft.name.trim() !== (identity.localName ?? "") || draft.email.trim() !== (identity.localEmail ?? ""));
@@ -147,6 +149,7 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
       icon: <CloudIcon size={15} />,
       rows: lfsRows,
     },
+    ...(unityRows ? [{ title: "Unity", icon: <MergeIcon size={15} />, rows: unityRows }] : []),
   ];
   return <SettingsDialog title={`Settings for ${name}`} sections={sections} initial={section} onClose={onClose} />;
 }

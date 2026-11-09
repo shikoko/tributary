@@ -32,6 +32,7 @@ mod submodules;
 mod support;
 mod tags;
 mod team;
+mod unity;
 mod validate;
 mod worktrees;
 
@@ -67,6 +68,7 @@ pub use search::{SearchMode, SearchResult, search_commits};
 pub use signing::{SigningKey, SigningMode, SigningSettings, signing_settings};
 pub use submodules::{Submodule, SubmoduleState, submodules};
 pub use team::{BranchActivity, BranchPerson, TeamActivity, TeamPerson, team_activity};
+pub use unity::{UnitySetup, unity_setup};
 
 use self::stash::{pop_stash, stash_top};
 
@@ -300,6 +302,13 @@ pub enum Action {
         url: String,
         push: bool,
     },
+    /// Merge Unity's scenes, prefabs and other YAML files with Smart Merge (`tool`, the
+    /// UnityYAMLMerge program) from now on, in this repository.
+    SetUpUnityMerge { tool: String },
+    /// Stop merging Unity's files with Smart Merge in this repository.
+    RemoveUnityMerge,
+    /// Merge a conflicted Unity file with Smart Merge (`tool`), and stage it.
+    UnitySmartMerge { file: String, tool: String },
     /// Sign commits in this repository: as usual, never, or with a GPG or SSH key.
     SetSigning {
         mode: SigningMode,
@@ -589,6 +598,9 @@ fn perform(
         Action::OpenInMergeTool { path } => diff::open_in_merge_tool(&git, path),
         Action::SetIdentity { name, email } => identity::set_identity(&git, name, email),
         Action::SetSigning { mode, key } => signing::set_signing(&git, mode, key),
+        Action::SetUpUnityMerge { tool } => unity::set_up_unity_merge(&git, tool),
+        Action::RemoveUnityMerge => unity::remove_unity_merge(&git),
+        Action::UnitySmartMerge { file, tool } => unity::unity_smart_merge(&git, file, tool),
         Action::BisectStart { bad, good } => bisect::start(&repo, &git, bad, good),
         Action::BisectMark { verdict, id } => bisect::mark(&repo, &git, verdict, id),
         Action::BisectReset => bisect::reset(&repo, &git),
