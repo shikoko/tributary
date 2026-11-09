@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { FileChange, Lock, Overlap } from "../api";
+import { describeActor, useActorName } from "../lib/actorNames";
 import { overlapTitle } from "../lib/elsewhere";
 import { lockOwner } from "../lib/locks";
 import { relativeTime } from "../lib/format";
@@ -48,9 +49,13 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
   const isFolder = file.path.endsWith("/");
   const path = isFolder ? file.path.slice(0, -1) : file.path;
   const slash = path.lastIndexOf("/");
-  const name = path.slice(slash + 1) + (isFolder ? "/" : "");
-  const dir = slash >= 0 ? path.slice(0, slash) : "";
-  const title = file.oldPath ? `${status.label}: ${file.oldPath} → ${file.path}` : `${status.label}: ${file.path}`;
+  // An Unreal actor saved in its own file is named by a hash: show its name in the editor,
+  // and its class and level, instead.
+  const actor = useActorName(file.path);
+  const actorName = actor && (actor.label ?? actor.class);
+  const name = actorName ?? path.slice(slash + 1) + (isFolder ? "/" : "");
+  const dir = actor && actorName ? [actor.label && actor.class, actor.level].filter(Boolean).join(" · ") : slash >= 0 ? path.slice(0, slash) : "";
+  const title = `${file.oldPath ? `${status.label}: ${file.oldPath} → ${file.path}` : `${status.label}: ${file.path}`}${actor && actorName ? `\n${describeActor(actor)}` : ""}`;
   const open = onOpen && !isFolder ? () => onOpen(file) : undefined;
   return (
     <li
@@ -79,7 +84,7 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
         {status.letter}
       </span>
       <FileKindIcon path={file.path} />
-      <span className="file-name">{name}</span>
+      <span className={`file-name${actorName ? " actor" : ""}`}>{name}</span>
       {lock && (
         <span className={`file-lock ${lock.mine ? "mine" : "theirs"}`}>
           <LockIcon size={11} />
@@ -92,7 +97,7 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
         </span>
       )}
       {dir && (
-        <span className="file-dir">
+        <span className={`file-dir${actorName ? " actor" : ""}`}>
           <bdi>{dir}</bdi>
         </span>
       )}

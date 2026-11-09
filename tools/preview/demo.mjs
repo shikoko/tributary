@@ -189,6 +189,51 @@ function sign(mug) {
   };
 }
 
+/**
+ * An actor saved in its own file by Unreal Engine (World Partition), as far as Tributary
+ * reads one: a name table that lists "ActorLabel", then the asset registry's object, class
+ * and tags. The rest of a real package is left out (filler stands in for it).
+ */
+function actorPackage(label, classPath, seed) {
+  const string = (text) => {
+    const bytes = Buffer.from(`${text}\0`, "latin1");
+    const length = Buffer.alloc(4);
+    length.writeInt32LE(bytes.length);
+    return Buffer.concat([length, bytes]);
+  };
+  const count = Buffer.alloc(4);
+  count.writeInt32LE(3);
+  const filler = Buffer.alloc(600 + (seed % 7) * 40, seed % 251);
+  return Buffer.concat([
+    Buffer.from([0xc1, 0x83, 0x2a, 0x9e]),
+    string("ActorLabel"),
+    Buffer.from([0x9f, 0x8b, 0xf8, 0x12]),
+    filler,
+    string(`${classPath.split(".").pop()}_UAID_${seed}`),
+    string(classPath),
+    count,
+    string("ActorLabel"),
+    string(label),
+    string("ActorMetaData"),
+    string("BAAAAIHVfWmrQU/m7FFKqii2t753AAAAtwZMW"),
+    string("ActorMetaDataClass"),
+    string(classPath),
+    Buffer.alloc(64, seed % 13),
+  ]);
+}
+
+/** Where Unreal saves an actor of `level`: two folders and a name, all from a hash. */
+function actorPath(level, seed) {
+  const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let state = seed * 2654435761;
+  const next = () => {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    return letters[state % letters.length];
+  };
+  const hash = Array.from({ length: 25 }, next).join("");
+  return `Content/__ExternalActors__/${level}/${hash[0]}/${hash.slice(1, 3)}/${hash.slice(3)}.uasset`;
+}
+
 /** A door's creak as a mono 16-bit WAV: a wobbling tone that falls, `seconds` long. */
 function creak(seconds, wobble) {
   const rate = 22050;
@@ -576,6 +621,21 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   write("Content/Textures/TavernSign.psd", psd(256, sign(true)), { append: false });
   write("Content/Textures/T_TavernSign.tga", tga(256, sign(true)), { append: false });
   commit("Sign: paint a mug of ale next to the mark", "rosa");
+  // The tavern level, saved one actor per file (World Partition).
+  const actors = [
+    ["BP_Fireplace", "/Game/Blueprints/BP_Fireplace.BP_Fireplace_C"],
+    ["SM_Table_Round3", "/Script/Engine.StaticMeshActor"],
+    ["SM_Bench_Old", "/Script/Engine.StaticMeshActor"],
+    ["PointLight_Hearth", "/Script/Engine.PointLight"],
+    ["BP_BarberChair", "/Game/Blueprints/BP_BarberChair.BP_BarberChair_C"],
+  ];
+  actors.forEach(([label, classPath], index) => write(actorPath("Maps/Tavern", index + 1), actorPackage(label, classPath, index + 1), { append: false }));
+  commit("Furnish the tavern", "theo");
+  write(actorPath("Maps/Tavern", 1), actorPackage("BP_Fireplace", "/Game/Blueprints/BP_Fireplace.BP_Fireplace_C", 11), { append: false });
+  write(actorPath("Maps/Tavern", 4), actorPackage("PointLight_Hearth", "/Script/Engine.PointLight", 14), { append: false });
+  run(["rm", "-q", actorPath("Maps/Tavern", 3)]);
+  write(actorPath("Maps/Tavern", 6), actorPackage("SM_Bench_Long", "/Script/Engine.StaticMeshActor", 6), { append: false });
+  commit("Move the fireplace to the back wall, and swap the old bench for a long one", "theo");
   // A sound, a video and a 3D model, each changed once.
   write("Content/Audio/DoorCreak.wav", creak(0.9, 6), { append: false });
   write("Content/Cinematics/DoorOpen.webm", doorVideo(1), { append: false });

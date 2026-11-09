@@ -196,6 +196,7 @@ export function RepositoryView(props: Props) {
     sidebarOpen,
     sidebarOpen ? (
       <Sidebar
+        repoPath={snapshot.path}
         commits={snapshot.commits}
         hiddenRefs={snapshot.hiddenRefs}
         visibility={settings.visibility}

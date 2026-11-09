@@ -383,6 +383,11 @@
   text-align: left;
 }
 
+/* An Unreal actor's class and level: cut at the end instead. */
+.file-dir.actor {
+  direction: ltr;
+}
+
 .more-files {
   padding: 6px 8px;
 }

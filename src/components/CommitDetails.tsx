@@ -12,6 +12,7 @@ import { MessageText } from "./MessageText";
 import { RefPills } from "./RefPills";
 import { FileLine } from "./FileLine";
 import { FileFilter, FileList } from "./FileList";
+import { ActorNames, useActorNames } from "../lib/actorNames";
 import { FILTER_FROM, filterFiles } from "../lib/fileFilter";
 import { highlightedFirst } from "../lib/diffTargets";
 import { reflowBody } from "../lib/message";
@@ -90,7 +91,9 @@ export function CommitDetailsPanel(props: Props) {
   const [filter, setFilter] = useState({ id: commit.id, query: "" });
   const query = filter.id === commit.id ? filter.query : "";
   const setQuery = (value: string) => setFilter({ id: commit.id, query: value });
-  const files = useMemo(() => filterFiles(highlightedFirst(details?.files ?? [], isHighlighted), query), [details, isHighlighted, query]);
+  // Unreal actors among the files, named as they are in the editor.
+  const actors = useActorNames(repoPath, commit.id, null, details?.files);
+  const files = useMemo(() => filterFiles(highlightedFirst(details?.files ?? [], isHighlighted), query, actors), [details, isHighlighted, query, actors]);
   const author: Person = details?.author ?? {
     name: commit.authorName,
     email: commit.authorEmail,
@@ -103,134 +106,136 @@ export function CommitDetailsPanel(props: Props) {
     (committer.name !== author.name || committer.email !== author.email || Math.abs(committer.time - author.time) > 60);
 
   return (
-    <aside className="details" aria-label="Commit details">
-      <header className="details-header">
-        <span className="details-label">{commit.kind === "stash" ? "Stash" : "Commit"}</span>
-        <CopyButton text={commit.id} label={shortId(commit.id)} />
-        <span className="spacer" />
-        <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close details">
-          <CloseIcon />
-        </button>
-      </header>
+    <ActorNames.Provider value={actors}>
+      <aside className="details" aria-label="Commit details">
+        <header className="details-header">
+          <span className="details-label">{commit.kind === "stash" ? "Stash" : "Commit"}</span>
+          <CopyButton text={commit.id} label={shortId(commit.id)} />
+          <span className="spacer" />
+          <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close details">
+            <CloseIcon />
+          </button>
+        </header>
 
-      <div className="details-scroll">
-        <h2 className="details-summary">
-          <MessageText
-            text={details?.summary ?? commit.summary}
-            remote={remote}
-            resolveCommit={resolveCommit}
-            onSelectCommit={onSelect}
-          />
-        </h2>
-        {details?.body && (
-          <div className="details-body">
-            {reflowBody(details.body).map((block, index) => {
-              const text = <MessageText text={block.text} remote={remote} resolveCommit={resolveCommit} onSelectCommit={onSelect} />;
-              if (block.kind === "code") return <pre key={index} className="body-code">{text}</pre>;
-              if (block.kind === "paragraph") return <p key={index} className="body-paragraph">{text}</p>;
-              return (
-                <div key={index} className="body-item" style={{ paddingLeft: block.depth * 16 }}>
-                  <span className="body-marker">{block.marker}</span>
-                  <span>{text}</span>
-                </div>
-              );
-            })}
+        <div className="details-scroll">
+          <h2 className="details-summary">
+            <MessageText
+              text={details?.summary ?? commit.summary}
+              remote={remote}
+              resolveCommit={resolveCommit}
+              onSelectCommit={onSelect}
+            />
+          </h2>
+          {details?.body && (
+            <div className="details-body">
+              {reflowBody(details.body).map((block, index) => {
+                const text = <MessageText text={block.text} remote={remote} resolveCommit={resolveCommit} onSelectCommit={onSelect} />;
+                if (block.kind === "code") return <pre key={index} className="body-code">{text}</pre>;
+                if (block.kind === "paragraph") return <p key={index} className="body-paragraph">{text}</p>;
+                return (
+                  <div key={index} className="body-item" style={{ paddingLeft: block.depth * 16 }}>
+                    <span className="body-marker">{block.marker}</span>
+                    <span>{text}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {commit.refs.length > 0 && (
+            <div className="details-refs">
+              <RefPills refs={commit.refs} color={laneColor(commit.graph.column, colors.lanes)} />
+            </div>
+          )}
+
+          <div className="people">
+            <PersonLine role="authored" person={author} exact={Boolean(details)} />
+            {showCommitter && <PersonLine role="committed" person={committer} exact />}
+            {details &&
+              coAuthors(details.body).map((person) => (
+                <PersonLine key={person.email} role="co-authored" person={{ ...person, time: 0, offset: 0 }} exact={false} />
+              ))}
           </div>
-        )}
 
-        {commit.refs.length > 0 && (
-          <div className="details-refs">
-            <RefPills refs={commit.refs} color={laneColor(commit.graph.column, colors.lanes)} />
-          </div>
-        )}
+          <dl className="meta">
+            <dt>SHA</dt>
+            <dd className="mono selectable full-sha">{commit.id}</dd>
+            {details?.signature && (
+              <>
+                <dt>Signed</dt>
+                <dd>
+                  <SignatureMark signature={details.signature} />
+                </dd>
+              </>
+            )}
+            <dt>{commit.parents.length === 1 ? "Parent" : "Parents"}</dt>
+            <dd className="parents">
+              {commit.parents.length === 0 && <span className="muted">None (first commit)</span>}
+              {commit.parents.map((parent) => (
+                <button
+                  key={parent}
+                  className="sha-link"
+                  onClick={() => onSelect(parent)}
+                  disabled={!hasCommit(parent)}
+                  title={hasCommit(parent) ? "Go to parent" : "Not loaded"}
+                >
+                  {shortId(parent)}
+                </button>
+              ))}
+            </dd>
+          </dl>
 
-        <div className="people">
-          <PersonLine role="authored" person={author} exact={Boolean(details)} />
-          {showCommitter && <PersonLine role="committed" person={committer} exact />}
-          {details &&
-            coAuthors(details.body).map((person) => (
-              <PersonLine key={person.email} role="co-authored" person={{ ...person, time: 0, offset: 0 }} exact={false} />
-            ))}
+          {actions.length > 0 && (
+            <div className="details-actions">
+              {actions.map((action) => (
+                <button
+                  key={action.label}
+                  className={action.danger ? "danger-outline-button" : "outline-button"}
+                  onClick={action.onClick}
+                  title={action.label}
+                >
+                  {action.icon}
+                  <span className="button-label">{action.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <section className="files">
+            <h3>
+              {details ? plural(details.files.length, "changed file") : "Changed files"}
+              {commit.parents.length > 1 && <span className="hint">compared to the first parent</span>}
+            </h3>
+            {current.error ? (
+              <div className="details-error">{current.error}</div>
+            ) : !details ? (
+              <div className="details-loading">Loading…</div>
+            ) : details.files.length === 0 ? (
+              <div className="muted">No file changes.</div>
+            ) : (
+              <>
+                {details.files.length > FILTER_FROM && <FileFilter value={query} onChange={setQuery} shown={files.length} total={details.files.length} />}
+                <FileList
+                  items={files}
+                  keyOf={(file) => `${file.status}:${file.oldPath ?? ""}:${file.path}`}
+                  render={(file) => (
+                    <FileLine
+                      file={file}
+                      highlighted={isHighlighted?.(file.path) || (file.oldPath ? isHighlighted?.(file.oldPath) : false)}
+                      lock={lockOf?.(file.path)}
+                      onContextMenu={onFileMenu}
+                      onOpen={onOpenFile}
+                      shown={isShown?.(file.path)}
+                    />
+                  )}
+                />
+                {files.length === 0 && <div className="muted">No files match “{query.trim()}”.</div>}
+              </>
+            )}
+          </section>
         </div>
-
-        <dl className="meta">
-          <dt>SHA</dt>
-          <dd className="mono selectable full-sha">{commit.id}</dd>
-          {details?.signature && (
-            <>
-              <dt>Signed</dt>
-              <dd>
-                <SignatureMark signature={details.signature} />
-              </dd>
-            </>
-          )}
-          <dt>{commit.parents.length === 1 ? "Parent" : "Parents"}</dt>
-          <dd className="parents">
-            {commit.parents.length === 0 && <span className="muted">None (first commit)</span>}
-            {commit.parents.map((parent) => (
-              <button
-                key={parent}
-                className="sha-link"
-                onClick={() => onSelect(parent)}
-                disabled={!hasCommit(parent)}
-                title={hasCommit(parent) ? "Go to parent" : "Not loaded"}
-              >
-                {shortId(parent)}
-              </button>
-            ))}
-          </dd>
-        </dl>
-
-        {actions.length > 0 && (
-          <div className="details-actions">
-            {actions.map((action) => (
-              <button
-                key={action.label}
-                className={action.danger ? "danger-outline-button" : "outline-button"}
-                onClick={action.onClick}
-                title={action.label}
-              >
-                {action.icon}
-                <span className="button-label">{action.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <section className="files">
-          <h3>
-            {details ? plural(details.files.length, "changed file") : "Changed files"}
-            {commit.parents.length > 1 && <span className="hint">compared to the first parent</span>}
-          </h3>
-          {current.error ? (
-            <div className="details-error">{current.error}</div>
-          ) : !details ? (
-            <div className="details-loading">Loading…</div>
-          ) : details.files.length === 0 ? (
-            <div className="muted">No file changes.</div>
-          ) : (
-            <>
-              {details.files.length > FILTER_FROM && <FileFilter value={query} onChange={setQuery} shown={files.length} total={details.files.length} />}
-              <FileList
-                items={files}
-                keyOf={(file) => `${file.status}:${file.oldPath ?? ""}:${file.path}`}
-                render={(file) => (
-                  <FileLine
-                    file={file}
-                    highlighted={isHighlighted?.(file.path) || (file.oldPath ? isHighlighted?.(file.oldPath) : false)}
-                    lock={lockOf?.(file.path)}
-                    onContextMenu={onFileMenu}
-                    onOpen={onOpenFile}
-                    shown={isShown?.(file.path)}
-                  />
-                )}
-              />
-              {files.length === 0 && <div className="muted">No files match “{query.trim()}”.</div>}
-            </>
-          )}
-        </section>
-      </div>
-    </aside>
+      </aside>
+    </ActorNames.Provider>
   );
 }
 

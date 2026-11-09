@@ -108,6 +108,17 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             &arg::<String>(args, "to")?,
             arg(args, "split")?,
         )?),
+        "actor_names" => {
+            let at: Option<String> = optional(args, "at")?;
+            let fallback: Option<String> = optional(args, "fallback")?;
+            let files: Vec<String> = arg(args, "files")?;
+            to_json(tributary_lib::unreal::actor_names(
+                &path()?,
+                at.as_deref(),
+                fallback.as_deref(),
+                &files,
+            )?)
+        }
         "run_action" => {
             let action: Action = arg(args, "action")?;
             to_json(actions::run_with_progress(&path()?, action, &progress)?)

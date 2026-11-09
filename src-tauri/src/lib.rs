@@ -16,6 +16,7 @@ pub mod locks;
 pub mod repo;
 pub mod requests;
 pub mod textures;
+pub mod unreal;
 pub mod updates;
 pub mod watch;
 
@@ -63,6 +64,7 @@ pub fn run() {
             commands::file_diff,
             commands::conflict_text,
             commands::compare_commits,
+            commands::actor_names,
             commands::blame_file,
             commands::search_commits,
             commands::team_activity,

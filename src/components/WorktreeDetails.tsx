@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import type { Action, DiffSource, FileChange, FileChecks, Lock, Overlap, RepoSnapshot } from "../api";
+import { ActorNames, useActorNames } from "../lib/actorNames";
 import { FILTER_FROM, filterFiles } from "../lib/fileFilter";
 import { FileFilter } from "./FileList";
 import { CloseIcon, MinusIcon, PlusIcon, StashIcon, TrashIcon } from "./Icons";
@@ -61,8 +62,10 @@ export function WorktreeDetailsPanel(props: Props) {
   const [query, setQuery] = useState("");
   const total = status.staged.length + status.unstaged.length;
   const filtering = query.trim() !== "" && total > FILTER_FROM;
-  const staged = filtering ? filterFiles(status.staged, query) : status.staged;
-  const allUnstaged = filtering ? filterFiles(status.unstaged, query) : status.unstaged;
+  // Unreal actors among the files, named as they are in the editor.
+  const actors = useActorNames(snapshot.path, null, null, [...status.staged, ...status.unstaged]);
+  const staged = filtering ? filterFiles(status.staged, query, actors) : status.staged;
+  const allUnstaged = filtering ? filterFiles(status.unstaged, query, actors) : status.unstaged;
   const conflicted = allUnstaged.filter((file) => file.status === "conflicted");
   const unstaged = allUnstaged.filter((file) => file.status !== "conflicted");
   const stagedPaths = new Set(status.staged.map((file) => file.path));
@@ -73,74 +76,76 @@ export function WorktreeDetailsPanel(props: Props) {
   const paths = (file: FileChange) => (file.oldPath ? [file.oldPath, file.path] : [file.path]);
 
   return (
-    <aside className="details" aria-label="Uncommitted changes">
-      <header className="details-header">
-        <span className="details-label">Working tree</span>
-        <span className="spacer" />
-        <button className="icon-button" onClick={props.onStash} disabled={busy} title="Stash changes…" aria-label="Stash changes">
-          <StashIcon />
-        </button>
-        <button className="icon-button" onClick={props.onDiscard} disabled={busy || !snapshot.headCommit} title="Discard all changes…" aria-label="Discard all changes">
-          <TrashIcon />
-        </button>
-        <button className="icon-button" onClick={props.onClose} title="Close (Esc)" aria-label="Close details">
-          <CloseIcon />
-        </button>
-      </header>
+    <ActorNames.Provider value={actors}>
+      <aside className="details" aria-label="Uncommitted changes">
+        <header className="details-header">
+          <span className="details-label">Working tree</span>
+          <span className="spacer" />
+          <button className="icon-button" onClick={props.onStash} disabled={busy} title="Stash changes…" aria-label="Stash changes">
+            <StashIcon />
+          </button>
+          <button className="icon-button" onClick={props.onDiscard} disabled={busy || !snapshot.headCommit} title="Discard all changes…" aria-label="Discard all changes">
+            <TrashIcon />
+          </button>
+          <button className="icon-button" onClick={props.onClose} title="Close (Esc)" aria-label="Close details">
+            <CloseIcon />
+          </button>
+        </header>
 
-      <div className="details-scroll worktree">
-        <ElsewhereWarning overlaps={props.overlaps} onShow={props.onShowCommit} />
-        <ChangeWarnings staged={status.staged} unstaged={status.unstaged} lockOf={lockOf} checks={checks} canLock={props.canLock} busy={busy} run={run} />
-        {total > FILTER_FROM && <FileFilter value={query} onChange={setQuery} shown={staged.length + allUnstaged.length} total={total} />}
-        {conflicted.length > 0 && (
-          <ConflictList conflicted={conflicted} {...conflictSides(snapshot)} busy={busy} lockOf={lockOf} onFileMenu={onFileMenu} run={run} elsewhereOf={elsewhereOf} {...opening} />
-        )}
-        <FileSection
-          title="Staged"
-          files={staged}
-          source={{ kind: "staged" }}
-          {...opening}
-          empty={filtering ? "No staged files match." : "Nothing staged yet. Stage the files you want to commit."}
-          bulk={
-            filtering
-              ? { label: `Unstage these ${staged.length.toLocaleString()}`, onClick: () => quietly({ kind: "unstage", paths: staged.flatMap(paths) }) }
-              : { label: "Unstage all", onClick: () => quietly({ kind: "unstageAll" }) }
-          }
-          lockOf={lockOf}
-          onFileMenu={onFileMenu}
-          elsewhereOf={elsewhereOf}
-          fileAction={(file) => ({ label: "Unstage", icon: <MinusIcon size={13} />, onClick: () => quietly({ kind: "unstage", paths: paths(file) }) })}
-          busy={busy}
-        />
-        <FileSection
-          title="Unstaged"
-          files={unstaged}
-          source={{ kind: "unstaged" }}
-          {...opening}
-          empty={filtering ? "No other changes match." : "No other changes."}
-          bulk={
-            filtering
-              ? { label: `Stage these ${unstaged.length.toLocaleString()}`, onClick: () => quietly({ kind: "stage", paths: unstaged.flatMap(paths) }) }
-              : { label: "Stage all", onClick: () => quietly({ kind: "stageAll" }) }
-          }
-          lockOf={lockOf}
-          onFileMenu={onFileMenu}
-          elsewhereOf={elsewhereOf}
-          fileAction={(file) => ({ label: "Stage", icon: <PlusIcon size={13} />, onClick: () => quietly({ kind: "stage", paths: paths(file) }) })}
-          busy={busy}
-        />
-      </div>
+        <div className="details-scroll worktree">
+          <ElsewhereWarning overlaps={props.overlaps} onShow={props.onShowCommit} />
+          <ChangeWarnings staged={status.staged} unstaged={status.unstaged} lockOf={lockOf} checks={checks} canLock={props.canLock} busy={busy} run={run} />
+          {total > FILTER_FROM && <FileFilter value={query} onChange={setQuery} shown={staged.length + allUnstaged.length} total={total} />}
+          {conflicted.length > 0 && (
+            <ConflictList conflicted={conflicted} {...conflictSides(snapshot)} busy={busy} lockOf={lockOf} onFileMenu={onFileMenu} run={run} elsewhereOf={elsewhereOf} {...opening} />
+          )}
+          <FileSection
+            title="Staged"
+            files={staged}
+            source={{ kind: "staged" }}
+            {...opening}
+            empty={filtering ? "No staged files match." : "Nothing staged yet. Stage the files you want to commit."}
+            bulk={
+              filtering
+                ? { label: `Unstage these ${staged.length.toLocaleString()}`, onClick: () => quietly({ kind: "unstage", paths: staged.flatMap(paths) }) }
+                : { label: "Unstage all", onClick: () => quietly({ kind: "unstageAll" }) }
+            }
+            lockOf={lockOf}
+            onFileMenu={onFileMenu}
+            elsewhereOf={elsewhereOf}
+            fileAction={(file) => ({ label: "Unstage", icon: <MinusIcon size={13} />, onClick: () => quietly({ kind: "unstage", paths: paths(file) }) })}
+            busy={busy}
+          />
+          <FileSection
+            title="Unstaged"
+            files={unstaged}
+            source={{ kind: "unstaged" }}
+            {...opening}
+            empty={filtering ? "No other changes match." : "No other changes."}
+            bulk={
+              filtering
+                ? { label: `Stage these ${unstaged.length.toLocaleString()}`, onClick: () => quietly({ kind: "stage", paths: unstaged.flatMap(paths) }) }
+                : { label: "Stage all", onClick: () => quietly({ kind: "stageAll" }) }
+            }
+            lockOf={lockOf}
+            onFileMenu={onFileMenu}
+            elsewhereOf={elsewhereOf}
+            fileAction={(file) => ({ label: "Stage", icon: <PlusIcon size={13} />, onClick: () => quietly({ kind: "stage", paths: paths(file) }) })}
+            busy={busy}
+          />
+        </div>
 
-      <CommitBox
-        snapshot={snapshot}
-        draft={props.draft}
-        onDraft={props.onDraft}
-        stagedCount={status.staged.length}
-        largeStaged={(checks?.large ?? []).filter((file) => stagedPaths.has(file.path))}
-        busy={busy}
-        run={run}
-        messageTools={props.messageTools}
-      />
-    </aside>
+        <CommitBox
+          snapshot={snapshot}
+          draft={props.draft}
+          onDraft={props.onDraft}
+          stagedCount={status.staged.length}
+          largeStaged={(checks?.large ?? []).filter((file) => stagedPaths.has(file.path))}
+          busy={busy}
+          run={run}
+          messageTools={props.messageTools}
+        />
+      </aside>
+    </ActorNames.Provider>
   );
 }

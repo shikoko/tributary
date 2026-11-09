@@ -1,5 +1,6 @@
 import type { MouseEvent } from "react";
 import type { Lock, Submodule, Worktree } from "../../api";
+import { describeActor, useActorNames } from "../../lib/actorNames";
 import { submoduleName, submoduleNote, submoduleTitle } from "../../lib/submodules";
 import { worktreeName, worktreeNote } from "../../lib/worktrees";
 import { lockTitle } from "../FileLine";
@@ -86,6 +87,7 @@ export function SubmoduleList({ submodules, onOpen, onMenu }: SubmoduleProps) {
 }
 
 interface LockProps {
+  repoPath: string;
   locks: Lock[];
   /** Why the locks couldn't be refreshed. */
   error: string | null;
@@ -93,7 +95,9 @@ interface LockProps {
 }
 
 /** Files locked with Git LFS, and who holds each. */
-export function LockedFileList({ locks, error, onMenu }: LockProps) {
+export function LockedFileList({ repoPath, locks, error, onMenu }: LockProps) {
+  // Unreal actors saved in their own files, named as they are in the editor.
+  const actors = useActorNames(repoPath, null, null, locks);
   return (
     <ul>
       {locks.map((lock) => (
@@ -102,7 +106,7 @@ export function LockedFileList({ locks, error, onMenu }: LockProps) {
             className={`sidebar-item sidebar-locked${lock.mine ? " mine" : ""}`}
             role="button"
             tabIndex={0}
-            title={`${lock.path}\n${lockTitle(lock)}`}
+            title={`${lock.path}${actors.has(lock.path) ? `\n${describeActor(actors.get(lock.path)!)}` : ""}\n${lockTitle(lock)}`}
             onClick={(event) => onMenu(lock, event.clientX, event.clientY)}
             onContextMenu={(event: MouseEvent) => {
               event.preventDefault();
@@ -112,7 +116,7 @@ export function LockedFileList({ locks, error, onMenu }: LockProps) {
             <span className="sidebar-icon">
               <LockIcon size={12} />
             </span>
-            <span className="sidebar-name">{lock.path.split("/").pop()}</span>
+            <span className="sidebar-name">{actors.get(lock.path)?.label ?? actors.get(lock.path)?.class ?? lock.path.split("/").pop()}</span>
             <span className="sidebar-lock-owner">{lock.mine ? "you" : lock.owner}</span>
           </div>
         </li>

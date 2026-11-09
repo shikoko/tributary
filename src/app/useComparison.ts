@@ -46,6 +46,7 @@ export function useComparison(repoPath: string, selectedId: string | null) {
   const shown = loaded && loaded.key === key ? loaded : null;
   const close = useCallback(() => setRequest(null), []);
   return {
+    repoPath,
     request,
     /** Changes with each request: diffs from one comparison aren't shown for another. */
     key,

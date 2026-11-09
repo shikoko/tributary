@@ -11,6 +11,8 @@ import { sidebarLists, stashLabel } from "./sidebar/refTree";
 import { RefTree, SidebarSection, type Folding } from "./sidebar/SidebarSection";
 
 interface Props {
+  /** The repository's folder. */
+  repoPath: string;
   commits: CommitRow[];
   /** Branches and tags left out of the graph. */
   hiddenRefs: HiddenRef[];
@@ -231,7 +233,7 @@ export function Sidebar(props: Props) {
               </>
             }
           >
-            <LockedFileList locks={locks} error={props.locksError} onMenu={props.onLockMenu} />
+            <LockedFileList repoPath={props.repoPath} locks={locks} error={props.locksError} onMenu={props.onLockMenu} />
           </SidebarSection>
         )}
       </div>

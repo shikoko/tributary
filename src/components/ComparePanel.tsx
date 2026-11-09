@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Comparison, FileChange } from "../api";
 import type { Comparing } from "../app/useComparison";
+import { ActorNames, useActorNames } from "../lib/actorNames";
 import { FILTER_FROM, filterFiles } from "../lib/fileFilter";
 import { plural, shortId } from "../lib/format";
 import { FileLine } from "./FileLine";
@@ -24,6 +25,8 @@ interface Props {
  */
 export function ComparePanel({ comparing, onOpenFile, isShown, onSelect, hasCommit }: Props) {
   const { request, comparison, error, close } = comparing;
+  // Unreal actors among the files, named as they are in the editor.
+  const actors = useActorNames(comparing.repoPath, request?.to.id ?? null, comparison?.base ?? request?.from.id ?? null, request ? comparison?.files : undefined);
   const [query, setQuery] = useState("");
 
   // Esc closes the comparison: after a file's changes, menus and dialogs over it.
@@ -42,59 +45,61 @@ export function ComparePanel({ comparing, onOpenFile, isShown, onSelect, hasComm
 
   if (!request) return null;
   const { from, to, split } = request;
-  const files = comparison ? (comparison.files.length > FILTER_FROM && query.trim() ? filterFiles(comparison.files, query) : comparison.files) : [];
+  const files = comparison ? (comparison.files.length > FILTER_FROM && query.trim() ? filterFiles(comparison.files, query, actors) : comparison.files) : [];
   return (
-    <aside className="details compare-panel" aria-label={`${to.label} compared with ${from.label}`}>
-      <header className="details-header">
-        <span className="details-label">Compare</span>
-        <span className="spacer" />
-        <button className="icon-button" onClick={comparing.close} title="Close (Esc)" aria-label="Close the comparison">
-          <CloseIcon />
-        </button>
-      </header>
-      <div className="details-scroll">
-        <div className="compare-sides">
-          <span className="compare-side mono" title={from.id}>
-            {from.label}
-          </span>
-          <button className="icon-button compare-swap" onClick={comparing.swap} title="Swap them" aria-label="Swap the two sides">
-            <CompareIcon size={14} />
+    <ActorNames.Provider value={actors}>
+      <aside className="details compare-panel" aria-label={`${to.label} compared with ${from.label}`}>
+        <header className="details-header">
+          <span className="details-label">Compare</span>
+          <span className="spacer" />
+          <button className="icon-button" onClick={comparing.close} title="Close (Esc)" aria-label="Close the comparison">
+            <CloseIcon />
           </button>
-          <span className="compare-side mono to" title={to.id}>
-            {to.label}
-          </span>
+        </header>
+        <div className="details-scroll">
+          <div className="compare-sides">
+            <span className="compare-side mono" title={from.id}>
+              {from.label}
+            </span>
+            <button className="icon-button compare-swap" onClick={comparing.swap} title="Swap them" aria-label="Swap the two sides">
+              <CompareIcon size={14} />
+            </button>
+            <span className="compare-side mono to" title={to.id}>
+              {to.label}
+            </span>
+          </div>
+          <div className="diff-switch compare-how" role="group" aria-label="Compare">
+            <button className={split ? "selected" : undefined} aria-pressed={split} onClick={() => comparing.setSplit(true)} title={`What ${to.label} changed since the two split, like a pull request`}>
+              Since they split
+            </button>
+            <button className={!split ? "selected" : undefined} aria-pressed={!split} onClick={() => comparing.setSplit(false)} title={`Everything that's different between ${from.label} and ${to.label}`}>
+              Directly
+            </button>
+          </div>
+          {comparison && <Facts comparison={comparison} from={from.label} to={to.label} split={split} onSelect={onSelect} hasCommit={hasCommit} />}
+          <section className="files">
+            <h3>{comparison ? plural(comparison.files.length, "different file") : "Different files"}</h3>
+            {error ? (
+              <div className="details-error">{error}</div>
+            ) : !comparison ? (
+              <div className="details-loading">Loading…</div>
+            ) : comparison.files.length === 0 ? (
+              <div className="muted">{split ? `${to.label} hasn't changed any files since they split.` : "The files are the same in both."}</div>
+            ) : (
+              <>
+                {comparison.files.length > FILTER_FROM && <FileFilter value={query} onChange={setQuery} shown={files.length} total={comparison.files.length} />}
+                <FileList
+                  items={files}
+                  keyOf={(file) => `${file.status}:${file.oldPath ?? ""}:${file.path}`}
+                  render={(file) => <FileLine file={file} onOpen={onOpenFile} shown={isShown(file.path)} />}
+                />
+                {files.length === 0 && <div className="muted">No files match “{query.trim()}”.</div>}
+              </>
+            )}
+          </section>
         </div>
-        <div className="diff-switch compare-how" role="group" aria-label="Compare">
-          <button className={split ? "selected" : undefined} aria-pressed={split} onClick={() => comparing.setSplit(true)} title={`What ${to.label} changed since the two split, like a pull request`}>
-            Since they split
-          </button>
-          <button className={!split ? "selected" : undefined} aria-pressed={!split} onClick={() => comparing.setSplit(false)} title={`Everything that's different between ${from.label} and ${to.label}`}>
-            Directly
-          </button>
-        </div>
-        {comparison && <Facts comparison={comparison} from={from.label} to={to.label} split={split} onSelect={onSelect} hasCommit={hasCommit} />}
-        <section className="files">
-          <h3>{comparison ? plural(comparison.files.length, "different file") : "Different files"}</h3>
-          {error ? (
-            <div className="details-error">{error}</div>
-          ) : !comparison ? (
-            <div className="details-loading">Loading…</div>
-          ) : comparison.files.length === 0 ? (
-            <div className="muted">{split ? `${to.label} hasn't changed any files since they split.` : "The files are the same in both."}</div>
-          ) : (
-            <>
-              {comparison.files.length > FILTER_FROM && <FileFilter value={query} onChange={setQuery} shown={files.length} total={comparison.files.length} />}
-              <FileList
-                items={files}
-                keyOf={(file) => `${file.status}:${file.oldPath ?? ""}:${file.path}`}
-                render={(file) => <FileLine file={file} onOpen={onOpenFile} shown={isShown(file.path)} />}
-              />
-              {files.length === 0 && <div className="muted">No files match “{query.trim()}”.</div>}
-            </>
-          )}
-        </section>
-      </div>
-    </aside>
+      </aside>
+    </ActorNames.Provider>
   );
 }
 

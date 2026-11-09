@@ -84,6 +84,27 @@ pub async fn compare_commits(
     blocking(move || repo::compare(&PathBuf::from(path), &from, &to, split)).await
 }
 
+/// What the Unreal actors among `files` are (their names in the editor, classes and
+/// levels), at commit `at`, or in the working tree. Files not there are read at
+/// `fallback` (by default, the first parent or the checked-out commit).
+#[tauri::command]
+pub async fn actor_names(
+    path: String,
+    at: Option<String>,
+    fallback: Option<String>,
+    files: Vec<String>,
+) -> Result<std::collections::HashMap<String, crate::unreal::ActorName>> {
+    blocking(move || {
+        crate::unreal::actor_names(
+            &PathBuf::from(path),
+            at.as_deref(),
+            fallback.as_deref(),
+            &files,
+        )
+    })
+    .await
+}
+
 /// Change the repository: commit, stash, checkout, branch, merge, fetch, pull, push, …
 /// Fetches, pulls and pushes report their progress as `action-progress` events.
 #[tauri::command]

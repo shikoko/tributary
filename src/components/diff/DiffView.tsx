@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { linesLabel, linesOf } from "../../lib/lineSelection";
 import { languageFor } from "../../lib/syntax";
 import { fileDiff, type Action, type FileDiff, type LineMode } from "../../api";
 import type { DiffTarget } from "../../lib/diffTargets";
 import { toolLabel, useDiffTools } from "../../lib/diffTools";
 import { useStoredState } from "../../lib/settings";
+import { describeActor, useActorNames } from "../../lib/actorNames";
 import { BlameIcon, ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon, SplitIcon } from "../Icons";
 import { DiffBinary } from "./DiffBinary";
 import { DiffMedia } from "./DiffMedia";
@@ -56,6 +57,11 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
   const [loaded, setLoaded] = useState<{ key: string; diff: FileDiff | null; error: string | null } | null>(null);
   /** Your own changes, which change as you work (rather than a commit's, or between two). */
   const live = target.source.kind === "staged" || target.source.kind === "unstaged";
+  // An Unreal actor saved in its own file: named as it is in the editor.
+  const source = target.source;
+  const actorAt = source.kind === "commit" ? source.id : source.kind === "range" ? source.to : null;
+  const actorFiles = useMemo(() => [target.file], [target.file]);
+  const actor = useActorNames(repoPath, actorAt, source.kind === "range" ? source.from : null, actorFiles).get(target.file.path);
   const key = JSON.stringify([target.source, target.file.path, target.file.oldPath, ignoreWhitespace]);
   // Lines chosen to stage, unstage or discard (lib/lineSelection.ts).
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -161,15 +167,15 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
             {index + 1} of {targets.length}
           </span>
         </div>
-        <div className="diff-title" title={target.file.oldPath ? `${target.file.oldPath} → ${path}` : path}>
+        <div className="diff-title" title={`${target.file.oldPath ? `${target.file.oldPath} → ${path}` : path}${actor ? `\n${describeActor(actor)}` : ""}`}>
           <FileKindIcon path={path} size={14} className="file-kind diff-kind" />
-          <span className="diff-name">{path.slice(slash + 1)}</span>
+          <span className="diff-name">{actor?.label ?? actor?.class ?? path.slice(slash + 1)}</span>
           {diff && !whole && !conflicted && (
             <span className="diff-stats">
               <span className="added">+{diff.additions}</span> <span className="removed">−{diff.deletions}</span>
             </span>
           )}
-          {slash > 0 && <span className="diff-dir">{path.slice(0, slash)}</span>}
+          {actor?.level ? <span className="diff-dir">{actor.level}</span> : slash > 0 && <span className="diff-dir">{path.slice(0, slash)}</span>}
           <span className="diff-source">{target.label}</span>
           {diff?.lfs && !diff.binary && !diff.tooLarge && (
             <span className="diff-source" title="Stored with Git LFS: these are the files' real contents">
