@@ -13,6 +13,7 @@ import {
   IgnoreIcon,
   LockIcon,
   MergeIcon,
+  ShelfIcon,
   StashIcon,
   TrashIcon,
   UnlockIcon,
@@ -148,6 +149,12 @@ export function fileMenuItems(ctx: FileMenuContext, file: FileChange, source: Di
         separated: true,
         disabled: !canChange,
         onSelect: () => openDialog({ kind: "stash", paths }),
+      },
+      {
+        label: folder ? "Shelve this folder for the team…" : "Shelve this file for the team…",
+        icon: <ShelfIcon />,
+        disabled: !canChange,
+        onSelect: () => openDialog({ kind: "shelves", paths }),
       },
       {
         label: folder ? "Delete this folder" : file.status === "untracked" ? "Delete this file" : "Discard changes",

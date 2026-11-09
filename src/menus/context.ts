@@ -48,6 +48,8 @@ export type OpenDialog =
   /** What makes the repository big, and moving big files into Git LFS. */
   | { kind: "repoSize" }
   | { kind: "projectSetup" }
+  /** Shelves: shelve these files (all changes when left out), or open a teammate's. */
+  | { kind: "shelves"; paths?: string[] }
   /** Release notes for a tag: what went into it since the tag before. */
   | { kind: "releaseNotes"; tag: string }
   /** Split a commit in two; `later`: how many commits come after it on the branch. */

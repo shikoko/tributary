@@ -135,7 +135,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       }
       const { message, pullRequest, backup } = outcome;
       // Discarded files and lines are kept for a while, to put back.
-      const discarded = action.kind === "discardFiles" || action.kind === "applyLines";
+      const discarded = action.kind === "discardFiles" || action.kind === "applyLines" || (action.kind === "shelve" && !action.keep);
       const undo = backup && discarded ? { kind: "restoreDiscarded" as const, reference: backup } : undoFor(action, before);
       if (message) callbacks.current.record?.(before.path, message, action, undo);
       if (action.kind === "merge" && action.mode === "squash") showChanges();

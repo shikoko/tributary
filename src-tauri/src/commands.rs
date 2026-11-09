@@ -247,6 +247,25 @@ pub async fn repo_identity(path: String) -> Result<actions::RepoIdentity> {
 
 /// How the repository is set up for a game project, check by check.
 #[tauri::command]
+pub async fn take_snapshot(
+    path: String,
+    max_bytes: u64,
+    keep_days: u32,
+) -> Result<Option<actions::Snapshot>> {
+    blocking(move || actions::take_snapshot(&PathBuf::from(path), max_bytes, keep_days)).await
+}
+
+#[tauri::command]
+pub async fn local_history(path: String) -> Result<Vec<actions::Snapshot>> {
+    blocking(move || actions::local_history(&PathBuf::from(path))).await
+}
+
+#[tauri::command]
+pub async fn shelves(path: String, fetch: bool) -> Result<Vec<actions::Shelf>> {
+    blocking(move || actions::shelves(&PathBuf::from(path), fetch)).await
+}
+
+#[tauri::command]
 pub async fn project_setup(path: String) -> Result<actions::ProjectSetup> {
     blocking(move || actions::project_setup(&PathBuf::from(path))).await
 }

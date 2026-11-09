@@ -145,7 +145,7 @@ pub(super) fn prefetch(
 
 /// The remote `to` comes from: its own, for a remote branch; the one its upstream is on;
 /// or origin (or the only remote).
-fn remote_for(git: &Git, to: &str) -> Option<String> {
+pub(super) fn remote_for(git: &Git, to: &str) -> Option<String> {
     let remotes: Vec<String> = git
         .run(&["remote"])
         .ok()?

@@ -11,6 +11,7 @@ export * from "./identity";
 export * from "./issues";
 export * from "./lfs";
 export * from "./repository";
+export * from "./shelves";
 export * from "./submodules";
 export * from "./engines";
 export * from "./window";

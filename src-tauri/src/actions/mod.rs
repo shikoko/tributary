@@ -25,6 +25,7 @@ mod lfs;
 mod lfs_count;
 mod lfs_health;
 mod lfs_settings;
+mod local_history;
 mod merge_check;
 mod partial;
 mod patches;
@@ -35,8 +36,10 @@ mod remote_settings;
 mod rewrites;
 mod search;
 mod setup_check;
+mod shelves;
 mod signing;
 mod size;
+mod snapshot;
 mod sparse;
 mod speed;
 mod split;
@@ -77,6 +80,7 @@ pub use ignored::{IgnoreReason, IgnoreRule, ignore_reason};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
 pub use lfs_health::{LfsHealth, lfs_health};
 pub use lfs_settings::{LfsFolder, LfsSettings, LfsSuggestion, lfs_settings};
+pub use local_history::{Snapshot, SnapshotFile, local_history, take_snapshot};
 pub use merge_check::{MergeCheck, MergeOutcome, merge_check};
 pub use partial::LineMode;
 pub use patches::{PatchCommit, PatchFile, PatchInfo, patch_info, patch_text};
@@ -88,6 +92,7 @@ pub use remote_settings::{RemoteInfo, remotes};
 pub use rewrites::{BranchVersion, CommitPair, PairStatus, RangeDiff, branch_versions, range_diff};
 pub use search::{SearchMode, SearchResult, search_commits};
 pub use setup_check::{CheckStatus, Engine, ProjectSetup, SetupCheck, SetupFix, project_setup};
+pub use shelves::{Shelf, ShelfFile, shelves};
 pub use signing::{SigningKey, SigningMode, SigningSettings, signing_settings};
 pub use size::{BigFile, RepoSize, SizeGroup, repo_size};
 pub use sparse::{FolderChoice, SparseSettings, sparse_settings};
@@ -135,6 +140,25 @@ pub enum Action {
         #[serde(default, rename = "noVerify")]
         no_verify: bool,
     },
+    /// Shelve the working copy's versions of `paths` (every change, when empty) for the
+    /// team, as `description`; unless `keep`, take them out of the working copy after.
+    Shelve {
+        #[serde(default)]
+        paths: Vec<String>,
+        description: String,
+        #[serde(default)]
+        keep: bool,
+    },
+    /// Put files back as a local history snapshot had them (all its files, when empty).
+    RestoreFromHistory {
+        reference: String,
+        #[serde(default)]
+        paths: Vec<String>,
+    },
+    /// Take a shelf's files into the working copy.
+    OpenShelf { reference: String },
+    /// Delete a shelf, on the remote and here.
+    DeleteShelf { reference: String },
     /// Run `action` without checking there's room on the disk for the Git LFS files it
     /// downloads (the person chose to go ahead anyway).
     AnyDiskSpace { action: Box<Action> },
@@ -553,6 +577,16 @@ fn perform(
         Action::Push { force, no_verify } => {
             remote::push(&repo, &git, force, no_verify, on_progress, extra)
         }
+        Action::Shelve {
+            paths,
+            description,
+            keep,
+        } => shelves::shelve(&repo, &git, paths, description, keep, on_progress, extra),
+        Action::RestoreFromHistory { reference, paths } => {
+            local_history::restore_from_history(&repo, &git, reference, paths, extra)
+        }
+        Action::OpenShelf { reference } => shelves::open_shelf(&repo, &git, reference, on_progress),
+        Action::DeleteShelf { reference } => shelves::delete_shelf(&git, reference),
         Action::AnyDiskSpace { action } => {
             lfs_count::without_space_check(|| perform(path, *action, on_progress, extra))
         }

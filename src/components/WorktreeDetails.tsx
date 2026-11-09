@@ -5,7 +5,7 @@ import { ActorNames, useActorNames } from "../lib/actorNames";
 import { useUnitySetup } from "./UnitySettingsRows";
 import { FILTER_FROM, filterFiles } from "../lib/fileFilter";
 import { FileFilter } from "./FileList";
-import { CloseIcon, MinusIcon, PlusIcon, StashIcon, TrashIcon } from "./Icons";
+import { CloseIcon, MinusIcon, PlusIcon, ShelfIcon, StashIcon, TrashIcon } from "./Icons";
 import { ChangeWarnings } from "./worktree/ChangeWarnings";
 import { CommitBox, type CommitDraft } from "./worktree/CommitBox";
 import { ConflictList } from "./worktree/ConflictList";
@@ -24,6 +24,7 @@ interface Props {
   draft: CommitDraft;
   onDraft: (draft: CommitDraft) => void;
   onStash: () => void;
+  onShelve: () => void;
   onDiscard: () => void;
   onClose: () => void;
   /** A file's Git LFS lock. */
@@ -85,6 +86,9 @@ export function WorktreeDetailsPanel(props: Props) {
         <header className="details-header">
           <span className="details-label">Working tree</span>
           <span className="spacer" />
+          <button className="icon-button" onClick={props.onShelve} disabled={busy} title="Shelve changes for the team…" aria-label="Shelve changes">
+            <ShelfIcon />
+          </button>
           <button className="icon-button" onClick={props.onStash} disabled={busy} title="Stash changes…" aria-label="Stash changes">
             <StashIcon />
           </button>

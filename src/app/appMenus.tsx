@@ -1,7 +1,7 @@
 import { open as openFile } from "@tauri-apps/plugin-dialog";
 import type { Action, CommitRow, InstalledApp, RepoSnapshot } from "../api";
 import { WORKTREE_ID } from "../api";
-import { BranchIcon, BroomIcon, CheckIcon, CloneIcon, CloseIcon, CodeIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, FetchIcon, FileHistoryIcon, FolderIcon, GearIcon, HistoryIcon, IgnoreIcon, InfoIcon, KeyboardIcon, LockIcon, NewRepoIcon, PlusIcon, PullIcon, PullRequestIcon, PushIcon, RecoverIcon, RefreshIcon, SearchIcon, SparkleIcon, StashIcon, TagIcon, TerminalIcon } from "../components/Icons";
+import { BranchIcon, BroomIcon, CheckIcon, CloneIcon, CloseIcon, CodeIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, FetchIcon, FileHistoryIcon, FolderIcon, GearIcon, HistoryIcon, IgnoreIcon, InfoIcon, KeyboardIcon, LockIcon, NewRepoIcon, PlusIcon, PullIcon, PullRequestIcon, PushIcon, RecoverIcon, RefreshIcon, SearchIcon, ShelfIcon, SparkleIcon, StashIcon, TagIcon, TerminalIcon } from "../components/Icons";
 import type { NativeMenu } from "../lib/nativeMenu";
 import { isMac } from "../lib/platform";
 import { newPullRequestUrl, openInBrowser, siteName, webRemote } from "../lib/weblinks";
@@ -174,6 +174,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           "-",
           { id: "commit", label: "Commit…", icon: <PlusIcon />, enabled: Boolean(snapshot.worktree) && canChange, run: () => run.select(WORKTREE_ID) },
           { id: "stash", label: "Stash Changes…", icon: <StashIcon />, enabled: Boolean(snapshot.worktree) && canChange, run: () => run.dialog({ kind: "stash" }) },
+          { id: "shelves", label: "Shelves…", icon: <ShelfIcon />, run: () => run.dialog({ kind: "shelves" }) },
           "-",
           { id: "new-branch", label: "New Branch…", icon: <BranchIcon />, enabled: Boolean(head) && canChange, run: () => head && run.dialog({ kind: "newBranch", target: head }) },
           { id: "new-tag", label: "New Tag…", icon: <TagIcon />, enabled: Boolean(head) && canChange, run: () => head && run.dialog({ kind: "tag", target: head }) },

@@ -163,6 +163,14 @@ export const StashIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A shelf with a box on it: shelves, unfinished work shared with the team. */
+export const ShelfIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="4.5" y="3" width="7" height="5.5" rx="1" />
+    <path d="M7 5.25h2M2 10.75h12M3.5 10.75v2.5M12.5 10.75v2.5" />
+  </Icon>
+);
+
 export const SearchIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="7" cy="7" r="4.5" />

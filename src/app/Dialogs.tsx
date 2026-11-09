@@ -24,6 +24,7 @@ import { RepoSizeDialog } from "../components/RepoSizeDialog";
 import { ProjectSetupDialog } from "../components/ProjectSetupDialog";
 import { SplitCommitDialog } from "../components/SplitCommitDialog";
 import { StashDialog } from "../components/StashDialog";
+import { ShelvesDialog } from "../components/ShelvesDialog";
 import { TagDialog } from "../components/TagDialog";
 import { baseName } from "../lib/paths";
 import { deleteAnyway, splitRemoteBranch, type OpenDialog } from "../menus";
@@ -145,6 +146,17 @@ export function RepositoryDialogs(props: Props) {
     )}
     {dialog?.kind === "ignoreReason" && (
       <IgnoreReasonDialog repoPath={snapshot.path} file={dialog.file} canChange={!snapshot.bare} onClose={() => onClose()} run={(action) => run(action)} />
+    )}
+    {dialog?.kind === "shelves" && (
+      <ShelvesDialog
+        repoPath={snapshot.path}
+        status={snapshot.bare ? null : snapshot.worktree}
+        paths={dialog.paths}
+        head={snapshot.headCommit}
+        canChange={!snapshot.bare}
+        run={async (action, kind) => Boolean(await run(action, kind))}
+        onClose={() => onClose()}
+      />
     )}
     {dialog?.kind === "projectSetup" && (
       <ProjectSetupDialog

@@ -196,6 +196,16 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "repo_identity" => to_json(actions::repo_identity(&path()?)?),
         "commit_template" => to_json(actions::commit_template(&path()?)?),
         "project_setup" => to_json(actions::project_setup(&path()?)?),
+        "take_snapshot" => {
+            let max_bytes: u64 = arg(args, "maxBytes")?;
+            let keep_days: u32 = arg(args, "keepDays")?;
+            to_json(actions::take_snapshot(&path()?, max_bytes, keep_days)?)
+        }
+        "local_history" => to_json(actions::local_history(&path()?)?),
+        "shelves" => {
+            let fetch: bool = arg(args, "fetch")?;
+            to_json(actions::shelves(&path()?, fetch)?)
+        }
         "signing_settings" => to_json(actions::signing_settings(&path()?)?),
         "unity_setup" => to_json(actions::unity_setup(&path()?)?),
         "sparse_settings" => to_json(actions::sparse_settings(&path()?)?),

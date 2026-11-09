@@ -109,6 +109,10 @@ export type Action =
   | { kind: "setCommitTemplate"; text: string }
   /** Put one of the project setup check's findings right. */
   | { kind: "fixSetup"; fix: SetupFix }
+  /** Shelve the working copy's versions of `paths` (every change, when empty) for the team; unless `keep`, take them out of the working copy after. */
+  | { kind: "shelve"; paths: string[]; description: string; keep: boolean }
+  | { kind: "openShelf"; reference: string }
+  | { kind: "deleteShelf"; reference: string }
   | { kind: "setSigning"; mode: SigningMode; key: string | null }
   /** Save commits as one patch file, oldest first. */
   | { kind: "savePatch"; ids: string[]; file: string }

@@ -86,6 +86,7 @@ export function DetailsPane(props: Props) {
         draft={draft.draft}
         onDraft={draft.setDraft}
         onStash={() => props.openDialog({ kind: "stash" })}
+        onShelve={() => props.openDialog({ kind: "shelves" })}
         onDiscard={() => head && props.openDialog({ kind: "reset", target: head })}
         onClose={() => select(null)}
         lockOf={(path) => locks?.get(path)}
