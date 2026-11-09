@@ -116,6 +116,12 @@
   --series-7: #9085e9;
   --series-8: #e66767;
   --series-other: #596071;
+  /* Kinds of work (Team activity), in an order checked for colour blindness. */
+  --kind-code: var(--series-1);
+  --kind-art: var(--series-2);
+  --kind-levels: var(--series-3);
+  --kind-audio: var(--series-4);
+  --kind-other: var(--series-other);
   /* Code, coloured by its syntax (diffs, blame, conflicts). */
   --syntax-keyword: #c792ea;
   --syntax-string: #a5d98a;

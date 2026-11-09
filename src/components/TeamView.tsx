@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { teamActivity, type BranchActivity, type Lock, type Overlap, type TeamActivity } from "../api";
+import { recentRequests, teamActivity, teamWork, type BranchActivity, type Lock, type Overlap, type RecentRequest, type TeamActivity, type TeamWork } from "../api";
 import { assignSlots, periodDays } from "../lib/team";
 import { CloseIcon, UserIcon } from "./Icons";
 import { useTip, type TeamData } from "./team/parts";
@@ -54,6 +54,27 @@ export function TeamView({ repoPath, version, user, locks, overlaps, onClose, on
     return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
 
+  // What was changed takes longer to read: it comes after.
+  const [work, setWork] = useState<{ key: string; work: TeamWork } | null>(null);
+  useEffect(() => {
+    let current = true;
+    teamWork(repoPath, days)
+      .then((found) => current && setWork({ key, work: found }))
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [key, repoPath, days, version]);
+  const [requests, setRequests] = useState<{ path: string; requests: RecentRequest[] } | null>(null);
+  useEffect(() => {
+    let current = true;
+    recentRequests(repoPath)
+      .then((found) => current && setRequests({ path: repoPath, requests: found }))
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [repoPath]);
   const team = loaded?.key === key ? loaded.team : null;
   const error = loaded?.key === key ? loaded.error : null;
   // The branches touching files you're changing, and which files.
@@ -85,6 +106,8 @@ export function TeamView({ repoPath, version, user, locks, overlaps, onClose, on
     team &&
     ({
       team,
+      work: work?.key === key ? work.work : null,
+      requests: requests?.path === repoPath ? requests.requests : null,
       days: periodDays(team.since, now),
       now,
       slotOf,

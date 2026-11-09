@@ -548,6 +548,16 @@ fn sums_up_who_committed_where_lately() {
     assert!(team.people.iter().all(|p| p.times.windows(2).all(|w| w[0] >= w[1])));
     assert_eq!(export.times.len(), 2);
     assert_eq!(team.days, 30);
+    // The old branch's commit is in the period before.
+    assert!(team.previous.is_empty());
+
+    // What changed: three .txt files, each once.
+    let work = tributary_lib::actions::team_work(alice.path(), 30).unwrap();
+    assert_eq!(work.commits.len(), 3);
+    assert_eq!(work.kinds.len(), 1);
+    assert_eq!(work.kinds[0].changes, 3);
+    assert_eq!(work.hotspots.len(), 3);
+    assert!(work.hotspots.iter().all(|spot| spot.changes == 1 && !spot.unmergeable));
 }
 
 #[test]

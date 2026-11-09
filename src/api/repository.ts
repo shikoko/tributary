@@ -381,6 +381,8 @@ export interface TeamActivity {
   people: TeamPerson[];
   branches: BranchActivity[];
   mainCommits: number;
+  /** When each commit in the period before was made (on any branch), to compare with. */
+  previous: number[];
 }
 
 export interface TeamPerson {
@@ -411,6 +413,50 @@ export interface BranchActivity {
 
 export function teamActivity(path: string, days: number): Promise<TeamActivity> {
   return invoke<TeamActivity>("team_activity", { path, days });
+}
+
+export type FileKind = "code" | "art" | "levels" | "audio" | "other";
+
+export interface KindCount {
+  kind: FileKind;
+  /** File changes (a file changed in three commits counts three times). */
+  changes: number;
+}
+
+/** What the team changed lately: kinds of file, hotspots, lines of code. */
+export interface TeamWork {
+  kinds: KindCount[];
+  people: { email: string; kinds: KindCount[]; added: number; removed: number }[];
+  /** Each commit's time, lines of code added and removed, and files changed. */
+  commits: { time: number; added: number; removed: number; files: number }[];
+  hotspots: {
+    path: string;
+    kind: FileKind;
+    changes: number;
+    /** Who changed it (emails), the most first. */
+    people: string[];
+    /** It can't be merged line by line: one version wins. */
+    unmergeable: boolean;
+  }[];
+}
+
+export function teamWork(path: string, days: number): Promise<TeamWork> {
+  return invoke<TeamWork>("team_work", { path, days });
+}
+
+/** A pull or merge request, for Team activity's figures. Times are RFC 3339. */
+export interface RecentRequest {
+  number: number;
+  title: string;
+  author: string;
+  draft: boolean;
+  created: string;
+  merged: string | null;
+  closed: string | null;
+}
+
+export function recentRequests(path: string): Promise<RecentRequest[]> {
+  return invoke<RecentRequest[]>("recent_requests", { path });
 }
 
 /** Where a recent repository stands, for the start screen. */

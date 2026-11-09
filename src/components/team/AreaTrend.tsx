@@ -6,14 +6,18 @@ import type { Tip } from "./parts";
 
 export function AreaTrend({
   values,
+  ghost,
   top,
   color,
   height,
   label,
   tip,
   describe,
+  flipped = false,
 }: {
   values: number[];
+  /** Values to compare with (the period before), drawn as a faint line behind. */
+  ghost?: number[];
   /** The value at the top of the chart (shared by charts that are compared). */
   top: number;
   /** A CSS colour (like var(--accent)). */
@@ -23,6 +27,8 @@ export function AreaTrend({
   label: string;
   tip: Tip;
   describe: (index: number) => ReactNode;
+  /** Grow downwards from the top (for what was removed, under what was added). */
+  flipped?: boolean;
 }) {
   // An id fit for url(#…), whatever characters React's ids use.
   const gradient = `team-area-${useId().replace(/[^\w-]/g, "")}`;
@@ -36,7 +42,7 @@ export function AreaTrend({
   const marked = hover ?? last;
 
   return (
-    <div className="team-area" style={{ height, "--area": color } as CSSProperties} role="img" aria-label={label}>
+    <div className={`team-area${flipped ? " flipped" : ""}`} style={{ height, "--area": color } as CSSProperties} role="img" aria-label={label}>
       <svg viewBox={`0 0 ${span} 100`} preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
@@ -45,6 +51,9 @@ export function AreaTrend({
           </linearGradient>
         </defs>
         <path d={`${line} L${span},100 L0,100 Z`} fill={`url(#${gradient})`} />
+        {ghost && ghost.length === values.length && (
+          <path d={smoothPath(ghost.map((value, index) => [index, y(value)]))} className="team-area-ghost" vectorEffect="non-scaling-stroke" />
+        )}
         <path d={line} className="team-area-line" vectorEffect="non-scaling-stroke" />
       </svg>
       {hover !== null && <span className="team-area-cross" style={{ left: x(hover) }} />}

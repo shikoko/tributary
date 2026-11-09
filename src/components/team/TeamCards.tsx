@@ -2,13 +2,14 @@
 // each person with their own graph in their colour, and a card for each branch.
 import { plural, relativeTime } from "../../lib/format";
 import { baseName } from "../../lib/paths";
-import { dayLabel, labelledDays, perDay, seriesColor, withoutRemote } from "../../lib/team";
+import { change, dayLabel, labelledDays, perDay, previousPerDay, rhythm, seriesColor, withoutRemote } from "../../lib/team";
 import { Avatar } from "../Avatar";
 import { BranchIcon, LockIcon } from "../Icons";
 import { AreaTrend } from "./AreaTrend";
 import { DayTip, Divergence, Overlap, RingedAvatar, YouTag, type TeamData } from "./parts";
+import { HotspotsCard, KindBar, KindsCard, LinesCard, PunchCard, RequestsCard } from "./TeamStats";
 
-export function TeamCards({ team, days, now, slotOf, isYou, yoursOn, lockOwners, tip, onShowBranch, onShowPerson }: TeamData) {
+export function TeamCards({ team, work, requests, days, now, slotOf, isYou, yoursOn, lockOwners, tip, onShowBranch, onShowPerson }: TeamData) {
   const today = days[days.length - 1];
   const people = team.people.map((person) => ({ person, slot: slotOf(person.email), daily: perDay(person.times, days) }));
   const totals = days.map((_, index) => people.reduce((sum, entry) => sum + entry.daily[index], 0));
@@ -19,6 +20,12 @@ export function TeamCards({ team, days, now, slotOf, isYou, yoursOn, lockOwners,
   const scale = Math.max(1, ...team.branches.flatMap((branch) => [branch.ahead, branch.behind]));
   const labelled = labelledDays(days.length);
   const at = (index: number) => `${(index / Math.max(1, days.length - 1)) * 100}%`;
+  // The period before, as long, to compare with.
+  const before = previousPerDay(team.previous, days);
+  const changed = change(total, team.previous.length);
+  const allTimes = team.people.flatMap((person) => person.times);
+  const nameOf = (email: string) => team.people.find((person) => person.email.toLowerCase() === email)?.name ?? email;
+  const workOf = (email: string) => work?.people.find((entry) => entry.email === email.toLowerCase());
 
   return (
     <div className="team-cards">
@@ -27,7 +34,15 @@ export function TeamCards({ team, days, now, slotOf, isYou, yoursOn, lockOwners,
           <div className="team-hero-figure">
             <span className="team-hero-number">{total.toLocaleString()}</span>
             <span className="team-hero-text">
-              commits in the last {team.days} days
+              <span>
+                commits in the last {team.days} days
+                {changed !== null && (
+                  <span className={`team-change ${changed > 0 ? "up" : changed < 0 ? "down" : ""}`} title={`${plural(team.previous.length, "commit")} in the ${team.days} days before`}>
+                    {changed > 0 ? "+" : changed < 0 ? "−" : ""}
+                    {Math.abs(changed)}% vs the {team.days} days before
+                  </span>
+                )}
+              </span>
               <span className="muted">
                 {team.mainCommits.toLocaleString()} on <span className="mono">{team.main}</span>
                 {team.branches.length > 0 && `, ${(total - team.mainCommits).toLocaleString()} on ${plural(team.branches.length, "branch", "branches")}`}
@@ -52,12 +67,21 @@ export function TeamCards({ team, days, now, slotOf, isYou, yoursOn, lockOwners,
           </div>
           <AreaTrend
             values={totals}
-            top={Math.max(1, ...totals)}
+            ghost={before}
+            top={Math.max(1, ...totals, ...before)}
             color="var(--accent)"
             height={112}
             label={`Commits per day over the last ${team.days} days`}
             tip={tip}
-            describe={(index) => <DayTip label={dayLabel(days[index], today)} entries={people.map((entry) => ({ ...entry, count: entry.daily[index] }))} />}
+            describe={(index) => (
+              <>
+                <DayTip label={dayLabel(days[index], today)} entries={people.map((entry) => ({ ...entry, count: entry.daily[index] }))} />
+                <span className="team-tip-row muted">
+                  <span className="team-ghost-key" />
+                  the period before<span className="team-tip-value">{before[index]}</span>
+                </span>
+              </>
+            )}
           />
           <div className="team-area-axis" aria-hidden="true">
             {days.map((day, index) =>
@@ -70,6 +94,16 @@ export function TeamCards({ team, days, now, slotOf, isYou, yoursOn, lockOwners,
           </div>
         </div>
       </section>
+
+      {(work || (requests && requests.length > 0)) && (
+        <div className="team-panels">
+          {work && work.kinds.length > 0 && <KindsCard work={work} tip={tip} />}
+          {work && <LinesCard work={work} days={days} today={today} tip={tip} />}
+          {work && work.hotspots.length > 0 && <HotspotsCard work={work} nameOf={nameOf} slotOf={slotOf} tip={tip} />}
+          <PunchCard times={allTimes} tip={tip} />
+          {requests && requests.length > 0 && <RequestsCard requests={requests} since={team.since} />}
+        </div>
+      )}
 
       <h3 className="team-section-title">People</h3>
       <ul className="team-card-grid">
@@ -99,6 +133,20 @@ export function TeamCards({ team, days, now, slotOf, isYou, yoursOn, lockOwners,
                 tip={tip}
                 describe={(index) => <strong>{`${dayLabel(days[index], today)} · ${plural(daily[index], "commit")}`}</strong>}
               />
+              <span className="team-rhythm">
+                <span>
+                  Active on <strong>{rhythm(daily).active}</strong> {rhythm(daily).active === 1 ? "day" : "days"}
+                </span>
+                <span>
+                  <strong>{rhythm(daily).streak}</strong> in a row at most
+                </span>
+                {workOf(person.email) && (workOf(person.email)?.added ?? 0) + (workOf(person.email)?.removed ?? 0) > 0 && (
+                  <span>
+                    <span className="added">+{workOf(person.email)?.added.toLocaleString()}</span> <span className="removed">−{workOf(person.email)?.removed.toLocaleString()}</span>
+                  </span>
+                )}
+              </span>
+              {workOf(person.email) && <KindBar kinds={workOf(person.email)?.kinds ?? []} tip={tip} />}
               <span className="team-chips">
                 {person.branches.slice(0, 3).map((branch) => (
                   <span key={branch} className="team-branch-chip mono">

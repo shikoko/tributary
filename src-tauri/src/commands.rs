@@ -537,6 +537,18 @@ pub async fn search_commits(
     blocking(move || actions::search_commits(&PathBuf::from(path), mode, &query)).await
 }
 
+/// What the team changed in the last `days` days: kinds of file, hotspots, lines of code.
+#[tauri::command]
+pub async fn team_work(path: String, days: u32) -> Result<actions::TeamWork> {
+    blocking(move || actions::team_work(&PathBuf::from(path), days)).await
+}
+
+/// The pull or merge requests opened or updated lately, newest first.
+#[tauri::command]
+pub async fn recent_requests(path: String) -> Result<Vec<crate::requests::RecentRequest>> {
+    crate::requests::recent_requests(&PathBuf::from(path)).await
+}
+
 /// Who committed where in the last `days` days, on which branches.
 #[tauri::command]
 pub async fn team_activity(path: String, days: u32) -> Result<actions::TeamActivity> {

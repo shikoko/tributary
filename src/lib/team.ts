@@ -113,3 +113,65 @@ export function smoothPath(points: [number, number][]): string {
   }
   return path;
 }
+
+/** How much `now` changed on `before`, as a whole percentage (null when there was nothing before). */
+export function change(now: number, before: number): number | null {
+  if (before <= 0) return null;
+  return Math.round(((now - before) / before) * 100);
+}
+
+/** The period before's commits, day by day, lined up with the period's days. */
+export function previousPerDay(times: number[], days: number[]): number[] {
+  if (days.length === 0) return [];
+  // The same number of days, ending the day before the period starts.
+  const shifted: number[] = [];
+  let day = days[0];
+  for (let i = 0; i < days.length; i++) {
+    const before = new Date(day);
+    before.setDate(before.getDate() - 1);
+    day = before.getTime();
+    shifted.unshift(day);
+  }
+  return perDay(times, shifted);
+}
+
+/** Commits by weekday (Monday first) and hour of the day: 7 rows of 24. */
+export function punchCard(times: number[]): number[][] {
+  const grid = Array.from({ length: 7 }, () => Array<number>(24).fill(0));
+  for (const time of times) {
+    const date = new Date(time * 1000);
+    grid[(date.getDay() + 6) % 7][date.getHours()]++;
+  }
+  return grid;
+}
+
+/** On how many days there were commits, and the most days in a row. */
+export function rhythm(daily: number[]): { active: number; streak: number } {
+  let active = 0;
+  let streak = 0;
+  let run = 0;
+  for (const count of daily) {
+    run = count > 0 ? run + 1 : 0;
+    if (count > 0) active++;
+    streak = Math.max(streak, run);
+  }
+  return { active, streak };
+}
+
+/** The middle value (the mean of the two middle ones for an even count), or null. */
+export function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+/** "3 hours", "1.5 days", "40 minutes": a length of time, roughly. */
+export function roughDuration(seconds: number): string {
+  const minutes = seconds / 60;
+  if (minutes < 60) return `${Math.max(1, Math.round(minutes))} minutes`;
+  const hours = minutes / 60;
+  if (hours < 24) return `${Math.round(hours)} ${Math.round(hours) === 1 ? "hour" : "hours"}`;
+  const days = Math.round((hours / 24) * 10) / 10;
+  return `${days} ${days === 1 ? "day" : "days"}`;
+}

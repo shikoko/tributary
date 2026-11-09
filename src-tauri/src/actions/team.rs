@@ -28,6 +28,8 @@ pub struct TeamActivity {
     pub branches: Vec<BranchActivity>,
     /// Commits on `main` itself since then.
     pub main_commits: usize,
+    /// When each commit in the period before was made (on any branch), to compare with.
+    pub previous: Vec<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -269,8 +271,24 @@ pub fn team_activity(path: &Path, days: u32) -> Result<TeamActivity, Error> {
         person.times.sort_unstable_by(|a, b| b.cmp(a));
     }
     people.sort_by(|a, b| b.latest.cmp(&a.latest).then_with(|| a.name.cmp(&b.name)));
+    // The period before, as long, on every branch.
+    let previous: Vec<i64> = git
+        .run(&[
+            "log",
+            "--branches",
+            "--remotes",
+            "--format=%ct",
+            &format!("--since=@{}", since - (now - since)),
+            &format!("--until=@{since}"),
+        ])
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|line| line.trim().parse().ok())
+        .take(MAX_TIMES * 4)
+        .collect();
     Ok(TeamActivity {
         since,
+        previous,
         days: days.clamp(1, 365),
         main,
         people,

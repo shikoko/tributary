@@ -289,7 +289,7 @@ fn last_change(
 
 /// Which of `paths` can't be merged line by line: stored with Git LFS, marked lockable,
 /// or marked binary (`-merge`, `merge=binary`).
-fn unmergeable_files(git: &Git, paths: &[&str]) -> HashSet<String> {
+pub(super) fn unmergeable_files(git: &Git, paths: &[&str]) -> HashSet<String> {
     let mut found = HashSet::new();
     for batch in in_batches(paths) {
         let mut args = vec!["check-attr", "-z", "filter", "lockable", "merge", "--"];

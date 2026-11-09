@@ -171,6 +171,7 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         // The preview has no window to tell about changes: refreshing on focus does.
         "watch_repository" | "stop_watching" => to_json(()),
         "team_activity" => to_json(actions::team_activity(&path()?, arg(args, "days")?)?),
+        "team_work" => to_json(actions::team_work(&path()?, arg(args, "days")?)?),
         "search_commits" => {
             let mode: actions::SearchMode = arg(args, "mode")?;
             let query: String = arg(args, "query")?;
@@ -275,6 +276,9 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
                 &path,
             ))?)
         }
+        "recent_requests" => to_json(tauri::async_runtime::block_on(
+            tributary_lib::requests::recent_requests(&path()?),
+        )?),
         "new_request_info" => to_json(tauri::async_runtime::block_on(
             tributary_lib::requests::new_request_info(
                 &path()?,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assignSlots, dayStart, labelledDays, nextDay, perDay, periodDays, smoothPath, withoutRemote } from "./team";
+import { assignSlots, change, dayStart, labelledDays, median, nextDay, perDay, periodDays, previousPerDay, punchCard, rhythm, roughDuration, smoothPath, withoutRemote } from "./team";
 
 const at = (y: number, m: number, d: number, h = 0, min = 0) => new Date(y, m - 1, d, h, min).getTime();
 
@@ -60,5 +60,26 @@ describe("team activity charts", () => {
     expect(month(29)).toBe(false);
     expect(withoutRemote("origin/feat/door")).toBe("feat/door");
     expect(withoutRemote("feat/door")).toBe("feat/door");
+  });
+
+  it("compares with the period before", () => {
+    expect(change(12, 10)).toBe(20);
+    expect(change(5, 10)).toBe(-50);
+    expect(change(3, 0)).toBeNull();
+    const days = [at(2026, 3, 8), at(2026, 3, 9), at(2026, 3, 10)];
+    const times = [at(2026, 3, 5, 10), at(2026, 3, 7, 9), at(2026, 3, 7, 18), at(2026, 3, 8, 9)].map((ms) => ms / 1000);
+    expect(previousPerDay(times, days)).toEqual([1, 0, 2]);
+  });
+
+  it("sums up when and how steadily people commit", () => {
+    // Tuesday 3 March 2026, 14:20.
+    const grid = punchCard([at(2026, 3, 3, 14, 20) / 1000, at(2026, 3, 8, 23) / 1000]);
+    expect(grid[1][14]).toBe(1);
+    expect(grid[6][23]).toBe(1);
+    expect(rhythm([0, 2, 1, 0, 3, 1, 1, 0])).toEqual({ active: 5, streak: 3 });
+    expect(median([5, 1, 3])).toBe(3);
+    expect(median([4, 1, 3, 2])).toBe(2.5);
+    expect(median([])).toBeNull();
+    expect([600, 3 * 3600, 36 * 3600].map(roughDuration)).toEqual(["10 minutes", "3 hours", "1.5 days"]);
   });
 });

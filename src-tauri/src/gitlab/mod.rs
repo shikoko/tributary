@@ -176,6 +176,67 @@ async fn auth_mode(
     Ok(None)
 }
 
+#[derive(serde::Deserialize)]
+struct RawRecentRequest {
+    iid: u64,
+    title: String,
+    author: Option<RawUsername>,
+    #[serde(default)]
+    draft: bool,
+    created_at: String,
+    merged_at: Option<String>,
+    closed_at: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct RawUsername {
+    username: String,
+}
+
+/// The project's merge requests most recently updated, up to 100. The kind of token git
+/// keeps isn't known: it's tried as a personal access token, then as an OAuth token.
+pub(crate) async fn recent_requests(
+    project: &Project,
+    token: Option<&str>,
+) -> Result<Vec<crate::requests::RecentRequest>, Error> {
+    let client = client()?;
+    let url = format!(
+        "{}/merge_requests?state=all&order_by=updated_at&sort=desc&per_page=100",
+        project.api
+    );
+    let tries: Vec<(Option<&str>, bool)> = match token {
+        Some(token) => vec![(Some(token), false), (Some(token), true), (None, false)],
+        None => vec![(None, false)],
+    };
+    for (token, bearer) in tries {
+        let answer = get(&client, &url, token, bearer)
+            .await
+            .map_err(|e| format!("Couldn't reach GitLab ({e})"))?;
+        if answer.status().is_success() {
+            let raw: Vec<RawRecentRequest> = answer
+                .json()
+                .await
+                .map_err(|e| format!("Couldn't read the merge requests ({e})"))?;
+            return Ok(raw
+                .into_iter()
+                .map(|request| crate::requests::RecentRequest {
+                    number: request.iid,
+                    title: request.title,
+                    author: request.author.map(|author| author.username).unwrap_or_default(),
+                    draft: request.draft,
+                    created: request.created_at,
+                    merged: request.merged_at,
+                    closed: request.closed_at,
+                })
+                .collect());
+        }
+        if answer.status() != reqwest::StatusCode::UNAUTHORIZED {
+            break;
+        }
+    }
+    Ok(Vec::new())
+}
+
 /// The open merge requests of the repository's GitLab remote. Empty for other remotes.
 pub async fn merge_requests(path: &Path) -> Result<Vec<PullRequest>, Error> {
     let path = path.to_owned();

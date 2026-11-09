@@ -186,6 +186,77 @@ pub(crate) async fn site_of(path: &Path) -> Result<Site> {
         .map_err(|e| Error::Message(e.to_string()))?
 }
 
+/// A pull or merge request, for Team activity's figures.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecentRequest {
+    pub number: u64,
+    pub title: String,
+    /// Its author's login.
+    pub author: String,
+    pub draft: bool,
+    /// When it was opened, merged and closed (RFC 3339).
+    pub created: String,
+    pub merged: Option<String>,
+    pub closed: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct RawRecentPull {
+    number: u64,
+    title: String,
+    user: Option<RawLogin>,
+    #[serde(default)]
+    draft: bool,
+    created_at: String,
+    merged_at: Option<String>,
+    closed_at: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct RawLogin {
+    login: String,
+}
+
+/// The repository's pull requests (or merge requests) most recently updated, up to 100:
+/// enough for a month of most teams. Empty when the site can't be reached.
+pub async fn recent_requests(path: &Path) -> Result<Vec<RecentRequest>> {
+    match site_of(path).await? {
+        Site::GitHub {
+            full_name, token, ..
+        } => {
+            let client = crate::github::client()?;
+            let url = format!(
+                "https://api.github.com/repos/{full_name}/pulls?state=all&sort=updated&direction=desc&per_page=100"
+            );
+            let response = crate::github::api_request(&client, url, token.as_deref())
+                .send()
+                .await
+                .map_err(|e| format!("Couldn't reach GitHub ({e})"))?;
+            if !response.status().is_success() {
+                return Ok(Vec::new());
+            }
+            let pulls: Vec<RawRecentPull> = response
+                .json()
+                .await
+                .map_err(|e| format!("Couldn't read the pull requests ({e})"))?;
+            Ok(pulls
+                .into_iter()
+                .map(|pull| RecentRequest {
+                    number: pull.number,
+                    title: pull.title,
+                    author: pull.user.map(|user| user.login).unwrap_or_default(),
+                    draft: pull.draft,
+                    created: pull.created_at,
+                    merged: pull.merged_at,
+                    closed: pull.closed_at,
+                })
+                .collect())
+        }
+        Site::GitLab { project, token } => crate::gitlab::recent_requests(&project, token.as_deref()).await,
+    }
+}
+
 /// The branches a new request could go into, and which to suggest.
 ///
 /// `branch` is its name on the remote; `local` the local branch, when there is one.

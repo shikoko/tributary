@@ -1,7 +1,7 @@
 // Team activity's pieces: what the view is given, avatars ringed in each person's colour,
 // how far a branch is from the main one, and a tooltip.
 import { useRef, useState, type CSSProperties, type FocusEvent, type MouseEvent, type ReactNode } from "react";
-import type { BranchActivity, Lock, TeamActivity, TeamPerson } from "../../api";
+import type { BranchActivity, Lock, RecentRequest, TeamActivity, TeamPerson, TeamWork } from "../../api";
 import { plural } from "../../lib/format";
 import { baseName } from "../../lib/paths";
 import { seriesColor } from "../../lib/team";
@@ -9,6 +9,10 @@ import { Avatar } from "../Avatar";
 
 export interface TeamData {
   team: TeamActivity;
+  /** What was changed (kinds of file, hotspots, lines), once read. */
+  work: TeamWork | null;
+  /** Pull requests lately, when the repository is on GitHub or GitLab. */
+  requests: RecentRequest[] | null;
   /** The period's days, each as its midnight (milliseconds), and now. */
   days: number[];
   now: number;

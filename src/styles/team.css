@@ -507,3 +507,327 @@
   line-height: 1.6;
   white-space: pre-line;
 }
+
+/* Comparing with the period before. */
+.team-change {
+  margin-left: 10px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.team-area-ghost {
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.team-ghost-key {
+  width: 10px;
+  height: 0;
+  border-top: 2px solid var(--text-faint);
+}
+
+.team-area.flipped {
+  transform: scaleY(-1);
+}
+
+/* The statistics' panels, two or three to a row. */
+/* Flowing into columns, so panels of different heights leave no gaps. */
+.team-panels {
+  margin-top: 14px;
+  column-gap: 12px;
+  column-width: 340px;
+}
+
+.team-panels > .team-panel {
+  margin-bottom: 12px;
+  break-inside: avoid;
+}
+
+.team-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-panel);
+}
+
+.team-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.team-panel-head h3 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.team-panel-head .muted {
+  font-size: 12px;
+}
+
+/* Kinds of work: one whole in parts. */
+.team-kinds {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+}
+
+.team-kinds.tall {
+  height: 28px;
+  border-radius: 6px;
+}
+
+.team-kind {
+  display: flex;
+  flex-basis: 0;
+  align-items: center;
+  min-width: 3px;
+}
+
+.team-kind-share {
+  padding-left: 8px;
+  color: var(--on-bright);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.team-kind-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  list-style: none;
+}
+
+.team-kind-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Lines of code: added above the line, removed below. */
+.team-lines-totals {
+  display: flex;
+  gap: 10px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.added {
+  color: var(--added-number);
+}
+
+.removed {
+  color: var(--removed-number);
+}
+
+.team-mirror {
+  display: flex;
+  flex-direction: column;
+}
+
+.team-mirror-axis {
+  border-top: 1px solid var(--border-strong);
+}
+
+/* Hotspots. */
+.team-hotspots,
+.team-request-authors {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.team-hotspots li,
+.team-request-authors li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 12.5px;
+}
+
+.team-hotspot-name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.team-hotspot-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.team-hotspot-file .mono {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.team-hotspot-name > .muted {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+
+.team-hotspot-risk {
+  flex: none;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgb(var(--notice-rgb) / 0.14);
+  color: var(--notice-text);
+  font-size: 11px;
+}
+
+.team-hotspot-bar {
+  flex: 0 0 64px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--bg-raised);
+}
+
+.team-hotspot-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(to right, rgb(var(--accent-rgb) / 0.45), var(--accent));
+}
+
+.team-hotspot-count {
+  flex: none;
+  min-width: 22px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.team-request-author {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-request-authors .team-hotspot-count {
+  min-width: 64px;
+}
+
+/* When the team works: weekdays by hours. */
+.team-punch {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.team-punch-row {
+  display: flex;
+  align-items: center;
+}
+
+.team-punch-day {
+  flex: 0 0 34px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.team-punch-cell {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  min-width: 0;
+}
+
+.team-punch-row:not(.team-punch-hours) .team-punch-cell::before {
+  content: "";
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.team-punch-dot {
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.team-punch-hours .team-punch-cell {
+  justify-content: flex-start;
+  overflow: visible;
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* Pull requests. */
+.team-figures {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 4px 28px;
+}
+
+.team-figures > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.team-figures .muted {
+  font-size: 12px;
+}
+
+.team-figure {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+/* Each person's rhythm. */
+.team-rhythm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.team-rhythm strong {
+  color: var(--text);
+  font-weight: 600;
+}

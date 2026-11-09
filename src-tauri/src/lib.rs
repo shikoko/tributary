@@ -99,6 +99,8 @@ pub fn run() {
             commands::blame_file,
             commands::search_commits,
             commands::team_activity,
+            commands::team_work,
+            commands::recent_requests,
             commands::watch_repository,
             commands::stop_watching,
             commands::lfs_storage,

@@ -44,6 +44,7 @@ mod submodules;
 mod support;
 mod tags;
 mod team;
+mod team_work;
 mod unity;
 mod unity_meta;
 mod validate;
@@ -91,6 +92,7 @@ pub use speed::{SpeedSettings, SpeedUp, speed_settings};
 pub use stacks::{Stacked, branch_stacks};
 pub use submodules::{Submodule, SubmoduleState, submodules};
 pub use team::{BranchActivity, BranchPerson, TeamActivity, TeamPerson, team_activity};
+pub use team_work::{FileKind, Hotspot, KindCount, PersonWork, TeamWork, WorkCommit, team_work};
 pub use unity::{UnitySetup, unity_setup};
 pub use unity_meta::{MetaKind, MetaProblem};
 
