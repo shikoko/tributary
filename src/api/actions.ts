@@ -112,6 +112,8 @@ export type Action =
   /** Shelve the working copy's versions of `paths` (every change, when empty) for the team; unless `keep`, take them out of the working copy after. */
   | { kind: "shelve"; paths: string[]; description: string; keep: boolean }
   | { kind: "openShelf"; reference: string }
+  /** Put files back as a local history snapshot had them (all of its files, when empty). */
+  | { kind: "restoreFromHistory"; reference: string; paths: string[] }
   | { kind: "deleteShelf"; reference: string }
   | { kind: "setSigning"; mode: SigningMode; key: string | null }
   /** Save commits as one patch file, oldest first. */

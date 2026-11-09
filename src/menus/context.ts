@@ -50,6 +50,8 @@ export type OpenDialog =
   | { kind: "projectSetup" }
   /** Shelves: shelve these files (all changes when left out), or open a teammate's. */
   | { kind: "shelves"; paths?: string[] }
+  /** Local history: snapshots of uncommitted work (only those of `file`, when given). */
+  | { kind: "localHistory"; file?: string }
   /** Release notes for a tag: what went into it since the tag before. */
   | { kind: "releaseNotes"; tag: string }
   /** Split a commit in two; `later`: how many commits come after it on the branch. */

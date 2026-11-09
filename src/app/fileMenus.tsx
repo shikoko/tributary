@@ -9,6 +9,7 @@ import {
   DiffIcon,
   ExternalLinkIcon,
   FileHistoryIcon,
+  HistoryIcon,
   FolderIcon,
   IgnoreIcon,
   LockIcon,
@@ -150,6 +151,9 @@ export function fileMenuItems(ctx: FileMenuContext, file: FileChange, source: Di
         disabled: !canChange,
         onSelect: () => openDialog({ kind: "stash", paths }),
       },
+      ...(folder
+        ? []
+        : [{ label: "Local history of this file…", icon: <HistoryIcon />, onSelect: () => openDialog({ kind: "localHistory", file: file.path }) }]),
       {
         label: folder ? "Shelve this folder for the team…" : "Shelve this file for the team…",
         icon: <ShelfIcon />,

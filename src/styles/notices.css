@@ -694,3 +694,104 @@ code {
   border-color: var(--danger);
   color: var(--danger);
 }
+
+/* Local history: snapshots of uncommitted work, by time, and their files. */
+.history-columns {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 16px;
+  min-height: 260px;
+  max-height: 420px;
+  margin-top: 12px;
+}
+
+.history-times {
+  overflow-y: auto;
+  padding-right: 10px;
+  border-right: 1px solid var(--border);
+}
+
+.history-day {
+  margin: 8px 0 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.history-day:first-child {
+  margin-top: 0;
+}
+
+.history-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-time:hover {
+  background: var(--bg-hover);
+}
+
+.history-time.on {
+  background: rgb(var(--accent-rgb) / 0.14);
+  color: var(--text);
+}
+
+.history-time.on svg {
+  color: var(--accent);
+}
+
+.history-clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.history-count {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.history-files {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.history-files li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 5px 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+
+.history-file-name {
+  white-space: nowrap;
+}
+
+.history-file-dir {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

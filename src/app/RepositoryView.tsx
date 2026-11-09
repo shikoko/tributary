@@ -540,6 +540,7 @@ export function RepositoryView(props: Props) {
         openWorktree={props.openTab}
         push={() => act({ kind: "push", force: false }, "push")}
         onRequestCreated={props.onRequestCreated}
+        openSettings={(section) => props.openSettings(section)}
         signIn={() => {
           openDialog(null);
           props.openSettings("Accounts");

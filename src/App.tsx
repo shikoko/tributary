@@ -25,6 +25,7 @@ import { RepositoryView } from "./app/RepositoryView";
 import { StartView } from "./app/StartView";
 import { useActions } from "./app/useActions";
 import { useBackgroundFetch } from "./app/useBackgroundFetch";
+import { useLocalHistory } from "./app/useLocalHistory";
 import { useBranchCounts } from "./app/useBranchCounts";
 import { useChangedElsewhere } from "./app/useChangedElsewhere";
 import { useSubmodules } from "./app/useSubmodules";
@@ -264,6 +265,7 @@ export default function App() {
     if (!latest.current.snapshot || !idle() || repo.blockFocusRefresh.current) return;
     latest.current.refresh();
   });
+  useLocalHistory({ tabs, minutes: preferences.historyMinutes, maxMB: preferences.historyMaxMB, days: preferences.historyDays });
   const tabNews = useBackgroundFetch({
     snapshot,
     tabs,

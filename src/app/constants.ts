@@ -13,6 +13,8 @@ export type Focus =
 
 /** Don't refresh on window focus more often than this, in milliseconds. */
 export const FOCUS_REFRESH_INTERVAL = 2000;
+/** How often local history keeps a snapshot of uncommitted work, in minutes, to choose from. */
+export const HISTORY_MINUTES = [5, 10, 15, 30];
 /** How often to fetch in the background, in minutes, to choose from. */
 export const FETCH_MINUTES = [1, 2, 5, 10, 15, 30];
 /** The first background fetch after opening a repository. */

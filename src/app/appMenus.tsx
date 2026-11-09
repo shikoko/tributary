@@ -175,6 +175,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           { id: "commit", label: "Commit…", icon: <PlusIcon />, enabled: Boolean(snapshot.worktree) && canChange, run: () => run.select(WORKTREE_ID) },
           { id: "stash", label: "Stash Changes…", icon: <StashIcon />, enabled: Boolean(snapshot.worktree) && canChange, run: () => run.dialog({ kind: "stash" }) },
           { id: "shelves", label: "Shelves…", icon: <ShelfIcon />, run: () => run.dialog({ kind: "shelves" }) },
+          { id: "local-history", label: "Local History…", icon: <HistoryIcon />, run: () => run.dialog({ kind: "localHistory" }) },
           "-",
           { id: "new-branch", label: "New Branch…", icon: <BranchIcon />, enabled: Boolean(head) && canChange, run: () => head && run.dialog({ kind: "newBranch", target: head }) },
           { id: "new-tag", label: "New Tag…", icon: <TagIcon />, enabled: Boolean(head) && canChange, run: () => head && run.dialog({ kind: "tag", target: head }) },

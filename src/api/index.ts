@@ -7,6 +7,7 @@ export * from "./diagnostics";
 export * from "./diff";
 export * from "./diffTools";
 export * from "./github";
+export * from "./history";
 export * from "./identity";
 export * from "./issues";
 export * from "./lfs";

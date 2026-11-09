@@ -38,6 +38,10 @@ export function usePreferences() {
   /** After pushing: ask to release the locks on the pushed files, release them, or keep them. */
   const [releaseLocks, setReleaseLocks] = useStoredState<ReleaseLocks>("locks.release", "ask");
   const [submoduleUpdates, setSubmoduleUpdates] = useStoredState<SubmoduleUpdates>("submodules.update", "ask");
+  /** Local history: a snapshot of uncommitted work this often (minutes, 0 for never), of files up to so big (MB), kept so many days. */
+  const [historyMinutes, setHistoryMinutes] = useStoredState("history.minutes", 10);
+  const [historyMaxMB, setHistoryMaxMB] = useStoredState("history.maxMB", 50);
+  const [historyDays, setHistoryDays] = useStoredState("history.days", 7);
   /** Light or dark, the accent colour, the graph's and the diffs' colours (filled in by normalizeAppearance). */
   const [appearance, setAppearance] = useStoredState<Partial<Appearance>>(APPEARANCE_KEY, {});
   return {
@@ -49,6 +53,7 @@ export function usePreferences() {
     activityOpen, setActivityOpen, fetchMinutes, setFetchMinutes, newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices,
     autoUpdate, setAutoUpdate, largeFileMB, setLargeFileMB, autoLock, setAutoLock, releaseLocks, setReleaseLocks,
     submoduleUpdates, setSubmoduleUpdates, appearance, setAppearance,
+    historyMinutes, setHistoryMinutes, historyMaxMB, setHistoryMaxMB, historyDays, setHistoryDays,
   };
 }
 

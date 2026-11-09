@@ -39,6 +39,7 @@ export function checkFor(action: Action): UndoCheck {
       return "remote";
     case "deleteBranches":
     case "shelve":
+    case "restoreFromHistory":
     case "ignorePaths":
     case "discardFiles":
     case "applyLines":

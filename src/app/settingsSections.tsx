@@ -1,11 +1,11 @@
 import type { ColumnOptions } from "../components/CommitList";
 import { appearanceRows } from "../components/AppearanceRows";
-import { ColumnsIcon, ContrastIcon, DiffIcon, DownloadIcon, FetchIcon, GearIcon, LockIcon, UserIcon } from "../components/Icons";
+import { ColumnsIcon, ContrastIcon, DiffIcon, DownloadIcon, FetchIcon, GearIcon, HistoryIcon, LockIcon, UserIcon } from "../components/Icons";
 import type { SettingRow, SettingsSection } from "../components/SettingsDialog";
 import type { GitHubStatus } from "../api";
 import type { Theme } from "../lib/appearance";
 import type { Updates } from "../lib/updates";
-import { FETCH_MINUTES, ZOOM_LEVELS } from "./constants";
+import { FETCH_MINUTES, HISTORY_MINUTES, ZOOM_LEVELS } from "./constants";
 import type { NewCommitNotices, Preferences, ReleaseLocks, SubmoduleUpdates } from "./usePreferences";
 
 /** The Settings section with the diff and merge tools, to open it at. */
@@ -41,6 +41,7 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
   const { daySeparators, setDaySeparators, previews, setPreviews, profilePictures, setProfilePictures } = preferences;
   const { columnOptions, setColumnOptions, zoom, setZoom } = preferences;
+  const { historyMinutes, setHistoryMinutes, historyMaxMB, setHistoryMaxMB, historyDays, setHistoryDays } = preferences;
   const sections: SettingsSection[] = [
     {
       title: "General",
@@ -167,6 +168,40 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
             { value: "system", label: "Also notify me when Tributary is in the background" },
           ],
           set: (value) => setRequestNotices(value as NewCommitNotices),
+        },
+      ],
+    },
+    {
+      title: "Local history",
+      icon: <HistoryIcon size={15} />,
+      rows: [
+        {
+          kind: "select",
+          label: "Keep snapshots of your changes",
+          hint: "Every few minutes, the files you've changed but not committed are kept, so a crash or an overwrite doesn't lose your work. Repository → Local History… puts them back.",
+          value: String(historyMinutes),
+          options: [
+            { value: "0", label: "Never" },
+            ...HISTORY_MINUTES.map((minutes) => ({ value: String(minutes), label: `Every ${minutes} minutes` })),
+          ],
+          set: (value) => setHistoryMinutes(Number(value)),
+        },
+        {
+          kind: "select",
+          label: "Leave out files bigger than",
+          hint: "A copy of every version of big files would fill the disk.",
+          value: String(historyMaxMB),
+          options: [10, 50, 200, 1000].map((mb) => ({ value: String(mb), label: mb >= 1000 ? `${mb / 1000} GB` : `${mb} MB` })),
+          set: (value) => setHistoryMaxMB(Number(value)),
+          disabled: historyMinutes <= 0,
+        },
+        {
+          kind: "select",
+          label: "Keep them for",
+          value: String(historyDays),
+          options: [1, 3, 7, 14, 30].map((days) => ({ value: String(days), label: days === 1 ? "A day" : `${days} days` })),
+          set: (value) => setHistoryDays(Number(value)),
+          disabled: historyMinutes <= 0,
         },
       ],
     },

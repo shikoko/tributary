@@ -25,6 +25,7 @@ import { ProjectSetupDialog } from "../components/ProjectSetupDialog";
 import { SplitCommitDialog } from "../components/SplitCommitDialog";
 import { StashDialog } from "../components/StashDialog";
 import { ShelvesDialog } from "../components/ShelvesDialog";
+import { LocalHistoryDialog } from "../components/LocalHistoryDialog";
 import { TagDialog } from "../components/TagDialog";
 import { baseName } from "../lib/paths";
 import { deleteAnyway, splitRemoteBranch, type OpenDialog } from "../menus";
@@ -60,6 +61,8 @@ interface Props {
   onRequestCreated: (pr: PullRequest) => void;
   /** Sign in to GitHub, in Settings. */
   signIn: () => void;
+  /** Open Settings, at a section. */
+  openSettings: (section: string) => void;
   /** Say something briefly, like "Copied the release notes". */
   notify: (text: string) => void;
 }
@@ -146,6 +149,16 @@ export function RepositoryDialogs(props: Props) {
     )}
     {dialog?.kind === "ignoreReason" && (
       <IgnoreReasonDialog repoPath={snapshot.path} file={dialog.file} canChange={!snapshot.bare} onClose={() => onClose()} run={(action) => run(action)} />
+    )}
+    {dialog?.kind === "localHistory" && (
+      <LocalHistoryDialog
+        repoPath={snapshot.path}
+        file={dialog.file}
+        canChange={!snapshot.bare}
+        run={(action) => run(action)}
+        onOpenSettings={() => props.openSettings("Local history")}
+        onClose={() => onClose()}
+      />
     )}
     {dialog?.kind === "shelves" && (
       <ShelvesDialog
