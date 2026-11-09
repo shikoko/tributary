@@ -187,3 +187,32 @@
   min-height: 0;
   height: auto;
 }
+
+/* A pull, fetch, push or checkout running in a tab that isn't shown. */
+.tab-ring {
+  flex: none;
+}
+
+.tab-ring-track {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 2;
+}
+
+.tab-ring-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-width: 2;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.tab-ring.spinning {
+  animation: tab-ring-spin 1s linear infinite;
+}
+
+@keyframes tab-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

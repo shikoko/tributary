@@ -48,7 +48,9 @@ interface Props {
  */
 export function RepositoryBanners(props: Props) {
   const { snapshot, repo, actions, selection, highlight, settings, lfsHealth, lockRelease, showWholeHistory, openWorktree } = props;
-  const { act, running, progress } = actions;
+  const { act, running, runningPath } = actions;
+  // An action's progress shows in the repository it runs in (its tab shows it too).
+  const progress = runningPath === null || runningPath === snapshot.path ? actions.progress : null;
   const { error, setError } = repo;
   const hook = error ? hookFailure(error.message) : null;
   const { focus } = highlight;

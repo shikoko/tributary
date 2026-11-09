@@ -112,6 +112,58 @@ fn counts_the_git_lfs_files_a_pull_downloads() {
     );
 }
 
+/// Checking out a remote branch downloads the Git LFS files it needs first, all together,
+/// so the checkout finds them here.
+#[test]
+fn downloads_a_branchs_git_lfs_files_before_checking_it_out() {
+    if !lfs_installed() {
+        eprintln!("Git LFS isn't installed: skipped");
+        return;
+    }
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("switch-remote.git");
+    let alice = TempRepo::new("switch-alice");
+    alice.git(&["lfs", "install", "--local"]);
+    alice.git(&["lfs", "track", "*.bin"]);
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.git(&["add", ".gitattributes"]);
+    alice.git(&["commit", "--quiet", "-m", "Track bins"]);
+    alice.git(&["push", "--quiet", "-u", "origin", "main"]);
+    alice.git(&["switch", "--quiet", "-c", "art"]);
+    for (name, byte) in [("one.bin", 5u8), ("two.bin", 6)] {
+        std::fs::write(alice.path().join(name), vec![byte; 20_000]).unwrap();
+    }
+    alice.git(&["add", "one.bin", "two.bin"]);
+    alice.git(&["commit", "--quiet", "-m", "Art"]);
+    alice.git(&["push", "--quiet", "origin", "art"]);
+
+    let bob = TempRepo::clone_of("switch-bob", &remote);
+    bob.git(&["lfs", "install", "--local"]);
+    let reports = std::cell::RefCell::new(Vec::new());
+    actions::run_with_progress(
+        bob.path(),
+        Action::CheckoutRemoteBranch {
+            name: "origin/art".into(),
+        },
+        &|progress| reports.borrow_mut().push(progress),
+    )
+    .unwrap();
+    let counted: Vec<_> = reports
+        .into_inner()
+        .into_iter()
+        .filter_map(|progress| progress.files)
+        .collect();
+    assert_eq!(
+        counted.last().map(|count| (count.done, count.total)),
+        Some((2, 2)),
+        "{counted:?}"
+    );
+    assert_eq!(
+        std::fs::read(bob.path().join("two.bin")).unwrap(),
+        vec![6u8; 20_000]
+    );
+}
+
 /// A Git LFS server that only does locking, as `rosa` sees it from her side: every
 /// request comes from `maya`. Without `verify`, it can't tell whose locks are whose.
 struct LockServer {

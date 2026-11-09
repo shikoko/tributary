@@ -13,7 +13,8 @@ use super::{Git, command, error_message, lfs_progress, read_lines};
 use crate::error::{Error, Result};
 
 /// How far a fetch, pull or push has got.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Progress {
     /// Like "Receiving objects".
     pub phase: String,
@@ -26,7 +27,26 @@ pub struct Progress {
     /// of them, or of the one being downloaded).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub files: Option<FileCount>,
+    /// Bytes a second, the file being transferred, about how many seconds are left, and the
+    /// biggest file still to come (Git LFS transfers).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rate: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remaining: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub biggest_left: Option<NamedSize>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct NamedSize {
+    pub name: String,
+    pub size: u64,
+}
+
+/// Files a Git LFS transfer is expected to get, with their sizes.
+pub type ExpectedFiles = Vec<(String, u64)>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct FileCount {
@@ -83,8 +103,15 @@ pub fn parse_progress(line: &str) -> Option<Progress> {
     // Counts of files (rather than objects): Git LFS's, and a checkout's.
     let files = phase.contains("LFS") || phase == "Filtering content" || phase == "Updating files";
     let mut detail = Vec::new();
+    let mut count = None;
     if files && let Some((done, total)) = counts.split_once('/') {
         detail.push(format!("{done} of {total} files"));
+        // Git LFS's own line, when it logs nothing more: the files, for the second bar.
+        if phase.contains("LFS")
+            && let (Ok(done), Ok(total)) = (done.trim().parse(), total.trim().parse())
+        {
+            count = Some(FileCount { done, total });
+        }
     }
     for amount in amounts.into_iter().flat_map(|amounts| amounts.split(" | ")) {
         let amount = amount.trim();
@@ -106,7 +133,8 @@ pub fn parse_progress(line: &str) -> Option<Progress> {
         phase: phase.to_owned(),
         percent: Some(percent),
         detail: (!detail.is_empty()).then(|| detail.join(" · ")),
-        files: None,
+        files: count,
+        ..Progress::default()
     })
 }
 
@@ -161,7 +189,7 @@ impl Git {
         args: &[&str],
         env: &[(&str, &str)],
         on_progress: &dyn Fn(Progress),
-        expected: &dyn Fn(&std::collections::HashSet<String>) -> Option<u32>,
+        expected: &dyn Fn(&std::collections::HashSet<String>) -> Option<ExpectedFiles>,
     ) -> Result<ProgressOutput, Error> {
         use std::sync::mpsc::{RecvTimeoutError, channel};
         use std::time::Duration;
@@ -169,9 +197,7 @@ impl Git {
         let (started, took) = (SystemTime::now(), Instant::now());
         on_progress(Progress {
             phase: "Connecting".into(),
-            percent: None,
-            detail: None,
-            files: None,
+            ..Progress::default()
         });
         let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
         // Git LFS keeps quiet about its transfers unless it's writing to a terminal. Ask it
@@ -253,8 +279,8 @@ impl Git {
             }
             if ask.get() && lfs.active() {
                 ask.set(false);
-                if let Some(total) = expected(&lfs.seen()) {
-                    lfs.expect(total);
+                if let Some(files) = expected(&lfs.seen()) {
+                    lfs.expect(files);
                 }
             }
             if let Some(progress) = parse_progress(&text) {
@@ -336,7 +362,7 @@ mod tests {
             phase: phase.into(),
             percent: Some(percent),
             detail: detail.map(Into::into),
-            files: None,
+            ..Progress::default()
         };
         assert_eq!(
             parse_progress("Receiving objects:  45% (450/1000), 1.2 MiB | 2.0 MiB/s"),
@@ -361,15 +387,21 @@ mod tests {
         // Git LFS, with its progress forced on.
         assert_eq!(
             parse_progress("Uploading LFS objects:  67% (2/3), 56 MB | 30 MB/s          "),
-            Some(progress(
-                "Uploading LFS files",
-                67,
-                Some("2 of 3 files · 56 MB · 30 MB/s")
-            ))
+            Some(Progress {
+                files: Some(FileCount { done: 2, total: 3 }),
+                ..progress(
+                    "Uploading LFS files",
+                    67,
+                    Some("2 of 3 files · 56 MB · 30 MB/s"),
+                )
+            })
         );
         assert_eq!(
             parse_progress("Uploading LFS objects: 100% (2/2), 0 B | 0 B/s, done."),
-            Some(progress("Uploading LFS files", 100, Some("2 of 2 files")))
+            Some(Progress {
+                files: Some(FileCount { done: 2, total: 2 }),
+                ..progress("Uploading LFS files", 100, Some("2 of 2 files"))
+            })
         );
         assert_eq!(
             parse_progress("Filtering content:  50% (1/2), 15 MB | 7.5 MB/s"),

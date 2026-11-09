@@ -217,6 +217,9 @@
       return null;
     },
     "plugin:window|is_maximized": () => false,
+    "plugin:window|set_progress_bar": ({ value }) => {
+      preview.taskbar = value;
+    },
     "plugin:webview|set_webview_zoom": ({ value }) => {
       document.documentElement.style.zoom = String(value);
       return null;

@@ -19,6 +19,8 @@ export const FETCH_MINUTES = [1, 2, 5, 10, 15, 30];
 export const FIRST_AUTO_FETCH_DELAY = 5000;
 /** Fetches, pulls and pushes that finish faster than this don't show a progress bar. */
 export const PROGRESS_DELAY = 300;
+/** Actions that take longer than this (ms) say so with a system notification when they finish while Tributary is in the background. */
+export const LONG_ACTION = 30_000;
 export const ZOOM_LEVELS = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
 /** How many git commands the activity log keeps. */
 export const ACTIVITY_SIZE = 300;

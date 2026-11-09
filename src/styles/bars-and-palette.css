@@ -467,3 +467,98 @@ body.dragging-label * {
   padding-right: 16px;
   white-space: nowrap;
 }
+
+/* Hovering the progress bar during a Git LFS transfer: its speed, and its files. */
+.transfer-panel {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 340px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  box-shadow: 0 12px 32px var(--shadow);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.transfer-speed {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.transfer-speed svg {
+  width: 100%;
+  height: 54px;
+  overflow: visible;
+}
+
+.transfer-speed-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.transfer-speed-figures {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.transfer-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+
+.transfer-row > span:last-child,
+.transfer-recent > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* A file: its name, then its folder (which gives way first) or its size. */
+.transfer-file {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.transfer-file > .mono {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-file > .muted {
+  flex: 0 1000 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-size {
+  flex: none;
+  color: var(--text-secondary);
+}

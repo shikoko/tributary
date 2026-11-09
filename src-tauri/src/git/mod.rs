@@ -17,7 +17,7 @@ use crate::error::{Error, Result};
 pub(crate) use activity::without_credentials;
 pub use activity::{LogEntry, activity, on_activity};
 pub(crate) use credentials::Credential;
-pub use progress::{FileCount, Progress, cancel, parse_progress};
+pub use progress::{ExpectedFiles, FileCount, NamedSize, Progress, cancel, parse_progress};
 
 /// The `git` executable, run inside one working tree.
 #[derive(Clone)]

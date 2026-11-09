@@ -1,17 +1,19 @@
-//! How many Git LFS files a pull or a switch will download. git checks files out one at a
-//! time and Git LFS downloads each as it's asked for, so LFS itself never knows how many
-//! there are; the commits being checked out do: the files they change that LFS stores,
-//! less those whose content was already downloaded.
+//! The Git LFS files a pull or a switch will download. git checks files out one at a time
+//! and Git LFS downloads each as it's asked for (slowly: one request a file), and knows
+//! nothing of the others. The commits being checked out know them all: the files they
+//! change that LFS stores, less those whose content is here already. So they're downloaded
+//! first, all together and several at a time (`git lfs fetch`), and the checkout finds
+//! them here; and what's left (if that failed) is at least counted.
 
 use std::collections::HashSet;
 use std::path::Path;
 
 use super::support::{LITERAL, in_batches};
 use crate::error::Error;
-use crate::git::{Git, Progress};
+use crate::git::{ExpectedFiles, Git, Progress};
 
 /// Run a checkout (`args`, a switch or a fast-forward to `target`) with its progress,
-/// counting the Git LFS files it downloads.
+/// downloading the Git LFS files it needs first, all together.
 pub(super) fn checkout_counting(
     repo: &gix::Repository,
     git: &Git,
@@ -24,6 +26,15 @@ pub(super) fn checkout_counting(
         .ok()
         .map(|id| id.trim().to_owned());
     let common = repo.common_dir().to_owned();
+    if let Some(before) = &before {
+        prefetch(
+            git,
+            &common,
+            &format!("{before}..{target}"),
+            target,
+            on_progress,
+        )?;
+    }
     let expected = |seen: &HashSet<String>| {
         let before = before.as_deref()?;
         lfs_downloads(git, &common, &format!("{before}..{target}"), target, seen)
@@ -32,17 +43,84 @@ pub(super) fn checkout_counting(
     Ok(())
 }
 
-/// The Git LFS files that differ between `from` and `to` (`range` is how they're compared:
-/// `from..to` for a switch, `from...to` for what a pull brings in) that LFS downloads:
-/// those it has (`seen`, its log so far) and those whose content isn't here yet. None
-/// when there are none, or it can't be told.
+/// Download the Git LFS files that checking out `to` needs (comparing `range`), all
+/// together, from the remote they come from. When that fails, the checkout downloads what's
+/// left one at a time, so only cancelling stops it.
+pub(super) fn prefetch(
+    git: &Git,
+    common_dir: &Path,
+    range: &str,
+    to: &str,
+    on_progress: &dyn Fn(Progress),
+) -> Result<(), Error> {
+    if git.run(&["lfs", "version"]).is_err() {
+        return Ok(());
+    }
+    let Some(files) = lfs_downloads(git, common_dir, range, to, &HashSet::new()) else {
+        return Ok(());
+    };
+    let (Some(remote), Ok(id)) = (
+        remote_for(git, to),
+        git.run(&[
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            &format!("{to}^{{commit}}"),
+        ]),
+    ) else {
+        return Ok(());
+    };
+    let expected = |_: &HashSet<String>| Some(files.clone());
+    match git.run_progress_counting(
+        &["lfs", "fetch", &remote, id.trim()],
+        &[],
+        on_progress,
+        &expected,
+    ) {
+        Err(Error::Cancelled) => Err(Error::Cancelled),
+        _ => Ok(()),
+    }
+}
+
+/// The remote `to` comes from: its own, for a remote branch; the one its upstream is on;
+/// or origin (or the only remote).
+fn remote_for(git: &Git, to: &str) -> Option<String> {
+    let remotes: Vec<String> = git
+        .run(&["remote"])
+        .ok()?
+        .lines()
+        .map(str::to_owned)
+        .collect();
+    let on = |full: &str| {
+        remotes
+            .iter()
+            .filter(|remote| full.starts_with(&format!("refs/remotes/{remote}/")))
+            .max_by_key(|remote| remote.len())
+            .cloned()
+    };
+    let full_name = |name: &str| {
+        git.run(&["rev-parse", "--symbolic-full-name", name])
+            .ok()
+            .map(|full| full.trim().to_owned())
+    };
+    full_name(to)
+        .and_then(|full| on(&full))
+        .or_else(|| full_name(&format!("{to}@{{upstream}}")).and_then(|full| on(&full)))
+        .or_else(|| remotes.iter().find(|remote| *remote == "origin").cloned())
+        .or_else(|| (remotes.len() == 1).then(|| remotes[0].clone()))
+}
+
+/// The Git LFS files, with their sizes, that differ between `from` and `to` (`range` is how
+/// they're compared: `from..to` for a switch, `from...to` for what a pull brings in) that
+/// LFS downloads: those it has (`seen`, its log so far) and those whose content isn't here
+/// yet. None when there are none, or it can't be told.
 pub(super) fn lfs_downloads(
     git: &Git,
     common_dir: &Path,
     range: &str,
     to: &str,
     seen: &HashSet<String>,
-) -> Option<u32> {
+) -> Option<ExpectedFiles> {
     let to = git
         .run(&[
             "rev-parse",
@@ -86,26 +164,26 @@ pub(super) fn lfs_downloads(
     if stored.is_empty() {
         return None;
     }
-    // Their pointers in `to`, and whether each one's content is here already.
+    // Their pointers in `to`, and whether each one's content is here already. Asked once
+    // LFS has begun, some will have arrived: those count too.
     let input: String = stored.iter().map(|path| format!("{to}:{path}\n")).collect();
     let output = git
         .run_bytes(&["cat-file", "--batch"], Some(input.as_bytes()))
         .ok()?;
-    // Asked once LFS has begun, so some will have arrived already: those count too.
-    let downloads = stored
-        .iter()
+    let downloads: ExpectedFiles = stored
+        .into_iter()
         .zip(pointers(&output))
-        .filter(|(path, oid)| match oid {
-            Some(oid) => seen.contains(*path) || !lfs_object(common_dir, oid).exists(),
-            None => false,
+        .filter_map(|(path, pointer)| {
+            let (oid, size) = pointer?;
+            (seen.contains(&path) || !lfs_object(common_dir, &oid).exists()).then_some((path, size))
         })
-        .count() as u32;
-    (downloads > 0).then_some(downloads)
+        .collect();
+    (!downloads.is_empty()).then_some(downloads)
 }
 
-/// For each object in `git cat-file --batch` output, in order, its Git LFS pointer's
-/// object id (None when it's missing or isn't a pointer).
-fn pointers(mut output: &[u8]) -> Vec<Option<String>> {
+/// For each object in `git cat-file --batch` output, in order, its Git LFS pointer's object
+/// id and size (None when it's missing or isn't a pointer).
+fn pointers(mut output: &[u8]) -> Vec<Option<(String, u64)>> {
     let mut found = Vec::new();
     while let Some(end) = output.iter().position(|&b| b == b'\n') {
         let header = String::from_utf8_lossy(&output[..end]).into_owned();
@@ -122,20 +200,28 @@ fn pointers(mut output: &[u8]) -> Vec<Option<String>> {
         };
         let content = &output[..size.min(output.len())];
         output = &output[(size + 1).min(output.len())..];
-        found.push(pointer_oid(content));
+        found.push(pointer(content));
     }
     found
 }
 
-fn pointer_oid(bytes: &[u8]) -> Option<String> {
+/// A Git LFS pointer's object id and size.
+fn pointer(bytes: &[u8]) -> Option<(String, u64)> {
     if bytes.len() > 1024 || !bytes.starts_with(b"version https://git-lfs") {
         return None;
     }
-    String::from_utf8_lossy(bytes)
+    let text = String::from_utf8_lossy(bytes);
+    let oid = text
         .lines()
         .find_map(|line| line.strip_prefix("oid sha256:"))
         .map(|oid| oid.trim().to_owned())
-        .filter(|oid| oid.len() == 64 && oid.bytes().all(|b| b.is_ascii_hexdigit()))
+        .filter(|oid| oid.len() == 64 && oid.bytes().all(|b| b.is_ascii_hexdigit()))?;
+    let size = text
+        .lines()
+        .find_map(|line| line.strip_prefix("size "))
+        .and_then(|size| size.trim().parse().ok())
+        .unwrap_or(0);
+    Some((oid, size))
 }
 
 /// Where Git LFS keeps an object it has downloaded.
@@ -161,6 +247,9 @@ mod tests {
             "1111 blob {}\n{pointer}\nabc:gone missing\n2222 blob 5\nhello\n",
             pointer.len()
         );
-        assert_eq!(pointers(output.as_bytes()), vec![Some(oid), None, None]);
+        assert_eq!(
+            pointers(output.as_bytes()),
+            vec![Some((oid, 12)), None, None]
+        );
     }
 }

@@ -41,6 +41,8 @@ import { useNativeMenu } from "./app/useNativeMenu";
 import { useOverlays } from "./app/useOverlays";
 import { usePlace } from "./app/usePlace";
 import { usePreferences } from "./app/usePreferences";
+import { useTaskbarProgress } from "./app/useTaskbarProgress";
+import { overallPercent } from "./lib/progress";
 import { ThemeContext, useAppearance } from "./app/useAppearance";
 import { BranchSyncContext } from "./lib/branchSync";
 import { useRepository } from "./app/useRepository";
@@ -211,6 +213,7 @@ export default function App() {
     },
   });
   const { act, running } = actions;
+  useTaskbarProgress(actions.progress);
   const lockRelease = useLockRelease({ snapshot, locks: lfs.locks ? lfs.byPath : null, mode: preferences.releaseLocks, act });
   const submodules = useSubmodules({ snapshot, mode: preferences.submoduleUpdates, act });
   useAutoLock({
@@ -411,6 +414,11 @@ export default function App() {
                 )
               }
               news={tabNews}
+              busy={
+                actions.runningPath && actions.progress?.visible
+                  ? { path: actions.runningPath, label: actions.progress.label, percent: overallPercent(actions.progress.value) }
+                  : undefined
+              }
             />
           )}
           {snapshot ? (

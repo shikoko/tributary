@@ -18,7 +18,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use super::{FileCount, Progress};
+use super::{ExpectedFiles, FileCount, NamedSize, Progress};
 
 /// How often the log file is read.
 const POLL: Duration = Duration::from_millis(100);
@@ -26,6 +26,10 @@ const POLL: Duration = Duration::from_millis(100);
 const REPORT: Duration = Duration::from_millis(250);
 /// The span the transfer rate is averaged over.
 const RATE_WINDOW: Duration = Duration::from_secs(2);
+/// The longer span the time left is worked out over, so it doesn't jump about.
+const ETA_WINDOW: Duration = Duration::from_secs(15);
+/// How long a transfer runs before there's a time left to give.
+const ETA_AFTER: Duration = Duration::from_secs(3);
 
 /// Follows the progress file Git LFS writes, reading what's been added since last time.
 pub struct ProgressLog {
@@ -59,9 +63,10 @@ impl ProgressLog {
         self.state.files.keys().cloned().collect()
     }
 
-    /// How many files LFS will download in all, when it gets them one at a time.
-    pub fn expect(&mut self, total: u32) {
-        self.state.expected = Some(total);
+    /// The files LFS will download, with their sizes (when it gets them one at a time, how
+    /// many in all; and the time left, and the biggest still to come).
+    pub fn expect(&mut self, files: ExpectedFiles) {
+        self.state.expected = Some(files.into_iter().collect());
     }
 
     /// True once Git LFS has logged anything.
@@ -104,9 +109,13 @@ struct State {
     files: HashMap<String, (u64, u64)>,
     /// How many files LFS says this transfer has.
     total_files: u32,
-    /// How many files it will download in all, when it gets them one at a time (each
-    /// download then says it's 1 of 1): worked out from the commits being checked out.
-    expected: Option<u32>,
+    /// The files it will download, with their sizes, when that's known: worked out from the
+    /// commits being checked out (when LFS gets them one at a time, each says it's 1 of 1).
+    expected: Option<HashMap<String, u64>>,
+    /// When the first line came.
+    started: Option<Instant>,
+    /// Bytes so far over a longer span, for the time left.
+    long_samples: VecDeque<(Instant, u64)>,
     /// The file the last line was about.
     current: String,
     /// Bytes so far, all files together, over time (for the rate).
@@ -136,7 +145,7 @@ impl State {
             // A new transfer (a pull downloads, then checks out): start again.
             *self = State {
                 direction: Some(direction.to_owned()),
-                expected: self.expected,
+                expected: self.expected.take(),
                 ..State::default()
             };
         }
@@ -148,14 +157,40 @@ impl State {
         }
         entry.1 = size;
         self.current = name.to_owned();
-        self.samples.push_back((now, self.done));
-        while self
-            .samples
-            .front()
-            .is_some_and(|(at, _)| now - *at > RATE_WINDOW)
-        {
-            self.samples.pop_front();
+        self.started.get_or_insert(now);
+        for (samples, window) in [
+            (&mut self.samples, RATE_WINDOW),
+            (&mut self.long_samples, ETA_WINDOW),
+        ] {
+            samples.push_back((now, self.done));
+            while samples.front().is_some_and(|(at, _)| now - *at > window) {
+                samples.pop_front();
+            }
         }
+    }
+
+    /// About how many seconds are left: the bytes to go at the rate over the last while.
+    fn remaining(&self, total: u64, now: Instant) -> Option<u64> {
+        if now - self.started? < ETA_AFTER || total <= self.done {
+            return None;
+        }
+        let (first, last) = (self.long_samples.front()?, self.long_samples.back()?);
+        let span = (last.0 - first.0).as_secs_f64();
+        let rate = (last.1 - first.1) as f64 / span;
+        (span >= 1.0 && rate > 0.0).then(|| ((total - self.done) as f64 / rate).ceil() as u64)
+    }
+
+    /// The biggest expected file that isn't done yet.
+    fn biggest_left(&self) -> Option<NamedSize> {
+        self.expected
+            .as_ref()?
+            .iter()
+            .filter(|(name, size)| self.files.get(*name).is_none_or(|(done, _)| done < *size))
+            .max_by_key(|(_, size)| **size)
+            .map(|(name, size)| NamedSize {
+                name: name.clone(),
+                size: *size,
+            })
     }
 
     /// Bytes per second, once there's enough to go on.
@@ -179,6 +214,8 @@ impl State {
             .filter(|(done, size)| done >= size)
             .count() as u32;
         let mut files = None;
+        // All the bytes, as far as they're known.
+        let mut total_bytes = None;
         let percent = if self.total_files > 1 {
             // A batch: the share of all the bytes. Sizes are only known for files that
             // have started, so the total is extrapolated from those until all have.
@@ -194,6 +231,7 @@ impl State {
                 done: finished,
                 total: self.total_files,
             });
+            total_bytes = Some(total);
             parts.push(format!("{finished} of {} files", self.total_files));
             parts.push(if all_started {
                 format!("{} of {}", format_bytes(self.done), format_bytes(known))
@@ -205,20 +243,33 @@ impl State {
             // One file at a time (git downloads them as it checks them out): that file, and
             // how many of them all, when that's known.
             let (done, size) = *self.files.get(&self.current)?;
-            if let Some(expected) = self.expected.filter(|expected| *expected > 1) {
-                let total = expected.max(self.files.len() as u32);
+            if let Some(expected) = self.expected.as_ref().filter(|expected| expected.len() > 1) {
+                let total = (expected.len() as u32).max(self.files.len() as u32);
                 files = Some(FileCount {
                     done: finished,
                     total,
                 });
+                // The expected files' sizes, and any others LFS got too.
+                let others: u64 = self
+                    .files
+                    .iter()
+                    .filter(|(name, _)| !expected.contains_key(*name))
+                    .map(|(_, (_, size))| size)
+                    .sum();
+                total_bytes = Some(expected.values().sum::<u64>() + others);
                 parts.push(format!("{finished} of {total} files"));
             }
             parts.push(self.current.clone());
             parts.push(format!("{} of {}", format_bytes(done), format_bytes(size)));
             share(done, size)
         };
-        if let Some(rate) = self.rate() {
+        let rate = self.rate();
+        if let Some(rate) = rate {
             parts.push(format!("{}/s", format_bytes(rate)));
+        }
+        let remaining = total_bytes.and_then(|total| self.remaining(total, now));
+        if let Some(seconds) = remaining {
+            parts.push(time_left(seconds));
         }
         let percent = if self.total_files > 1 {
             self.best = self.best.max(percent);
@@ -231,6 +282,10 @@ impl State {
             percent: Some(percent),
             detail: Some(parts.join(" · ")),
             files,
+            rate,
+            current: (!self.current.is_empty()).then(|| self.current.clone()),
+            remaining,
+            biggest_left: self.biggest_left(),
         };
         // Send changes in percentage straight away, byte counts a few times a second.
         if let Some((at, last)) = &self.reported {
@@ -244,6 +299,25 @@ impl State {
         }
         self.reported = Some((now, progress.clone()));
         Some(progress)
+    }
+}
+
+/// "about 3 minutes left", rounded so it doesn't flicker.
+pub fn time_left(seconds: u64) -> String {
+    match seconds {
+        0..10 => "a few seconds left".into(),
+        10..55 => format!("about {} seconds left", seconds.div_ceil(5) * 5),
+        55..90 => "about a minute left".into(),
+        90..3570 => format!("about {} minutes left", (seconds + 30) / 60),
+        _ => {
+            let minutes = (seconds + 30) / 60;
+            let (hours, minutes) = (minutes / 60, minutes % 60);
+            if minutes == 0 {
+                format!("about {hours} h left")
+            } else {
+                format!("about {hours} h {minutes} min left")
+            }
+        }
     }
 }
 
@@ -384,7 +458,17 @@ mod tests {
     fn counts_files_downloaded_one_at_a_time() {
         let start = Instant::now();
         let mut state = State {
-            expected: Some(4),
+            expected: Some(
+                [
+                    ("Content/A.uasset", 3500),
+                    ("Content/B.uasset", 3500),
+                    ("Content/C.uasset", 8000),
+                    ("Content/D.uasset", 90000),
+                ]
+                .into_iter()
+                .map(|(name, size)| (name.to_owned(), size))
+                .collect(),
+            ),
             ..State::default()
         };
         // git checks out each file in turn, and LFS downloads it: always "1 of 1".
@@ -405,6 +489,38 @@ mod tests {
             progress.detail.as_deref(),
             Some("2 of 4 files · Content/C.uasset · 1.0 KB of 8.0 KB")
         );
+        assert_eq!(progress.current.as_deref(), Some("Content/C.uasset"));
+        assert_eq!(
+            progress.biggest_left,
+            Some(NamedSize {
+                name: "Content/D.uasset".into(),
+                size: 90000
+            })
+        );
+    }
+
+    #[test]
+    fn says_about_how_long_is_left() {
+        let start = Instant::now();
+        let mut state = State::default();
+        // 1 MB a second, for 4 seconds, of 20 MB in two files.
+        let lines: Vec<String> = (0..=4)
+            .map(|second| format!("download 1/2 {}/10000000 big.bin", second * 1_000_000))
+            .collect();
+        let mut fed: Vec<(u64, &str)> = lines
+            .iter()
+            .enumerate()
+            .map(|(second, line)| (second as u64 * 1000, line.as_str()))
+            .collect();
+        fed.push((4000, "download 2/2 0/10000000 other.bin"));
+        feed(&mut state, start, &fed);
+        let progress = state.report(start + Duration::from_secs(4)).unwrap();
+        // 16 MB to go at 1 MB a second.
+        assert_eq!(progress.remaining, Some(16));
+        assert!(progress.detail.unwrap().ends_with("about 20 seconds left"));
+        assert_eq!(time_left(4), "a few seconds left");
+        assert_eq!(time_left(170), "about 3 minutes left");
+        assert_eq!(time_left(3 * 3600 + 20 * 60), "about 3 h 20 min left");
     }
 
     #[test]

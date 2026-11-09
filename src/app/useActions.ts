@@ -3,9 +3,10 @@ import { onProgress, PAGE_SIZE, runActionFor, type Action, type Outcome, type Pr
 import { hookFailure, involvesUntrackedFiles, isLocalChangesError } from "../lib/errors";
 import { undoFor } from "../lib/undo";
 import { openInBrowser } from "../lib/weblinks";
+import { notifySystem } from "../lib/notify";
 import type { ToastMessage } from "../components/Toast";
 import { splitRemoteBranch, type OpenDialog } from "../menus";
-import { checkoutTarget, PROGRESS_DELAY, RETRYABLE, RUNNING_LABELS, type Running } from "./constants";
+import { checkoutTarget, LONG_ACTION, PROGRESS_DELAY, RETRYABLE, RUNNING_LABELS, type Running } from "./constants";
 import type { LoadMode, RepoError } from "./useRepository";
 
 export interface ActOptions {
@@ -47,6 +48,8 @@ export interface ProgressState {
 export function useActions({ snapshot, load, protectedHead, openDialog, setError, notify, blockFocusRefresh, after, showChanges }: Options) {
   const [running, setRunning] = useState<Running>(null);
   const [progress, setProgress] = useState<ProgressState | null>(null);
+  // The repository the action runs in (its progress shows there, and on its tab).
+  const [runningPath, setRunningPath] = useState<string | null>(null);
   // The latest callbacks, so `act` only changes with the repository.
   const callbacks = useRef({ openDialog, setError, notify, after, showChanges });
   callbacks.current = { openDialog, setError, notify, after, showChanges };
@@ -64,7 +67,10 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
         return false;
       }
       const before = snapshot;
+      const started = Date.now();
+      let last: Progress | null = null;
       setRunning(kind);
+      setRunningPath(before.path);
       setError(null);
       blockFocusRefresh.current = true;
 
@@ -74,7 +80,10 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       if (kind && kind !== "other") {
         setProgress({ label: kind === "checkout" ? `Checking out ${target}` : RUNNING_LABELS[kind], value: null, visible: false, cancellable: kind !== "checkout" });
         showTimer = window.setTimeout(() => setProgress((current) => current && { ...current, visible: true }), PROGRESS_DELAY);
-        stopListening = await onProgress((value) => setProgress((current) => current && { ...current, value })).catch(() => undefined);
+        stopListening = await onProgress((value) => {
+          last = value;
+          setProgress((current) => current && { ...current, value });
+        }).catch(() => undefined);
       }
 
       let outcome: Outcome | null = null;
@@ -88,6 +97,15 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       stopListening?.();
       setProgress(null);
       setRunning(null);
+      setRunningPath(null);
+      // A long one, finished while you were elsewhere: say so.
+      if (kind && kind !== "other" && Date.now() - started > LONG_ACTION && !document.hasFocus() && failure !== "Cancelled.") {
+        const files = (last as Progress | null)?.files;
+        const count = files && files.total > 1 ? ` · ${files.total.toLocaleString()} Git LFS files` : "";
+        const minutes = Math.round((Date.now() - started) / 60_000);
+        const took = minutes >= 1 ? ` in ${minutes} min` : "";
+        void notifySystem(before.name, failure ? `Didn't finish: ${failure.split("\n")[0]}` : `${outcome?.message ?? "Done"}${count}${took}`);
+      }
       // Reload even after a failure (a pull with conflicts still changes things), and only
       // then show the result, since reloading clears old errors.
       await load(before.path, "refresh", Math.max(PAGE_SIZE, before.commits.length));
@@ -145,7 +163,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
     [act],
   );
 
-  return { act, running, progress, finished };
+  return { act, running, runningPath, progress, finished };
 }
 
 export type Actions = ReturnType<typeof useActions>;

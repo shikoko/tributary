@@ -27,13 +27,35 @@ interface Props {
   news?: Record<string, string>;
   /** Right-click on a repository's tab (or the menu key on it). */
   onContextMenu?: (path: string, x: number, y: number) => void;
+  /** A pull, fetch, push or checkout running in a repository: a ring on its tab, when it isn't the one shown. */
+  busy?: { path: string; label: string; percent: number | null };
+}
+
+/** How far it is, as a ring that fills (or spins, when that isn't known). */
+function ProgressRing({ percent }: { percent: number | null }) {
+  const radius = 5;
+  const around = 2 * Math.PI * radius;
+  return (
+    <svg className={`tab-ring${percent === null ? " spinning" : ""}`} width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+      <circle cx="7" cy="7" r={radius} className="tab-ring-track" />
+      <circle
+        cx="7"
+        cy="7"
+        r={radius}
+        className="tab-ring-fill"
+        strokeDasharray={around}
+        strokeDashoffset={percent === null ? around * 0.7 : around * (1 - percent / 100)}
+        transform="rotate(-90 7 7)"
+      />
+    </svg>
+  );
 }
 
 /**
  * One tab per open repository. It's also the title bar: the empty space drags the window,
  * and on Windows the minimize, maximize and close buttons are at its right.
  */
-export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseStart, onNew, menuBar, extra, news, onContextMenu }: Props) {
+export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseStart, onNew, menuBar, extra, news, onContextMenu, busy }: Props) {
   return (
     <div className={`tab-bar${isWindows ? " with-window-controls" : ""}`} data-tauri-drag-region>
       <span className="tab-logo" data-tauri-drag-region>
@@ -64,7 +86,7 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
             }}
             data-path={tab.path}
             className={`tab${tab.path === activePath ? " active" : ""}${news?.[tab.path] ? " has-news" : ""}`}
-            title={`${tab.path}${index < 9 ? `  (${modKey}${index + 1})` : ""}${news?.[tab.path] ? `\n${news[tab.path]}` : ""}`}
+            title={`${tab.path}${index < 9 ? `  (${modKey}${index + 1})` : ""}${news?.[tab.path] ? `\n${news[tab.path]}` : ""}${busy?.path === tab.path ? `\n${busy.label}${busy.percent === null ? "" : ` ${busy.percent}%`}` : ""}`}
             onMouseDown={(event) => {
               if (event.button === 0) onSelect(tab.path);
             }}
@@ -83,6 +105,7 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
               })
             }
           >
+            {busy?.path === tab.path && tab.path !== activePath && <ProgressRing percent={busy.percent} />}
             <span className="tab-name" data-text={tab.name}>
               <span>{tab.name}</span>
             </span>

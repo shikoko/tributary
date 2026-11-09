@@ -55,13 +55,27 @@ pub(super) fn pull(
     if !has_preference {
         args.push("--no-rebase");
     }
-    // git fills in each Git LFS file as it checks it out, and LFS downloads it then: once
-    // the fetch is done, the commits it brought say how many there'll be.
+    // git fills in each Git LFS file as it checks it out, and LFS downloads each then, one
+    // request a file. So fetch first, download the Git LFS files the pull brings all
+    // together, then pull: its checkout finds them here (and its fetch has nothing to do).
     let before = git
         .run(&["rev-parse", "--verify", "--quiet", "HEAD"])
         .ok()
         .map(|id| id.trim().to_owned());
     let common = repo.common_dir().to_owned();
+    if let Some(before) = &before
+        && git.run(&["lfs", "version"]).is_ok()
+    {
+        git.run_progress(&["fetch", "--progress"], on_progress)?;
+        super::lfs_count::prefetch(
+            git,
+            &common,
+            &format!("{before}...@{{upstream}}"),
+            "@{upstream}",
+            on_progress,
+        )?;
+    }
+    // Whatever's still to download then, one at a time, is at least counted.
     let expected = |seen: &std::collections::HashSet<String>| {
         let before = before.as_deref()?;
         super::lfs_count::lfs_downloads(

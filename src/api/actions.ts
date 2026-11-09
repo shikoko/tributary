@@ -176,6 +176,11 @@ export interface Progress {
    * of them, or of the one Git LFS is downloading (a pull or a checkout gets them one by one).
    */
   files?: { done: number; total: number };
+  /** Git LFS transfers: bytes a second, the file being transferred, about how many seconds are left, and the biggest file still to come. */
+  rate?: number;
+  current?: string;
+  remaining?: number;
+  biggestLeft?: { name: string; size: number };
 }
 
 /** Stop the fetch, pull, push or clone that is running. */
