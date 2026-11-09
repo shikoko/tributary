@@ -2,7 +2,7 @@
 // greet someone new with the tour instead.
 
 /** The picture beside an item. */
-export type WhatsNewIcon = "lfs" | "progress" | "team" | "undo" | "commit" | "setup" | "open";
+export type WhatsNewIcon = "lfs" | "progress" | "team" | "undo" | "commit" | "setup" | "open" | "simple" | "shelf" | "history" | "schedule" | "disk";
 
 export interface Release {
   version: string;
@@ -14,6 +14,31 @@ export const RELEASES: Release[] = [
   {
     version: "0.2.0",
     items: [
+      {
+        icon: "simple",
+        title: "Simple mode",
+        text: "For artists and designers: Get latest, your changes with their locks and one Submit button, and what the team's working on, without branches and the graph. View → Simple Mode turns it on.",
+      },
+      {
+        icon: "shelf",
+        title: "Shelves",
+        text: "Share unfinished work with the team without committing it to a branch, for a review or a second pair of eyes. Repository → Shelves… shelves yours and opens theirs.",
+      },
+      {
+        icon: "history",
+        title: "Local history",
+        text: "Your uncommitted work is kept every few minutes, so a crash or an overwrite doesn't lose an afternoon. Repository → Local History… puts files back.",
+      },
+      {
+        icon: "schedule",
+        title: "Get latest overnight",
+        text: "Settings → Get latest pulls every open repository at a set time, Git LFS files and all, so a big update is waiting when you start.",
+      },
+      {
+        icon: "disk",
+        title: "Room on the disk",
+        text: "Before downloading Git LFS files, Tributary checks they'll fit, instead of failing halfway through.",
+      },
       {
         icon: "lfs",
         title: "Faster Git LFS pulls",

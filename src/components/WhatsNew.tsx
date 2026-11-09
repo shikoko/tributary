@@ -4,7 +4,23 @@ import { modKey } from "../lib/platform";
 import { withAlpha } from "../lib/colors";
 import { useThemeColors } from "../app/useAppearance";
 import { Dialog } from "./Dialog";
-import { BellIcon, BranchIcon, CheckIcon, CommitIcon, DownloadIcon, ExternalLinkIcon, Logo, RevertIcon, SearchIcon, SparkleIcon, TeamIcon } from "./Icons";
+import {
+  BellIcon,
+  BranchIcon,
+  CheckIcon,
+  CommitIcon,
+  DownloadIcon,
+  ExternalLinkIcon,
+  HistoryIcon,
+  Logo,
+  PullIcon,
+  RevertIcon,
+  SearchIcon,
+  ShelfIcon,
+  SparkleIcon,
+  TeamIcon,
+  ViewIcon,
+} from "./Icons";
 
 const ICONS: Record<WhatsNewIcon, (size: number) => ReactNode> = {
   lfs: (size) => <DownloadIcon size={size} />,
@@ -14,6 +30,11 @@ const ICONS: Record<WhatsNewIcon, (size: number) => ReactNode> = {
   commit: (size) => <CommitIcon size={size} />,
   setup: (size) => <CheckIcon size={size} />,
   open: (size) => <ExternalLinkIcon size={size} />,
+  simple: (size) => <ViewIcon size={size} />,
+  shelf: (size) => <ShelfIcon size={size} />,
+  history: (size) => <HistoryIcon size={size} />,
+  schedule: (size) => <PullIcon size={size} />,
+  disk: (size) => <DownloadIcon size={size} />,
 };
 
 const icon = (name: WhatsNewIcon | undefined, size: number) => (name ? ICONS[name](size) : <SparkleIcon size={size} />);

@@ -19,6 +19,7 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
   - [Who changed what, and why](#who-changed-what-and-why)
   - [Finding what broke](#finding-what-broke)
   - [Pull requests and remotes](#pull-requests-and-remotes)
+  - [Simple mode](#simple-mode)
   - [Working as a team](#working-as-a-team)
   - [Game projects, big files and Git LFS](#game-projects-big-files-and-git-lfs)
   - [Safety nets](#safety-nets)
@@ -159,12 +160,31 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 
 <sub>[↑ Contents](#contents)</sub>
 
+### Simple mode
+
+![Simple mode: the files you changed with their locks and a Submit button, Get latest with one update from Rosa Bell, and what the team is working on](docs/images/simple.png)
+
+For artists, designers and anyone who'd rather not think in branches: **View → Simple Mode** (or Settings → General) swaps the graph for three cards. Each person chooses it for themselves; **Full view** switches back.
+
+- **Get latest:** how many updates the team has sent and who they're from, **Check now**, and one button to pull them, Git LFS files and all.
+- **My changes:** the files you changed, each with a tick, its lock (yours, someone else's, or **Lock** for a lockable file nobody has), and whether it's big or a teammate changed it on another branch too. Write what you changed and **Submit**: the ticked files are committed and sent, getting the team's updates first when there are any. Files someone else has locked stop it.
+- **The team:** who's working on which locked files, and the latest commits.
+
+The branch can be switched from the top, next to **Shelves** and **Local history**.
+
+<sub>[↑ Contents](#contents)</sub>
+
 ### Working as a team
 
 ![Team activity: the team's commits each day compared with the period before, what kind of work it was, lines of code, hotspots, and a card for each person with their own graph](docs/images/team.png)
 
 - **Team activity:** the people button in the toolbar (or **View → Team Activity**, ⇧⌘T / Ctrl+Shift+T, or "6 people this week" in the status bar) sums up the last 7, 14 or 30 days. A graph of the team's commits each day, with the period before behind it and how much busier or quieter this one was (hover a day for who made its commits). What kind of work it was (code, art and assets, levels, audio; each commit counts as one, so importing thousands of generated files doesn't drown out the rest), lines of code added and removed, the hotspots (the files changed most, and who changed them; those several people changed that can't be merged stand out), when the team works (weekdays by hours), and, for repositories on GitHub or GitLab, pull requests opened and merged and how long merging typically takes. A card for each person, in the graph colours chosen in Settings: their commits, a graph of their days, how many days they were active and in a row, their lines of code and kinds of work, and their branches. The branches being worked on, with who's on them, how far behind and ahead of the main branch they are, how many files they change, and whether they touch files you're changing; and who holds which Git LFS locks. Click a person to highlight their commits, or a branch to highlight its history. Fetch first to see your teammates' latest work.
 - **Also changed elsewhere:** when a file you're working on (uncommitted, or changed by your branch's own commits: those not on the main branch, or not pushed yet when you're on it) was also changed on another branch in the last 30 days, the changes panel says where, by whom and in which commit, and the file gets a branch mark. Files that can't be merged, like Git LFS, lockable or binary assets, come first and stand out, since one version will have to win: better to talk to whoever changed it before spending a day on yours. The status bar shows how many; click it for the branches they're being worked on, who's working on each and when, and your files on each (click a file for that branch's change to it, or the eye to highlight the branch).
+- **Shelves:** share unfinished work with the team without committing it to a branch, as Perforce does: **Repository → Shelves…** (or the shelf button over your changes, or a file's menu) shelves the files you pick with what it's for, like "Tavern sign, darker wood: for Maya to look at", and lists everyone's shelves with who made them, when, on which branch and what they change. **Open** takes a shelf's files into your copy as they were shelved (it stops, like a checkout, if it would overwrite changes of yours). Untick **Keep them in my copy too** to take them out of yours once shelved; Undo puts them back. A shelf is pushed to the remote, Git LFS files included, as a hidden ref (`refs/tributary/shelves/…`), so it needs nothing on the server besides git.
+
+  ![Shelves: shelving five files with a description, and Rosa's and Theo's shelves, one opened to show its files](docs/images/shelves.png)
+
+- **Get latest on a schedule:** Settings → Get latest pulls every open tab's repository, Git LFS files included, every day or on weekdays at a set time, like 07:00, so a big update is waiting in the morning. Tributary has to be running and the computer awake (if it was asleep, it catches up within the hour). The open repository is pulled as usual, showing its progress; a message says how it went, and Settings shows the last run, why any repository was skipped, and **Get latest now**.
 - **Git LFS file locks:** in repositories that use Git LFS, the sidebar lists the locked files and who locked them, and changed files show a padlock. Lock a file from its right-click menu or with **Lock Files…** in the Repository menu, unlock your own, or force-unlock someone else's after a warning. If you've changed a file someone else has locked, the changes panel says so before you try to push. If you've changed a lockable file nobody has locked, it offers to lock it for you (or, with the setting on, locks it as soon as you change it). After you push, it offers to release your locks on the files you pushed, so your teammates can work on them (files you're still changing keep theirs); in Settings you can have it release them without asking, or never.
 
 <sub>[↑ Contents](#contents)</sub>
@@ -190,6 +210,7 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 
 - **Big repositories:** **Folders**, in the repository's settings, changes which folders are checked out after cloning (a sparse checkout): the others leave the disk, and in a partial clone, folders you add are downloaded. **Speed** turns on git's own speed-ups, which it leaves off: its file watcher (Windows and macOS), the untracked cache, a commit graph that fetches keep up to date, and background maintenance. A big repository without any of them gets a one-time offer.
 - **What makes it big:** **What Makes It Big…** in the Repository menu shows what the history takes on disk, the biggest files in all of it (deleted ones too, since everyone who clones still downloads them), and what each folder and kind of file costs. Kinds of big file move into Git LFS from now on, or by rewriting history (`git lfs migrate`): the branch's commits that aren't pushed yet, or every branch's whole history (each backed up first, then to force-push).
+- **Room on the disk:** before a pull, a branch switch or **Download them** fetches Git LFS files, Tributary adds up what they'll take (twice their size: Git LFS's copy and the checked-out file) and stops with how much is needed and free when the disk is too full, instead of failing halfway. **Download anyway** goes ahead regardless.
 - **Big files and Git LFS:** the changes panel warns about big files (10 MB by default, set in Settings) that aren't stored with Git LFS, with a **Track \*.ext with LFS** button that sets up LFS and moves staged files into it. Committing a big file outside LFS asks first. **Clean Up Git LFS Files…** (Repository menu, or Settings, which shows the space they take) deletes local copies that aren't needed any more.
 - **Git LFS files that weren't downloaded:** when files stored with Git LFS are still the small pointer files that stand in for them (after a clone without them, say), a bar says how many and offers **Download them**, with progress. It also says when Git LFS isn't installed (**Get Git LFS**) or git isn't set up to use it (**Set up Git LFS**). Files left out of a sparse checkout don't count.
 
@@ -198,6 +219,10 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 ### Safety nets
 
 - **Undo:** after a checkout, commit, merge, rebase, interactive rebase, split, cherry-pick, revert, hard reset, rename, new tag, or branch or tag deletion, the confirmation message has an **Undo** button.
+- **Local history:** every 10 minutes (Settings → Local history: how often, the biggest file to keep, how many days), the files you've changed but not committed are kept as a snapshot, unless nothing changed since the last one. **Repository → Local History…** (or a file's menu, for just that file) lists them by day and time, with each one's files, and puts any of them back as they were then, or all of a snapshot's; what they were just before is kept too, so **Undo** brings it back.
+
+  ![Local history: three snapshots half an hour apart, one chosen, with its seven files and a Restore button for each](docs/images/local-history.png)
+
 - **Your actions:** **Activity → Your actions** lists what you did in a repository (the last 50 things), each with **Undo** for as long as it's still safe: as long as the branch is where that action left it, so undoing it can't throw away what came after. When it isn't, it says why (`You've switched to main since`). They're kept when Tributary closes.
 
   ![Your actions: a commit that can't be undone any more because the branch was switched since, and the checkout after it that can](docs/images/your-actions.png)

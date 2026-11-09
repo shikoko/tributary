@@ -41,6 +41,8 @@ const browser = await chromium.launch();
 const people = {
   maya: { GIT_AUTHOR_NAME: "Maya Chen", GIT_AUTHOR_EMAIL: "maya@example.com", GIT_COMMITTER_NAME: "Maya Chen", GIT_COMMITTER_EMAIL: "maya@example.com" },
   priya: { GIT_AUTHOR_NAME: "Priya Nair", GIT_AUTHOR_EMAIL: "priya@example.com", GIT_COMMITTER_NAME: "Priya Nair", GIT_COMMITTER_EMAIL: "priya@example.com" },
+  rosa: { GIT_AUTHOR_NAME: "Rosa Bell", GIT_AUTHOR_EMAIL: "rosa@example.com", GIT_COMMITTER_NAME: "Rosa Bell", GIT_COMMITTER_EMAIL: "rosa@example.com" },
+  theo: { GIT_AUTHOR_NAME: "Theo Park", GIT_AUTHOR_EMAIL: "theo@example.com", GIT_COMMITTER_NAME: "Theo Park", GIT_COMMITTER_EMAIL: "theo@example.com" },
 };
 const git = (folder, args, who = people.maya, input) =>
   execFileSync("git", ["-C", folder, ...args], { encoding: "utf8", env: { ...process.env, ...demoEnv(demos), ...who }, input }).trim();
@@ -63,7 +65,7 @@ async function open(repo, { theme = "dark", preview: fakes = {}, storage = {} } 
   await page.goto(preview.url);
   if (repo) {
     await page.getByText("Open repository").first().click();
-    await page.locator(".commit-row").first().waitFor({ timeout: 20_000 });
+    await page.locator(".commit-row, .simple-view").first().waitFor({ timeout: 20_000 });
     // The notebook's submodule notice isn't what these are about.
     const notice = page.getByRole("button", { name: "Not now" });
     await notice.click({ timeout: 3000 }).catch(() => {});
@@ -94,6 +96,25 @@ async function issueBranch() {
   await page.getByLabel("Commit summary").fill("Add the opening hours");
   await page.getByLabel("Commit description").fill("Why:\nGuests kept asking.\n\nHow to test:\nOpen the tavern level and read the sign.");
   return page;
+}
+
+/**
+ * A teammate's work, `hoursAgo`, from a clone of `folder`'s remote: writes `files`, commits
+ * them with `message` and pushes them to `to` (a branch, or a shelf's ref).
+ */
+function teammate(folder, who, hoursAgo, message, files, to) {
+  const origin = git(folder, ["remote", "get-url", "origin"]);
+  const clone = join(projects, `clone-${who.GIT_AUTHOR_NAME.split(" ")[0].toLowerCase()}-${Date.now()}`);
+  const date = `@${Math.floor(Date.now() / 1000) - hoursAgo * 3600} +0000`;
+  const as = { ...who, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date };
+  execFileSync("git", ["clone", "-q", origin, clone], { env: { ...process.env, ...demoEnv(demos), ...as } });
+  for (const [file, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(clone, file)), { recursive: true });
+    writeFileSync(join(clone, file), text);
+  }
+  git(clone, ["add", "-A"], as);
+  git(clone, ["commit", "-q", "-m", message], as);
+  git(clone, ["push", "-q", "--no-verify", "origin", `HEAD:${to}`], as);
 }
 
 const shots = {
@@ -365,6 +386,70 @@ const shots = {
     await page.locator(".menu-bar-item", { hasText: "Repository" }).dispatchEvent("mousedown", { button: 0 });
     await page.locator(".menu-item", { hasText: "Check Project Setup" }).click();
     await page.locator(".setup-item").first().waitFor({ timeout: 15_000 });
+    await settle(page);
+    return page;
+  },
+
+  /** Simple mode: get latest, your changes with their locks, and the team. */
+  async simple() {
+    const folder = fresh().studio;
+    teammate(folder, people.rosa, 3, "Hang a lantern by the door", { "Content/Props/Lantern.txt": "Brass, by the door\n" }, "main");
+    const page = await open(folder, { storage: { "tributary.view.simple": true } });
+    await page.getByRole("button", { name: "Check now" }).click();
+    await page.locator(".simple-status", { hasText: "update" }).waitFor({ timeout: 20_000 });
+    await page.getByLabel("What you changed").fill("New barber outfit and the intro cut");
+    await page.locator(".toast").waitFor({ state: "detached", timeout: 10_000 }).catch(() => {});
+    await settle(page);
+    return page;
+  },
+
+  /** Shelving your changes, and the team's shelves. */
+  async shelves() {
+    const folder = fresh().studio;
+    const shelf = (who) => `refs/tributary/shelves/${who}-${Date.now()}`;
+    teammate(
+      folder,
+      people.rosa,
+      2,
+      "Tavern sign, darker wood: for Maya to look at\n\nShelved-From: art/tavern-sign",
+      { "Content/Props/TavernSign.txt": "Darker oak, brass letters\n", "Content/Props/SignBracket.txt": "Wrought iron\n", "Config/DefaultGame.ini": "[/Script/Feast]\nSignStyle=Dark\n" },
+      shelf("rosa-bell"),
+    );
+    teammate(folder, people.theo, 26, "Stool wobble: half done, needs a second pair of eyes\n\nShelved-From: fix/stool", { "Source/Feast/Stool.cpp": "// Legs from the floor\n" }, shelf("theo-park"));
+    const page = await open(folder);
+    await page.locator(".menu-bar-item", { hasText: "Repository" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Shelves" }).click();
+    const dialog = page.locator(".shelves-dialog");
+    await dialog.locator(".shelf", { hasText: "Theo" }).waitFor({ timeout: 20_000 });
+    await dialog.getByLabel("What the shelf is for").fill("Barber's new outfit, for the art review");
+    await dialog.locator(".shelf", { hasText: "Tavern sign" }).locator(".shelf-files-toggle").click();
+    await settle(page);
+    return page;
+  },
+
+  /** Local history: snapshots of uncommitted work, to put files back. */
+  async "local-history"() {
+    const folder = fresh().studio;
+    const page = await open(folder);
+    const keep = async (minutesAgo) => {
+      const taken = await page.evaluate((path) => window.__TAURI_INTERNALS__.invoke("take_snapshot", { path, maxBytes: 50_000_000, keepDays: 7 }), folder);
+      // As if taken earlier this morning.
+      const time = Date.now() - minutesAgo * 60_000;
+      git(folder, ["update-ref", `refs/tributary/snapshots/${time}`, taken.id]);
+      git(folder, ["update-ref", "-d", taken.reference]);
+    };
+    writeFileSync(join(folder, "Config/DefaultGame.ini"), "[/Script/Feast]\nFireplace=Stone\n");
+    await keep(70);
+    writeFileSync(join(folder, "Source/Feast/Stool.cpp"), "// Three legs\n");
+    writeFileSync(join(folder, "Config/DefaultGame.ini"), "[/Script/Feast]\nFireplace=Brick\n");
+    await keep(40);
+    writeFileSync(join(folder, "Config/DefaultGame.ini"), "[/Script/Feast]\nFireplace=\n");
+    await keep(10);
+    await page.locator(".menu-bar-item", { hasText: "Repository" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Local History" }).click();
+    const dialog = page.locator(".local-history-dialog");
+    await dialog.locator(".history-time").nth(2).waitFor({ timeout: 10_000 });
+    await dialog.locator(".history-time").nth(1).click();
     await settle(page);
     return page;
   },

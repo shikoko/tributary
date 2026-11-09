@@ -950,6 +950,38 @@ try {
     await page.locator(".dialog").getByRole("button", { name: "Close", exact: true }).click();
   });
 
+  await step("keeps a local history snapshot and puts a file back from it", async () => {
+    const file = join(demos.notebook, "README.md");
+    const before = readFileSync(file, "utf8");
+    writeFileSync(file, `${before}\nA line worth keeping.\n`);
+    await page.locator(".menu-bar-item", { hasText: "Repository" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Local History" }).click();
+    const dialog = page.locator(".local-history-dialog");
+    await dialog.getByRole("button", { name: "Keep a snapshot now" }).click();
+    await dialog.locator(".history-files li", { hasText: "README.md" }).waitFor({ timeout: 10_000 });
+    writeFileSync(file, "Overwritten by mistake\n");
+    await dialog.locator(".history-files li", { hasText: "README.md" }).getByRole("button", { name: "Restore" }).click();
+    const text = await toast();
+    expect(text.includes("Restored README.md from the local history"), `toast "${text}"`);
+    expect(readFileSync(file, "utf8").includes("A line worth keeping."), "not restored");
+    writeFileSync(file, before);
+    await dismissToast();
+  });
+
+  await step("shows the shelves, and switches to Simple mode and back", async () => {
+    await page.locator(".menu-bar-item", { hasText: "Repository" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Shelves" }).click();
+    const shelves = page.locator(".shelves-dialog");
+    await shelves.getByText("On the shelves").waitFor({ timeout: 10_000 });
+    await shelves.locator(".shelves-status").waitFor({ state: "detached", timeout: 20_000 }).catch(() => {});
+    await shelves.getByRole("button", { name: "Close", exact: true }).click();
+    await page.locator(".menu-bar-item", { hasText: "View" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Simple Mode" }).click();
+    await page.locator(".simple-view").getByRole("heading", { name: "My changes" }).waitFor({ timeout: 10_000 });
+    await page.getByRole("button", { name: "Full view" }).click();
+    await page.locator(".commit-row").first().waitFor({ timeout: 10_000 });
+  });
+
   await step("had no errors on the page", async () => {
     expect(errors.length === 0, errors.join("; "));
   });
