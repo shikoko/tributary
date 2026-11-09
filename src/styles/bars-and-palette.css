@@ -15,6 +15,38 @@
   background: var(--bg-panel);
 }
 
+/* A bar that slides open under the toolbar (and closed again), easing what's below it
+   down instead of pushing it all at once. */
+.slide-down {
+  display: grid;
+  grid-template-rows: 1fr;
+  flex: none;
+  animation: slide-down-open 180ms ease-out;
+}
+
+.slide-down > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.slide-down.closing {
+  animation: slide-down-close 180ms ease-in forwards;
+}
+
+@keyframes slide-down-open {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
+@keyframes slide-down-close {
+  to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
 .progress-text {
   min-width: 0;
   overflow: hidden;

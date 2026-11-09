@@ -1,4 +1,5 @@
 import { cancelAction, WORKTREE_ID, type RepoSnapshot } from "../api";
+import { usePresence } from "../lib/usePresence";
 import { openInBrowser } from "../lib/weblinks";
 import { CloseIcon } from "../components/Icons";
 import { LfsHealthBanner } from "../components/LfsHealthBanner";
@@ -50,9 +51,19 @@ export function RepositoryBanners(props: Props) {
   const branchLabel = snapshot.headBranch ?? "HEAD";
   const conflicted = (snapshot.worktree?.unstaged ?? []).filter((file) => file.status === "conflicted").map((file) => file.path);
 
+  // The progress bar slides open and closed, easing what's under it down and back up.
+  const strip = usePresence(
+    Boolean(progress?.visible),
+    progress?.visible ? <ProgressStrip label={progress.label} progress={progress.value} onCancel={progress.cancellable ? () => cancelAction().catch(() => {}) : undefined} /> : null,
+    180,
+  );
   return (
     <>
-      {progress?.visible && <ProgressStrip label={progress.label} progress={progress.value} onCancel={progress.cancellable ? () => cancelAction().catch(() => {}) : undefined} />}
+      {strip.shown && (
+        <div className={`slide-down${strip.closing ? " closing" : ""}`}>
+          <div>{strip.content}</div>
+        </div>
+      )}
       {snapshot.operation && (
         <OperationBar
           operation={snapshot.operation}
