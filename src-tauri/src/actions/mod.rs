@@ -18,6 +18,7 @@ mod elsewhere;
 mod file_names;
 mod files;
 mod history;
+mod hooks;
 mod identity;
 mod ignored;
 mod lfs;
@@ -121,8 +122,12 @@ pub enum Action {
     /// Pull into the checked-out branch.
     Pull,
     /// Push the checked-out branch, setting its upstream if it has none.
-    /// `force` uses `--force-with-lease`.
-    Push { force: bool },
+    /// `force` uses `--force-with-lease`; `no_verify` skips the pre-push hook.
+    Push {
+        force: bool,
+        #[serde(default, rename = "noVerify")]
+        no_verify: bool,
+    },
     /// Stash uncommitted changes, run `action`, then put the changes back.
     StashAndRetry {
         action: Box<Action>,
@@ -154,8 +159,14 @@ pub enum Action {
     StageAll,
     /// Unstage everything.
     UnstageAll,
-    /// Commit the staged changes, or amend the last commit.
-    Commit { message: String, amend: bool },
+    /// Commit the staged changes, or amend the last commit. `no_verify` skips the
+    /// pre-commit and commit-msg hooks.
+    Commit {
+        message: String,
+        amend: bool,
+        #[serde(default, rename = "noVerify")]
+        no_verify: bool,
+    },
     /// `git reset --soft <id>`: move the branch, keeping all changes staged.
     ResetSoft { id: String },
     /// Delete a local branch. Without `force`, git refuses if it isn't merged.
@@ -525,7 +536,9 @@ fn perform(
         }
         Action::Fetch { background } => remote::fetch(&repo, &git, background, on_progress),
         Action::Pull => remote::pull(&repo, &git, on_progress),
-        Action::Push { force } => remote::push(&repo, &git, force, on_progress, extra),
+        Action::Push { force, no_verify } => {
+            remote::push(&repo, &git, force, no_verify, on_progress, extra)
+        }
         Action::StashAndRetry {
             action,
             include_untracked,
@@ -578,7 +591,11 @@ fn perform(
         Action::Unstage { paths } => changes::unstage(&repo, &git, paths),
         Action::StageAll => changes::stage_all(&git),
         Action::UnstageAll => changes::unstage_all(&repo, &git),
-        Action::Commit { message, amend } => changes::commit(&git, message, amend),
+        Action::Commit {
+            message,
+            amend,
+            no_verify,
+        } => changes::commit(&git, message, amend, no_verify),
         Action::ResetSoft { id } => branches::reset_soft(&repo, &git, id),
         Action::DeleteBranch { name, force } => branches::delete_branch(&repo, &git, name, force),
         Action::DeleteRemoteBranch { name } => branches::delete_remote_branch(&repo, &git, name),

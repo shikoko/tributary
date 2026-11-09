@@ -476,7 +476,14 @@ fn keeps_backups_of_changed_branches_and_restores_them() {
     // A force push keeps what it replaced on the remote.
     alice.git(&["push", "--quiet", "origin", "main-restored:main"]);
     alice.git(&["fetch", "--quiet"]);
-    run(&alice, Action::Push { force: true }).unwrap();
+    run(
+        &alice,
+        Action::Push {
+            force: true,
+            no_verify: false,
+        },
+    )
+    .unwrap();
     assert_eq!(remote.git(&["rev-parse", "main"]), first);
     let pushed = find_backup(&alice, BackupEvent::ForcePushed);
     assert_eq!(

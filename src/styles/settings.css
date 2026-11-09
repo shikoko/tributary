@@ -523,3 +523,9 @@
   border-style: solid;
   border-color: var(--accent);
 }
+
+.settings-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

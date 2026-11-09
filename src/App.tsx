@@ -8,6 +8,7 @@ import { usePullRequestNews } from "./app/usePullRequestNews";
 import { useSpeedOffer } from "./app/useSpeedOffer";
 import { makeLookup, PullRequestsContext, requestNumber, usePullRequests } from "./lib/pullRequests";
 import { BisectMarksContext, bisectMarks } from "./lib/bisect";
+import { CiStatesContext, useCiStates } from "./lib/ciStates";
 import { useUpdates } from "./lib/updates";
 import type { OpenDialog } from "./menus";
 import { ProfilePictures } from "./components/Avatar";
@@ -280,6 +281,8 @@ export default function App() {
   }, [firstParentOnly, firstParentLoaded]);
   const zoomBy = useZoom(preferences.zoom, preferences.setZoom);
 
+  // Each recent commit's CI, for the dots in the list.
+  const ciStates = useCiStates(snapshot);
   // The editor and terminal "Open in …" uses.
   const openApps = useOpenApps();
   // The menus: in the macOS menu bar, or in the tab bar elsewhere.
@@ -383,6 +386,7 @@ export default function App() {
     <ThemeContext.Provider value={theme}>
     <BranchSyncContext.Provider value={counts.aheadBehind}>
     <BisectMarksContext.Provider value={marks}>
+    <CiStatesContext.Provider value={ciStates}>
     <ProfilePictures.Provider value={preferences.profilePictures ? repoPath : null}>
       <PullRequestsContext.Provider value={prs.list.length > 0 ? prLookup : null}>
         <div className="app">
@@ -478,6 +482,7 @@ export default function App() {
         </div>
       </PullRequestsContext.Provider>
     </ProfilePictures.Provider>
+    </CiStatesContext.Provider>
     </BisectMarksContext.Provider>
     </BranchSyncContext.Provider>
     </ThemeContext.Provider>

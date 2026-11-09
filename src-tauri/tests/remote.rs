@@ -17,7 +17,14 @@ fn pushes_fetches_and_pulls() {
 
     // The first push sets the upstream.
     assert_eq!(
-        run(&alice, Action::Push { force: false }).unwrap(),
+        run(
+            &alice,
+            Action::Push {
+                force: false,
+                no_verify: false
+            }
+        )
+        .unwrap(),
         "Pushed main to origin"
     );
     assert_eq!(remote.git(&["rev-parse", "main"]), first);
@@ -35,10 +42,23 @@ fn pushes_fetches_and_pulls() {
     let second = alice.commit("b.txt", "Second");
     alice.commit("c.txt", "Third");
     // The push reports the files its commits changed, not ones pushed before.
-    let pushed = outcome(&alice, Action::Push { force: false });
+    let pushed = outcome(
+        &alice,
+        Action::Push {
+            force: false,
+            no_verify: false,
+        },
+    );
     assert_eq!(pushed.pushed_files, vec!["b.txt", "c.txt"]);
     alice.git(&["reset", "--quiet", "--hard", "HEAD~1"]);
-    run(&alice, Action::Push { force: true }).unwrap();
+    run(
+        &alice,
+        Action::Push {
+            force: true,
+            no_verify: false,
+        },
+    )
+    .unwrap();
     assert_eq!(remote.git(&["rev-parse", "main"]), second);
 
     run(&bob, Action::Fetch { background: false }).unwrap();
@@ -57,7 +77,14 @@ fn pushes_fetches_and_pulls() {
     bob.git(&["config", "user.email", "bob@example.com"]);
     let from_bob = bob.commit("bob.txt", "From Bob");
     let from_alice = alice.commit("alice.txt", "From Alice");
-    run(&alice, Action::Push { force: false }).unwrap();
+    run(
+        &alice,
+        Action::Push {
+            force: false,
+            no_verify: false,
+        },
+    )
+    .unwrap();
     run(&bob, Action::Pull).unwrap();
     for id in [&from_bob, &from_alice] {
         bob.git(&["merge-base", "--is-ancestor", id, "main"]);
@@ -72,18 +99,39 @@ fn force_push_replaces_the_remote_branch() {
     alice.git(&["remote", "add", "origin", remote.url()]);
     alice.commit("a.txt", "First");
     alice.commit("a.txt", "Second");
-    run(&alice, Action::Push { force: false }).unwrap();
+    run(
+        &alice,
+        Action::Push {
+            force: false,
+            no_verify: false,
+        },
+    )
+    .unwrap();
 
     // Rewrite history: replace "Second" with something else.
     alice.git(&["reset", "--quiet", "--hard", "HEAD~1"]);
     let rewritten = alice.commit("a.txt", "Second, rewritten");
     assert!(
-        run(&alice, Action::Push { force: false }).is_err(),
+        run(
+            &alice,
+            Action::Push {
+                force: false,
+                no_verify: false
+            }
+        )
+        .is_err(),
         "a normal push is refused"
     );
 
     assert_eq!(
-        run(&alice, Action::Push { force: true }).unwrap(),
+        run(
+            &alice,
+            Action::Push {
+                force: true,
+                no_verify: false
+            }
+        )
+        .unwrap(),
         "Force pushed main to origin"
     );
     assert_eq!(remote.git(&["rev-parse", "main"]), rewritten);
@@ -176,9 +224,15 @@ fn pull_and_push_need_a_branch() {
     repo.git(&["switch", "--quiet", "--detach", &id]);
     assert!(run(&repo, Action::Pull).unwrap_err().contains("detached"));
     assert!(
-        run(&repo, Action::Push { force: false })
-            .unwrap_err()
-            .contains("detached")
+        run(
+            &repo,
+            Action::Push {
+                force: false,
+                no_verify: false
+            }
+        )
+        .unwrap_err()
+        .contains("detached")
     );
     assert!(
         run(&repo, Action::Fetch { background: false })
@@ -197,9 +251,14 @@ fn reports_progress_and_remembers_upstreams() {
         alice.commit(&format!("file{i}.txt"), &format!("Commit {i}"));
     }
     let phases = std::cell::RefCell::new(Vec::new());
-    actions::run_with_progress(alice.path(), Action::Push { force: false }, &|progress| {
-        phases.borrow_mut().push(progress.phase)
-    })
+    actions::run_with_progress(
+        alice.path(),
+        Action::Push {
+            force: false,
+            no_verify: false,
+        },
+        &|progress| phases.borrow_mut().push(progress.phase),
+    )
     .unwrap();
     assert_eq!(
         phases.borrow().first().map(String::as_str),
@@ -340,8 +399,15 @@ fn passes_on_the_pull_request_link_the_remote_suggests() {
     repo.commit("a.txt", "First");
     repo.git(&["switch", "--quiet", "--create", "feature"]);
 
-    let outcome =
-        actions::run_with_progress(repo.path(), Action::Push { force: false }, &|_| {}).unwrap();
+    let outcome = actions::run_with_progress(
+        repo.path(),
+        Action::Push {
+            force: false,
+            no_verify: false,
+        },
+        &|_| {},
+    )
+    .unwrap();
     assert_eq!(
         outcome.pull_request.as_deref(),
         Some("https://github.com/owner/repo/pull/new/feature")
@@ -578,7 +644,14 @@ fn adds_renames_repoints_and_removes_remotes() {
         "{logged:?}"
     );
 
-    run(&repo, Action::Push { force: false }).unwrap();
+    run(
+        &repo,
+        Action::Push {
+            force: false,
+            no_verify: false,
+        },
+    )
+    .unwrap();
     assert!(repo.git(&["branch", "-r"]).contains("origin/main"));
     run(
         &repo,

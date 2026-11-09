@@ -18,7 +18,8 @@ export type Action =
   | { kind: "createBranch"; name: string; id: string; checkout: boolean }
   | { kind: "fetch"; background?: boolean }
   | { kind: "pull" }
-  | { kind: "push"; force: boolean }
+  /** `noVerify`: without the repository's pre-push hook. */
+  | { kind: "push"; force: boolean; noVerify?: boolean }
   /** Stash uncommitted changes, run `action`, then put the changes back. */
   | { kind: "stashAndRetry"; action: Action; includeUntracked: boolean }
   /** `paths`: only these files (all changes when left out). */
@@ -30,7 +31,8 @@ export type Action =
   | { kind: "unstage"; paths: string[] }
   | { kind: "stageAll" }
   | { kind: "unstageAll" }
-  | { kind: "commit"; message: string; amend: boolean }
+  /** `noVerify`: without the repository's pre-commit and commit-msg hooks. */
+  | { kind: "commit"; message: string; amend: boolean; noVerify?: boolean }
   | { kind: "resetSoft"; id: string }
   | { kind: "deleteBranch"; name: string; force: boolean }
   | { kind: "deleteRemoteBranch"; name: string }

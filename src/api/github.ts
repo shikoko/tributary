@@ -143,6 +143,8 @@ export interface RequestDetails {
   /** The commits it's between: where the branch it goes into is, and its own branch's last commit. */
   baseSha: string | null;
   headSha: string | null;
+  /** It merges by itself once its checks pass. */
+  autoMerge: boolean;
 }
 
 export function pullRequestDetails(path: string, number: number): Promise<RequestDetails> {
@@ -212,4 +214,38 @@ export interface MergeRequestOptions {
 /** Merge a request on its site. */
 export function mergeRequest(path: string, number: number, options: MergeRequestOptions): Promise<string> {
   return invoke<string>("merge_request", { path, number, options });
+}
+
+/** The CI state of each of `ids` (full commit ids) that has one, on GitHub or GitLab. */
+export function commitStates(path: string, ids: string[]): Promise<Record<string, "success" | "failure" | "pending">> {
+  return invoke<Record<string, "success" | "failure" | "pending">>("commit_states", { path, ids });
+}
+
+/** A commit's checks (GitHub) or latest pipeline's jobs (GitLab). */
+export interface CommitChecks {
+  checks: RequestCheck[];
+  /** Failed ones can be run again from here. */
+  canRerun: boolean;
+  /** "GitHub" or "GitLab". */
+  site: string;
+}
+
+export function commitChecks(path: string, id: string): Promise<CommitChecks> {
+  return invoke<CommitChecks>("commit_checks", { path, id });
+}
+
+/** Run a commit's failed checks again; says what was done. */
+export function rerunFailedChecks(path: string, id: string): Promise<string> {
+  return invoke<string>("rerun_failed_checks", { path, id });
+}
+
+/** A change to an open request from its view. */
+export type RequestChange =
+  | { kind: "draft"; draft: boolean }
+  | { kind: "reviewers"; reviewers: string[] }
+  | { kind: "autoMerge"; on: boolean; method?: string };
+
+/** Change request `number`: ready or a draft, more reviewers, or auto-merge; says what was done. */
+export function changeRequest(path: string, number: number, change: RequestChange): Promise<string> {
+  return invoke<string>("change_request", { path, number, change });
 }

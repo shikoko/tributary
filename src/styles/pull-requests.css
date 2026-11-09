@@ -717,3 +717,26 @@ textarea.request-body.short {
 .rewrite-changes .header {
   color: var(--text-muted);
 }
+
+/* An open request's controls: draft, reviewers, auto-merge. */
+.request-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.request-control-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.request-ask {
+  display: flex;
+  gap: 6px;
+  max-width: 520px;
+}
+
+.request-ask .text-input {
+  flex: 1;
+}

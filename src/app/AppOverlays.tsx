@@ -13,6 +13,7 @@ import { ShortcutsDialog } from "../components/ShortcutsDialog";
 import { Toast, type ToastMessage } from "../components/Toast";
 import { UpdateDialog } from "../components/UpdateDialog";
 import { useAppRows } from "../components/AppRows";
+import { settingsTransferRow } from "../components/SettingsTransferRow";
 import { useDiffToolRows } from "../components/DiffToolRows";
 import { settingsSections } from "./settingsSections";
 import { useGitHubStatus } from "./useGitHub";
@@ -70,6 +71,7 @@ export function AppOverlays(props: Props) {
           sections={settingsSections({
             diffTools,
             apps: appRows,
+            transfer: settingsTransferRow((text) => notify({ text })),
             theme,
             preferences,
             version,

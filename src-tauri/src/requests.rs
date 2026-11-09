@@ -143,6 +143,9 @@ pub struct RequestDetails {
     /// last commit (to compare them in the app once they're fetched).
     pub base_sha: Option<String>,
     pub head_sha: Option<String>,
+    /// It merges by itself once its checks pass (GitHub's auto-merge, GitLab's "merge when
+    /// the pipeline succeeds").
+    pub auto_merge: bool,
 }
 
 /// The site the repository's pull requests are on, and its token.
@@ -176,7 +179,7 @@ pub(crate) fn site(path: &Path) -> Result<Site> {
     Err("This repository isn't on GitHub or GitLab.".into())
 }
 
-async fn site_of(path: &Path) -> Result<Site> {
+pub(crate) async fn site_of(path: &Path) -> Result<Site> {
     let path = path.to_owned();
     tauri::async_runtime::spawn_blocking(move || site(&path))
         .await
@@ -530,5 +533,40 @@ mod tests {
         sort_checks(&mut checks);
         let names: Vec<_> = checks.iter().map(|c| c.name.as_str()).collect();
         assert_eq!(names, ["test", "build", "audit", "lint", "docs"]);
+    }
+}
+
+/// A change to an open request, from its view.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum RequestChange {
+    /// Ready for review (false), or back to a draft (true).
+    Draft { draft: bool },
+    /// Ask these people (`maya`, or `@maya`) and teams (`@org/team`, GitHub) to review it.
+    Reviewers { reviewers: Vec<String> },
+    /// Merge by itself once its checks pass, with `method` ("merge", "squash", "rebase"),
+    /// or not any more.
+    AutoMerge {
+        on: bool,
+        #[serde(default)]
+        method: Option<String>,
+    },
+}
+
+/// Change request `number`: draft or not, more reviewers, or auto-merge.
+pub async fn change_request(path: &Path, number: u64, change: RequestChange) -> Result<String> {
+    match site_of(path).await? {
+        Site::GitHub {
+            full_name, token, ..
+        } => {
+            let token = token.ok_or("Sign in to GitHub first (Settings, Accounts).")?;
+            crate::github::controls::change(&full_name, &token, number, change).await
+        }
+        Site::GitLab { project, token } => {
+            let token = token.ok_or(
+                "Git has no token for this GitLab server yet: push or fetch once to sign in.",
+            )?;
+            crate::gitlab::controls::change(&project, &token, number, change).await
+        }
     }
 }

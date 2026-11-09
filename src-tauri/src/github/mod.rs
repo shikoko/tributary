@@ -3,6 +3,8 @@
 //! (see [`account`] for signing in).
 
 pub mod account;
+pub(crate) mod ci;
+pub(crate) mod controls;
 pub(crate) mod issues;
 pub(crate) mod pulls;
 pub(crate) mod reviews;

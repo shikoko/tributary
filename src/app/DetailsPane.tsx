@@ -42,6 +42,8 @@ interface Props {
   onNotLoaded: () => void;
   /** Compare two commits, in this panel. */
   onCompare: (request: CompareRequest) => void;
+  /** Say what was done, briefly. */
+  notify: (text: string) => void;
 }
 
 /**
@@ -115,6 +117,7 @@ export function DetailsPane(props: Props) {
       isShown={(path) => isShown(props.shownDiff, source, path)}
       isHighlighted={props.isHistoryFile}
       lockOf={locks ? (path) => locks.get(path) : undefined}
+      notify={props.notify}
     />
   );
 }

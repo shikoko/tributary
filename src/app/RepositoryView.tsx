@@ -13,6 +13,7 @@ import { ElsewherePanel } from "../components/ElsewherePanel";
 import { RepoSettingsDialog } from "../components/RepoSettingsDialog";
 import { ComparePanel } from "../components/ComparePanel";
 import { useFileViews } from "./useFileViews";
+import { EMPTY_DRAFT } from "../components/worktree/CommitBox";
 import { ListOverlays, type RewriteShown } from "./ListOverlays";
 import { useStacks } from "./useStacks";
 import { useRepositoryMenus } from "./useRepositoryMenus";
@@ -270,6 +271,7 @@ export function RepositoryView(props: Props) {
       />
     ) : detailsOpen ? (
       <DetailsPane
+        notify={(text) => props.notify({ text })}
         snapshot={snapshot}
         selection={selection}
         actions={actions}
@@ -328,6 +330,7 @@ export function RepositoryView(props: Props) {
         onClose={() => props.closeTab(snapshot.path)}
       />
       <RepositoryBanners
+        onCommitted={() => props.draft.setDraft(EMPTY_DRAFT)}
         snapshot={snapshot}
         repo={repo}
         actions={actions}

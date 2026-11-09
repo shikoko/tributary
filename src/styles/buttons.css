@@ -97,3 +97,29 @@
   /* git's messages span several lines. */
   white-space: pre-wrap;
 }
+
+/* A hook stopped a commit or push: what it printed, readably. */
+.error-banner.hook-failure {
+  align-items: flex-start;
+}
+
+.hook-failure-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.hook-output {
+  max-height: 180px;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.2);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}

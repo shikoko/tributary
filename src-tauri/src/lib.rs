@@ -5,6 +5,7 @@ pub mod actions;
 mod app_icon;
 pub mod apps;
 pub mod avatars;
+pub mod ci;
 pub mod codeowners;
 mod commands;
 pub mod diagnostics;
@@ -76,6 +77,12 @@ pub fn run() {
             commands::ignore_reason,
             commands::installed_apps,
             commands::open_in_app,
+            commands::commit_states,
+            commands::change_request,
+            commands::commit_checks,
+            commands::rerun_failed_checks,
+            commands::save_settings_file,
+            commands::read_settings_file,
             commands::publish_release,
             commands::range_diff,
             commands::patch_text,

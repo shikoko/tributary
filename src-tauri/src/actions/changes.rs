@@ -54,7 +54,7 @@ pub(super) fn unstage_all(repo: &gix::Repository, git: &Git) -> Result<String> {
 }
 
 /// Commit the staged changes, or amend the last commit.
-pub(super) fn commit(git: &Git, message: String, amend: bool) -> Result<String> {
+pub(super) fn commit(git: &Git, message: String, amend: bool, no_verify: bool) -> Result<String> {
     let message = message.trim();
     if message.is_empty() {
         return Err("Write a commit message first.".into());
@@ -63,7 +63,12 @@ pub(super) fn commit(git: &Git, message: String, amend: bool) -> Result<String> 
     if amend {
         args.push("--amend");
     }
-    git.run(&args)?;
+    // Without the repository's pre-commit and commit-msg hooks, when they stopped it.
+    if no_verify {
+        args.push("--no-verify");
+    }
+    git.run(&args)
+        .map_err(|error| super::hooks::explain(git, error, false))?;
     let id = git.run(&["rev-parse", "--short", "HEAD"])?;
     let summary = message.lines().next().unwrap_or_default();
     Ok(format!(

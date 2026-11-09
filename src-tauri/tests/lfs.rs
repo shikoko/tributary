@@ -34,9 +34,14 @@ fn reports_git_lfs_uploads_while_pushing() {
     alice.git(&["commit", "--quiet", "-m", "Add a video"]);
 
     let reports = std::cell::RefCell::new(Vec::new());
-    actions::run_with_progress(alice.path(), Action::Push { force: false }, &|progress| {
-        reports.borrow_mut().push(progress)
-    })
+    actions::run_with_progress(
+        alice.path(),
+        Action::Push {
+            force: false,
+            no_verify: false,
+        },
+        &|progress| reports.borrow_mut().push(progress),
+    )
     .unwrap();
     let reports = reports.into_inner();
     let uploads: Vec<_> = reports

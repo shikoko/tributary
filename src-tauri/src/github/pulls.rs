@@ -12,7 +12,7 @@ use crate::requests::{
 /// People and teams to ask for a review: `@user` are people; `@org/team` teams of the
 /// repository's own organization. Email addresses, and the request's author (who can't
 /// review it), are left out.
-fn reviewers_and_teams(
+pub(crate) fn reviewers_and_teams(
     full_name: &str,
     wanted: &[String],
     author: &str,
@@ -39,7 +39,7 @@ fn reviewers_and_teams(
 
 /// Ask for reviews on pull request `number`. It's opened by then, so a refusal (someone
 /// without access, say) leaves it as it is: the request shows who was asked.
-async fn ask_for_reviews(
+pub(crate) async fn ask_for_reviews(
     full_name: &str,
     token: &str,
     number: u64,
@@ -153,6 +153,9 @@ struct RawDetails {
     requested_reviewers: Vec<Login>,
     #[serde(default)]
     requested_teams: Vec<Team>,
+    /// Set while auto-merge is on.
+    #[serde(default)]
+    auto_merge: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -290,6 +293,34 @@ fn mergeable(state: Option<&str>) -> Option<Mergeable> {
 }
 
 /// Pull request `number` in full.
+/// A commit's checks (GitHub Actions and other apps) and commit statuses, failures first.
+pub(crate) async fn commit_checks(
+    client: &reqwest::Client,
+    full_name: &str,
+    token: Option<&str>,
+    sha: &str,
+) -> Vec<Check> {
+    let base = format!("https://api.github.com/repos/{full_name}");
+    let get = |url: String| api_request(client, url, token).send();
+    let mut checks: Vec<Check> =
+        match get(format!("{base}/commits/{sha}/check-runs?per_page=100")).await {
+            Ok(answer) if answer.status().is_success() => answer
+                .json::<RawCheckRuns>()
+                .await
+                .map(|runs| runs.check_runs.into_iter().map(run_check).collect())
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
+    if let Ok(answer) = get(format!("{base}/commits/{sha}/status")).await
+        && answer.status().is_success()
+        && let Ok(statuses) = answer.json::<RawStatuses>().await
+    {
+        checks.extend(statuses.statuses.into_iter().map(status_check));
+    }
+    sort_checks(&mut checks);
+    checks
+}
+
 pub(crate) async fn details(
     full_name: &str,
     token: Option<&str>,
@@ -326,23 +357,7 @@ pub(crate) async fn details(
         .chain(pull.requested_teams.into_iter().map(|team| team.name))
         .collect();
 
-    let sha = &pull.head.sha;
-    let mut checks: Vec<Check> =
-        match get(format!("{base}/commits/{sha}/check-runs?per_page=100")).await {
-            Ok(answer) if answer.status().is_success() => answer
-                .json::<RawCheckRuns>()
-                .await
-                .map(|runs| runs.check_runs.into_iter().map(run_check).collect())
-                .unwrap_or_default(),
-            _ => Vec::new(),
-        };
-    if let Ok(answer) = get(format!("{base}/commits/{sha}/status")).await
-        && answer.status().is_success()
-        && let Ok(statuses) = answer.json::<RawStatuses>().await
-    {
-        checks.extend(statuses.statuses.into_iter().map(status_check));
-    }
-    sort_checks(&mut checks);
+    let checks = commit_checks(&client, full_name, token, &pull.head.sha).await;
 
     let (base_sha, head_sha) = (Some(pull.base.sha.clone()), Some(pull.head.sha.clone()));
     let state = if pull.merged {
@@ -378,6 +393,7 @@ pub(crate) async fn details(
         forge: Forge::GitHub,
         base_sha,
         head_sha,
+        auto_merge: pull.auto_merge.is_some_and(|value| !value.is_null()),
     })
 }
 

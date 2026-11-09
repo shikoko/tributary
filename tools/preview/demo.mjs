@@ -871,6 +871,7 @@ export const STUDIO_PULL_REQUEST_DETAILS = {
     forge: "github",
     baseSha: null,
     headSha: null,
+    autoMerge: false,
   },
   14: {
     number: 14,
@@ -899,6 +900,7 @@ export const STUDIO_PULL_REQUEST_DETAILS = {
     forge: "github",
     baseSha: null,
     headSha: null,
+    autoMerge: false,
   },
 };
 

@@ -8,6 +8,7 @@ import { coAuthors } from "../lib/weblinks";
 import { Avatar } from "./Avatar";
 import { CheckIcon, CloseIcon, CopyIcon, KeyIcon } from "./Icons";
 import { describeSignature } from "../lib/signatures";
+import { CommitChecks } from "./CommitChecks";
 import { MentionedIssues } from "./MentionedIssues";
 import { MessageText } from "./MessageText";
 import { RefPills } from "./RefPills";
@@ -43,6 +44,8 @@ interface Props {
   onOpenFile?: (file: FileChange) => void;
   /** The file whose changes are shown. */
   isShown?: (path: string) => boolean;
+  /** Say what was done (like re-running failed checks). */
+  notify?: (text: string) => void;
 }
 
 export interface DetailsAction {
@@ -143,6 +146,7 @@ export function CommitDetailsPanel(props: Props) {
             </div>
           )}
           <MentionedIssues text={`${details?.summary ?? commit.summary}\n${details?.body ?? ""}\n${commit.refs.map((ref) => ref.name).join("\n")}`} />
+          {props.notify && <CommitChecks repoPath={repoPath} id={commit.id} notify={props.notify} />}
 
           {commit.refs.length > 0 && (
             <div className="details-refs">

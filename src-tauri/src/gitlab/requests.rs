@@ -12,7 +12,7 @@ use crate::requests::{
 
 /// GitLab's ids for the people (`@user`) among `wanted`, to ask them for a review. Groups
 /// can't review on GitLab, and names it doesn't know are left out.
-async fn reviewer_ids(
+pub(super) async fn reviewer_ids(
     client: &reqwest::Client,
     project: &Project,
     token: &str,
@@ -133,6 +133,8 @@ struct RawDetails {
     changes_count: Option<String>,
     #[serde(default)]
     reviewers: Vec<RawAuthor>,
+    #[serde(default)]
+    merge_when_pipeline_succeeds: bool,
     head_pipeline: Option<RawHeadPipeline>,
     #[serde(default)]
     diff_refs: Option<RawDiffRefs>,
@@ -165,7 +167,7 @@ struct RawApprover {
 }
 
 #[derive(Deserialize)]
-struct RawJob {
+pub(super) struct RawJob {
     name: String,
     stage: Option<String>,
     status: String,
@@ -189,7 +191,7 @@ fn merge_status(status: Option<&str>, has_conflicts: bool) -> Option<Mergeable> 
     })
 }
 
-fn job_check(job: RawJob) -> Check {
+pub(super) fn job_check(job: RawJob) -> Check {
     let state = match job.status.as_str() {
         "success" => Some(CheckState::Success),
         // A job allowed to fail doesn't hold anything up.
@@ -336,6 +338,7 @@ pub(crate) async fn details(
             .diff_refs
             .and_then(|refs| refs.head_sha)
             .or(request.sha),
+        auto_merge: request.merge_when_pipeline_succeeds,
     })
 }
 

@@ -49,8 +49,8 @@ export function ChangeWarnings({ staged, unstaged, lockOf, checks, canLock, busy
         <WarningIcon size={14} />
         <div>
           <div>
-            {metas.length === 1 ? "A file's .meta is" : `${metas.length} files' .meta files are`} wrong. Unity finds assets by the id in
-            their .meta, so a teammate's copy would lose whatever uses {metas.length === 1 ? "it" : "them"}.
+            {metas.length === 1 ? "A Unity .meta file is missing or wrong." : `${metas.length} Unity .meta files are missing or wrong.`} Unity
+            finds assets by the id in their .meta, so a teammate's copy would lose whatever uses them.
           </div>
           <ul className="file-warning-list">
             {metas.slice(0, 6).map((problem) => (

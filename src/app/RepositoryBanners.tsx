@@ -1,4 +1,5 @@
 import { cancelAction, WORKTREE_ID, type RepoSnapshot } from "../api";
+import { hookFailure } from "../lib/errors";
 import { usePresence } from "../lib/usePresence";
 import { openInBrowser } from "../lib/weblinks";
 import { CloseIcon } from "../components/Icons";
@@ -37,6 +38,8 @@ interface Props {
   showWholeHistory: () => void;
   /** Open another working tree, in its tab. */
   openWorktree: (path: string) => void;
+  /** A commit was made from here (without hooks): the message box starts empty again. */
+  onCommitted: () => void;
 }
 
 /**
@@ -47,6 +50,7 @@ export function RepositoryBanners(props: Props) {
   const { snapshot, repo, actions, selection, highlight, settings, lfsHealth, lockRelease, showWholeHistory, openWorktree } = props;
   const { act, running, progress } = actions;
   const { error, setError } = repo;
+  const hook = error ? hookFailure(error.message) : null;
   const { focus } = highlight;
   const branchLabel = snapshot.headBranch ?? "HEAD";
   const conflicted = (snapshot.worktree?.unstaged ?? []).filter((file) => file.status === "conflicted").map((file) => file.path);
@@ -89,7 +93,34 @@ export function RepositoryBanners(props: Props) {
           onShow={(id) => (selection.byId.has(id) ? selection.select(id) : repo.setError({ message: "That commit isn't loaded: load more commits" }))}
         />
       )}
-      {error && (
+      {error && hook && (
+        <div className="error-banner inline hook-failure" role="alert">
+          <div className="hook-failure-text">
+            <strong>
+              The {hook.hook} hook stopped the {hook.what}
+            </strong>
+            {hook.output ? <pre className="hook-output mono">{hook.output}</pre> : <span> without saying why.</span>}
+          </div>
+          {error.skipHooks && (
+            <button
+              className="error-action"
+              disabled={running !== null}
+              title={`Run it again without the repository's ${hook.what === "commit" ? "pre-commit and commit-msg hooks" : "pre-push hook"}: their checks are skipped this once`}
+              onClick={() =>
+                act(error.skipHooks!).then((done) => {
+                  if (done && error.skipHooks?.kind === "commit") props.onCommitted();
+                })
+              }
+            >
+              {hook.what === "commit" ? "Commit anyway (skip hooks)" : "Push anyway (skip hooks)"}
+            </button>
+          )}
+          <button className="icon-button" onClick={() => setError(null)} aria-label="Dismiss">
+            <CloseIcon size={14} />
+          </button>
+        </div>
+      )}
+      {error && !hook && (
         <div className="error-banner inline" role="alert">
           <span>{error.message}</span>
           {error.retry && (

@@ -141,6 +141,19 @@
     }
     return later({ approve: `Approved #${number}`, requestChanges: `Asked for changes to #${number}`, comment: `Reviewed #${number}` }[verdict]);
   };
+  const fakeChange = ({ number, change }) => {
+    const details = preview.pullRequestDetails?.[number];
+    if (change.kind === "draft") {
+      if (details) details.state = change.draft ? "draft" : "open";
+      return later(change.draft ? `#${number} is a draft again` : `#${number} is ready for review`);
+    }
+    if (change.kind === "autoMerge") {
+      if (details) details.autoMerge = change.on;
+      return later(change.on ? `#${number} merges by itself once its checks pass` : `#${number} won't merge by itself`);
+    }
+    if (details) details.reviews = [...details.reviews, ...change.reviewers.map((name) => ({ author: name.replace(/^@/, ""), state: "requested" }))];
+    return later(`Asked ${change.reviewers.join(", ")} to review #${number}`);
+  };
   const fakeMerge = ({ number, options }) => {
     const details = preview.pullRequestDetails?.[number];
     if (details) Object.assign(details, { state: "merged", mergeable: null });
@@ -222,6 +235,18 @@
     merge_request: (args) => (faking() ? fakeMerge(args) : server("merge_request", args)),
     create_pull_request: (args) => (faking() ? fakeCreate(args) : server("create_pull_request", args)),
     new_request_info: (args) => (faking() ? fakeRequestInfo(args) : server("new_request_info", args)),
+    // CI for every commit: steered by ciStates ({ "<id prefix>": "success" | "failure" | "pending" })
+    // and commitChecks (what a commit's details show).
+    commit_states: ({ ids }) =>
+      Object.fromEntries(
+        ids.flatMap((id) => {
+          const state = Object.entries(preview.ciStates || {}).find(([prefix]) => id.startsWith(prefix))?.[1];
+          return state ? [[id, state]] : [];
+        }),
+      ),
+    commit_checks: () => preview.commitChecks || { checks: [], canRerun: false, site: "GitHub" },
+    change_request: (args) => (faking() ? fakeChange(args) : server("change_request", args)),
+    rerun_failed_checks: () => "Running the failed jobs again",
     github_status: () =>
       preview.github
         ? { account: preview.github.account ?? null, tokenRejected: false, canKeepToken: true, browserSignIn: Boolean(preview.github.browserSignIn) }

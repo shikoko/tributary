@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type MutableRefObject } from "react";
 import { onProgress, PAGE_SIZE, runActionFor, type Action, type Outcome, type Progress, type RepoSnapshot } from "../api";
-import { involvesUntrackedFiles, isLocalChangesError } from "../lib/errors";
+import { hookFailure, involvesUntrackedFiles, isLocalChangesError } from "../lib/errors";
 import { undoFor } from "../lib/undo";
 import { openInBrowser } from "../lib/weblinks";
 import type { ToastMessage } from "../components/Toast";
@@ -105,7 +105,10 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
             : undefined;
         // The branch is checked out in another working tree: offer to open that.
         const worktree = /already (?:used by worktree|checked out) at '([^']+)'/.exec(message)?.[1];
-        setError({ message, retry, worktree });
+        // A hook stopped it: offer to go ahead without it.
+        const skipHooks: Action | undefined =
+          hookFailure(message) && (action.kind === "commit" || action.kind === "push") ? { ...action, noVerify: true } : undefined;
+        setError({ message, retry, worktree, skipHooks });
         return false;
       }
       const { message, pullRequest, backup } = outcome;

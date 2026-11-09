@@ -643,3 +643,13 @@ export function installedApps(): Promise<InstalledApp[]> {
 export function openInApp(app: string, path: string, file?: string): Promise<void> {
   return invoke<void>("open_in_app", { app, path, file: file ?? null });
 }
+
+/** Save exported settings (JSON text) to a .json file the user chose. */
+export function saveSettingsFile(file: string, text: string): Promise<void> {
+  return invoke<void>("save_settings_file", { file, text });
+}
+
+/** Read a file of settings exported from Tributary. */
+export function readSettingsFile(file: string): Promise<string> {
+  return invoke<string>("read_settings_file", { file });
+}

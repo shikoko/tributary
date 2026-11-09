@@ -41,13 +41,27 @@ export function RepoSizeDialog({
   const offered = useMemo(() => {
     const kinds = new Map<string, number>();
     for (const file of size?.biggest ?? []) {
-      if (file.inLfs || file.bytes < 1_000_000) continue;
+      if (file.inLfs || file.bytes < 100_000) continue;
       const kind = kindOf(file.path);
       kinds.set(kind, (kinds.get(kind) ?? 0) + file.diskBytes);
     }
     return [...kinds.entries()].sort((a, b) => b[1] - a[1]);
   }, [size]);
   const patterns = [...chosen];
+  // Each file once: its biggest version, how many of its versions are among the biggest,
+  // and whether it's still in the latest commit.
+  const files = useMemo(() => {
+    const byPath = new Map<string, { path: string; bytes: number; versions: number; current: boolean; inLfs: boolean }>();
+    for (const file of size?.biggest ?? []) {
+      const known = byPath.get(file.path);
+      if (known) {
+        known.versions++;
+        known.bytes = Math.max(known.bytes, file.bytes);
+        known.current ||= file.current;
+      } else byPath.set(file.path, { path: file.path, bytes: file.bytes, versions: 1, current: file.current, inLfs: file.inLfs });
+    }
+    return [...byPath.values()].slice(0, 10);
+  }, [size]);
   const largest = Math.max(1, ...(size?.folders ?? []).map((group) => group.diskBytes), ...(size?.kinds ?? []).map((group) => group.diskBytes));
 
   return (
@@ -121,12 +135,13 @@ export function RepoSizeDialog({
           </div>
           <h3>The biggest files</h3>
           <ul className="repo-size-files">
-            {size.biggest.slice(0, 14).map((file) => (
-              <li key={file.path + file.bytes}>
+            {files.map((file) => (
+              <li key={file.path}>
                 <span className="repo-size-name mono" title={file.path}>
                   {file.path}
                 </span>
-                {!file.current && <span className="repo-size-tag">deleted or changed since</span>}
+                {file.versions > 1 && <span className="repo-size-tag">{file.versions} versions</span>}
+                {!file.current && <span className="repo-size-tag">deleted</span>}
                 {file.inLfs && <span className="repo-size-tag lfs">in Git LFS now</span>}
                 <span className="repo-size-amount">{formatBytes(file.bytes)}</span>
               </li>

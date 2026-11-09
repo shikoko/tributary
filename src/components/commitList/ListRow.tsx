@@ -1,5 +1,6 @@
 import { memo, useContext, type MouseEvent, type RefObject } from "react";
 import { BisectMarksContext, type BisectMark } from "../../lib/bisect";
+import { CiStatesContext, describeCiState } from "../../lib/ciStates";
 
 const BISECT_TITLES: Record<BisectMark, string> = {
   good: "Marked good while bisecting: it works",
@@ -66,6 +67,7 @@ export const ListRow = memo(function ListRow(props: RowProps) {
   const { commit, top, height, metrics, lanes, visible, options, changes, narrow, dense, handlers } = props;
   const { selected, primary, dimmed, authorNode, head } = props;
   const bisectMark = useContext(BisectMarksContext).get(commit.id);
+  const ci = useContext(CiStatesContext).get(commit.id);
   const on = () => handlers.current!;
   const onSelect = (id: string, how?: SelectHow) => on().onSelect(id, how);
   const color = laneColor(commit.graph.column, lanes);
@@ -168,6 +170,7 @@ export const ListRow = memo(function ListRow(props: RowProps) {
             >
               {commit.summary || "(no message)"}
             </span>
+            {ci && <span className={`ci-dot ${ci}`} title={describeCiState(ci)} aria-label={describeCiState(ci)} />}
           </div>
           {visible.author && (
             <div className="cell author" title={`${commit.authorName} <${commit.authorEmail}>`}>

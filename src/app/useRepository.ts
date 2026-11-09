@@ -18,6 +18,8 @@ export interface RepoError {
   retry?: Action;
   /** The branch is checked out in this other working tree. */
   worktree?: string;
+  /** A hook stopped this commit or push: it again, without the hook. */
+  skipHooks?: Action;
 }
 
 /** What the rest of the app does when the open repository changes. */

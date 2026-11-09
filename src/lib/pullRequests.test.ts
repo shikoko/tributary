@@ -50,6 +50,7 @@ describe("describeMergeable", () => {
     forge: "github",
     baseSha: null,
     headSha: null,
+    autoMerge: false,
     ...overrides,
   });
 

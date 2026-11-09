@@ -450,3 +450,28 @@
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/* A commit's CI. */
+.commit-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+.commit-checks-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.commit-checks-head .ci-dot {
+  margin-left: 0;
+}
+
+.commit-checks-head .outline-button.small {
+  height: 24px;
+  margin-left: auto;
+}

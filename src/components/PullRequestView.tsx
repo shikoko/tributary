@@ -5,6 +5,7 @@ import { checkMerge, describeMergeCheck } from "../lib/mergeChecks";
 import { describeMergeable, requestNoun, requestNumber, summarizeChecks } from "../lib/pullRequests";
 import { Avatar } from "./Avatar";
 import { CloseIcon, CompareIcon, ExternalLinkIcon, MergeIcon, PullRequestIcon, RebaseIcon, RefreshIcon } from "./Icons";
+import { RequestControls } from "./RequestControls";
 import { ConversationList, MergeRequestDialog, ReviewBox } from "./RequestReview";
 
 /** While checks are running, they're asked about again this often. */
@@ -276,6 +277,9 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
                 </span>
               )}
             </div>
+            {canAct && conversation && (details.state === "open" || details.state === "draft") && (
+              <RequestControls repoPath={repoPath} details={details} methods={conversation.mergeMethods} onDone={done} />
+            )}
             {reviewing && conversation && <ReviewBox repoPath={repoPath} details={details} conversation={conversation} onDone={done} onCancel={() => setReviewing(false)} />}
 
             <div className="request-columns">
@@ -337,7 +341,7 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
   );
 }
 
-function CheckRow({ check, openUrl }: { check: RequestCheck; openUrl: (url: string) => void }) {
+export function CheckRow({ check, openUrl }: { check: RequestCheck; openUrl: (url: string) => void }) {
   const state = check.state ?? "skipped";
   const words = { success: "Passed", failure: "Failed", pending: "Running", skipped: "Skipped" }[state];
   return (

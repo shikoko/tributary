@@ -280,6 +280,81 @@ pub async fn merge_check(
     blocking(move || actions::merge_check(&PathBuf::from(path), &from, into.as_deref())).await
 }
 
+/// Settings files are small: anything bigger isn't one.
+const MOST_SETTINGS_BYTES: u64 = 5 * 1024 * 1024;
+
+fn settings_file(file: &str) -> Result<PathBuf> {
+    let path = PathBuf::from(file);
+    if !path.is_absolute()
+        || path
+            .extension()
+            .is_none_or(|ext| !ext.eq_ignore_ascii_case("json"))
+    {
+        return Err("Settings are saved as a .json file.".into());
+    }
+    Ok(path)
+}
+
+/// Save exported settings (JSON) to `file`, chosen by the user.
+#[tauri::command]
+pub async fn save_settings_file(file: String, text: String) -> Result<()> {
+    blocking(move || {
+        let path = settings_file(&file)?;
+        if text.len() as u64 > MOST_SETTINGS_BYTES {
+            return Err("Those settings are too big to save.".into());
+        }
+        std::fs::write(&path, text).map_err(|e| format!("Couldn't save {file}: {e}").into())
+    })
+    .await
+}
+
+/// Read settings exported from Tributary (JSON) from `file`, chosen by the user.
+#[tauri::command]
+pub async fn read_settings_file(file: String) -> Result<String> {
+    blocking(move || {
+        let path = settings_file(&file)?;
+        let size = std::fs::metadata(&path)
+            .map_err(|e| format!("Couldn't read {file}: {e}"))?
+            .len();
+        if size > MOST_SETTINGS_BYTES {
+            return Err("That file is too big to be Tributary's settings.".into());
+        }
+        std::fs::read_to_string(&path).map_err(|e| format!("Couldn't read {file}: {e}").into())
+    })
+    .await
+}
+
+/// Change an open pull (or merge) request: ready or a draft, more reviewers, auto-merge.
+#[tauri::command]
+pub async fn change_request(
+    path: String,
+    number: u64,
+    change: crate::requests::RequestChange,
+) -> Result<String> {
+    crate::requests::change_request(&PathBuf::from(path), number, change).await
+}
+
+/// The CI state of each of `ids` (on GitHub or GitLab) that has one.
+#[tauri::command]
+pub async fn commit_states(
+    path: String,
+    ids: Vec<String>,
+) -> Result<std::collections::HashMap<String, crate::github::CheckState>> {
+    crate::ci::commit_states(&PathBuf::from(path), ids).await
+}
+
+/// A commit's checks (GitHub) or latest pipeline's jobs (GitLab).
+#[tauri::command]
+pub async fn commit_checks(path: String, id: String) -> Result<crate::ci::CommitChecks> {
+    crate::ci::commit_checks(&PathBuf::from(path), id).await
+}
+
+/// Run a commit's failed checks again.
+#[tauri::command]
+pub async fn rerun_failed_checks(path: String, id: String) -> Result<String> {
+    crate::ci::rerun_failed(&PathBuf::from(path), id).await
+}
+
 /// The editors and terminals installed here.
 #[tauri::command]
 pub async fn installed_apps() -> Result<Vec<crate::apps::App>> {

@@ -98,6 +98,7 @@ fn check_signing(gpg: &str) {
             Action::Commit {
                 message: message.into(),
                 amend: false,
+                no_verify: false,
             },
         )
         .unwrap();

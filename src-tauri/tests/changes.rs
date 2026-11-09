@@ -166,7 +166,8 @@ fn stages_unstages_commits_and_undoes() {
             &repo,
             Action::Commit {
                 message: "  ".into(),
-                amend: false
+                amend: false,
+                no_verify: false,
             }
         )
         .is_err()
@@ -176,6 +177,7 @@ fn stages_unstages_commits_and_undoes() {
         Action::Commit {
             message: "Second\n\nWith a body.".into(),
             amend: false,
+            no_verify: false,
         },
     )
     .unwrap();
@@ -193,6 +195,7 @@ fn stages_unstages_commits_and_undoes() {
         Action::Commit {
             message: "Second, amended".into(),
             amend: true,
+            no_verify: false,
         },
     )
     .unwrap();
@@ -508,4 +511,37 @@ fn says_why_a_file_is_ignored_and_stages_it_anyway() {
             .unwrap()
             .tracked
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn says_when_a_hook_stops_a_commit_and_commits_without_it() {
+    use std::os::unix::fs::PermissionsExt;
+    let mut repo = TempRepo::new("hooks");
+    with_identity(&repo);
+    repo.commit("a.txt", "base");
+    let hook = repo.path().join(".git/hooks/pre-commit");
+    std::fs::create_dir_all(hook.parent().unwrap()).unwrap();
+    std::fs::write(
+        &hook,
+        "#!/bin/sh\necho 'lint: 2 problems in a.txt'\nexit 1\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::write(repo.path().join("a.txt"), "changed").unwrap();
+    repo.git(&["add", "a.txt"]);
+
+    let commit = |no_verify| Action::Commit {
+        message: "Change a".into(),
+        amend: false,
+        no_verify,
+    };
+    let error = run(&repo, commit(false)).unwrap_err();
+    assert!(
+        error.starts_with("The pre-commit hook stopped the commit."),
+        "{error}"
+    );
+    assert!(error.contains("lint: 2 problems in a.txt"), "{error}");
+    let message = run(&repo, commit(true)).unwrap();
+    assert!(message.starts_with("Committed "), "{message}");
 }

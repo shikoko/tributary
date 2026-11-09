@@ -65,6 +65,7 @@ pub(super) fn push(
     repo: &gix::Repository,
     git: &Git,
     force: bool,
+    no_verify: bool,
     on_progress: &dyn Fn(Progress),
     extra: &mut Extra,
 ) -> Result<String> {
@@ -72,6 +73,10 @@ pub(super) fn push(
     let mut args = vec!["push".to_owned(), "--progress".to_owned()];
     if force {
         args.push("--force-with-lease".into());
+    }
+    // Without the repository's pre-push hook, when it stopped the push.
+    if no_verify {
+        args.push("--no-verify".into());
     }
     // What a force push replaces on the remote, to keep a backup of.
     let mut replaced = None;
@@ -94,7 +99,9 @@ pub(super) fn push(
     // push, locks on them can be released.
     let pushed_files = files_not_on(git, &remote);
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
-    let output = git.run_progress(&args, on_progress)?;
+    let output = git
+        .run_progress(&args, on_progress)
+        .map_err(|error| super::hooks::explain(git, error, true))?;
     extra.pushed_files = pushed_files;
     if let Some((tracking, id)) = replaced
         && ref_id(repo, "HEAD") != Some(id)

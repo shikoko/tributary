@@ -11,6 +11,8 @@ use crate::git::Git;
 use crate::github::{CheckState, Forge, PullRequest, client};
 use crate::links::Host;
 
+pub(crate) mod ci;
+pub(crate) mod controls;
 /// Opening a merge request, and reading one in full.
 pub(crate) mod issues;
 mod requests;
@@ -47,6 +49,7 @@ struct RawPipeline {
 }
 
 /// A GitLab project behind one of the repository's remotes.
+#[derive(Clone)]
 pub(crate) struct Project {
     pub(crate) remote: String,
     /// The server, like "gitlab.com", for git's credential helper.
@@ -101,7 +104,7 @@ pub(crate) fn encode_path(path: &str) -> String {
 }
 
 /// How a pipeline went, for the badge's dot.
-fn pipeline_state(status: &str) -> Option<CheckState> {
+pub(super) fn pipeline_state(status: &str) -> Option<CheckState> {
     match status {
         "success" => Some(CheckState::Success),
         "failed" | "canceled" => Some(CheckState::Failure),

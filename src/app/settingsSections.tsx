@@ -28,12 +28,14 @@ interface Options {
   diffTools: SettingRow[];
   /** The editor and terminal "Open in …" uses. */
   apps: SettingRow[];
+  /** Saving the settings to a file, and reading them back. */
+  transfer: SettingRow;
   /** The theme in use (for "Same as the system", the system's). */
   theme: Theme;
 }
 
 /** Everything in the Settings window: the app's own settings (each repository has its own window). */
-export function settingsSections({ preferences, version, updates, onInstallUpdate, github, diffTools, apps, theme }: Options): SettingsSection[] {
+export function settingsSections({ preferences, version, updates, onInstallUpdate, github, diffTools, apps, transfer, theme }: Options): SettingsSection[] {
   const { reopenTabs, setReopenTabs, autoUpdate, setAutoUpdate, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
@@ -58,6 +60,7 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
           ],
           set: (value) => setSubmoduleUpdates(value as SubmoduleUpdates),
         },
+        transfer,
         {
           kind: "toggle",
           label: "Check for updates automatically",

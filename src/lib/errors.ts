@@ -14,3 +14,9 @@ export function involvesUntrackedFiles(message: string): boolean {
 export function isNotMergedError(message: string): boolean {
   return /not fully merged/i.test(message);
 }
+
+/** A hook of the repository stopped a commit or push: which, and what it printed. */
+export function hookFailure(message: string): { hook: string; what: "commit" | "push"; output: string } | null {
+  const match = /^The ([\w-]+) hook stopped the (commit|push)\.\s*([\s\S]*)$/.exec(message);
+  return match ? { hook: match[1], what: match[2] as "commit" | "push", output: match[3].trim() } : null;
+}
