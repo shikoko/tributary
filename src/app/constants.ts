@@ -13,6 +13,8 @@ export type Focus =
 
 /** Don't refresh on window focus more often than this, in milliseconds. */
 export const FOCUS_REFRESH_INTERVAL = 2000;
+/** The times Get latest can be scheduled at: every half hour. */
+export const SCHEDULE_TIMES = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 /** How often local history keeps a snapshot of uncommitted work, in minutes, to choose from. */
 export const HISTORY_MINUTES = [5, 10, 15, 30];
 /** How often to fetch in the background, in minutes, to choose from. */

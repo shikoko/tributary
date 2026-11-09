@@ -1,6 +1,7 @@
 import type { Tab } from "../components/TabBar";
 import { DEFAULT_COLUMNS, type ColumnOptions, type ColumnWidths } from "../components/CommitList";
 import type { Appearance } from "../lib/appearance";
+import type { ScheduleDays, ScheduledRun } from "../lib/schedule";
 import { useStoredState } from "../lib/settings";
 import { APPEARANCE_KEY } from "./useAppearance";
 
@@ -42,6 +43,11 @@ export function usePreferences() {
   const [historyMinutes, setHistoryMinutes] = useStoredState("history.minutes", 10);
   const [historyMaxMB, setHistoryMaxMB] = useStoredState("history.maxMB", 50);
   const [historyDays, setHistoryDays] = useStoredState("history.days", 7);
+  /** Get latest on a schedule: on which days, at what time, the last run started (its key) and how the last one went. */
+  const [scheduleDays, setScheduleDays] = useStoredState<ScheduleDays>("schedule.days", "off");
+  const [scheduleTime, setScheduleTime] = useStoredState("schedule.time", "07:00");
+  const [scheduleLast, setScheduleLast] = useStoredState<string | null>("schedule.last", null);
+  const [scheduleRun, setScheduleRun] = useStoredState<ScheduledRun | null>("schedule.run", null);
   /** Light or dark, the accent colour, the graph's and the diffs' colours (filled in by normalizeAppearance). */
   const [appearance, setAppearance] = useStoredState<Partial<Appearance>>(APPEARANCE_KEY, {});
   return {
@@ -54,6 +60,7 @@ export function usePreferences() {
     autoUpdate, setAutoUpdate, largeFileMB, setLargeFileMB, autoLock, setAutoLock, releaseLocks, setReleaseLocks,
     submoduleUpdates, setSubmoduleUpdates, appearance, setAppearance,
     historyMinutes, setHistoryMinutes, historyMaxMB, setHistoryMaxMB, historyDays, setHistoryDays,
+    scheduleDays, setScheduleDays, scheduleTime, setScheduleTime, scheduleLast, setScheduleLast, scheduleRun, setScheduleRun,
   };
 }
 

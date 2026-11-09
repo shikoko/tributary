@@ -26,6 +26,7 @@ import { StartView } from "./app/StartView";
 import { useActions } from "./app/useActions";
 import { useBackgroundFetch } from "./app/useBackgroundFetch";
 import { useLocalHistory } from "./app/useLocalHistory";
+import { useScheduledPull } from "./app/useScheduledPull";
 import { useBranchCounts } from "./app/useBranchCounts";
 import { useChangedElsewhere } from "./app/useChangedElsewhere";
 import { useSubmodules } from "./app/useSubmodules";
@@ -266,6 +267,17 @@ export default function App() {
     latest.current.refresh();
   });
   useLocalHistory({ tabs, minutes: preferences.historyMinutes, maxMB: preferences.historyMaxMB, days: preferences.historyDays });
+  const getLatestNow = useScheduledPull({
+    tabs,
+    days: preferences.scheduleDays,
+    time: preferences.scheduleTime,
+    last: preferences.scheduleLast,
+    setLast: preferences.setScheduleLast,
+    setRun: preferences.setScheduleRun,
+    activePath: snapshot?.path ?? null,
+    pullActive: async () => Boolean(await act({ kind: "pull" }, "pull")),
+    notify: setToast,
+  });
   const tabNews = useBackgroundFetch({
     snapshot,
     tabs,
@@ -481,6 +493,7 @@ export default function App() {
             menu={menu}
             commands={commands}
             preferences={preferences}
+            onGetLatestNow={getLatestNow}
             updates={updates}
             repoPath={repoPath}
             settingsSection={settingsSection}

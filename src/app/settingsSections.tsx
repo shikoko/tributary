@@ -1,11 +1,12 @@
 import type { ColumnOptions } from "../components/CommitList";
 import { appearanceRows } from "../components/AppearanceRows";
-import { ColumnsIcon, ContrastIcon, DiffIcon, DownloadIcon, FetchIcon, GearIcon, HistoryIcon, LockIcon, UserIcon } from "../components/Icons";
+import { ColumnsIcon, ContrastIcon, DiffIcon, DownloadIcon, FetchIcon, GearIcon, HistoryIcon, LockIcon, PullIcon, UserIcon } from "../components/Icons";
+import { describeRun, nextRun, type ScheduleDays } from "../lib/schedule";
 import type { SettingRow, SettingsSection } from "../components/SettingsDialog";
 import type { GitHubStatus } from "../api";
 import type { Theme } from "../lib/appearance";
 import type { Updates } from "../lib/updates";
-import { FETCH_MINUTES, HISTORY_MINUTES, ZOOM_LEVELS } from "./constants";
+import { FETCH_MINUTES, HISTORY_MINUTES, SCHEDULE_TIMES, ZOOM_LEVELS } from "./constants";
 import type { NewCommitNotices, Preferences, ReleaseLocks, SubmoduleUpdates } from "./usePreferences";
 
 /** The Settings section with the diff and merge tools, to open it at. */
@@ -17,6 +18,8 @@ interface Options {
   version: string | null;
   updates: Updates;
   onInstallUpdate: () => void;
+  /** Get the latest of every open repository now, as the schedule does. */
+  onGetLatestNow: () => void;
   /** Who's signed in to GitHub. */
   github: {
     status: GitHubStatus | null;
@@ -35,13 +38,15 @@ interface Options {
 }
 
 /** Everything in the Settings window: the app's own settings (each repository has its own window). */
-export function settingsSections({ preferences, version, updates, onInstallUpdate, github, diffTools, apps, transfer, theme }: Options): SettingsSection[] {
+export function settingsSections({ preferences, version, updates, onInstallUpdate, onGetLatestNow, github, diffTools, apps, transfer, theme }: Options): SettingsSection[] {
   const { reopenTabs, setReopenTabs, autoUpdate, setAutoUpdate, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
   const { daySeparators, setDaySeparators, previews, setPreviews, profilePictures, setProfilePictures } = preferences;
   const { columnOptions, setColumnOptions, zoom, setZoom } = preferences;
   const { historyMinutes, setHistoryMinutes, historyMaxMB, setHistoryMaxMB, historyDays, setHistoryDays } = preferences;
+  const { scheduleDays, setScheduleDays, scheduleTime, setScheduleTime, scheduleRun } = preferences;
+  const next = nextRun(scheduleDays, scheduleTime, new Date());
   const sections: SettingsSection[] = [
     {
       title: "General",
@@ -168,6 +173,49 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
             { value: "system", label: "Also notify me when Tributary is in the background" },
           ],
           set: (value) => setRequestNotices(value as NewCommitNotices),
+        },
+      ],
+    },
+    {
+      title: "Get latest",
+      icon: <PullIcon size={15} />,
+      rows: [
+        {
+          kind: "select",
+          label: "Get the latest of every open repository",
+          hint: "A pull of each open tab's repository, with its Git LFS files, so a big update is waiting when you start. Tributary has to be running and the computer awake; one that was asleep catches up within an hour of the time, or waits for the next day.",
+          value: scheduleDays,
+          options: [
+            { value: "off", label: "Only when I pull" },
+            { value: "weekdays", label: "On weekdays" },
+            { value: "daily", label: "Every day" },
+          ],
+          set: (value) => setScheduleDays(value as ScheduleDays),
+        },
+        {
+          kind: "select",
+          label: "At",
+          hint: next ? `Next: ${next.toLocaleString(undefined, { weekday: "long", hour: "2-digit", minute: "2-digit" })}` : undefined,
+          value: scheduleTime,
+          options: (SCHEDULE_TIMES.includes(scheduleTime) ? SCHEDULE_TIMES : [scheduleTime, ...SCHEDULE_TIMES]).map((time) => ({ value: time, label: time })),
+          set: setScheduleTime,
+          disabled: scheduleDays === "off",
+        },
+        {
+          kind: "custom",
+          label: "Last time",
+          hint: scheduleRun
+            ? `${new Date(scheduleRun.time).toLocaleString(undefined, { weekday: "long", hour: "2-digit", minute: "2-digit" })}: ${describeRun(scheduleRun)}.${scheduleRun.results
+                .filter((result) => !result.ok)
+                .map((result) => ` ${result.name}: ${result.message}`)
+                .join("")}`
+            : "Not yet.",
+          content: (
+            <button className="outline-button" onClick={onGetLatestNow}>
+              <PullIcon size={14} />
+              <span className="button-label">Get latest now</span>
+            </button>
+          ),
         },
       ],
     },

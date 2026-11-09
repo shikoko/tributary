@@ -28,6 +28,8 @@ import { ThemeContext } from "./useAppearance";
 
 interface Props {
   overlays: Overlays;
+  /** Get the latest of every open repository now, as the schedule does. */
+  onGetLatestNow: () => Promise<void>;
   menu: ContextMenuState;
   /** What the command palette offers, worked out when it opens. */
   commands: () => Command[];
@@ -108,6 +110,10 @@ export function AppOverlays(props: Props) {
             version,
             updates,
             onInstallUpdate: () => show("update"),
+            onGetLatestNow: () => {
+              hide("settings");
+              void props.onGetLatestNow();
+            },
             github: {
               status: github.status,
               error: github.error,
