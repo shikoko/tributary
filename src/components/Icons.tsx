@@ -437,6 +437,22 @@ export const UserIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A sparkle: something new. */
+export const SparkleIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 2.5l1.3 3.6 3.7 1.4-3.7 1.4L8 12.5 6.7 8.9 3 7.5l3.7-1.4z" />
+    <path d="M12.5 11v3M11 12.5h3" />
+  </Icon>
+);
+
+/** An "i" in a circle: information, a guide. */
+export const InfoIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M8 7.5v3.5M8 5h.01" />
+  </Icon>
+);
+
 /** Two people: the team. */
 export const TeamIcon = (p: IconProps) => (
   <Icon {...p}>

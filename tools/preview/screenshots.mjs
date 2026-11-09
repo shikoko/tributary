@@ -53,6 +53,8 @@ async function open(repo, { theme = "dark", preview: fakes = {}, storage = {} } 
     ([pick, fakes, storage, theme]) => {
       window.__PREVIEW__ = { pick, pullRequests: [], ...fakes };
       localStorage.setItem("tributary.fetch.auto", "false");
+      // Not someone new: no welcome tour, no What's new.
+      localStorage.setItem("tributary.whatsNew.seen", JSON.stringify("999.0.0"));
       localStorage.setItem("tributary.appearance", JSON.stringify({ theme }));
       for (const [key, value] of Object.entries(storage)) localStorage.setItem(key, JSON.stringify(value));
     },
@@ -71,6 +73,28 @@ async function open(repo, { theme = "dark", preview: fakes = {}, storage = {} } 
 
 const row = (page, summary) => page.locator(".commit-row", { has: page.locator(".summary", { hasText: new RegExp(`^${summary.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) }) }).first();
 const settle = (page, ms = 500) => page.waitForTimeout(ms);
+
+/**
+ * The studio on a branch for the FEAST-23 issue, with a team commit template, a new file
+ * staged and a message written for it.
+ */
+async function issueBranch() {
+  const folder = fresh().studio;
+  // Without the demo's own changes: just the new file.
+  git(folder, ["stash", "push", "-q", "-u"]);
+  git(folder, ["stash", "drop", "-q"]);
+  git(folder, ["switch", "-q", "-c", "FEAST-23-tavern-sign"]);
+  writeFileSync(join(folder, ".git", "team-template.txt"), "# Say what changed and why.\n\nWhy:\n\nHow to test:\n");
+  git(folder, ["config", "commit.template", join(folder, ".git", "team-template.txt")]);
+  writeFileSync(join(folder, "Notes.txt"), "Opening hours: noon till late\n");
+  const page = await open(folder, { storage: { [`tributary.issueTracker:${folder}`]: { kind: "jira", site: "studio.atlassian.net", keys: ["FEAST"] } } });
+  await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+  await page.getByRole("button", { name: "Stage all", exact: true }).click();
+  await page.locator(".commit-box .primary-small-button", { hasText: "Commit 1 file" }).waitFor();
+  await page.getByLabel("Commit summary").fill("Add the opening hours");
+  await page.getByLabel("Commit description").fill("Why:\nGuests kept asking.\n\nHow to test:\nOpen the tavern level and read the sign.");
+  return page;
+}
 
 const shots = {
   /** The commit graph, with a merge commit's details. */
@@ -311,6 +335,36 @@ const shots = {
     const page = await open(demos.studio, { theme: "light" });
     await page.keyboard.press("Control+Comma");
     await page.getByRole("tab", { name: "Appearance" }).click();
+    await settle(page);
+    return page;
+  },
+
+  /** The issue's key in front of the summary, and the team's template. */
+  async "commit-template"() {
+    const page = await issueBranch();
+    await settle(page);
+    return page;
+  },
+
+  /** What you did, with Undo while it's safe. */
+  async "your-actions"() {
+    const page = await issueBranch();
+    await page.locator(".commit-box .primary-small-button").click();
+    await row(page, "FEAST-23: Add the opening hours").waitFor({ timeout: 10_000 });
+    await page.locator(".sidebar-item", { hasText: /^\s*main\s*$/ }).first().dblclick();
+    await page.locator(".status-bar button", { hasText: "Activity" }).click();
+    await page.locator(".history-why").waitFor({ timeout: 10_000 });
+    await page.locator(".toast").waitFor({ state: "detached", timeout: 10_000 }).catch(() => {});
+    await settle(page);
+    return page;
+  },
+
+  /** How the project is set up for git, with a fix for each problem. */
+  async "project-setup"() {
+    const page = await open(fresh().studio);
+    await page.locator(".menu-bar-item", { hasText: "Repository" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Check Project Setup" }).click();
+    await page.locator(".setup-item").first().waitFor({ timeout: 15_000 });
     await settle(page);
     return page;
   },

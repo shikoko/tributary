@@ -69,6 +69,10 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 ![Two lines of a file chosen to stage, with the bar to stage or discard them, next to the commit box](docs/images/stage-lines.png)
 
 - **Stage and commit:** click the uncommitted changes row to stage or unstage files and write a commit message. You can also amend the last commit. The summary shows its length (amber past 50 characters, red past 72), **Recent messages** reuses one of yours, and **Add co-author** credits someone from the history with a `Co-authored-by:` line.
+- **The issue in the summary, and message templates:** on a branch named after a Jira or Linear issue (`FEAST-23-tavern-sign`), the issue's key shows in front of the summary and goes into the commit (`FEAST-23: Add the opening hours`), unless the message mentions it already; click the key to leave it out this time. A message template, the team's `commit.template` or one written in the repository's settings (**Commits → Message template**, kept for that repository only), fills in new commit messages; lines starting with `#` are left out, as with git, and an unchanged template can't be committed by mistake.
+
+  ![The commit box on the FEAST-23-tavern-sign branch: the FEAST-23 key in front of the summary, and the description filled in from the team's template](docs/images/commit-template.png)
+
 - **Stage, unstage or discard parts of a file:** in the changes of a file you're working on, each hunk (a stretch of changed lines) has **Stage** and **Discard** buttons (**Unstage** for staged changes). To pick lines instead, click their line numbers (shift-click or drag for several), then **Stage 3 lines** or **Discard** in the bar that appears; <kbd>Esc</kbd> lets go of them. Discarded lines are kept for 30 days too, so **Undo** puts them back. New, renamed and Git LFS files are staged whole, and lines can't be picked while whitespace is ignored.
 - **Stashes:** stash all your changes or just the files you pick from the uncommitted changes row, and apply, pop or drop a stash by right-clicking it. When uncommitted changes stop a pull or checkout, **Stash changes and retry** stashes them, tries again, and puts them back.
 - **Fix up an earlier commit:** forgot something in a commit a few back? Stage the fix, right-click that commit and choose **Fix up this commit with the staged changes**. The fix is folded into it and the commits after it are rebased on top; changes you haven't staged are put aside meanwhile and put back after. **Undo** takes the fix back out, staged again.
@@ -180,6 +184,10 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 - **Unreal levels saved one actor per file:** with World Partition, each actor is a file under `__ExternalActors__` named by a hash. Tributary reads each one's name in the editor and its class from the file, and lists it as `SM_Bench_Long  StaticMeshActor · Maps/Tavern`: in commits, your changes, comparisons, the diff view and the locked files, and the file filter finds them by name. Git LFS files are read from the local copy Git LFS downloaded.
 - **Unity's .meta files:** in a Unity project, before you commit, the changes panel flags new files and folders under `Assets` that have no `.meta` yet, `.meta` files whose asset is gone, and deleted assets whose `.meta` was left behind; committing them (or an asset whose new `.meta` isn't staged with it) asks first. A teammate's copy of an asset without its `.meta` gets a new id, and whatever used it loses it.
 - **Unity scenes and prefabs:** in a Unity project, the repository's settings set up Unity's Smart Merge (UnityYAMLMerge, found in the editors Unity Hub installed, the project's own version first) as git's merge driver for the files Unity saves as YAML, so merges combine them by what changed in them. It's set up for this repository on this computer only. A conflicted scene or prefab also gets a **Smart Merge** button next to **Mine** and **Theirs**.
+- **Check the project's setup:** **Check Project Setup…** in the Repository menu looks at how an Unreal or Unity project (or any game project) is set up for git, and offers a fix for each problem: folders the engine makes (`Binaries`, `Intermediate`, `Saved`, `DerivedDataCache`; `Library`, `Temp`, `Logs`, `obj`, …) that aren't ignored, or that were committed; Git LFS not installed, or kinds of binary file not stored with it; kinds of file that can't be merged but aren't lockable; files over 10 MB in git itself; line endings left to each computer (`* text=auto`); paths too long for Windows (`core.longpaths`); and names that differ only in capitals. **Fix all** does every fix at once; the changes to `.gitignore` and `.gitattributes` are yours to commit.
+
+  ![The project setup check: five kinds of files not stored with Git LFS, two kinds that can't be merged and aren't lockable, and line endings, each with its fix](docs/images/project-setup.png)
+
 - **Big repositories:** **Folders**, in the repository's settings, changes which folders are checked out after cloning (a sparse checkout): the others leave the disk, and in a partial clone, folders you add are downloaded. **Speed** turns on git's own speed-ups, which it leaves off: its file watcher (Windows and macOS), the untracked cache, a commit graph that fetches keep up to date, and background maintenance. A big repository without any of them gets a one-time offer.
 - **What makes it big:** **What Makes It Big…** in the Repository menu shows what the history takes on disk, the biggest files in all of it (deleted ones too, since everyone who clones still downloads them), and what each folder and kind of file costs. Kinds of big file move into Git LFS from now on, or by rewriting history (`git lfs migrate`): the branch's commits that aren't pushed yet, or every branch's whole history (each backed up first, then to force-push).
 - **Big files and Git LFS:** the changes panel warns about big files (10 MB by default, set in Settings) that aren't stored with Git LFS, with a **Track \*.ext with LFS** button that sets up LFS and moves staged files into it. Committing a big file outside LFS asks first. **Clean Up Git LFS Files…** (Repository menu, or Settings, which shows the space they take) deletes local copies that aren't needed any more.
@@ -190,6 +198,10 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 ### Safety nets
 
 - **Undo:** after a checkout, commit, merge, rebase, interactive rebase, split, cherry-pick, revert, hard reset, rename, new tag, or branch or tag deletion, the confirmation message has an **Undo** button.
+- **Your actions:** **Activity → Your actions** lists what you did in a repository (the last 50 things), each with **Undo** for as long as it's still safe: as long as the branch is where that action left it, so undoing it can't throw away what came after. When it isn't, it says why (`You've switched to main since`). They're kept when Tributary closes.
+
+  ![Your actions: a commit that can't be undone any more because the branch was switched since, and the checkout after it that can](docs/images/your-actions.png)
+
 - **Branch safety:**
   - **Protected branches:** main, master and develop by default, plus any you protect from a branch's right-click menu (shown with a padlock). They can't be deleted, and rebasing, hard resetting or force pushing one needs its name typed first.
   - **What would be lost:** deleting a branch (here or on the remote) first lists the commits that are on no other branch, remote branch or tag, or says that nothing is lost.
@@ -209,7 +221,8 @@ Open a repository and Tributary draws its history as a colourful commit graph, w
 - **Repository settings:** each repository has its own window, from its tab's right-click menu, **Repository Settings…** in the Repository menu, or the command palette: the name and email you commit with in that repository (when it should differ from your usual one, like a work address), how its commits are signed, its remotes, its issue tracker, its protected branches, which folders are checked out, git's speed-ups, Unity's Smart Merge (in a Unity project), and Git LFS: which files it stores with Git LFS (add or remove patterns like `*.psd`; a repository that doesn't use it yet is offered the kinds of big files it has, or common ones) the space those files take on this computer, and which folders' Git LFS files to download: every folder, only some (like `Content/Characters`), or all but some, with the folders that have Git LFS files offered with their sizes (git-lfs's own `lfs.fetchinclude` and `lfs.fetchexclude`, so pulling and checking out follow it too). The tab's menu can also show the folder, copy its path, and close the tab or the others.
 - **Menu bar:** File, View, Repository and Help menus with every command and its shortcut: in the macOS menu bar, and next to the tabs on Windows. On Windows the tab bar is the title bar, with the minimize, maximize and close buttons at its right.
 - **Status bar:** the checked-out branch and how it compares to its upstream, when the repository was last fetched (click to fetch), and the repository's folder (click to show it in Finder or Explorer).
-- **Activity log:** every git command Tributary runs, with what git printed, how long it took and whether it worked. Open it from the status bar or with <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd>.
+- **Activity log:** what you did (**Your actions**, with Undo) and every git command Tributary runs (**Git commands**), with what git printed, how long it took and whether it worked. Open it from the status bar or with <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd>.
+- **What's new and a tour:** after an update, Tributary shows what's new in the version you got (and the ones you skipped). The first time it starts, a short tour shows where things are. Both are in the Help menu, to see again.
 - **Command palette:** <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>K</kbd> lists the commands and branches, so you can check out, merge, highlight or run almost anything by typing a few letters. Press <kbd>?</kbd> to see all keyboard shortcuts.
 
 <sub>[↑ Contents](#contents)</sub>
@@ -363,6 +376,26 @@ A smoke test clicks through the main parts of the app in Chromium, on fresh demo
 npm run preview:smoke
 ```
 
+End-to-end tests drive the real desktop app (its backend, its permissions and its window, not the browser preview) through WebDriver, on fresh demo repositories with a temporary home folder, so your own settings aren't touched. They run on Linux and Windows (macOS has no WebDriver for the app's web view), and need [tauri-driver](https://v2.tauri.app/develop/tests/webdriver/) and the platform's WebDriver, once:
+
+```bash
+cargo install tauri-driver --locked
+```
+
+On Debian and Ubuntu, also the WebKit WebDriver (and `xvfb-run` from the `xvfb` package, to run them without a screen):
+
+```bash
+sudo apt install webkit2gtk-driver xvfb
+```
+
+On Windows, `msedgedriver.exe` matching your Edge's version, on the `PATH`. Then:
+
+```bash
+npm run e2e
+```
+
+That builds the app first; `npm run e2e -- --no-build` tests the one already built. When a step fails, a screenshot of the window goes into `tools/e2e/output/`.
+
 The tests don't run on GitHub Actions, so run them before you build.
 
 ### Project layout
@@ -399,6 +432,7 @@ The tests don't run on GitHub Actions, so run them before you build.
 | `src/lib/` | Logic without an interface (search, selection, undo, paths, diagnostics, …), with its tests |
 | `src/styles/` | The styles, an area per file (colours and themes in `theme.css`), applied in the order `src/styles.css` lists them |
 | `tools/preview/` | The browser preview, demo repositories and the smoke test |
+| `tools/e2e/` | End-to-end tests of the desktop app, through tauri-driver and WebDriver |
 | `tools/icons/` | Draws the app icon, light and dark, and renders it at every size |
 
 The app icon comes in a light and a dark version, and the app shows the one that matches its theme while it runs (in the Dock on macOS, on the taskbar elsewhere); the installed app carries the light one. Both are drawn by `tools/icons/draw.py` (into `src-tauri/icons/app-icon.svg` and `app-icon-dark.svg`), then rendered at every size with Chromium, whose gradients come out smooth. The macOS icon keeps Apple's margins around the tile; the Windows and Linux ones fill their square, so they're as big as they can be in a taskbar:

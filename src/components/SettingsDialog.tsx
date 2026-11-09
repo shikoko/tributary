@@ -93,8 +93,9 @@ export function SettingsDialog({
               {section.title}
               {section.subtitle && <span className="settings-panel-subtitle">{section.subtitle}</span>}
             </h3>
-            {section.rows.map((row) => (
-              <SettingRowView key={row.label} row={row} />
+            {section.rows.map((row, index) => (
+              // Rows of buttons have no label of their own: their place tells them apart.
+              <SettingRowView key={row.label || `row-${index}`} row={row} />
             ))}
           </section>
         )}

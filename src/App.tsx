@@ -42,6 +42,7 @@ import { useOverlays } from "./app/useOverlays";
 import { usePlace } from "./app/usePlace";
 import { usePreferences } from "./app/usePreferences";
 import { useTaskbarProgress } from "./app/useTaskbarProgress";
+import { useActionHistory } from "./app/useActionHistory";
 import { overallPercent } from "./lib/progress";
 import { ThemeContext, useAppearance } from "./app/useAppearance";
 import { BranchSyncContext } from "./lib/branchSync";
@@ -193,8 +194,10 @@ export default function App() {
   useEffect(() => setShownRequest(null), [repoPath]);
   const checks = useFileChecks(snapshot, preferences.largeFileMB);
 
+  const history = useActionHistory(snapshot);
   const actions = useActions({
     snapshot,
+    record: history.record,
     load: repo.load,
     protectedHead: settings.protectedHead,
     openDialog: setDialog,
@@ -330,6 +333,8 @@ export default function App() {
       reveal: () => repoPath && revealItemInDir(repoPath).catch((e) => repo.setError({ message: String(e) })),
       openIn: (app) => repoPath && openInApp(app.id, repoPath).catch((e) => repo.setError({ message: String(e) })),
       diagnostics: () => overlays.show("diagnostics"),
+      whatsNew: () => overlays.show("whatsNew"),
+      welcome: () => overlays.show("welcome"),
     },
   };
   const menus = appMenus(menuBarContext);
@@ -442,6 +447,7 @@ export default function App() {
               details={details}
               draft={draft}
               activity={activity}
+              history={history}
               place={location}
               dialog={dialog}
               openDialog={setDialog}

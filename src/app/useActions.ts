@@ -29,6 +29,8 @@ interface Options {
   after: (action: Action, kind: Running, outcome: Outcome | null) => void;
   /** A squash merge waits to be committed: show the uncommitted changes. */
   showChanges: () => void;
+  /** Keep what was done, with its undo, in the repository's history. */
+  record?: (path: string, text: string, action: Action, undo: Action | null) => void;
 }
 
 /** A progress bar for a fetch, pull, push or Git LFS download. */
@@ -45,14 +47,14 @@ export interface ProgressState {
  * Running git actions: what's running, its progress, and after it ran, a reload and a
  * message (with Undo, Stash changes and retry, or Create pull request).
  */
-export function useActions({ snapshot, load, protectedHead, openDialog, setError, notify, blockFocusRefresh, after, showChanges }: Options) {
+export function useActions({ snapshot, load, protectedHead, openDialog, setError, notify, blockFocusRefresh, after, showChanges, record }: Options) {
   const [running, setRunning] = useState<Running>(null);
   const [progress, setProgress] = useState<ProgressState | null>(null);
   // The repository the action runs in (its progress shows there, and on its tab).
   const [runningPath, setRunningPath] = useState<string | null>(null);
   // The latest callbacks, so `act` only changes with the repository.
-  const callbacks = useRef({ openDialog, setError, notify, after, showChanges });
-  callbacks.current = { openDialog, setError, notify, after, showChanges };
+  const callbacks = useRef({ openDialog, setError, notify, after, showChanges, record });
+  callbacks.current = { openDialog, setError, notify, after, showChanges, record };
 
   /** Run a git action, reload, then show what happened. Resolves to true when it worked. */
   const act = useCallback(
@@ -130,6 +132,10 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
         return false;
       }
       const { message, pullRequest, backup } = outcome;
+      // Discarded files and lines are kept for a while, to put back.
+      const discarded = action.kind === "discardFiles" || action.kind === "applyLines";
+      const undo = backup && discarded ? { kind: "restoreDiscarded" as const, reference: backup } : undoFor(action, before);
+      if (message) callbacks.current.record?.(before.path, message, action, undo);
       if (action.kind === "merge" && action.mode === "squash") showChanges();
       if (pullRequest) {
         // Open it here: the branch as it's called on the remote it was pushed to.
@@ -144,9 +150,6 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
           },
         });
       } else if (!options.quiet && message) {
-        // Discarded files and lines are kept for a while, to put back.
-        const discarded = action.kind === "discardFiles" || action.kind === "applyLines";
-        const undo = backup && discarded ? { kind: "restoreDiscarded" as const, reference: backup } : undoFor(action, before);
         notify({ text: message, action: undo ? { label: "Undo", onClick: () => act(undo, "other", { confirmed: true }) } : undefined });
       }
       return true;

@@ -21,6 +21,7 @@ import { ProtectedActionDialog } from "../components/Safety";
 import { IgnoreReasonDialog } from "../components/IgnoreReasonDialog";
 import { ReleaseNotesDialog } from "../components/ReleaseNotesDialog";
 import { RepoSizeDialog } from "../components/RepoSizeDialog";
+import { ProjectSetupDialog } from "../components/ProjectSetupDialog";
 import { SplitCommitDialog } from "../components/SplitCommitDialog";
 import { StashDialog } from "../components/StashDialog";
 import { TagDialog } from "../components/TagDialog";
@@ -144,6 +145,15 @@ export function RepositoryDialogs(props: Props) {
     )}
     {dialog?.kind === "ignoreReason" && (
       <IgnoreReasonDialog repoPath={snapshot.path} file={dialog.file} canChange={!snapshot.bare} onClose={() => onClose()} run={(action) => run(action)} />
+    )}
+    {dialog?.kind === "projectSetup" && (
+      <ProjectSetupDialog
+        repoPath={snapshot.path}
+        canChange={!snapshot.bare}
+        run={async (action) => run(action, "other", { quiet: true })}
+        onOpenSize={() => open({ kind: "repoSize" })}
+        onClose={() => onClose()}
+      />
     )}
     {dialog?.kind === "repoSize" && (
       <RepoSizeDialog

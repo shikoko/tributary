@@ -295,3 +295,97 @@ textarea.text-input {
   padding: 0 2px;
   font-size: inherit;
 }
+
+/* Project setup: one row per check, with its fix. */
+.setup-check {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.setup-summary {
+  margin: 0;
+}
+
+.setup-checks {
+  display: flex;
+  flex-direction: column;
+  max-height: 58vh;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  list-style: none;
+}
+
+.setup-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.setup-item + .setup-item {
+  border-top: 1px solid var(--border);
+}
+
+.setup-status {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+.setup-item.good .setup-status {
+  background: rgb(var(--success-rgb) / 0.14);
+  color: var(--success);
+}
+
+.setup-item.warning .setup-status {
+  background: rgb(var(--warning-rgb) / 0.14);
+  color: var(--warning);
+}
+
+.setup-item.problem .setup-status {
+  background: rgb(var(--danger-rgb) / 0.14);
+  color: var(--danger);
+}
+
+.setup-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.setup-text > span {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.setup-examples {
+  margin: 2px 0 0;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  list-style: none;
+}
+
+.setup-examples li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setup-action {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+}

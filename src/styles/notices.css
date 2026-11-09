@@ -361,6 +361,30 @@
 .summary-field {
   position: relative;
   display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The branch's issue key, put in front of the summary (click to leave it out). */
+.summary-key {
+  flex: none;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  text-decoration: line-through;
+}
+
+.summary-key.on {
+  border-style: solid;
+  border-color: rgb(var(--accent-rgb) / 0.4);
+  background: rgb(var(--accent-rgb) / 0.12);
+  color: var(--accent-text);
+  text-decoration: none;
 }
 
 .summary-field .text-input {

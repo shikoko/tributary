@@ -529,3 +529,11 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+
+.template-input {
+  width: 100%;
+  min-height: 96px;
+  font-family: var(--mono);
+  font-size: 12px;
+  resize: vertical;
+}

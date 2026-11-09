@@ -34,6 +34,8 @@ import { RepositoryBanners } from "./RepositoryBanners";
 import { effectiveTracker, IssueTrackerContext, type TrackerSetting } from "../lib/issues";
 import { useRepoSetting } from "../lib/repoPrefs";
 import { webRemote } from "../lib/weblinks";
+import type { ActionHistory } from "./useActionHistory";
+import { undoState } from "../lib/history";
 import type { Actions } from "./useActions";
 import type { BranchCounts } from "./useBranchCounts";
 import type { CommitDetailsCache } from "./useCommitDetails";
@@ -77,6 +79,8 @@ interface Props {
   details: CommitDetailsCache;
   draft: Draft;
   activity: ActivityLog;
+  /** What you did in each repository, with undo. */
+  history: ActionHistory;
   place: { initialScroll: number; onScroll: (top: number) => void };
   dialog: OpenDialog;
   openDialog: (dialog: OpenDialog) => void;
@@ -453,7 +457,21 @@ export function RepositoryView(props: Props) {
           </>
         )}
       </main>
-      {activityOpen && <ActivityPanel entries={activityHere} folder={snapshot.path} onClear={props.activity.clear} onClose={() => setActivityOpen(false)} />}
+      {activityOpen && (
+        <ActivityPanel
+          entries={activityHere}
+          folder={snapshot.path}
+          onClear={props.activity.clear}
+          onClose={() => setActivityOpen(false)}
+          history={props.history.entries}
+          canUndo={(entry) => undoState(entry, snapshot)}
+          onUndo={(entry) => {
+            if (!entry.undo) return;
+            void act(entry.undo, "other", { confirmed: true }).then((done) => done && props.history.markUndone(snapshot.path, entry.id));
+          }}
+          onClearHistory={() => props.history.clear(snapshot.path)}
+        />
+      )}
       <StatusBar
         snapshot={snapshot}
         ahead={counts.ahead}

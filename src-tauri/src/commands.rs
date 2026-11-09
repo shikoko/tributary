@@ -245,6 +245,18 @@ pub async fn repo_identity(path: String) -> Result<actions::RepoIdentity> {
     blocking(move || actions::repo_identity(&PathBuf::from(path))).await
 }
 
+/// How the repository is set up for a game project, check by check.
+#[tauri::command]
+pub async fn project_setup(path: String) -> Result<actions::ProjectSetup> {
+    blocking(move || actions::project_setup(&PathBuf::from(path))).await
+}
+
+/// The message new commits start from (git's commit.template).
+#[tauri::command]
+pub async fn commit_template(path: String) -> Result<actions::CommitTemplate> {
+    blocking(move || actions::commit_template(&PathBuf::from(path))).await
+}
+
 /// Where a recent repository stands: its branch, ahead and behind, uncommitted changes.
 #[tauri::command]
 pub async fn repo_summary(path: String) -> Result<repo::RepoSummary> {

@@ -34,6 +34,7 @@ mod remote;
 mod remote_settings;
 mod rewrites;
 mod search;
+mod setup_check;
 mod signing;
 mod size;
 mod sparse;
@@ -71,7 +72,7 @@ pub use diff_tools::{DiffToolSettings, Scope, ToolChoice, diff_tool_settings, se
 pub use elsewhere::{OtherChange, Overlap, changed_elsewhere};
 pub use file_names::{LONG_PATH, NameProblem, Problem};
 pub use files::{FileHistory, file_history};
-pub use identity::{RepoIdentity, repo_identity};
+pub use identity::{CommitTemplate, RepoIdentity, commit_template, repo_identity};
 pub use ignored::{IgnoreReason, IgnoreRule, ignore_reason};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
 pub use lfs_health::{LfsHealth, lfs_health};
@@ -86,6 +87,7 @@ pub use releases::{ReleaseItem, ReleaseNotes, release_notes};
 pub use remote_settings::{RemoteInfo, remotes};
 pub use rewrites::{BranchVersion, CommitPair, PairStatus, RangeDiff, branch_versions, range_diff};
 pub use search::{SearchMode, SearchResult, search_commits};
+pub use setup_check::{CheckStatus, Engine, ProjectSetup, SetupCheck, SetupFix, project_setup};
 pub use signing::{SigningKey, SigningMode, SigningSettings, signing_settings};
 pub use size::{BigFile, RepoSize, SizeGroup, repo_size};
 pub use sparse::{FolderChoice, SparseSettings, sparse_settings};
@@ -340,6 +342,10 @@ pub enum Action {
     /// Commit as this name and email in this repository (`git config --local`); both
     /// empty go back to the usual ones.
     SetIdentity { name: String, email: String },
+    /// Start new commits' messages from `text` here (empty: no template of this repository's own).
+    SetCommitTemplate { text: String },
+    /// Put one of the project setup check's findings right.
+    FixSetup { fix: SetupFix },
     /// Start bisecting between a commit that works (`good`) and one that doesn't (`bad`).
     BisectStart { bad: String, good: String },
     /// Mark the commit being tested (or `id`) good, bad or skipped.
@@ -691,6 +697,11 @@ fn perform(
         }
         Action::OpenInMergeTool { path } => diff::open_in_merge_tool(&git, path),
         Action::SetIdentity { name, email } => identity::set_identity(&git, name, email),
+        Action::SetCommitTemplate { text } => identity::set_commit_template(&git, text),
+        Action::FixSetup { fix } => {
+            let top = repo.workdir().map(Path::to_owned).unwrap_or_default();
+            setup_check::fix_setup(&git, &top, fix)
+        }
         Action::SetSigning { mode, key } => signing::set_signing(&git, mode, key),
         Action::SavePatch { ids, file } => patches::save_patch(path, ids, file),
         Action::ApplyPatch { file, as_commits } => patches::apply_patch(&git, file, as_commits),

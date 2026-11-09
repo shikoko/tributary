@@ -47,6 +47,7 @@ export type OpenDialog =
   | { kind: "ignoreReason"; file: string }
   /** What makes the repository big, and moving big files into Git LFS. */
   | { kind: "repoSize" }
+  | { kind: "projectSetup" }
   /** Release notes for a tag: what went into it since the tag before. */
   | { kind: "releaseNotes"; tag: string }
   /** Split a commit in two; `later`: how many commits come after it on the branch. */

@@ -194,6 +194,8 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "lfs_health" => to_json(actions::lfs_health(&path()?)?),
         "submodules" => to_json(actions::submodules(&path()?)?),
         "repo_identity" => to_json(actions::repo_identity(&path()?)?),
+        "commit_template" => to_json(actions::commit_template(&path()?)?),
+        "project_setup" => to_json(actions::project_setup(&path()?)?),
         "signing_settings" => to_json(actions::signing_settings(&path()?)?),
         "unity_setup" => to_json(actions::unity_setup(&path()?)?),
         "sparse_settings" => to_json(actions::sparse_settings(&path()?)?),

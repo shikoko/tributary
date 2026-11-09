@@ -94,3 +94,34 @@ export function linkIssueKeys(parts: MessagePart[], tracker: Tracker | null, rem
     return out;
   });
 }
+
+/**
+ * The Jira or Linear issue a branch is for, from its name: "FEAST-12" for
+ * "feature/feast-12-barber-s-apron". Only these trackers' keys: a number alone (12-…) could
+ * as well be a year or a version.
+ */
+export function branchIssueKey(branch: string | null, tracker: Tracker | null): string | null {
+  if (!branch || !tracker || (tracker.kind !== "jira" && tracker.kind !== "linear")) return null;
+  const projects = new Set(tracker.keys.map((key) => key.trim().toUpperCase()).filter(Boolean));
+  for (const match of branch.toUpperCase().matchAll(KEY)) {
+    if (projects.size === 0 || projects.has(match[1])) return match[0];
+  }
+  return null;
+}
+
+/** The summary with the branch's issue key in front ("FEAST-12: …"), unless it mentions it already. */
+export function withIssueKey(summary: string, key: string | null): string {
+  if (!key || summary.toUpperCase().includes(key)) return summary;
+  return `${key}: ${summary}`;
+}
+
+/** A commit message template as a summary and a description, without git's comment lines. */
+export function fromTemplate(text: string): { summary: string; description: string } {
+  const lines = text
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .filter((line) => !line.startsWith("#"));
+  while (lines.length > 0 && lines[lines.length - 1].trim() === "") lines.pop();
+  const [summary = "", ...rest] = lines;
+  return { summary: summary.trim(), description: rest.join("\n").replace(/^\n+/, "") };
+}

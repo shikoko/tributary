@@ -6,6 +6,7 @@ import { useLfsSettingsRows } from "./LfsSettingsRows";
 import { useSparseRows } from "./SparseSettingsRows";
 import { useSpeedRows } from "./SpeedSettingsRows";
 import { useIssueRows } from "./IssueSettingsRows";
+import { useTemplateRows } from "./TemplateSettingsRows";
 import { useUnityRows } from "./UnitySettingsRows";
 import { NameList, SettingsDialog, type SettingRow, type SettingsSection } from "./SettingsDialog";
 
@@ -59,6 +60,7 @@ export function RepoSettingsDialog({ name, path, automaticTracker, protectedBran
   const sparseRows = useSparseRows(path, run);
   const speedRows = useSpeedRows(path, run);
   const issueRows = useIssueRows(path, automaticTracker);
+  const templateRows = useTemplateRows(path, run);
   const own = Boolean(identity?.localName || identity?.localEmail);
   const usual = identity ? describe(identity.globalName, identity.globalEmail) : "…";
   const changed = identity !== null && (draft.name.trim() !== (identity.localName ?? "") || draft.email.trim() !== (identity.localEmail ?? ""));
@@ -128,6 +130,7 @@ export function RepoSettingsDialog({ name, path, automaticTracker, protectedBran
             </button>
           ),
         },
+        ...templateRows,
       ],
     },
     {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Tracker, WebRemote } from "../api";
-import { branchNameFor, effectiveTracker, issueKeys, issueUrl } from "./issues";
+import { branchNameFor, effectiveTracker, issueKeys, issueUrl, branchIssueKey, fromTemplate, withIssueKey } from "./issues";
 
 const jira: Tracker = { kind: "jira", site: "studio.atlassian.net/", keys: ["FEAST"] };
 const linear: Tracker = { kind: "linear", site: "studio", keys: [] };
@@ -32,5 +32,28 @@ describe("issues", () => {
     expect(effectiveTracker(null, snapshot)?.kind).toBe("gitlab");
     expect(effectiveTracker("off", snapshot)).toBeNull();
     expect(effectiveTracker(jira, snapshot)).toBe(jira);
+  });
+});
+
+describe("commit messages and branches", () => {
+  const jira = { kind: "jira" as const, site: "example.atlassian.net", keys: ["FEAST"] };
+  it("finds the issue a branch is for", () => {
+    expect(branchIssueKey("FEAST-23-tavern-sign", jira)).toBe("FEAST-23");
+    expect(branchIssueKey("feature/feast-23-tavern-sign", jira)).toBe("FEAST-23");
+    expect(branchIssueKey("OTHER-4-thing", jira)).toBeNull();
+    expect(branchIssueKey("main", jira)).toBeNull();
+    expect(branchIssueKey("23-tavern-sign", { kind: "github", site: "", keys: [] })).toBeNull();
+    expect(branchIssueKey("ENG-7-x", { kind: "linear", site: "studio", keys: [] })).toBe("ENG-7");
+  });
+
+  it("puts the key in front once", () => {
+    expect(withIssueKey("Add the opening hours", "FEAST-23")).toBe("FEAST-23: Add the opening hours");
+    expect(withIssueKey("feast-23 add the hours", "FEAST-23")).toBe("feast-23 add the hours");
+    expect(withIssueKey("Add the hours", null)).toBe("Add the hours");
+  });
+
+  it("reads a template without git's comments", () => {
+    expect(fromTemplate("# Write why\nFix: \n\nWhy:\n- \n# end\n\n")).toEqual({ summary: "Fix:", description: "Why:\n- " });
+    expect(fromTemplate("")).toEqual({ summary: "", description: "" });
   });
 });

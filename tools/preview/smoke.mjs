@@ -44,6 +44,8 @@ await page.addInitScript((pick) => {
   window.__PREVIEW__ = { pick, pullRequests: [] };
   // No background fetches: the test fetches when it means to.
   localStorage.setItem("tributary.fetch.auto", "false");
+  // Not someone new: no welcome tour, no What's new.
+  localStorage.setItem("tributary.whatsNew.seen", JSON.stringify("999.0.0"));
 }, demos.notebook);
 
 let failed = 0;

@@ -1,35 +1,7 @@
 import { open as openFile } from "@tauri-apps/plugin-dialog";
 import type { Action, CommitRow, InstalledApp, RepoSnapshot } from "../api";
 import { WORKTREE_ID } from "../api";
-import {
-  CodeIcon,
-  TerminalIcon,
-  BranchIcon,
-  BroomIcon,
-  CloneIcon,
-  CloseIcon,
-  CopyIcon,
-  DownloadIcon,
-  ExternalLinkIcon,
-  FetchIcon,
-  FileHistoryIcon,
-  FolderIcon,
-  GearIcon,
-  HistoryIcon,
-  KeyboardIcon,
-  LockIcon,
-  NewRepoIcon,
-  PlusIcon,
-  PullIcon,
-  PullRequestIcon,
-  PushIcon,
-  RecoverIcon,
-  IgnoreIcon,
-  RefreshIcon,
-  SearchIcon,
-  StashIcon,
-  TagIcon,
-} from "../components/Icons";
+import { BranchIcon, BroomIcon, CheckIcon, CloneIcon, CloseIcon, CodeIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, FetchIcon, FileHistoryIcon, FolderIcon, GearIcon, HistoryIcon, IgnoreIcon, InfoIcon, KeyboardIcon, LockIcon, NewRepoIcon, PlusIcon, PullIcon, PullRequestIcon, PushIcon, RecoverIcon, RefreshIcon, SearchIcon, SparkleIcon, StashIcon, TagIcon, TerminalIcon } from "../components/Icons";
 import type { NativeMenu } from "../lib/nativeMenu";
 import { isMac } from "../lib/platform";
 import { newPullRequestUrl, openInBrowser, siteName, webRemote } from "../lib/weblinks";
@@ -90,6 +62,8 @@ export interface MenuBarContext {
     /** Open the repository in an editor or terminal. */
     openIn: (app: InstalledApp) => void;
     diagnostics: () => void;
+    whatsNew: () => void;
+    welcome: () => void;
   };
 }
 
@@ -112,6 +86,8 @@ export function helpCommandsFor(ctx: MenuBarContext): AppCommand[] {
   return [
     { id: "palette", label: "Command Palette", icon: <SearchIcon />, keys: "CmdOrCtrl+K", run: ctx.do.palette },
     { id: "shortcuts", label: "Keyboard Shortcuts", icon: <KeyboardIcon />, run: ctx.do.shortcuts },
+    { id: "whats-new", label: "What's New", icon: <SparkleIcon />, run: ctx.do.whatsNew },
+    { id: "welcome", label: "Welcome Tour", icon: <InfoIcon />, run: ctx.do.welcome },
     { id: "diagnostics", label: "Copy Diagnostics…", icon: <CopyIcon />, run: ctx.do.diagnostics },
   ];
 }
@@ -215,6 +191,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
             ? [{ id: "download-lfs", label: "Download Git LFS Files", icon: <DownloadIcon />, enabled: canChange, run: () => run.act({ kind: "downloadLfsFiles" }, "download") }]
             : []),
           { id: "recover", label: "Recover Commits…", icon: <RecoverIcon />, run: () => run.dialog({ kind: "recover" }) },
+          { id: "project-setup", label: "Check Project Setup…", icon: <CheckIcon />, run: () => run.dialog({ kind: "projectSetup" }) },
           { id: "repo-size", label: "What Makes It Big…", icon: <BroomIcon />, run: () => run.dialog({ kind: "repoSize" }) },
           {
             id: "ignore-reason",

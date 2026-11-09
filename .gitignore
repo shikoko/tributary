@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Desktop end-to-end tests: screenshots of what failed
+tools/e2e/output/

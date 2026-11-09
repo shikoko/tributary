@@ -63,6 +63,8 @@ pub fn run() {
             commands::changed_elsewhere,
             commands::submodules,
             commands::repo_identity,
+            commands::commit_template,
+            commands::project_setup,
             commands::signing_settings,
             commands::unity_setup,
             commands::sparse_settings,

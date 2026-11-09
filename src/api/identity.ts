@@ -14,6 +14,19 @@ export function repoIdentity(path: string): Promise<RepoIdentity> {
   return invoke<RepoIdentity>("repo_identity", { path });
 }
 
+/** The message new commits start from: git's commit.template (shared by a team, or this repository's own). */
+export interface CommitTemplate {
+  text: string | null;
+  /** The file, as configured. */
+  file: string | null;
+  /** It's this repository's own, kept by Tributary (so it can be edited here). */
+  ours: boolean;
+}
+
+export function commitTemplate(path: string): Promise<CommitTemplate> {
+  return invoke<CommitTemplate>("commit_template", { path });
+}
+
 /** How commits in a repository are signed. */
 export type SigningMode = "usual" | "off" | "gpg" | "ssh";
 
@@ -53,4 +66,36 @@ export interface RemoteInfo {
 
 export function remotes(path: string): Promise<RemoteInfo[]> {
   return invoke<RemoteInfo[]>("remotes", { path });
+}
+
+/** A change that puts a project setup check right. */
+export type SetupFix =
+  | { kind: "ignore"; patterns: string[] }
+  | { kind: "untrack"; folders: string[] }
+  | { kind: "track"; patterns: string[] }
+  | { kind: "lockable"; patterns: string[] }
+  | { kind: "textAuto" }
+  | { kind: "longPaths" }
+  | { kind: "installLfs" };
+
+export interface SetupCheck {
+  id: string;
+  status: "good" | "warning" | "problem";
+  title: string;
+  detail: string;
+  examples: string[];
+  fix: SetupFix | null;
+  fixLabel: string | null;
+}
+
+/** How a repository is set up for a game project, check by check. */
+export interface ProjectSetup {
+  engine: "unreal" | "unity" | null;
+  /** The project's folder in the repository ("" for the top). */
+  project: string | null;
+  checks: SetupCheck[];
+}
+
+export function projectSetup(path: string): Promise<ProjectSetup> {
+  return invoke<ProjectSetup>("project_setup", { path });
 }

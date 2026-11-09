@@ -1,5 +1,6 @@
-import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
-import { commitDetails, type Action, type LargeFile, type NameProblem, type RepoSnapshot } from "../../api";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { commitDetails, commitTemplate, type Action, type LargeFile, type NameProblem, type RepoSnapshot } from "../../api";
+import { branchIssueKey, fromTemplate, useIssueTracker, withIssueKey } from "../../lib/issues";
 import { describeMeta, type MetaWarning } from "../../lib/unityMeta";
 import { plural } from "../../lib/format";
 import { baseName } from "../../lib/paths";
@@ -12,6 +13,9 @@ export interface CommitDraft {
 }
 
 export const EMPTY_DRAFT: CommitDraft = { summary: "", description: "", amend: false };
+
+/** Sent when a repository's commit message template changes, so the commit box reads it again. */
+export const TEMPLATE_CHANGED = "tributary:commit-template";
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -56,6 +60,38 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prepared]);
 
+  // On a branch for a Jira or Linear issue, the summary starts with its key (unless that's turned off).
+  const { tracker } = useIssueTracker();
+  const issueKey = branchIssueKey(snapshot.headBranch, tracker);
+  const [withKey, setWithKey] = useState(true);
+  useEffect(() => setWithKey(true), [issueKey]);
+
+  // New messages start from git's commit.template, when there is one: once each time the
+  // message is empty (after a commit, say), not again when you've cleared it yourself.
+  const [template, setTemplate] = useState<{ summary: string; description: string } | null>(null);
+  useEffect(() => {
+    let live = true;
+    const read = () =>
+      commitTemplate(snapshot.path)
+        .then((found) => live && setTemplate(found.text ? fromTemplate(found.text) : null))
+        .catch(() => live && setTemplate(null));
+    read();
+    window.addEventListener(TEMPLATE_CHANGED, read);
+    return () => {
+      live = false;
+      window.removeEventListener(TEMPLATE_CHANGED, read);
+    };
+  }, [snapshot.path]);
+  const filled = useRef(false);
+  useEffect(() => {
+    const empty = !draft.summary && !draft.description;
+    if (!template || filled.current || prepared || draft.amend || !empty) return;
+    filled.current = true;
+    onDraft({ summary: template.summary, description: template.description, amend: false });
+  }, [template, prepared, draft, onDraft]);
+  // Committing just the template, unchanged, isn't what anyone means (git won't either).
+  const untouched = template !== null && draft.summary === template.summary && draft.description === template.description;
+
   // Amending starts from the last commit's message.
   useEffect(() => {
     if (!draft.amend || draft.summary || !snapshot.headCommit) return;
@@ -76,7 +112,8 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
   }, [draft.amend]);
 
   const canCommit =
-    !busy && !committing && draft.summary.trim() !== "" && (stagedCount > 0 || draft.amend) && !snapshot.bare;
+    !busy && !committing && draft.summary.trim() !== "" && !untouched && (stagedCount > 0 || draft.amend) && !snapshot.bare;
+  const summary = withKey && !draft.amend ? withIssueKey(draft.summary.trim(), issueKey) : draft.summary.trim();
   const commit = async (anyway = false) => {
     if (!canCommit) return;
     // Big files committed outside Git LFS stay in every clone forever, and names that don't
@@ -87,12 +124,14 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
     }
     setConfirmLarge(false);
     setCommitting(true);
-    const message = draft.description.trim()
-      ? `${draft.summary.trim()}\n\n${draft.description.trim()}`
-      : draft.summary.trim();
+    const message = draft.description.trim() ? `${summary}\n\n${draft.description.trim()}` : summary;
     const done = await run({ kind: "commit", message, amend: draft.amend });
     setCommitting(false);
-    if (done) onDraft({ summary: "", description: "", amend: false });
+    if (done) {
+      // The next message starts from the template again.
+      filled.current = false;
+      onDraft({ summary: "", description: "", amend: false });
+    }
   };
   const toggleAmend = (amend: boolean) => {
     // Turning amend off again clears the message it filled in.
@@ -110,6 +149,17 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
     <div className="commit-box">
       {messageTools}
       <div className="summary-field">
+        {issueKey && !draft.amend && !draft.summary.toUpperCase().includes(issueKey) && (
+          <button
+            type="button"
+            className={`summary-key${withKey ? " on" : ""}`}
+            onClick={() => setWithKey(!withKey)}
+            aria-pressed={withKey}
+            title={withKey ? `The summary starts with ${issueKey}: (this branch's issue). Click to leave it out` : `Start the summary with ${issueKey}:`}
+          >
+            {issueKey}
+          </button>
+        )}
         <input
           className="text-input"
           value={draft.summary}
@@ -182,7 +232,9 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
           title={
             stagedCount === 0 && !draft.amend
               ? "Stage the files you want to commit first"
-              : `Commit (${modKey}Enter)`
+              : untouched
+                ? "Fill in the template first"
+                : `Commit${summary !== draft.summary.trim() ? ` as "${summary}"` : ""} (${modKey}Enter)`
           }
         >
           {committing

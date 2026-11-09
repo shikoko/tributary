@@ -798,3 +798,87 @@ fn finds_what_makes_the_repository_big_and_moves_it_into_lfs() {
         .is_err()
     );
 }
+
+/// An Unreal project set up badly: the engine's folders committed and not ignored, assets
+/// outside Git LFS, line endings left to each computer, two names differing in capitals.
+/// The check finds each, and its fixes put them right.
+#[test]
+fn checks_and_fixes_a_game_projects_setup() {
+    if !lfs_installed() {
+        eprintln!("Git LFS isn't installed: skipped");
+        return;
+    }
+    let repo = TempRepo::new("setup-check");
+    let files = [
+        "Game/Game.uproject",
+        "Game/Intermediate/Build/Makefile.bin",
+        "Game/Content/Props/Chair.uasset",
+        "Game/Content/props/Stool.uasset",
+        "Game/Source/Game.cpp",
+    ];
+    for file in files {
+        let full = repo.path().join(file);
+        std::fs::create_dir_all(full.parent().unwrap()).unwrap();
+        std::fs::write(full, "x\n").unwrap();
+    }
+    repo.git(&["add", "."]);
+    repo.git(&["commit", "--quiet", "-m", "Start the game"]);
+
+    let setup = actions::project_setup(repo.path()).unwrap();
+    assert_eq!(setup.engine, Some(actions::Engine::Unreal));
+    assert_eq!(setup.project.as_deref(), Some("Game"));
+    let status = |setup: &actions::ProjectSetup, id: &str| {
+        setup
+            .checks
+            .iter()
+            .find(|check| check.id == id)
+            .map(|check| check.status)
+    };
+    use actions::CheckStatus::{Good, Problem, Warning};
+    assert_eq!(status(&setup, "ignore"), Some(Problem));
+    assert_eq!(status(&setup, "committed"), Some(Problem));
+    assert_eq!(status(&setup, "lfs"), Some(Problem));
+    assert_eq!(status(&setup, "lockable"), Some(Warning));
+    assert_eq!(status(&setup, "text"), Some(Warning));
+    assert_eq!(status(&setup, "case"), Some(Problem));
+
+    // Each fix it offers, in turn.
+    for id in [
+        "lfs-installed",
+        "ignore",
+        "committed",
+        "lfs",
+        "lockable",
+        "text",
+    ] {
+        let setup = actions::project_setup(repo.path()).unwrap();
+        if let Some(fix) = setup
+            .checks
+            .iter()
+            .find(|check| check.id == id)
+            .and_then(|check| check.fix.clone())
+        {
+            actions::run(repo.path(), Action::FixSetup { fix }).unwrap();
+        }
+    }
+    let after = actions::project_setup(repo.path()).unwrap();
+    assert_eq!(status(&after, "ignore"), Some(Good));
+    assert_eq!(status(&after, "committed"), None);
+    assert_eq!(status(&after, "lfs"), Some(Good));
+    assert_eq!(status(&after, "lockable"), Some(Good));
+    assert_eq!(status(&after, "text"), Some(Good));
+    // Renaming is up to you.
+    assert_eq!(status(&after, "case"), Some(Problem));
+    let attributes = std::fs::read_to_string(repo.path().join(".gitattributes")).unwrap();
+    assert!(attributes.starts_with("* text=auto\n"), "{attributes}");
+    assert!(
+        attributes.contains("*.uasset filter=lfs diff=lfs merge=lfs -text lockable"),
+        "{attributes}"
+    );
+    // The engine's files are still on disk.
+    assert!(
+        repo.path()
+            .join("Game/Intermediate/Build/Makefile.bin")
+            .exists()
+    );
+}

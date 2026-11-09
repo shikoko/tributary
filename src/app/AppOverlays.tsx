@@ -1,4 +1,8 @@
 import { useContext, useEffect, useState } from "react";
+import { WelcomeTour, WhatsNewDialog } from "../components/WhatsNew";
+import { compareVersions, onStart, RELEASES, type Release } from "../lib/whatsNew";
+import { loadRecent } from "../lib/recent";
+import { useStoredState } from "../lib/settings";
 import { getVersion } from "@tauri-apps/api/app";
 import { signOutOfGitHub } from "../api";
 import type { Updates } from "../lib/updates";
@@ -59,12 +63,39 @@ export function AppOverlays(props: Props) {
       .then(setVersion)
       .catch(() => {});
   }, []);
+  // After an update, what's new (once); for someone new, the tour.
+  const [seen, setSeen] = useStoredState<string | null>("whatsNew.seen", null);
+  const [news, setNews] = useState<Release[]>([]);
+  useEffect(() => {
+    if (!version || version === seen || !/^\d/.test(version)) return;
+    const start = onStart(version, seen, loadRecent().length > 0);
+    setSeen(version);
+    if (start.show === "tour") show("welcome");
+    if (start.show === "news") {
+      setNews(start.releases);
+      show("whatsNew");
+    }
+    // Only when the version is known.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
+  // From Help: what this version (or the newest) brought.
+  const shownNews = news.length > 0 ? news : RELEASES.filter((release) => !version || compareVersions(release.version, version) <= 0).slice(0, 1);
 
   return (
     <>
       {props.cloning && <CloneDialog onCancel={props.onCloneCancel} onDone={props.onCloned} />}
       {open.palette && <CommandPalette commands={props.commands()} onClose={() => hide("palette")} />}
       {open.shortcuts && <ShortcutsDialog onClose={() => hide("shortcuts")} />}
+      {open.whatsNew && shownNews.length > 0 && (
+        <WhatsNewDialog
+          releases={shownNews}
+          onClose={() => {
+            hide("whatsNew");
+            setNews([]);
+          }}
+        />
+      )}
+      {open.welcome && <WelcomeTour onClose={() => hide("welcome")} />}
       {open.settings && (
         <SettingsDialog
           initial={props.settingsSection}

@@ -1,4 +1,5 @@
 // Changing a repository: actions run the installed git, with progress, cancelling and an activity log.
+import type { SetupFix } from "./identity";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { BranchTip } from "./branches";
@@ -102,6 +103,10 @@ export type Action =
   | { kind: "openInMergeTool"; path: string }
   /** Commit as this name and email in this repository; both empty go back to the usual ones. */
   | { kind: "setIdentity"; name: string; email: string }
+  /** Start new commits' messages from `text` here (empty: no template of this repository's own). */
+  | { kind: "setCommitTemplate"; text: string }
+  /** Put one of the project setup check's findings right. */
+  | { kind: "fixSetup"; fix: SetupFix }
   | { kind: "setSigning"; mode: SigningMode; key: string | null }
   /** Save commits as one patch file, oldest first. */
   | { kind: "savePatch"; ids: string[]; file: string }
