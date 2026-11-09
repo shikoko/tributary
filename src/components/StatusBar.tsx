@@ -98,8 +98,8 @@ export function StatusBar(props: Props) {
       {running && <span className="status-item running">{running}…</span>}
       {snapshot.operation && (
         <span className="status-item warning">
-          {snapshot.operation.kind === "cherryPick" ? "Cherry-pick" : snapshot.operation.kind === "other" ? "Git operation" : `${snapshot.operation.kind[0].toUpperCase()}${snapshot.operation.kind.slice(1)}`}{" "}
-          in progress
+          {{ merge: "Merge", rebase: "Rebase", cherryPick: "Cherry-pick", revert: "Revert", applyPatches: "Applying patches", other: "Git operation" }[snapshot.operation.kind]}
+          {snapshot.operation.kind === "applyPatches" ? "" : " in progress"}
         </span>
       )}
       <span className="status-fill" />

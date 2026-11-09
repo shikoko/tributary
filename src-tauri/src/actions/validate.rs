@@ -198,7 +198,8 @@ pub(super) fn in_progress(repo: &gix::Repository) -> Result<&'static str, Error>
         Some(InProgress::Rebase | InProgress::RebaseInteractive) => Ok("rebase"),
         Some(InProgress::CherryPick | InProgress::CherryPickSequence) => Ok("cherry-pick"),
         Some(InProgress::Revert | InProgress::RevertSequence) => Ok("revert"),
+        Some(InProgress::ApplyMailbox) => Ok("am"),
         Some(_) => Err("Another git operation is in progress. Finish it in a terminal.".into()),
-        None => Err("There's no merge, rebase, cherry-pick or revert in progress.".into()),
+        None => Err("There's no merge, rebase, cherry-pick, revert or patch in progress.".into()),
     }
 }

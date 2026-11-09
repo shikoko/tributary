@@ -35,6 +35,8 @@ export type OpenDialog =
   | { kind: "pruneLfs" }
   /** HEAD's reflog: get back commits that are on no branch. */
   | { kind: "recover" }
+  /** Apply a patch file chosen or dropped on the window. */
+  | { kind: "applyPatch"; file: string }
   | { kind: "newWorktree"; branch?: string; start: CommitRow }
   | { kind: "removeWorktree"; worktree: Worktree }
   /** The repository's own settings: protected branches, who commits are made as, Git LFS. */
@@ -85,6 +87,8 @@ export interface MenuContext {
   openWorktree: (path: string) => void;
   /** Compare two commits or branches, in the details panel. */
   compare: (request: CompareRequest) => void;
+  /** Say what was done, like "Copied the commit as a patch". */
+  notify: (text: string) => void;
 }
 
 /** What to call a commit when comparing: its (first) local branch, or its short id. */

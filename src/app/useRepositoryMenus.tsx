@@ -87,6 +87,7 @@ export function useRepositoryMenus({
     worktrees: worktrees,
     openWorktree: openTab,
     compare: compare,
+    notify: (text) => notify({ text }),
   };
   const fileMenuContext: FileMenuContext = {
     snapshot,

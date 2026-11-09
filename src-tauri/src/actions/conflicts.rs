@@ -144,7 +144,11 @@ pub(super) fn continue_operation(repo: &gix::Repository, git: &Git) -> Result<St
     } else {
         git.run(&[operation, "--continue"])?;
     }
-    Ok(format!("Finished the {operation}"))
+    Ok(if operation == "am" {
+        "Carried on applying the patches".to_owned()
+    } else {
+        format!("Finished the {operation}")
+    })
 }
 
 /// Leave out the commit a rebase, cherry-pick or revert stopped at.
@@ -154,16 +158,22 @@ pub(super) fn skip_commit(repo: &gix::Repository, git: &Git) -> Result<String> {
         return Err("A merge can't skip commits. Abort it instead.".into());
     }
     git.run(&[operation, "--skip"])?;
-    Ok(format!(
-        "Skipped the commit and carried on with the {operation}"
-    ))
+    Ok(if operation == "am" {
+        "Skipped the patch and carried on with the next".to_owned()
+    } else {
+        format!("Skipped the commit and carried on with the {operation}")
+    })
 }
 
 /// Give up on a merge, rebase, cherry-pick or revert, going back to how things were.
 pub(super) fn abort_operation(repo: &gix::Repository, git: &Git) -> Result<String> {
     let operation = in_progress(repo)?;
     git.run(&[operation, "--abort"])?;
-    Ok(format!("Aborted the {operation}"))
+    Ok(if operation == "am" {
+        "Stopped applying the patches, and went back to before".to_owned()
+    } else {
+        format!("Aborted the {operation}")
+    })
 }
 
 /// Which versions each conflicted file among `paths` has in the index: '1' (the common

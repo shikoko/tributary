@@ -22,6 +22,7 @@ mod lfs;
 mod lfs_health;
 mod lfs_settings;
 mod partial;
+mod patches;
 mod prune;
 mod remote;
 mod remote_settings;
@@ -62,6 +63,7 @@ pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
 pub use lfs_health::{LfsHealth, lfs_health};
 pub use lfs_settings::{LfsFolder, LfsSettings, LfsSuggestion, lfs_settings};
 pub use partial::LineMode;
+pub use patches::{PatchCommit, PatchFile, PatchInfo, patch_info, patch_text};
 pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
 };
@@ -309,6 +311,14 @@ pub enum Action {
     /// Check out only these folders (and the files at the top), or every folder when it's
     /// empty.
     SetSparseFolders { folders: Vec<String> },
+    /// Save commits as one patch file (oldest first), at `file`.
+    SavePatch { ids: Vec<String>, file: String },
+    /// Apply a patch file: as commits (`git am`), or as changes to the files (`git apply`).
+    ApplyPatch {
+        file: String,
+        #[serde(rename = "asCommits")]
+        as_commits: bool,
+    },
     /// Turn one of git's speed-ups for big repositories on or off here.
     SetSpeedUp { which: SpeedUp, on: bool },
     /// Turn on every speed-up git has here.
@@ -609,6 +619,8 @@ fn perform(
         Action::OpenInMergeTool { path } => diff::open_in_merge_tool(&git, path),
         Action::SetIdentity { name, email } => identity::set_identity(&git, name, email),
         Action::SetSigning { mode, key } => signing::set_signing(&git, mode, key),
+        Action::SavePatch { ids, file } => patches::save_patch(path, ids, file),
+        Action::ApplyPatch { file, as_commits } => patches::apply_patch(&git, file, as_commits),
         Action::SetSpeedUp { which, on } => speed::set_speed_up(&git, which, on, on_progress),
         Action::SpeedUpAll => speed::speed_up_all(&git, path, on_progress),
         Action::SetSparseFolders { folders } => {

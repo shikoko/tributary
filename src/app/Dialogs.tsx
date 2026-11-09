@@ -12,6 +12,7 @@ import { PruneLfsDialog } from "../components/LfsCleanup";
 import { NewBranchDialog } from "../components/NewBranchDialog";
 import { NewWorktreeDialog } from "../components/NewWorktreeDialog";
 import { PruneDialog } from "../components/PruneDialog";
+import { ApplyPatchDialog } from "../components/ApplyPatchDialog";
 import { RecoverDialog } from "../components/RecoverDialog";
 import { RenameBranchDialog } from "../components/RenameBranchDialog";
 import { ResetDialog } from "../components/ResetDialog";
@@ -285,6 +286,9 @@ export function RepositoryDialogs(props: Props) {
           working on it, their changes and yours will clash, and one of you will lose work. Check with them first.
         </p>
       </ConfirmDialog>
+    )}
+    {dialog?.kind === "applyPatch" && (
+      <ApplyPatchDialog repoPath={snapshot.path} file={dialog.file} branch={snapshot.headBranch} onCancel={() => onClose()} onDone={(message) => onFinish(message)} />
     )}
     {dialog?.kind === "recover" && (
       <RecoverDialog

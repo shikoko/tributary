@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { WORKTREE_ID, type Action, type PullRequest } from "./api";
 import { useLfsLocks } from "./lib/locks";
+import { isPatchFile } from "./lib/patches";
 import { usePullRequestNews } from "./app/usePullRequestNews";
 import { useSpeedOffer } from "./app/useSpeedOffer";
 import { makeLookup, PullRequestsContext, requestNumber, usePullRequests } from "./lib/pullRequests";
@@ -228,10 +229,14 @@ export default function App() {
     prs.refresh();
   };
 
-  // A folder dropped onto the window opens. Coming back to the window picks up changes
-  // made elsewhere (a commit in the terminal, an edit in the editor).
+  // A folder dropped onto the window opens; a patch file is offered to apply. Coming back to
+  // the window picks up changes made elsewhere (a commit in the terminal, an edit in the editor).
   const activity = useActivityLog();
-  const dropping = useFolderDrop((path) => !latest.current.dialog && repo.load(path, "open"));
+  const dropping = useFolderDrop((path) => {
+    if (latest.current.dialog) return;
+    if (isPatchFile(path) && latest.current.snapshot && !latest.current.snapshot.bare) setDialog({ kind: "applyPatch", file: path });
+    else repo.load(path, "open");
+  });
   useWindowFocus(() => {
     if (!latest.current.snapshot || !idle() || repo.blockFocusRefresh.current) return;
     if (Date.now() - repo.lastLoad.current < FOCUS_REFRESH_INTERVAL) return;

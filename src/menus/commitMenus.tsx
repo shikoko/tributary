@@ -1,6 +1,7 @@
 // Right-click menus of commit rows: a commit, several selected commits, the uncommitted changes and a stash.
 import type { CommitRow } from "../api";
 import { copyText } from "../lib/clipboard";
+import { copyPatch, savePatch } from "../lib/patches";
 import { stashIndexOf } from "../lib/refs";
 import { commitUrl, siteName, webRemote } from "../lib/weblinks";
 import type { MenuItem } from "../components/ContextMenu";
@@ -27,7 +28,8 @@ import {
   StashIcon,
   TagIcon,
   TrashIcon,
-  CompareIcon } from "../components/Icons";
+  CompareIcon,
+  DownloadIcon } from "../components/Icons";
 import { worktreeOf, canResetTo, splitRemoteBranch, commitLabel, headSide, type MenuContext } from "./context";
 
 /** Right-click while several commits are selected. */
@@ -61,6 +63,19 @@ export function selectionMenu(ctx: MenuContext, commits: CommitRow[]): MenuItem[
       icon: <RevertIcon />,
       disabled: blocked,
       onSelect: () => ctx.run({ kind: "revertMany", ids: commits.map((commit) => commit.id) }),
+    },
+    {
+      label: `Save ${commits.length} commits as a patch…`,
+      icon: <DownloadIcon />,
+      separated: true,
+      disabled: commits.some((commit) => commit.kind !== "commit"),
+      onSelect: () => void savePatch(oldestFirst, commits[0].summary, ctx.run),
+    },
+    {
+      label: "Copy as a patch",
+      icon: <CopyIcon />,
+      disabled: commits.some((commit) => commit.kind !== "commit"),
+      onSelect: () => void copyPatch(ctx.snapshot.path, oldestFirst, ctx.notify),
     },
     {
       label: "Copy SHAs",
@@ -220,6 +235,19 @@ export function commitMenu(ctx: MenuContext, commit: CommitRow): MenuItem[] {
       icon: <TagIcon />,
       disabled: !canChange,
       onSelect: () => ctx.open({ kind: "tag", target: commit }),
+    },
+    {
+      label: commit.parents.length > 1 ? "Save as a patch: merge commits can't be" : "Save as a patch…",
+      icon: <DownloadIcon />,
+      separated: true,
+      disabled: commit.parents.length > 1,
+      onSelect: () => void savePatch([commit.id], commit.summary, ctx.run),
+    },
+    {
+      label: "Copy as a patch",
+      icon: <CopyIcon />,
+      disabled: commit.parents.length > 1,
+      onSelect: () => void copyPatch(snapshot.path, [commit.id], ctx.notify),
     },
     {
       label: `Hard reset ${snapshot.headBranch ?? "HEAD"} to this commit…`,

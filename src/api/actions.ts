@@ -93,6 +93,10 @@ export type Action =
   /** Commit as this name and email in this repository; both empty go back to the usual ones. */
   | { kind: "setIdentity"; name: string; email: string }
   | { kind: "setSigning"; mode: SigningMode; key: string | null }
+  /** Save commits as one patch file, oldest first. */
+  | { kind: "savePatch"; ids: string[]; file: string }
+  /** Apply a patch file: as commits (git am), or as changes to the files (git apply). */
+  | { kind: "applyPatch"; file: string; asCommits: boolean }
   /** Turn one of git's speed-ups for big repositories on or off. */
   | { kind: "setSpeedUp"; which: SpeedUp; on: boolean }
   | { kind: "speedUpAll" }

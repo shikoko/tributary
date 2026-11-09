@@ -26,7 +26,9 @@ pub enum OperationKind {
     Rebase,
     CherryPick,
     Revert,
-    /// Something else, like `git am` or `git bisect`.
+    /// Applying patches as commits (`git am`).
+    ApplyPatches,
+    /// Something else.
     Other,
 }
 
@@ -42,7 +44,7 @@ pub(crate) fn operation(repo: &gix::Repository) -> Option<Operation> {
         }
         InProgress::CherryPick | InProgress::CherryPickSequence => OperationKind::CherryPick,
         InProgress::Revert | InProgress::RevertSequence => OperationKind::Revert,
-        _ => OperationKind::Other,
+        InProgress::ApplyMailbox => OperationKind::ApplyPatches,
     };
     // The message git prepared, without its "# Conflicts:" comment lines.
     let message = std::fs::read_to_string(repo.git_dir().join("MERGE_MSG"))
@@ -96,6 +98,25 @@ pub(crate) fn operation(repo: &gix::Repository) -> Option<Operation> {
         OperationKind::Revert => (
             head_branch(),
             read_id("REVERT_HEAD").map(|id| format!("the revert of {}", id.to_hex_with_len(7))),
+        ),
+        OperationKind::ApplyPatches => (
+            head_branch(),
+            // The patch it stopped at, by its subject.
+            [
+                "rebase-apply/msg-clean",
+                "rebase-apply/msg",
+                "rebase-apply/final-commit",
+            ]
+            .iter()
+            .find_map(|file| std::fs::read_to_string(repo.git_dir().join(file)).ok())
+            .and_then(|text| {
+                text.lines()
+                    .map(str::trim)
+                    .find(|line| !line.is_empty())
+                    .map(str::to_owned)
+            })
+            .map(|subject| format!("the patch \"{subject}\""))
+            .or_else(|| Some("the patch".to_owned())),
         ),
         OperationKind::Other => (None, None),
     };

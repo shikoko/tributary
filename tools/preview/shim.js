@@ -183,6 +183,7 @@
     },
     "plugin:app|version": () => window.__PREVIEW_VERSION__ || "preview",
     "plugin:dialog|open": ({ options }) => pick(options),
+    "plugin:dialog|save": ({ options }) => pick(options),
     "plugin:opener|open_url": ({ url }) => {
       preview.opened.push(url);
       window.open(url, "_blank", "noopener");

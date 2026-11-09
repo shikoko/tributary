@@ -504,3 +504,57 @@ textarea.request-body.short {
 .dialog-note-line.warning {
   color: var(--warning-text);
 }
+
+/* What a patch holds, in the apply dialog. */
+.patch-commits,
+.patch-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.patch-commits li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.patch-commit-summary {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patch-files {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.patch-files li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.patch-file {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patch-files .added {
+  color: var(--added);
+}
+
+.patch-files .removed {
+  color: var(--removed);
+}

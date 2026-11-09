@@ -190,6 +190,14 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "unity_setup" => to_json(actions::unity_setup(&path()?)?),
         "sparse_settings" => to_json(actions::sparse_settings(&path()?)?),
         "speed_settings" => to_json(actions::speed_settings(&path()?)?),
+        "patch_info" => to_json(actions::patch_info(
+            &path()?,
+            &arg::<PathBuf>(args, "file")?,
+        )?),
+        "patch_text" => to_json(actions::patch_text(
+            &path()?,
+            &arg::<Vec<String>>(args, "ids")?,
+        )?),
         "remotes" => to_json(actions::remotes(&path()?)?),
         // The browser preview has no app icon to change.
         "set_app_icon" => Ok(Value::Null),

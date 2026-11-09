@@ -60,6 +60,8 @@ pub fn run() {
             commands::unity_setup,
             commands::sparse_settings,
             commands::speed_settings,
+            commands::patch_info,
+            commands::patch_text,
             commands::remotes,
             commands::repo_summary,
             commands::set_app_icon,

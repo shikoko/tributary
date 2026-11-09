@@ -140,7 +140,7 @@ export interface Visibility {
   solo: string[];
 }
 
-export type OperationKind = "merge" | "rebase" | "cherryPick" | "revert" | "other";
+export type OperationKind = "merge" | "rebase" | "cherryPick" | "revert" | "applyPatches" | "other";
 
 export interface Operation {
   kind: OperationKind;
@@ -471,4 +471,22 @@ export interface SpeedSettings {
 
 export function speedSettings(path: string): Promise<SpeedSettings> {
   return invoke<SpeedSettings>("speed_settings", { path });
+}
+
+/** A patch file's commits and files, and whether it applies to the files as they are. */
+export interface PatchInfo {
+  /** Its commits (when it holds commits, as git format-patch writes them). */
+  commits: { summary: string; author: string }[];
+  /** The files it changes, with lines added and removed (null for binary files). */
+  files: { path: string; additions: number | null; deletions: number | null }[];
+  applies: boolean;
+}
+
+export function patchInfo(path: string, file: string): Promise<PatchInfo> {
+  return invoke<PatchInfo>("patch_info", { path, file });
+}
+
+/** Commits as one patch, oldest first. */
+export function patchText(path: string, ids: string[]): Promise<string> {
+  return invoke<string>("patch_text", { path, ids });
 }

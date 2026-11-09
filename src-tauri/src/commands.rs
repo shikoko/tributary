@@ -261,6 +261,18 @@ pub async fn remotes(path: String) -> Result<Vec<actions::RemoteInfo>> {
     blocking(move || actions::remotes(&PathBuf::from(path))).await
 }
 
+/// What a patch file holds, and whether it applies to the files as they are.
+#[tauri::command]
+pub async fn patch_info(path: String, file: String) -> Result<actions::PatchInfo> {
+    blocking(move || actions::patch_info(&PathBuf::from(path), &PathBuf::from(file))).await
+}
+
+/// Commits as one patch, oldest first, to copy.
+#[tauri::command]
+pub async fn patch_text(path: String, ids: Vec<String>) -> Result<String> {
+    blocking(move || actions::patch_text(&PathBuf::from(path), &ids)).await
+}
+
 /// How big the repository is, and which of git's speed-ups are on.
 #[tauri::command]
 pub async fn speed_settings(path: String) -> Result<actions::SpeedSettings> {

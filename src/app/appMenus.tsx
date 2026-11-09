@@ -1,3 +1,4 @@
+import { open as openFile } from "@tauri-apps/plugin-dialog";
 import type { Action, CommitRow, RepoSnapshot } from "../api";
 import { WORKTREE_ID } from "../api";
 import {
@@ -207,6 +208,16 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
             ? [{ id: "download-lfs", label: "Download Git LFS Files", icon: <DownloadIcon />, enabled: canChange, run: () => run.act({ kind: "downloadLfsFiles" }, "download") }]
             : []),
           { id: "recover", label: "Recover Commits…", icon: <RecoverIcon />, run: () => run.dialog({ kind: "recover" }) },
+          {
+            id: "apply-patch",
+            label: "Apply Patch…",
+            icon: <DownloadIcon />,
+            enabled: canChange,
+            run: async () => {
+              const file = await openFile({ multiple: false, directory: false, title: "Apply a patch", filters: [{ name: "Patch", extensions: ["patch", "diff", "mbox", "eml"] }] });
+              if (typeof file === "string") run.dialog({ kind: "applyPatch", file });
+            },
+          },
           "-",
           ...(remote
             ? [

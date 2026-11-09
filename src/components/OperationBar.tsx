@@ -17,7 +17,7 @@ interface Props {
   onKeepAll: (keep: "mine" | "theirs") => void;
 }
 
-const NAMES = { merge: "merge", rebase: "rebase", cherryPick: "cherry-pick", revert: "revert", other: "operation" };
+const NAMES = { merge: "merge", rebase: "rebase", cherryPick: "cherry-pick", revert: "revert", applyPatches: "patches", other: "operation" };
 
 /** Shown while a merge, rebase, cherry-pick or revert waits for conflicts to be resolved. */
 export function OperationBar({ operation, branch, conflicts, sides, busy, onContinue, onSkip, onAbort, onShowFiles, onKeepAll }: Props) {
@@ -25,7 +25,7 @@ export function OperationBar({ operation, branch, conflicts, sides, busy, onCont
   if (operation.kind === "other") {
     return (
       <div className="operation-bar" role="status">
-        <span>A git operation (like <code>git am</code>) is in progress. Finish it in a terminal.</span>
+        <span>A git operation is in progress. Finish it in a terminal.</span>
       </div>
     );
   }
@@ -34,7 +34,7 @@ export function OperationBar({ operation, branch, conflicts, sides, busy, onCont
     <div className="operation-bar" role="status">
       <span className="operation-text">
         <span className="operation-title">
-          {operation.kind === "merge" ? "Merging into" : `${name[0].toUpperCase()}${name.slice(1)} in progress on`}{" "}
+          {operation.kind === "merge" ? "Merging into" : operation.kind === "applyPatches" ? "Applying patches on" : `${name[0].toUpperCase()}${name.slice(1)} in progress on`}{" "}
           <strong>{branch}</strong>.
         </span>{" "}
         {conflicts > 0 ? (
@@ -64,12 +64,12 @@ export function OperationBar({ operation, branch, conflicts, sides, busy, onCont
           </button>
         )}
         {operation.kind !== "merge" && (
-          <button className="secondary-button" onClick={onSkip} disabled={busy} title="Leave out this commit">
-            Skip commit
+          <button className="secondary-button" onClick={onSkip} disabled={busy} title={operation.kind === "applyPatches" ? "Leave out this patch" : "Leave out this commit"}>
+            {operation.kind === "applyPatches" ? "Skip patch" : "Skip commit"}
           </button>
         )}
         <button className="danger-outline-button" onClick={onAbort} disabled={busy}>
-          Abort {name}
+          {operation.kind === "applyPatches" ? "Stop applying" : `Abort ${name}`}
         </button>
       </span>
     </div>
