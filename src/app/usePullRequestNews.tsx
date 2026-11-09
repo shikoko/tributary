@@ -62,6 +62,8 @@ export function usePullRequestNews(options: Options) {
           const now = seenNow(conversation, details);
           const before = seen.current.get(key(pr.number));
           seen.current.set(key(pr.number), { pr, seen: now });
+          // Merged from this window: not news.
+          if (wasMergedHere(repoPath, pr.number)) now.state = before?.seen.state ?? now.state;
           if (before) announce(pr, describeRequestNews(pr, before.seen, now, conversation));
         }
         // Yours that aren't open any more: merged or closed (unless merged here).

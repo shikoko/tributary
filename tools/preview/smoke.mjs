@@ -13,7 +13,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { buildDemos, demoEnv, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
+import { buildDemos, demoEnv, STUDIO_PULL_REQUEST_CONVERSATIONS, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
 
@@ -480,9 +480,10 @@ try {
   });
 
   await step("opens a second repository in a new tab", async () => {
+    // The pull requests' comments from the start: news is what changes after the first look.
     await page.evaluate(
-      ([pick, pullRequests]) => Object.assign(window.__PREVIEW__, { pick, pullRequests }),
-      [demos.studio, STUDIO_PULL_REQUESTS],
+      ([pick, pullRequests, conversations]) => Object.assign(window.__PREVIEW__, { pick, pullRequests, conversations }),
+      [demos.studio, STUDIO_PULL_REQUESTS, structuredClone(STUDIO_PULL_REQUEST_CONVERSATIONS)],
     );
     await page.getByRole("button", { name: "New tab" }).click();
     // The recent notebook shows where it stands: its branch and uncommitted changes.
@@ -590,6 +591,28 @@ try {
     await page.keyboard.press("Escape");
   });
 
+  await step("shows Photoshop and Targa textures, and the pixels that changed", async () => {
+    await row("Sign: paint a mug of ale next to the mark").click();
+    await page.locator(".details .file", { hasText: "TavernSign.psd" }).click();
+    const view = page.locator(".diff-view");
+    await view.locator(".diff-image img").nth(1).waitFor({ timeout: 10_000 });
+    await view.locator(".diff-media-facts", { hasText: "256 × 256" }).first().waitFor({ timeout: 10_000 });
+    await view.locator(".diff-image-modes button", { hasText: "Changed pixels" }).click();
+    const summary = view.locator(".diff-pixels-summary", { hasText: "pixels changed" });
+    await summary.waitFor({ timeout: 10_000 });
+    expect((await summary.innerText()).includes("in a 73 × 83 area"), await summary.innerText());
+    await view.locator(".diff-image-modes button", { hasText: "Side by side" }).click();
+    await page.keyboard.press("Escape");
+  });
+
+  await step("names Unreal actors saved in their own files", async () => {
+    await row("Move the fireplace to the back wall").click();
+    const names = page.locator(".details .file .file-name.actor");
+    await names.first().waitFor({ timeout: 10_000 });
+    const listed = await names.allInnerTexts();
+    expect(["SM_Bench_Old", "SM_Bench_Long", "PointLight_Hearth", "BP_Fireplace"].every((name) => listed.includes(name)), listed.join(", "));
+  });
+
   await step("shows a sound, a video and a 3D model as what they are", async () => {
     await row("A slower door with a longer creak").click();
     await page.locator(".details .file", { hasText: "DoorCreak.wav" }).click();
@@ -652,6 +675,26 @@ try {
     // The details button opens the check's page.
     await view.locator(".request-check", { hasText: "Audio loudness" }).getByRole("button", { name: "Details" }).click();
     expect((await page.evaluate(() => window.__PREVIEW__.opened)).some((url) => url.endsWith("/actions/runs/7")), "the check's page didn't open");
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+  });
+
+  await step("comments on, approves and merges a pull request", async () => {
+    await page.locator(".pr-badge", { hasText: "#12" }).first().click();
+    const view = page.locator(".request-view");
+    await view.locator(".request-comment", { hasText: "the build script reads it" }).waitFor({ timeout: 10_000 });
+    await view.locator(".request-reply").first().click();
+    await view.locator(".comment-box textarea").first().fill("Thanks!");
+    await view.locator(".comment-box button", { hasText: "Reply" }).click();
+    await view.locator(".request-comment.reply", { hasText: "Thanks!" }).waitFor({ timeout: 5000 });
+    await view.locator(".request-actions button", { hasText: "Review" }).click();
+    await view.locator(".review-box button", { hasText: "Approve" }).click();
+    await page.locator(".toast", { hasText: "Approved #12" }).waitFor({ timeout: 5000 });
+    await view.locator(".request-actions button", { hasText: "Merge" }).click();
+    await page.locator(".dialog button.primary-button", { hasText: "Squash and merge" }).click();
+    await page.locator(".toast", { hasText: "Merged #12" }).waitFor({ timeout: 5000 });
+    const merged = await page.evaluate(() => window.__PREVIEW__.merged);
+    expect(merged?.method === "squash" && merged.deleteBranch, JSON.stringify(merged));
     await page.keyboard.press("Escape");
     await view.waitFor({ state: "detached", timeout: 5000 });
   });
