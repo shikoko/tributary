@@ -147,7 +147,7 @@ export function RepositoryView(props: Props) {
   const { comparing, compared, showChanges, showBlame, shownDiff } = views;
 
   // What the commit, branch, file and list menus need.
-  const { ctx, fileMenuContext, worktreeContext, submoduleContext } = useRepositoryMenus({
+  const { ctx, fileMenuContext, worktreeContext, submoduleContext, openMenu } = useRepositoryMenus({
     snapshot,
     canChange,
     counts,
@@ -325,7 +325,7 @@ export function RepositoryView(props: Props) {
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         onViewMenu={(anchor) => menu.under(anchor, props.viewMenu, 320)}
         onRefresh={repo.refresh}
-        onPick={repo.pick}
+        onOpenMenu={(anchor) => menu.under(anchor, openMenu())}
         onSettings={() => openDialog({ kind: "repoSettings" })}
         onClose={() => props.closeTab(snapshot.path)}
       />

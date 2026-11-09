@@ -2,7 +2,7 @@ import { useRef, type RefObject } from "react";
 import type { SearchMode } from "../app/useSearch";
 import type { RepoSnapshot } from "../api";
 import { plural, shortId } from "../lib/format";
-import { modKey } from "../lib/platform";
+import { isMac, modKey } from "../lib/platform";
 import {
   BranchIcon,
   ChevronDownIcon,
@@ -10,7 +10,7 @@ import {
   CloseIcon,
   CommitIcon,
   FetchIcon,
-  FolderIcon,
+  ExternalLinkIcon,
   GearIcon,
   PullIcon,
   PushIcon,
@@ -67,7 +67,8 @@ interface Props {
   onToggleSidebar: () => void;
   onViewMenu: (anchor: HTMLElement) => void;
   onRefresh: () => void;
-  onPick: () => void;
+  /** The Open menu: the repository on its website, in Finder or Explorer, in an editor or terminal. */
+  onOpenMenu: (anchor: HTMLElement) => void;
   /** This repository's own settings. */
   onSettings: () => void;
   onClose: () => void;
@@ -77,6 +78,7 @@ export function Toolbar(props: Props) {
   const { snapshot, refreshing, running, ahead, behind, search, searchInput } = props;
   const pushMenuButton = useRef<HTMLButtonElement>(null);
   const viewButton = useRef<HTMLButtonElement>(null);
+  const openButton = useRef<HTMLButtonElement>(null);
   const commitCount = snapshot.commits.filter((c) => c.kind === "commit").length;
 
   const hasRemotes = snapshot.remotes.length > 0 && !snapshot.bare;
@@ -289,12 +291,13 @@ export function Toolbar(props: Props) {
           <RefreshIcon className={refreshing ? "spin" : undefined} />
         </button>
         <button
+          ref={openButton}
           className="icon-button"
-          onClick={props.onPick}
-          title={`Open another repository (${modKey}O)`}
-          aria-label="Open another repository"
+          onClick={() => openButton.current && props.onOpenMenu(openButton.current)}
+          title={`Open ${snapshot.name}: on its website, in ${isMac ? "Finder" : "Explorer"}, in your editor or terminal`}
+          aria-label="Open the repository elsewhere"
         >
-          <FolderIcon />
+          <ExternalLinkIcon />
         </button>
         <button className="icon-button" onClick={props.onClose} title="Close repository" aria-label="Close repository">
           <CloseIcon />

@@ -11,6 +11,7 @@ import { openInApp, type PullRequest, type Stacked } from "../api";
 import { useOpenApps } from "../lib/apps";
 import type { MenuContext, OpenDialog } from "../menus";
 import type { FileMenuContext } from "./fileMenus";
+import { openMenuItems } from "./openMenu";
 import type { SubmoduleMenuContext, WorktreeMenuContext } from "./listMenus";
 import type { BranchCounts } from "./useBranchCounts";
 import type { CompareRequest } from "./useComparison";
@@ -127,5 +128,15 @@ export function useRepositoryMenus({
     stage: (path) => act({ kind: "stage", paths: [path] }),
     reveal: (submodule) => revealItemInDir(joinPath(snapshot.path, submodule.path)).catch(() => notify({ text: `${submodule.path} isn't there` })),
   };
-  return { ctx, fileMenuContext, worktreeContext, submoduleContext };
+  // The toolbar's Open menu.
+  const openMenu = () =>
+    openMenuItems({
+      snapshot,
+      editor: openApps.editor,
+      terminal: openApps.terminal,
+      reveal: () => revealItemInDir(snapshot.path).catch((e) => setError({ message: String(e) })),
+      openIn: (app) => openInApp(app.id, snapshot.path).catch((e) => notify({ text: String(e) })),
+      notify: (text) => notify({ text }),
+    });
+  return { ctx, fileMenuContext, worktreeContext, submoduleContext, openMenu };
 }
