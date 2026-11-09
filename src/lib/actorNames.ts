@@ -50,6 +50,7 @@ export function useActorNames(repoPath: string, at: string | null, fallback: str
       current = false;
     };
     // `key` stands for `wanted`.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoPath, at, fallback, key]);
   return wanted.length > 0 && names.key === key ? names.names : NO_NAMES;
 }

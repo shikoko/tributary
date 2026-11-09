@@ -55,10 +55,12 @@ export function ElsewherePanel({ overlaps, anchor, onClose, onShowCommit, onShow
     };
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("pointerdown", onPointer, true);
+    // The panel as it is now: by the time this is cleaned up, it may be gone.
+    const element = panel.current;
     return () => {
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("pointerdown", onPointer, true);
-      if (document.activeElement === document.body || panel.current?.contains(document.activeElement)) anchor.focus();
+      if (document.activeElement === document.body || element?.contains(document.activeElement)) anchor.focus();
     };
   }, [anchor, onClose]);
 

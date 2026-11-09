@@ -33,6 +33,7 @@ export function useIssueRows(path: string, automatic: Tracker | null): SettingRo
       current = false;
     };
     // `ownKey` stands for the tracker's kind and address.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, ownKey]);
 
   const choice = setting === "off" ? "off" : setting ? setting.kind : "auto";

@@ -116,6 +116,7 @@ export function RepositoryView(props: Props) {
   const issueTracker = useMemo(
     () => ({ repoPath: snapshot.path, tracker: effectiveTracker(trackerSetting, snapshot), remote: webRemote(snapshot) }),
     // The remotes are what matters of the snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [trackerSetting, snapshot.path, snapshot.webRemotes, snapshot.upstream?.name],
   );
 

@@ -33,6 +33,8 @@ export function useRepoSetting<T>(
   path: string | null,
   fallback: T,
 ): [T, (value: T | ((current: T) => T)) => void] {
+  // The fallback is a default, often written inline: a new one each render means the same.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const read = useCallback(() => (path ? readRepoSetting(name, path, fallback) : fallback), [name, path]);
   const [state, setState] = useState<{ path: string | null; value: T }>(() => ({ path, value: read() }));
   useEffect(() => setState({ path, value: read() }), [path, read]);
@@ -54,6 +56,8 @@ export function useRepoSetting<T>(
       writeRepoSetting(name, path, resolved);
       setState({ path, value: resolved });
     },
+    // The fallback is a default, often written inline: a new one each render means the same.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [name, path],
   );
   return [value, set];

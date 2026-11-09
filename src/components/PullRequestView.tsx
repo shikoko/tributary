@@ -142,6 +142,7 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
       current = false;
     };
     // `wanted` stands for the two commits.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoPath, wanted]);
   const localSaid = local && !merge ? describeMergeCheck(local, "merge") : null;
   // Its branch was force-pushed since this copy of the repository first saw it: offer what changed.

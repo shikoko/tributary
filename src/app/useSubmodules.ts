@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { submodules as readSubmodules, type Action, type RepoSnapshot, type Submodule } from "../api";
 import { submoduleNotice } from "../lib/submodules";
 import type { Running } from "./constants";
 import type { SubmoduleUpdates } from "./usePreferences";
+
+const NONE: Submodule[] = [];
 
 /** Wait this long after the repository changes before looking, so quick reloads count once. */
 const SETTLE = 500;
@@ -58,8 +60,9 @@ export function useSubmodules({ snapshot, mode, act }: Options) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  // Until the new answer arrives, keep the last one for the same repository.
-  const list = found && path && found.key.startsWith(`${path}|`) ? found.list : [];
+  // Until the new answer arrives, keep the last one for the same repository (the same list
+  // from one render to the next, so what depends on it doesn't run again for nothing).
+  const list = useMemo(() => (found && path && found.key.startsWith(`${path}|`) ? found.list : NONE), [found, path]);
   const fresh = found?.key === key;
 
   const update = useCallback((paths: string[]) => act({ kind: "updateSubmodules", paths }, "submodules"), [act]);

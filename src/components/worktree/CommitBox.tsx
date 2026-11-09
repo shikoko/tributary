@@ -49,6 +49,8 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
     if (!prepared || draft.summary || draft.description) return;
     const [summary, ...rest] = prepared.split("\n");
     onDraft({ summary, description: rest.join("\n").trim(), amend: false });
+    // Only when git prepares a message: what's typed after that is yours.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prepared]);
 
   // Amending starts from the last commit's message.
@@ -66,6 +68,8 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
     return () => {
       cancelled = true;
     };
+    // Only when amending is turned on or off.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.amend]);
 
   const canCommit =

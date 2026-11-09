@@ -51,7 +51,7 @@ export function ReleaseNotesDialog({
     return () => {
       current = false;
     };
-  }, [repoPath, tag, from]);
+  }, [repoPath, tag, from, tracker, remote]);
 
   const publish = async () => {
     setPublishing(true);

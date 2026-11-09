@@ -188,6 +188,8 @@ function BlameLines({
       element.removeEventListener("scroll", update);
       observer.disconnect();
     };
+  // Once, when it opens: where to start, and following the scroll from then on.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const first = Math.max(0, Math.floor(view.top / ROW) - OVERSCAN);

@@ -136,6 +136,8 @@ export function CommitList(props: Props) {
       clearTimeout(settle);
       document.body.classList.remove("list-resizing");
     };
+  // Only the first time: where the list was left.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Labels dragged onto a row.

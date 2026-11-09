@@ -41,6 +41,8 @@ export function SplitCommitDialog({
     return () => {
       current = false;
     };
+  // A new loader each render does the same: only another commit is worth loading again.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [commit.id]);
 
   const files = details?.files ?? [];
