@@ -5,3 +5,8 @@ import { invoke } from "@tauri-apps/api/core";
 export function avatars(path: string, emails: string[]): Promise<Record<string, string | null>> {
   return invoke<Record<string, string | null>>("avatars", { path, emails });
 }
+
+/** Forget the authors' pictures kept on this computer (when profile pictures are turned off). */
+export function forgetAvatars(): Promise<void> {
+  return invoke<void>("forget_avatars");
+}

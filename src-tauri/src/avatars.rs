@@ -8,11 +8,14 @@
 //! 4. Gravatar, by a hash of the address.
 //!
 //! The pictures are downloaded here and handed to the interface as `data:` URLs, so the
-//! page itself never talks to these sites, and the answers are kept for the session.
+//! page itself never talks to these sites. The answers are kept for the session, and on
+//! this computer for a week (in the app's cache folder, by a hash of each address), so the
+//! pictures show at once the next time: older ones show while they're asked for again.
 
 use std::collections::HashMap;
-use std::path::Path;
-use std::sync::{LazyLock, Mutex};
+use std::path::{Path, PathBuf};
+use std::sync::{LazyLock, Mutex, OnceLock};
+use std::time::{Duration, SystemTime};
 
 use base64::Engine;
 use serde::Deserialize;
@@ -40,6 +43,55 @@ type Accounts = HashMap<String, Option<String>>;
 /// The accounts known per GitHub repository ("owner/name").
 static GITHUB_AUTHORS: LazyLock<Mutex<HashMap<String, Accounts>>> = LazyLock::new(Default::default);
 
+/// Where the pictures are kept between sessions (none in the browser preview).
+static KEPT_IN: OnceLock<PathBuf> = OnceLock::new();
+/// Kept pictures are asked for again once they're this old (and shown meanwhile).
+const FRESH_FOR: Duration = Duration::from_secs(7 * 24 * 60 * 60);
+
+/// Keep the pictures in `folder` between sessions.
+pub fn keep_in(folder: PathBuf) {
+    let _ = KEPT_IN.set(folder);
+}
+
+/// The file an address's picture is kept in: named by a hash, so the folder doesn't list
+/// email addresses.
+fn kept_file(address: &str) -> Option<PathBuf> {
+    let hash = Sha256::digest(address.as_bytes());
+    let name: String = hash.iter().map(|byte| format!("{byte:02x}")).collect();
+    Some(KEPT_IN.get()?.join(name))
+}
+
+/// The picture kept for an address (None inside: it has none), and whether it's still fresh.
+fn from_disk(address: &str) -> Option<(Option<String>, bool)> {
+    let file = kept_file(address)?;
+    let text = std::fs::read_to_string(&file).ok()?;
+    let fresh = std::fs::metadata(&file)
+        .and_then(|metadata| metadata.modified())
+        .ok()
+        .and_then(|modified| SystemTime::now().duration_since(modified).ok())
+        .is_some_and(|age| age < FRESH_FOR);
+    let picture = Some(text).filter(|text| text.starts_with("data:image/"));
+    Some((picture, fresh))
+}
+
+fn to_disk(address: &str, picture: &Option<String>) {
+    let Some(file) = kept_file(address) else {
+        return;
+    };
+    if let Some(folder) = file.parent() {
+        let _ = std::fs::create_dir_all(folder);
+    }
+    let _ = std::fs::write(file, picture.as_deref().unwrap_or(""));
+}
+
+/// Forget every kept picture (when profile pictures are turned off).
+pub fn forget() {
+    PICTURES.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    if let Some(folder) = KEPT_IN.get() {
+        let _ = std::fs::remove_dir_all(folder);
+    }
+}
+
 fn known(email: &str) -> Option<Option<String>> {
     PICTURES
         .lock()
@@ -58,13 +110,33 @@ pub async fn avatars(path: &Path, emails: Vec<String>) -> Result<HashMap<String,
         })
         .collect();
     let mut missing: Vec<String> = Vec::new();
+    let mut stale: Vec<String> = Vec::new();
     for (_, address) in &requests {
-        if address.contains('@') && known(address).is_none() && !missing.contains(address) {
-            missing.push(address.clone());
+        if !address.contains('@') || known(address).is_some() || missing.contains(address) {
+            continue;
+        }
+        match from_disk(address) {
+            Some((picture, fresh)) => {
+                PICTURES
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .insert(address.clone(), picture);
+                if !fresh {
+                    stale.push(address.clone());
+                }
+            }
+            None => missing.push(address.clone()),
         }
     }
     if !missing.is_empty() {
         look_up(path, &missing).await?;
+    }
+    // Old pictures show now, and are asked for again in the background for next time.
+    if !stale.is_empty() {
+        let path = path.to_owned();
+        tauri::async_runtime::spawn(async move {
+            let _ = look_up(&path, &stale).await;
+        });
     }
     // Whatever is still unknown (a download that failed) shows initials for now.
     Ok(requests
@@ -140,6 +212,7 @@ async fn look_up(path: &Path, addresses: &[String]) -> Result<()> {
             };
             // A download that failed (offline, say) is tried again next time.
             if let Some(found) = found {
+                to_disk(&address, &found);
                 PICTURES
                     .lock()
                     .unwrap_or_else(|e| e.into_inner())
@@ -354,6 +427,33 @@ async fn download(client: &reqwest::Client, url: &str) -> std::result::Result<Op
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn keeps_pictures_on_disk_by_a_hash_and_forgets_them() {
+        let folder = std::env::temp_dir().join(format!("tributary-avatars-{}", std::process::id()));
+        keep_in(folder.clone());
+        let picture = Some("data:image/png;base64,AAAA".to_owned());
+        to_disk("rosa@example.com", &picture);
+        to_disk("nobody@example.com", &None);
+        assert_eq!(from_disk("rosa@example.com"), Some((picture, true)));
+        assert_eq!(from_disk("nobody@example.com"), Some((None, true)));
+        assert_eq!(from_disk("theo@example.com"), None);
+        // The folder doesn't list the addresses.
+        let names: Vec<String> = std::fs::read_dir(&folder)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert!(
+            names
+                .iter()
+                .all(|name| name.len() == 64 && !name.contains('@')),
+            "{names:?}"
+        );
+        forget();
+        assert!(!folder.exists());
+    }
+
     use super::*;
 
     #[test]

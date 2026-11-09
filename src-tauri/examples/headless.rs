@@ -285,6 +285,10 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "merge_request" => to_json(tauri::async_runtime::block_on(
             tributary_lib::reviews::merge(&path()?, arg(args, "number")?, arg(args, "options")?),
         )?),
+        "forget_avatars" => {
+            tributary_lib::avatars::forget();
+            Ok(Value::Null)
+        }
         "avatars" => {
             let emails: Vec<String> = arg(args, "emails")?;
             to_json(tauri::async_runtime::block_on(

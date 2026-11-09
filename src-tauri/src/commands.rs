@@ -359,6 +359,12 @@ pub async fn lfs_storage(path: String) -> Result<Option<actions::LfsStorage>> {
     blocking(move || actions::lfs_storage_of(&PathBuf::from(path))).await
 }
 
+/// Forget the authors' pictures kept on this computer (profile pictures were turned off).
+#[tauri::command]
+pub fn forget_avatars() {
+    crate::avatars::forget();
+}
+
 /// Profile pictures of these authors, as `data:` URLs (null for those without one).
 #[tauri::command]
 pub async fn avatars(

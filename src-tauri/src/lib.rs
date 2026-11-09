@@ -39,6 +39,10 @@ pub fn run() {
                 let _ = handle.emit("activity", entry);
             });
             app_icon::restore(app.handle());
+            // Authors' pictures are kept between sessions, to show at once.
+            if let Ok(folder) = tauri::Manager::path(app).app_cache_dir() {
+                avatars::keep_in(folder.join("avatars"));
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -94,6 +98,7 @@ pub fn run() {
             commands::tracker_sign_in,
             commands::tracker_sign_out,
             commands::avatars,
+            commands::forget_avatars,
             commands::github_status,
             commands::github_sign_in,
             commands::github_sign_in_with_browser,

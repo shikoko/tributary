@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { WORKTREE_ID, type Action, type PullRequest } from "./api";
+import { forgetAvatars, WORKTREE_ID, type Action, type PullRequest } from "./api";
 import { useLfsLocks } from "./lib/locks";
 import { isPatchFile } from "./lib/patches";
 import { usePullRequestNews } from "./app/usePullRequestNews";
@@ -167,6 +167,13 @@ export default function App() {
     () => new Set((snapshot?.commits ?? []).flatMap((commit) => commit.refs.filter((ref) => ref.kind === "branch").map((ref) => ref.name))),
     [snapshot?.commits],
   );
+  // Profile pictures turned off: forget the ones kept on this computer.
+  const picturesOn = preferences.profilePictures;
+  const picturesWereOn = useRef(picturesOn);
+  useEffect(() => {
+    if (picturesWereOn.current && !picturesOn) forgetAvatars().catch(() => {});
+    picturesWereOn.current = picturesOn;
+  }, [picturesOn]);
   // A big repository without git's speed-ups: offered once.
   useSpeedOffer(snapshot, setToast, () => setDialog({ kind: "repoSettings", section: "Speed" }));
   usePullRequestNews({
