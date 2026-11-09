@@ -37,12 +37,18 @@ pub struct Line {
     pub dashed: bool,
 }
 
+/// A lane's number as stored: lanes past the last one storable share it, rather than wrap
+/// around to the first (no real history comes near 65,535 lanes side by side).
+fn lane(index: usize) -> u16 {
+    u16::try_from(index).unwrap_or(u16::MAX)
+}
+
 impl Line {
     fn new(kind: LineKind, from: usize, to: usize, children: Vec<u32>, dashed: bool) -> Self {
         Line {
             kind,
-            from: from as u16,
-            to: to as u16,
+            from: lane(from),
+            to: lane(to),
             children,
             dashed,
         }
@@ -208,14 +214,14 @@ pub fn layout<Id: PartialEq + Clone>(nodes: &[Node<Id>]) -> Layout {
         }
 
         rows.push(GraphRow {
-            column: column as u16,
+            column: lane(column),
             lines,
         });
     }
 
     Layout {
         rows,
-        width: width as u16,
+        width: lane(width),
     }
 }
 
