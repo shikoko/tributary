@@ -1,8 +1,7 @@
-import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import type { Release, WhatsNewIcon } from "../lib/whatsNew";
 import { modKey } from "../lib/platform";
 import { withAlpha } from "../lib/colors";
-import { readSetting } from "../lib/settings";
 import { useThemeColors } from "../app/useAppearance";
 import { Dialog } from "./Dialog";
 import { BellIcon, BranchIcon, CheckIcon, CommitIcon, DownloadIcon, ExternalLinkIcon, Logo, RevertIcon, SearchIcon, SparkleIcon, TeamIcon } from "./Icons";
@@ -28,7 +27,7 @@ function lighter(hex: string): string {
   return `rgb(${channel(16)}, ${channel(8)}, ${channel(0)})`;
 }
 
-/** Each item in its own graph colour, as chosen in Settings, blending into the next one's. */
+/** Each item in its own graph colour, as chosen in Settings (with a glow of the next one's). */
 function useItemColors() {
   const { lanes } = useThemeColors();
   return (index: number): CSSProperties => {
@@ -37,9 +36,8 @@ function useItemColors() {
     return {
       "--wn-color": color,
       "--wn-light": lighter(color),
-      "--wn-next": next,
       "--wn-soft": withAlpha(color, 0.16),
-      "--wn-faint": withAlpha(color, 0.07),
+      "--wn-faint": withAlpha(color, 0.08),
       "--wn-glow": withAlpha(color, 0.38),
       "--wn-next-soft": withAlpha(next, 0.14),
     } as CSSProperties;
@@ -47,121 +45,35 @@ function useItemColors() {
 }
 
 const title = (releases: Release[]) => (releases.length === 1 ? `What's new in Tributary ${releases[0].version}` : "What's new in Tributary");
-const versions = (releases: Release[]) =>
-  releases.length === 1 ? releases[0].version : `${releases[releases.length - 1].version} to ${releases[0].version}`;
-const flatten = (releases: Release[]): Item[] => releases.flatMap((release) => release.items.map((item) => ({ ...item, version: release.version })));
 
-/** Which of the looks to show, while one is being chosen. */
-function readLook(): "cards" | "graph" | "spotlight" {
-  const look = readSetting<string>("whatsNew.look", "cards");
-  return look === "graph" || look === "spotlight" ? look : "cards";
-}
-
-/** What changed, after an update (or from Help → What's New). */
+/**
+ * What changed, after an update (or from Help → What's New): one thing at a time, large,
+ * with the list of them beside it.
+ */
 export function WhatsNewDialog({ releases, onClose }: { releases: Release[]; onClose: () => void }) {
-  const look = readLook();
-  if (look === "graph") return <WhatsNewGraph releases={releases} onClose={onClose} />;
-  if (look === "spotlight") return <WhatsNewSpotlight releases={releases} onClose={onClose} />;
-  return <WhatsNewCards releases={releases} onClose={onClose} />;
-}
-
-const gotIt = (onClose: () => void) => (
-  <button className="primary-small-button" onClick={onClose} autoFocus>
-    Got it
-  </button>
-);
-
-/** A banner in the graph colours, then a card for each thing. */
-function WhatsNewCards({ releases, onClose }: { releases: Release[]; onClose: () => void }) {
   const colors = useItemColors();
-  const { lanes } = useThemeColors();
-  const items = flatten(releases);
-  const glow = (index: number, alpha: number) => withAlpha(lanes[index % lanes.length], alpha);
-  return (
-    <Dialog title={title(releases)} wide onCancel={onClose} className="whats-new-dialog look-cards" buttons={gotIt(onClose)}>
-      <header className="wn-hero" style={{ "--wn-a": glow(0, 0.45), "--wn-b": glow(1, 0.34), "--wn-c": glow(4, 0.32) } as CSSProperties}>
-        <span className="wn-hero-logo">
-          <Logo size={46} />
-        </span>
-        <span className="wn-hero-text">
-          <span className="wn-eyebrow">What's new</span>
-          <span className="wn-hero-title">Tributary {versions(releases)}</span>
-          <span className="wn-hero-sub">{items.length === 1 ? "One new thing" : `${items.length} new things`} since you last looked</span>
-        </span>
-      </header>
-      <div className="wn-scroll">
-        <div className="wn-grid">
-          {items.map((item, index) => (
-            <article key={`${item.version}-${item.title}`} className={`wn-card${index === 0 ? " featured" : ""}`} style={colors(index)}>
-              <span className="wn-tile">{icon(item.icon, index === 0 ? 20 : 16)}</span>
-              <span className="wn-card-text">
-                <strong>{item.title}</strong>
-                <span>{item.text}</span>
-              </span>
-            </article>
-          ))}
-        </div>
-      </div>
-    </Dialog>
-  );
-}
-
-/** Like the commit graph: a version's label, and each thing a commit on its line. */
-function WhatsNewGraph({ releases, onClose }: { releases: Release[]; onClose: () => void }) {
-  const colors = useItemColors();
-  let index = 0;
-  return (
-    <Dialog title={title(releases)} wide onCancel={onClose} className="whats-new-dialog look-graph" buttons={gotIt(onClose)}>
-      <div className="wn-scroll">
-        {releases.map((release) => (
-          <section key={release.version} className="wn-release">
-            <div className="wn-release-head">
-              <span className="wn-pill">
-                <CheckIcon size={12} />
-                {release.version}
-              </span>
-              <span className="wn-release-count">{release.items.length === 1 ? "1 new thing" : `${release.items.length} new things`}</span>
-            </div>
-            <ol className="wn-line">
-              {release.items.map((item) => {
-                const style = colors(index++);
-                return (
-                  <li key={item.title} style={style}>
-                    <span className="wn-node">{icon(item.icon, 15)}</span>
-                    <span className="wn-line-text">
-                      <strong>{item.title}</strong>
-                      <span>{item.text}</span>
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          </section>
-        ))}
-      </div>
-    </Dialog>
-  );
-}
-
-/** One thing at a time, large, with the list beside it. */
-function WhatsNewSpotlight({ releases, onClose }: { releases: Release[]; onClose: () => void }) {
-  const colors = useItemColors();
-  const items = flatten(releases);
+  const items: Item[] = releases.flatMap((release) => release.items.map((item) => ({ ...item, version: release.version })));
   const [at, setAt] = useState(0);
   const item = items[at];
   const last = at === items.length - 1;
-  const onKey = (event: KeyboardEvent) => {
-    if (event.key === "ArrowDown" || event.key === "ArrowRight") setAt(Math.min(items.length - 1, at + 1));
-    else if (event.key === "ArrowUp" || event.key === "ArrowLeft") setAt(Math.max(0, at - 1));
-    else return;
-    event.preventDefault();
-  };
+  // The arrow keys step through them, wherever the focus is in the dialog.
+  const count = items.length;
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "ArrowDown" || event.key === "ArrowRight") setAt((now) => Math.min(count - 1, now + 1));
+      else if (event.key === "ArrowUp" || event.key === "ArrowLeft") setAt((now) => Math.max(0, now - 1));
+      else return;
+      event.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [count]);
   return (
     <Dialog
       title={title(releases)}
       wide
       onCancel={onClose}
-      className="whats-new-dialog look-spotlight"
+      className="whats-new-dialog"
       buttons={
         <>
           <span className="wn-step">
@@ -179,7 +91,7 @@ function WhatsNewSpotlight({ releases, onClose }: { releases: Release[]; onClose
         </>
       }
     >
-      <div className="wn-spotlight" onKeyDown={onKey}>
+      <div className="wn-spotlight">
         <div className="wn-nav" role="tablist" aria-orientation="vertical">
           {items.map((entry, index) => (
             <button
