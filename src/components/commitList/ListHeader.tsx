@@ -50,10 +50,10 @@ export function ListHeader({ columns, visible, options, narrow, refsWidth, graph
           onReset={() => onColumnWidths({ ...columnWidths, graph: null })}
         />
       </div>
-      <div>Message</div>
-      {visible.author && <div>{narrow ? "" : "Author"}</div>}
-      {visible.date && <div>{options.dateKind === "committed" ? "Committed" : "Date"}</div>}
-      {visible.sha && <div>SHA</div>}
+      <div className="message-heading">Message</div>
+      {visible.author && <div className="author-heading">{narrow ? "" : "Author"}</div>}
+      {visible.date && <div className="date-heading">{options.dateKind === "committed" ? "Committed" : "Date"}</div>}
+      {visible.sha && <div className="sha-heading">SHA</div>}
     </div>
   );
 }

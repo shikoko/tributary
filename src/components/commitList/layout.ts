@@ -141,14 +141,11 @@ export function useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport
     shown.current = { width: graphWidth, lanes };
   }, [graphWidth, lanes]);
 
-  // The SHA column comes and goes with the compact layout, so it stays as an empty last
-  // column when it's hidden: both layouts then have as many columns, and ease into each
-  // other. (Only the last column can do that: the cells fill the columns in order.)
-  const columns = [`${refsWidth}px`, `${graphWidth}px`, "minmax(0, 1fr)", authorWidth, dateWidth]
-    .filter((width) => width !== 0)
-    .map((width) => (typeof width === "number" ? `${width}px` : width))
-    .concat(`${shaWidth}px`)
-    .join(" ");
+  // Every column is always there (0 px wide when it's hidden), and each cell has its own
+  // (see .commit-row in commit-list.css): every layout has as many columns, so switching
+  // between them eases instead of jumping, and the graph's lines, nodes and the lines
+  // from the labels, which sit in the same columns, move as one.
+  const columns = [`${refsWidth}px`, `${graphWidth}px`, "minmax(0, 1fr)", `${authorWidth}px`, `${dateWidth}px`, `${shaWidth}px`].join(" ");
   // The same object while nothing changes, so rows needn't re-render.
   const [showAuthor, showDate, showSha] = [authorWidth > 0, dateWidth > 0, shaWidth > 0];
   const visible: VisibleColumns = useMemo(() => ({ author: showAuthor, date: showDate, sha: showSha }), [showAuthor, showDate, showSha]);

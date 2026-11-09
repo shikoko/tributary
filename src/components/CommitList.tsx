@@ -286,7 +286,10 @@ export function CommitList(props: Props) {
           ) : (
             <div className="list-spacer" style={{ height: contentHeight }}>
               {rows}
-              <canvas ref={canvas} className="graph-canvas" style={{ top: first * rowHeight, left: refsWidth }} />
+              {/* In the same columns as the rows, so the lines move with the nodes. */}
+              <div className="graph-layer" style={{ top: first * rowHeight }}>
+                <canvas ref={canvas} className="graph-canvas" />
+              </div>
               {snapshot.truncated && (
                 <div className="list-footer" style={{ top: slots.length * rowHeight, height: FOOTER_HEIGHT }}>
                   <span>Showing the {commits.length.toLocaleString()} most recent commits.</span>

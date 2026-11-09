@@ -47,9 +47,19 @@
   position: relative;
 }
 
-.graph-canvas {
+/* The graph's lines, in a layer with the rows' columns, over the rows. */
+.graph-layer {
   position: absolute;
   left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: var(--list-columns);
+  pointer-events: none;
+}
+
+.graph-canvas {
+  grid-column: 2;
+  display: block;
   pointer-events: none;
 }
 
@@ -62,21 +72,44 @@
   align-items: center;
 }
 
+/* Each cell in its own column, also when the ones before it are hidden. */
+.commit-row > .refs-cell,
+.list-header > .refs-heading {
+  grid-column: 1;
+}
+
+.commit-row > .graph-cell,
+.list-header > .graph-heading {
+  grid-column: 2;
+}
+
+.commit-row > .description,
+.list-header > .message-heading {
+  grid-column: 3;
+}
+
+.commit-row > .author,
+.list-header > .author-heading {
+  grid-column: 4;
+}
+
+.commit-row > .date,
+.list-header > .date-heading {
+  grid-column: 5;
+}
+
+.commit-row > .sha,
+.list-header > .sha-heading {
+  grid-column: 6;
+}
+
 /* The graph column follows the lanes in view; ease the other columns along with it (but
    not while a column is being dragged, or the list's width is changing: then they follow
    the width frame by frame). */
 body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .commit-row,
-body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .list-header {
+body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .list-header,
+body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-layer {
   transition: grid-template-columns 160ms ease;
-}
-
-/* The graph and the lines from the branch labels to it sit where the columns are, so they
-   move along with them. */
-body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-canvas,
-body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-connector {
-  transition:
-    left 160ms ease,
-    width 160ms ease;
 }
 
 .commit-row:hover {
@@ -138,8 +171,12 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .ref-co
 }
 
 /* Faint by default; full strength on the hovered or selected row. */
+/* Placed in the graph's column, so it moves with it (an absolutely positioned grid item's
+   box is its column). */
 .ref-connector {
   position: absolute;
+  grid-column: 2;
+  grid-row: 1;
   top: 50%;
   height: 1px;
   opacity: 0.3;

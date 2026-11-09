@@ -126,7 +126,8 @@ export const ListRow = memo(function ListRow(props: RowProps) {
         <span
           className="ref-connector"
           style={{
-            left: `calc(var(--refs-width) - ${REFS_PADDING}px)`,
+            // Placed in the graph's column (see .ref-connector), from just inside the label's.
+            left: -REFS_PADDING,
             width: `calc(min(${lane}px, var(--graph-width)) + ${REFS_PADDING}px)`,
             background: color,
           }}
