@@ -11,7 +11,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildDemos, demoEnv, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
+import { buildDemos, demoEnv, STUDIO_PULL_REQUEST_CONVERSATIONS, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
 
@@ -165,9 +165,70 @@ const shots = {
 
   /** A pull request's reviews and checks. */
   async "pull-request"() {
-    const page = await open(fresh().studio, { preview: { pullRequests: STUDIO_PULL_REQUESTS, pullRequestDetails: STUDIO_PULL_REQUEST_DETAILS } });
+    const page = await open(fresh().studio, {
+      preview: { pullRequests: STUDIO_PULL_REQUESTS, pullRequestDetails: STUDIO_PULL_REQUEST_DETAILS, conversations: STUDIO_PULL_REQUEST_CONVERSATIONS },
+    });
     await page.locator(".pr-badge", { hasText: "#14" }).first().click();
     await page.locator(".request-view .request-check").first().waitFor();
+    await settle(page);
+    return page;
+  },
+
+  /** A pull request's conversation, with a reply being written. */
+  async review() {
+    const page = await open(fresh().studio, {
+      preview: { pullRequests: STUDIO_PULL_REQUESTS, pullRequestDetails: STUDIO_PULL_REQUEST_DETAILS, conversations: STUDIO_PULL_REQUEST_CONVERSATIONS },
+    });
+    await page.locator(".pr-badge", { hasText: "#12" }).first().click();
+    const view = page.locator(".request-view");
+    await view.locator(".request-conversation").waitFor();
+    await view.locator(".request-reply").first().click();
+    await view.locator(".comment-box textarea").first().fill("Makes sense. Approving once the scissors are in.");
+    await view.locator(".request-section", { hasText: "Conversation" }).evaluate((section) => section.scrollIntoView({ block: "start" }));
+    await settle(page);
+    return page;
+  },
+
+  /** A Photoshop texture's changed pixels. */
+  async textures() {
+    const page = await open(fresh().studio);
+    await row(page, "Sign: paint a mug of ale next to the mark").click();
+    await page.locator(".details .file", { hasText: "TavernSign.psd" }).click();
+    await page.locator(".diff-image-modes button", { hasText: "Changed pixels" }).click();
+    await page.locator(".diff-pixels-summary", { hasText: "pixels changed" }).waitFor();
+    await settle(page);
+    return page;
+  },
+
+  /** An Unreal level's actors, saved one per file, by their names. */
+  async actors() {
+    const page = await open(fresh().studio);
+    await row(page, "Move the fireplace to the back wall, and swap the old bench for a long one").click();
+    await page.locator(".details .file-name.actor").first().waitFor();
+    await settle(page);
+    return page;
+  },
+
+  /** Jira issues a commit mentions, with their titles and states. */
+  async issues() {
+    const studio = fresh().studio;
+    git(studio, ["stash", "push", "-q", "--include-untracked"]);
+    writeFileSync(join(studio, "Config", "DefaultGame.ini"), "[/Script/EngineSettings.GeneralProjectSettings]\nProjectName=Feast of the Forgotten\nApronPhysics=True\n");
+    git(studio, ["commit", "-q", "-am", "FEAST-12: leather apron sways with the barber\n\nCloth physics on the apron, tuned so it doesn't clip the chair. Also tidies FEAST-9."], people.maya);
+    const all = [
+      { key: "FEAST-12", title: "Barber's apron should be leather", status: "In Review", done: false, url: "https://studio.atlassian.net/browse/FEAST-12" },
+      { key: "FEAST-9", title: "Barber clips through the chair", status: "Done", done: true, url: "https://studio.atlassian.net/browse/FEAST-9" },
+      { key: "FEAST-23", title: "Tavern sign: add the opening hours", status: "In Progress", done: false, url: "https://studio.atlassian.net/browse/FEAST-23" },
+      { key: "FEAST-21", title: "Door creak is too loud", status: "To Do", done: false, url: "https://studio.atlassian.net/browse/FEAST-21" },
+    ];
+    const page = await open(studio, {
+      preview: { issues: { all, mine: ["FEAST-23", "FEAST-21"], user: "Maya Chen" } },
+      storage: { [`tributary.issueTracker:${studio}`]: { kind: "jira", site: "https://studio.atlassian.net", keys: ["FEAST"] } },
+    });
+    await row(page, "FEAST-12: leather apron sways with the barber").click({ button: "right" });
+    await page.locator(".menu-item", { hasText: "New branch here" }).click();
+    await page.locator(".dialog select").selectOption("FEAST-23");
+    await page.locator(".mentioned-issues").waitFor();
     await settle(page);
     return page;
   },
