@@ -55,7 +55,24 @@ pub(super) fn pull(
     if !has_preference {
         args.push("--no-rebase");
     }
-    git.run_progress(&args, on_progress)?;
+    // git fills in each Git LFS file as it checks it out, and LFS downloads it then: once
+    // the fetch is done, the commits it brought say how many there'll be.
+    let before = git
+        .run(&["rev-parse", "--verify", "--quiet", "HEAD"])
+        .ok()
+        .map(|id| id.trim().to_owned());
+    let common = repo.common_dir().to_owned();
+    let expected = |seen: &std::collections::HashSet<String>| {
+        let before = before.as_deref()?;
+        super::lfs_count::lfs_downloads(
+            git,
+            &common,
+            &format!("{before}...@{{upstream}}"),
+            "@{upstream}",
+            seen,
+        )
+    };
+    git.run_progress_counting(&args, &[], on_progress, &expected)?;
     Ok(format!("Pulled {branch}"))
 }
 

@@ -545,7 +545,11 @@ fn sums_up_who_committed_where_lately() {
     // Each commit's time, the newest first.
     let times: usize = team.people.iter().map(|p| p.times.len()).sum();
     assert_eq!(times, 3);
-    assert!(team.people.iter().all(|p| p.times.windows(2).all(|w| w[0] >= w[1])));
+    assert!(
+        team.people
+            .iter()
+            .all(|p| p.times.windows(2).all(|w| w[0] >= w[1]))
+    );
     assert_eq!(export.times.len(), 2);
     assert_eq!(team.days, 30);
     // The old branch's commit is in the period before.
@@ -561,7 +565,11 @@ fn sums_up_who_committed_where_lately() {
     let pulse = tributary_lib::actions::team_pulse(alice.path(), 30).unwrap();
     assert_eq!((pulse.people, pulse.commits), (team.people.len(), 3));
     assert_eq!(work.hotspots.len(), 3);
-    assert!(work.hotspots.iter().all(|spot| spot.changes == 1 && !spot.unmergeable));
+    assert!(
+        work.hotspots
+            .iter()
+            .all(|spot| spot.changes == 1 && !spot.unmergeable)
+    );
 }
 
 #[test]

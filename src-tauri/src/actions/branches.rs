@@ -5,6 +5,7 @@ use gix::bstr::ByteSlice;
 
 use super::BranchTip;
 use super::backups::{BackupEvent, back_up, split_remote_branch};
+use super::lfs_count::checkout_counting;
 use super::support::ref_id;
 use super::validate::{check_new_branch_name, commit_id, current_branch, require_ref};
 use crate::error::{Error, Result};
@@ -31,7 +32,13 @@ pub(super) fn checkout_branch(
     on_progress: &dyn Fn(Progress),
 ) -> Result<String> {
     require_ref(repo, &format!("refs/heads/{name}"), &name)?;
-    git.run_progress(&["switch", "--progress", &name], on_progress)?;
+    checkout_counting(
+        repo,
+        git,
+        &["switch", "--progress", &name],
+        &format!("refs/heads/{name}"),
+        on_progress,
+    )?;
     Ok(format!("Checked out {name}"))
 }
 
@@ -47,7 +54,13 @@ pub(super) fn checkout_remote_branch(
         .split_once('/')
         .map_or(name.as_str(), |(_, branch)| branch);
     let Some(local_id) = ref_id(repo, &format!("refs/heads/{local}")) else {
-        git.run_progress(&["switch", "--progress", "--track", &name], on_progress)?;
+        checkout_counting(
+            repo,
+            git,
+            &["switch", "--progress", "--track", &name],
+            &format!("refs/remotes/{name}"),
+            on_progress,
+        )?;
         return Ok(format!("Checked out {local}, tracking {name}"));
     };
     // There's a local branch already: check it out, and when it only lags behind the
@@ -75,7 +88,13 @@ pub(super) fn checkout_remote_branch(
             .is_ok();
     if !tracks || !behind {
         if !current {
-            git.run_progress(&["switch", "--progress", local], on_progress)?;
+            checkout_counting(
+                repo,
+                git,
+                &["switch", "--progress", local],
+                &format!("refs/heads/{local}"),
+                on_progress,
+            )?;
         }
         let ahead = remote_id != local_id
             && git
@@ -112,7 +131,13 @@ pub(super) fn checkout_remote_branch(
         format!("{behind_by} commits")
     };
     if current {
-        git.run_progress(&["merge", "--ff-only", "--progress", &name], on_progress)?;
+        checkout_counting(
+            repo,
+            git,
+            &["merge", "--ff-only", "--progress", &name],
+            &name,
+            on_progress,
+        )?;
     } else {
         // Move the branch first, so its files are only checked out once (at the new commit),
         // and only if it's still where it was.
@@ -124,7 +149,13 @@ pub(super) fn checkout_remote_branch(
             &remote_id.to_string(),
             &local_id.to_string(),
         ])?;
-        if let Err(error) = git.run_progress(&["switch", "--progress", local], on_progress) {
+        if let Err(error) = checkout_counting(
+            repo,
+            git,
+            &["switch", "--progress", local],
+            &format!("refs/heads/{local}"),
+            on_progress,
+        ) {
             return Err(format!("Brought {local} up to date with {name} ({commits}), but couldn't check it out: {error}").into());
         }
     }
@@ -149,8 +180,12 @@ pub(super) fn checkout_commit(
     on_progress: &dyn Fn(Progress),
 ) -> Result<String> {
     let id = commit_id(repo, &id)?;
-    git.run_progress(
-        &["switch", "--progress", "--detach", &id.to_string()],
+    let id_text = id.to_string();
+    checkout_counting(
+        repo,
+        git,
+        &["switch", "--progress", "--detach", &id_text],
+        &id_text,
         on_progress,
     )?;
     Ok(format!(
@@ -172,8 +207,11 @@ pub(super) fn create_branch(
     check_new_branch_name(repo, git, &name)?;
     let id = commit_id(repo, &id)?.to_string();
     if checkout {
-        git.run_progress(
+        checkout_counting(
+            repo,
+            git,
             &["switch", "--progress", "--create", &name, &id],
+            &id,
             on_progress,
         )?;
         Ok(format!("Created and checked out {name}"))

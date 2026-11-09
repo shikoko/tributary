@@ -253,7 +253,9 @@ pub async fn recent_requests(path: &Path) -> Result<Vec<RecentRequest>> {
                 })
                 .collect())
         }
-        Site::GitLab { project, token } => crate::gitlab::recent_requests(&project, token.as_deref()).await,
+        Site::GitLab { project, token } => {
+            crate::gitlab::recent_requests(&project, token.as_deref()).await
+        }
     }
 }
 

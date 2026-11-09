@@ -171,6 +171,11 @@ export interface Progress {
   percent: number | null;
   /** More about it, like "2 of 5 files · 56 MB of 80 MB · 12 MB/s". */
   detail?: string;
+  /**
+   * Files done of how many, when the percentage is about something else: the bytes of all
+   * of them, or of the one Git LFS is downloading (a pull or a checkout gets them one by one).
+   */
+  files?: { done: number; total: number };
 }
 
 /** Stop the fetch, pull, push or clone that is running. */

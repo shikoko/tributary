@@ -18,7 +18,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use super::Progress;
+use super::{FileCount, Progress};
 
 /// How often the log file is read.
 const POLL: Duration = Duration::from_millis(100);
@@ -45,6 +45,23 @@ impl ProgressLog {
             last_poll: None,
             state: State::default(),
         }
+    }
+
+    /// Have the next poll read the log at once and report where it is, even if that was
+    /// reported moments ago (once git has exited, there's no other chance).
+    pub fn force_next(&mut self) {
+        self.last_poll = None;
+        self.state.reported = None;
+    }
+
+    /// The files LFS has logged so far.
+    pub fn seen(&self) -> std::collections::HashSet<String> {
+        self.state.files.keys().cloned().collect()
+    }
+
+    /// How many files LFS will download in all, when it gets them one at a time.
+    pub fn expect(&mut self, total: u32) {
+        self.state.expected = Some(total);
     }
 
     /// True once Git LFS has logged anything.
@@ -87,6 +104,9 @@ struct State {
     files: HashMap<String, (u64, u64)>,
     /// How many files LFS says this transfer has.
     total_files: u32,
+    /// How many files it will download in all, when it gets them one at a time (each
+    /// download then says it's 1 of 1): worked out from the commits being checked out.
+    expected: Option<u32>,
     /// The file the last line was about.
     current: String,
     /// Bytes so far, all files together, over time (for the rate).
@@ -116,6 +136,7 @@ impl State {
             // A new transfer (a pull downloads, then checks out): start again.
             *self = State {
                 direction: Some(direction.to_owned()),
+                expected: self.expected,
                 ..State::default()
             };
         }
@@ -152,6 +173,12 @@ impl State {
             _ => "Downloading LFS files",
         };
         let mut parts = Vec::new();
+        let finished = self
+            .files
+            .values()
+            .filter(|(done, size)| done >= size)
+            .count() as u32;
+        let mut files = None;
         let percent = if self.total_files > 1 {
             // A batch: the share of all the bytes. Sizes are only known for files that
             // have started, so the total is extrapolated from those until all have.
@@ -163,11 +190,10 @@ impl State {
             } else {
                 known * u64::from(self.total_files) / started
             };
-            let finished = self
-                .files
-                .values()
-                .filter(|(done, size)| done >= size)
-                .count();
+            files = Some(FileCount {
+                done: finished,
+                total: self.total_files,
+            });
             parts.push(format!("{finished} of {} files", self.total_files));
             parts.push(if all_started {
                 format!("{} of {}", format_bytes(self.done), format_bytes(known))
@@ -176,8 +202,17 @@ impl State {
             });
             share(self.done, total)
         } else {
-            // One file at a time (git downloads them as it checks them out): that file.
+            // One file at a time (git downloads them as it checks them out): that file, and
+            // how many of them all, when that's known.
             let (done, size) = *self.files.get(&self.current)?;
+            if let Some(expected) = self.expected.filter(|expected| *expected > 1) {
+                let total = expected.max(self.files.len() as u32);
+                files = Some(FileCount {
+                    done: finished,
+                    total,
+                });
+                parts.push(format!("{finished} of {total} files"));
+            }
             parts.push(self.current.clone());
             parts.push(format!("{} of {}", format_bytes(done), format_bytes(size)));
             share(done, size)
@@ -195,11 +230,14 @@ impl State {
             phase: phase.into(),
             percent: Some(percent),
             detail: Some(parts.join(" · ")),
+            files,
         };
         // Send changes in percentage straight away, byte counts a few times a second.
         if let Some((at, last)) = &self.reported {
             let same = *last == progress;
-            let only_detail = last.phase == progress.phase && last.percent == progress.percent;
+            let only_detail = last.phase == progress.phase
+                && last.percent == progress.percent
+                && last.files == progress.files;
             if same || (only_detail && now - *at < REPORT) {
                 return None;
             }
@@ -339,6 +377,33 @@ mod tests {
         assert_eq!(
             progress.detail.as_deref(),
             Some("media/a.bin · 12 MB of 30 MB")
+        );
+    }
+
+    #[test]
+    fn counts_files_downloaded_one_at_a_time() {
+        let start = Instant::now();
+        let mut state = State {
+            expected: Some(4),
+            ..State::default()
+        };
+        // git checks out each file in turn, and LFS downloads it: always "1 of 1".
+        feed(
+            &mut state,
+            start,
+            &[
+                (0, "download 1/1 3500/3500 Content/A.uasset"),
+                (50, "download 1/1 3500/3500 Content/B.uasset"),
+                (100, "download 1/1 1000/8000 Content/C.uasset"),
+            ],
+        );
+        let progress = state.report(start + Duration::from_millis(100)).unwrap();
+        // The bar is still about the file being downloaded; the count is about all of them.
+        assert_eq!(progress.percent, Some(12));
+        assert_eq!(progress.files, Some(FileCount { done: 2, total: 4 }));
+        assert_eq!(
+            progress.detail.as_deref(),
+            Some("2 of 4 files · Content/C.uasset · 1.0 KB of 8.0 KB")
         );
     }
 

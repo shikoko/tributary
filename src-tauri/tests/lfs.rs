@@ -60,6 +60,58 @@ fn reports_git_lfs_uploads_while_pushing() {
     );
 }
 
+/// A pull checks out each Git LFS file in turn, and LFS downloads it then, knowing only
+/// that one: the pull counts them all from the commits it brings in.
+#[test]
+fn counts_the_git_lfs_files_a_pull_downloads() {
+    if !lfs_installed() {
+        eprintln!("Git LFS isn't installed: skipped");
+        return;
+    }
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("count-remote.git");
+    let alice = TempRepo::new("count-alice");
+    alice.git(&["lfs", "install", "--local"]);
+    alice.git(&["lfs", "track", "*.bin"]);
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    std::fs::write(alice.path().join("first.bin"), vec![1u8; 30_000]).unwrap();
+    alice.git(&["add", ".gitattributes", "first.bin"]);
+    alice.git(&["commit", "--quiet", "-m", "First file"]);
+    alice.git(&["push", "--quiet", "-u", "origin", "main"]);
+
+    let bob = TempRepo::clone_of("count-bob", &remote);
+    bob.git(&["lfs", "install", "--local"]);
+    bob.git(&["lfs", "pull"]);
+    // Three new files, and one already here (the same content as first.bin).
+    for (name, byte) in [("a.bin", 2u8), ("b.bin", 3), ("c.bin", 4)] {
+        std::fs::write(alice.path().join(name), vec![byte; 30_000]).unwrap();
+    }
+    std::fs::write(alice.path().join("again.bin"), vec![1u8; 30_000]).unwrap();
+    alice.git(&["add", "a.bin", "b.bin", "c.bin", "again.bin"]);
+    alice.git(&["commit", "--quiet", "-m", "More files"]);
+    alice.git(&["push", "--quiet", "origin", "main"]);
+
+    let reports = std::cell::RefCell::new(Vec::new());
+    actions::run_with_progress(bob.path(), Action::Pull, &|progress| {
+        reports.borrow_mut().push(progress)
+    })
+    .unwrap();
+    let counted: Vec<_> = reports
+        .into_inner()
+        .into_iter()
+        .filter_map(|progress| progress.files)
+        .collect();
+    assert!(!counted.is_empty(), "no file counts while pulling");
+    // At the end, exactly: the three new files (again.bin's content was here already).
+    let last = counted.last().unwrap();
+    assert_eq!((last.done, last.total), (3, 3), "{counted:?}");
+    assert!(counted.iter().all(|count| count.done <= count.total));
+    assert_eq!(
+        std::fs::read(bob.path().join("c.bin")).unwrap(),
+        vec![4u8; 30_000]
+    );
+}
+
 /// A Git LFS server that only does locking, as `rosa` sees it from her side: every
 /// request comes from `maya`. Without `verify`, it can't tell whose locks are whose.
 struct LockServer {

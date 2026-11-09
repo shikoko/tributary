@@ -3,7 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { cancelAction, cloneRepository, onProgress, type CloneOptions, type Progress } from "../api";
 import { useStoredState } from "../lib/settings";
 import { Dialog } from "./Dialog";
-import { ProgressText } from "./ProgressStrip";
+import { ProgressBars, ProgressText } from "./ProgressStrip";
 
 interface Props {
   onCancel: () => void;
@@ -84,7 +84,6 @@ export function CloneDialog({ onCancel, onDone }: Props) {
     }
   };
 
-  const percent = progress?.percent ?? null;
   return (
     <Dialog
       title="Clone a repository"
@@ -207,12 +206,7 @@ export function CloneDialog({ onCancel, onDone }: Props) {
         {running && (
           <div className="clone-progress">
             <ProgressText label="Cloning" progress={progress} />
-            <div className="progress-track">
-              <div
-                className={`progress-fill${percent === null ? " indeterminate" : ""}`}
-                style={percent === null ? undefined : { width: `${percent}%` }}
-              />
-            </div>
+            <ProgressBars progress={progress} />
           </div>
         )}
         <button type="submit" hidden />

@@ -222,7 +222,10 @@ pub(crate) async fn recent_requests(
                 .map(|request| crate::requests::RecentRequest {
                     number: request.iid,
                     title: request.title,
-                    author: request.author.map(|author| author.username).unwrap_or_default(),
+                    author: request
+                        .author
+                        .map(|author| author.username)
+                        .unwrap_or_default(),
                     draft: request.draft,
                     created: request.created_at,
                     merged: request.merged_at,

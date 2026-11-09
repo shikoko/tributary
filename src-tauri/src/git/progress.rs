@@ -22,6 +22,16 @@ pub struct Progress {
     /// More about it, like "2 of 5 files · 56 MB of 80 MB · 12 MB/s".
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
+    /// Files done of how many, when the percentage is about something else (the bytes of all
+    /// of them, or of the one being downloaded).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub files: Option<FileCount>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct FileCount {
+    pub done: u32,
+    pub total: u32,
 }
 
 /// A fetch, pull or push that is running, so it can be cancelled.
@@ -96,6 +106,7 @@ pub fn parse_progress(line: &str) -> Option<Progress> {
         phase: phase.to_owned(),
         percent: Some(percent),
         detail: (!detail.is_empty()).then(|| detail.join(" · ")),
+        files: None,
     })
 }
 
@@ -137,6 +148,21 @@ impl Git {
         env: &[(&str, &str)],
         on_progress: &dyn Fn(Progress),
     ) -> Result<ProgressOutput, Error> {
+        self.run_progress_counting(args, env, on_progress, &|_| None)
+    }
+
+    /// [`Git::run_progress_with_env`], for commands that have Git LFS download files one at
+    /// a time (a pull, a switch: git fills in each file as it checks it out, and LFS only
+    /// knows about that one). Once LFS starts, `expected` says how many files it will
+    /// download in all (given those it has started on already), so the progress can count
+    /// them.
+    pub(crate) fn run_progress_counting(
+        &self,
+        args: &[&str],
+        env: &[(&str, &str)],
+        on_progress: &dyn Fn(Progress),
+        expected: &dyn Fn(&std::collections::HashSet<String>) -> Option<u32>,
+    ) -> Result<ProgressOutput, Error> {
         use std::sync::mpsc::{RecvTimeoutError, channel};
         use std::time::Duration;
 
@@ -145,6 +171,7 @@ impl Git {
             phase: "Connecting".into(),
             percent: None,
             detail: None,
+            files: None,
         });
         let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
         // Git LFS keeps quiet about its transfers unless it's writing to a terminal. Ask it
@@ -217,9 +244,18 @@ impl Git {
                 last = Some(progress);
             }
         };
+        // Whether to ask how many files LFS will download: once it has started (the fetch
+        // is done by then), and again at the end, when every file it got is in its log.
+        let ask = std::cell::Cell::new(true);
         let mut handle = |text: String, lfs: &mut lfs_progress::ProgressLog| {
             if let Some(progress) = lfs.poll() {
                 report(progress);
+            }
+            if ask.get() && lfs.active() {
+                ask.set(false);
+                if let Some(total) = expected(&lfs.seen()) {
+                    lfs.expect(total);
+                }
             }
             if let Some(progress) = parse_progress(&text) {
                 // Git LFS's own lines only count files; its log, when there is one, is better.
@@ -260,6 +296,14 @@ impl Git {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .retain(|run| run.id != id);
+        // What LFS logged at the end, which a quick transfer may not have given a poll the
+        // time to read: read it now, count the files once more (exactly, now that they're
+        // all in the log), and report that.
+        lfs.force_next();
+        ask.set(true);
+        handle(String::new(), &mut lfs);
+        lfs.force_next();
+        handle(String::new(), &mut lfs);
         let _ = std::fs::remove_file(&lfs_log);
         if cancelled.load(Ordering::SeqCst) {
             record(self, args, started, took, false, "Cancelled.");
@@ -292,6 +336,7 @@ mod tests {
             phase: phase.into(),
             percent: Some(percent),
             detail: detail.map(Into::into),
+            files: None,
         };
         assert_eq!(
             parse_progress("Receiving objects:  45% (450/1000), 1.2 MiB | 2.0 MiB/s"),

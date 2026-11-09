@@ -144,7 +144,10 @@ fn add_commit(total: &mut Kinds, commit: &HashMap<FileKind, u64>) {
 
 /// A path as `--numstat` prints it: quoted when it has unusual characters.
 fn unquote(path: &str) -> String {
-    match path.strip_prefix('"').and_then(|rest| rest.strip_suffix('"')) {
+    match path
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+    {
         Some(inner) => inner.replace("\\\"", "\"").replace("\\\\", "\\"),
         None => path.to_owned(),
     }
@@ -183,7 +186,10 @@ fn summarize(git: &Git, log: &str) -> TeamWork {
     let mut people: HashMap<String, (Kinds, u64, u64)> = HashMap::new();
     let mut files: HashMap<String, (u64, HashMap<String, u64>)> = HashMap::new();
     let mut commits = Vec::new();
-    for record in log.split('\u{1e}').filter(|record| !record.trim().is_empty()) {
+    for record in log
+        .split('\u{1e}')
+        .filter(|record| !record.trim().is_empty())
+    {
         let mut lines = record.lines();
         let Some((email, time)) = lines.next().and_then(|line| line.split_once('\u{1f}')) else {
             continue;
@@ -199,7 +205,8 @@ fn summarize(git: &Git, log: &str) -> TeamWork {
         let mut by_kind: HashMap<FileKind, u64> = HashMap::new();
         for line in lines {
             let mut parts = line.splitn(3, '\t');
-            let (Some(added), Some(removed), Some(path)) = (parts.next(), parts.next(), parts.next())
+            let (Some(added), Some(removed), Some(path)) =
+                (parts.next(), parts.next(), parts.next())
             else {
                 continue;
             };
@@ -294,9 +301,13 @@ mod tests {
         let mut total = Kinds::new();
         // A commit importing 2,000 generated files, and one changing a script and a texture.
         add_commit(&mut total, &HashMap::from([(FileKind::Other, 2000)]));
-        add_commit(&mut total, &HashMap::from([(FileKind::Code, 1), (FileKind::Art, 1)]));
+        add_commit(
+            &mut total,
+            &HashMap::from([(FileKind::Code, 1), (FileKind::Art, 1)]),
+        );
         let kinds = counted(&total);
-        let work: Vec<(FileKind, u64, f64)> = kinds.iter().map(|k| (k.kind, k.files, k.work)).collect();
+        let work: Vec<(FileKind, u64, f64)> =
+            kinds.iter().map(|k| (k.kind, k.files, k.work)).collect();
         assert_eq!(
             work,
             vec![

@@ -285,7 +285,11 @@ pub fn team_activity(path: &Path, days: u32) -> Result<TeamActivity, Error> {
             ])
             .map(|names| names.lines().filter(|line| !line.is_empty()).count())
             .unwrap_or(0);
-        let times = found.iter().map(|commit| commit.3).take(MAX_TIMES).collect();
+        let times = found
+            .iter()
+            .map(|commit| commit.3)
+            .take(MAX_TIMES)
+            .collect();
         branches.push(BranchActivity {
             name: short,
             tip,

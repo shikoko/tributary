@@ -22,6 +22,7 @@ mod hooks;
 mod identity;
 mod ignored;
 mod lfs;
+mod lfs_count;
 mod lfs_health;
 mod lfs_settings;
 mod merge_check;

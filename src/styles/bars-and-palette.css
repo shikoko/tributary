@@ -58,6 +58,15 @@
   color: var(--text-muted);
 }
 
+/* The bar, and under it, when files are being counted, a thinner one for them. */
+.progress-bars {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 120px;
+}
+
 .progress-track {
   flex: 1;
   min-width: 120px;
@@ -81,6 +90,19 @@
   to {
     transform: translateX(300%);
   }
+}
+
+.progress-bars .progress-track {
+  flex: none;
+  min-width: 0;
+}
+
+.progress-track.progress-files {
+  height: 3px;
+}
+
+.progress-fill.progress-files-fill {
+  background: linear-gradient(to right, rgb(var(--accent-rgb) / 0.45), var(--accent));
 }
 
 .progress-fill.indeterminate {
