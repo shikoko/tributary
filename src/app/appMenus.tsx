@@ -97,7 +97,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
   const { snapshot, preferences } = ctx;
   const { previews, setPreviews, profilePictures, setProfilePictures, fetchMinutes, autoFetch, setAutoFetch } = preferences;
   const { reopenTabs, setReopenTabs, zoom, sidebarOpen, setSidebarOpen, activityOpen, setActivityOpen } = preferences;
-  const { firstParentOnly, setFirstParentOnly, daySeparators, setDaySeparators, dense, setDense } = preferences;
+  const { firstParentOnly, setFirstParentOnly, daySeparators, setDaySeparators, dense, setDense, simpleMode, setSimpleMode } = preferences;
   const run = ctx.do;
   const fileCommands = startCommands(ctx);
   const settings = settingsCommand(ctx);
@@ -143,6 +143,8 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
       {
         label: "View",
         entries: [
+          { id: "simple-mode", label: "Simple Mode", checked: simpleMode, run: () => setSimpleMode(!simpleMode) },
+          "-",
           { id: "search", label: "Search Commits", keys: "CmdOrCtrl+F", icon: <SearchIcon />, run: run.search },
           helpCommands[0],
           "-",

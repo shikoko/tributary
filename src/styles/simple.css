@@ -1,0 +1,354 @@
+/* Simple mode: Get latest, your changes and Submit, and the team, without the graph. */
+.simple-view {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 24px 24px;
+  background:
+    radial-gradient(60% 50% at 0% 0%, rgb(var(--accent-rgb) / 0.07), transparent 70%),
+    var(--bg);
+}
+
+.simple-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto 18px;
+}
+
+.simple-header .spacer {
+  flex: 1;
+}
+
+.simple-header .outline-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.simple-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-panel);
+  color: var(--accent);
+}
+
+.simple-branch select {
+  border: none;
+  background: none;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13.5px;
+  font-weight: 600;
+  outline: none;
+}
+
+.simple-branch select:disabled {
+  appearance: none;
+  opacity: 1;
+}
+
+.simple-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.simple-status.good {
+  background: rgb(var(--added-rgb) / 0.14);
+  color: var(--added);
+}
+
+.simple-status.accent {
+  background: rgb(var(--accent-rgb) / 0.16);
+  color: var(--accent);
+}
+
+.simple-status.warning {
+  background: rgb(var(--warning-rgb) / 0.16);
+  color: var(--warning);
+}
+
+.simple-columns {
+  display: grid;
+  align-items: start;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
+  gap: 18px;
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.simple-side {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.simple-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-panel);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.12);
+}
+
+.simple-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.simple-card-head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.simple-card-head .link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.simple-count,
+.simple-muted {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.simple-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 28px 0 16px;
+  color: var(--text-secondary);
+}
+
+.simple-empty p {
+  margin: 0;
+}
+
+.simple-files {
+  display: flex;
+  flex-direction: column;
+  max-height: 46vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.simple-files li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.simple-files li.left-out .simple-file-name {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.simple-files .checkbox {
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
+  font-size: 13.5px;
+}
+
+.simple-file-name {
+  white-space: nowrap;
+}
+
+.simple-file-dir {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.simple-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.simple-badge.mine {
+  background: rgb(var(--accent-rgb) / 0.14);
+  color: var(--accent);
+}
+
+.simple-badge.danger {
+  background: rgb(var(--danger-rgb) / 0.14);
+  color: var(--danger);
+}
+
+.simple-badge.warning {
+  background: rgb(var(--warning-rgb) / 0.14);
+  color: var(--warning);
+}
+
+.simple-badge.lock-it {
+  border-color: var(--border-strong);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.simple-badge.lock-it:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.simple-message {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.simple-message .text-input {
+  font-family: inherit;
+  font-size: 13.5px;
+}
+
+.simple-message textarea {
+  resize: vertical;
+}
+
+.simple-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--danger);
+  font-size: 12.5px;
+}
+
+.simple-submit {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.simple-view .primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.simple-latest {
+  background:
+    radial-gradient(90% 120% at 100% 0%, rgb(var(--accent-rgb) / 0.13), transparent 65%),
+    var(--bg-panel);
+}
+
+.simple-latest-text {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.simple-view .simple-get {
+  align-self: stretch;
+  padding: 12px 20px;
+  font-size: 15px;
+}
+
+.simple-subhead {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.simple-locks,
+.simple-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.simple-locks li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.simple-locks svg {
+  flex: none;
+  color: var(--warning);
+}
+
+.simple-locks .simple-muted {
+  margin-left: auto;
+}
+
+.simple-recent li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.simple-recent-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.simple-recent-summary {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .simple-columns {
+    grid-template-columns: 1fr;
+  }
+}

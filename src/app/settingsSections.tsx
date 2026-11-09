@@ -52,6 +52,13 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
       title: "General",
       icon: <GearIcon size={15} />,
       rows: [
+        {
+          kind: "toggle",
+          label: "Simple mode",
+          hint: "Get latest, your changes with their locks and Submit (commit and push in one), and what the team's working on, without branches and the commit graph. View → Simple Mode, or Full view, switches back.",
+          value: preferences.simpleMode,
+          set: preferences.setSimpleMode,
+        },
         { kind: "toggle", label: "Reopen tabs on launch", value: reopenTabs, set: setReopenTabs },
         ...apps,
         {

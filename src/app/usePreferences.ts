@@ -39,6 +39,8 @@ export function usePreferences() {
   /** After pushing: ask to release the locks on the pushed files, release them, or keep them. */
   const [releaseLocks, setReleaseLocks] = useStoredState<ReleaseLocks>("locks.release", "ask");
   const [submoduleUpdates, setSubmoduleUpdates] = useStoredState<SubmoduleUpdates>("submodules.update", "ask");
+  /** Simple mode: Get latest, your changes and Submit, and the team, without the graph. */
+  const [simpleMode, setSimpleMode] = useStoredState("view.simple", false);
   /** Local history: a snapshot of uncommitted work this often (minutes, 0 for never), of files up to so big (MB), kept so many days. */
   const [historyMinutes, setHistoryMinutes] = useStoredState("history.minutes", 10);
   const [historyMaxMB, setHistoryMaxMB] = useStoredState("history.maxMB", 50);
@@ -59,6 +61,7 @@ export function usePreferences() {
     activityOpen, setActivityOpen, fetchMinutes, setFetchMinutes, newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices,
     autoUpdate, setAutoUpdate, largeFileMB, setLargeFileMB, autoLock, setAutoLock, releaseLocks, setReleaseLocks,
     submoduleUpdates, setSubmoduleUpdates, appearance, setAppearance,
+    simpleMode, setSimpleMode,
     historyMinutes, setHistoryMinutes, historyMaxMB, setHistoryMaxMB, historyDays, setHistoryDays,
     scheduleDays, setScheduleDays, scheduleTime, setScheduleTime, scheduleLast, setScheduleLast, scheduleRun, setScheduleRun,
   };

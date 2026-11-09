@@ -8,6 +8,7 @@ import type { LfsLocks } from "../lib/locks";
 import type { RefEntry } from "../lib/refs";
 import { checkoutFor, commitMenu, dropMenu, pillForEntry, pillMenu, selectionMenu, type OpenDialog } from "../menus";
 import { ActivityPanel } from "../components/ActivityPanel";
+import { SimpleView } from "../components/SimpleView";
 import { CommitList } from "../components/CommitList";
 import { ElsewherePanel } from "../components/ElsewherePanel";
 import { RepoSettingsDialog } from "../components/RepoSettingsDialog";
@@ -324,30 +325,32 @@ export function RepositoryView(props: Props) {
 
   return (
     <IssueTrackerContext.Provider value={issueTracker}>
-      <Toolbar
-        snapshot={snapshot}
-        refreshing={repo.busy !== null}
-        running={running === "fetch" || running === "pull" || running === "push" ? running : null}
-        ahead={counts.ahead}
-        behind={counts.behind}
-        search={search.position}
-        searchInput={search.input}
-        onSearch={search.search}
-        onSearchStep={search.step}
-        onSearchMode={search.setMode}
-        onRemote={(action) => act(REMOTE_ACTIONS[action], action)}
-        onPushMenu={(anchor) => menu.under(anchor, pushMenuItems(() => act({ kind: "push", force: false }, "push"), openDialog))}
-        lastFetch={snapshot.lastFetched ? snapshot.lastFetched * 1000 : null}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        onViewMenu={(anchor) => menu.under(anchor, props.viewMenu, 320)}
-        onRefresh={repo.refresh}
-        teamOpen={props.teamOpen}
-        onToggleTeam={props.onToggleTeam}
-        onOpenMenu={(anchor) => menu.under(anchor, openMenu())}
-        onSettings={() => openDialog({ kind: "repoSettings" })}
-        onClose={() => props.closeTab(snapshot.path)}
-      />
+      {!preferences.simpleMode && (
+        <Toolbar
+          snapshot={snapshot}
+          refreshing={repo.busy !== null}
+          running={running === "fetch" || running === "pull" || running === "push" ? running : null}
+          ahead={counts.ahead}
+          behind={counts.behind}
+          search={search.position}
+          searchInput={search.input}
+          onSearch={search.search}
+          onSearchStep={search.step}
+          onSearchMode={search.setMode}
+          onRemote={(action) => act(REMOTE_ACTIONS[action], action)}
+          onPushMenu={(anchor) => menu.under(anchor, pushMenuItems(() => act({ kind: "push", force: false }, "push"), openDialog))}
+          lastFetch={snapshot.lastFetched ? snapshot.lastFetched * 1000 : null}
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          onViewMenu={(anchor) => menu.under(anchor, props.viewMenu, 320)}
+          onRefresh={repo.refresh}
+          teamOpen={props.teamOpen}
+          onToggleTeam={props.onToggleTeam}
+          onOpenMenu={(anchor) => menu.under(anchor, openMenu())}
+          onSettings={() => openDialog({ kind: "repoSettings" })}
+          onClose={() => props.closeTab(snapshot.path)}
+        />
+      )}
       <RepositoryBanners
         onCommitted={() => props.draft.setDraft(EMPTY_DRAFT)}
         snapshot={snapshot}
@@ -374,89 +377,107 @@ export function RepositoryView(props: Props) {
         showWholeHistory={() => preferences.setFirstParentOnly(false)}
         openWorktree={props.openTab}
       />
-      <main className="workspace">
-        {sidebarPanel.shown && (
-          <>
-            <div className={`sidebar-frame${sidebarPanel.closing ? " closing" : ""}`} style={{ width: sidebarWidth }}>
-              {sidebarPanel.content}
-            </div>
-            <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
-          </>
-        )}
-        <div className="center-pane">
-          <CommitList
-            key={snapshot.path}
-            snapshot={snapshot}
-            selectedId={selection.selectedId}
-            selectedIds={selectedIds}
-            onSelect={select}
-            matchIds={search.matchIds}
-            focusIds={highlight.focusIds}
-            dense={preferences.dense}
-            columnWidths={preferences.columnWidths}
-            onColumnWidths={preferences.setColumnWidths}
-            columnOptions={preferences.columnOptions}
-            daySeparators={preferences.daySeparators}
-            onHeaderContextMenu={(x, y) =>
-              menu.show(x, y, columnMenuItems(preferences.columnOptions, preferences.setColumnOptions, preferences.daySeparators, preferences.setDaySeparators))
-            }
-            previews={preferences.previews}
-            loadDetails={props.details.load}
-            initialScrollTop={props.place.initialScroll}
-            onScrollChange={props.place.onScroll}
-            onContextMenu={(commit, x, y) =>
-              menu.show(x, y, selection.multi && selectedIds?.has(commit.id) ? selectionMenu(ctx, selectedCommits) : commitMenu(ctx, commit))
-            }
-            onPillActivate={(pill, commit) => checkout({ pill, commit })}
-            onPillContextMenu={(pill, commit, x, y) => menu.show(x, y, pillMenu(ctx, pill, commit))}
-            onMorePills={(pills, commit, x, y) =>
-              menu.show(
-                x,
-                y,
-                pills.map((pill) => ({
-                  label: pill.name,
-                  icon: pill.kind === "tag" ? <TagIcon /> : pill.kind === "stash" ? <StashIcon /> : <BranchIcon />,
-                  onSelect: () => menu.show(x, y, pillMenu(ctx, pill, commit)),
-                })),
-              )
-            }
-            onPillFocus={(pill, commit) => highlight.highlightHistory(pill.name, commit.id)}
-            onDropRef={(revision, _commit, x, y) => {
-              if (revision !== snapshot.headBranch) menu.show(x, y, dropMenu(ctx, revision));
-            }}
-            onLoadMore={() => repo.load(snapshot.path, "more", snapshot.commits.length + PAGE_SIZE)}
-            loadingMore={repo.busy?.kind === "more"}
-          />
-          <ListOverlays
-            snapshot={snapshot}
-            views={views}
-            highlight={highlight}
-            run={run}
-            hasCommit={(id) => byId.has(id)}
-            select={select}
-            notLoaded={notLoaded}
-            openSettings={props.openSettings}
-            locks={lfs.locks?.locks ?? null}
-            overlaps={props.overlaps}
-            teamOpen={props.teamOpen}
-            onCloseTeam={props.onCloseTeam}
-            request={props.request}
-            onCloseRequest={props.onCloseRequest}
-            notify={(text) => props.notify({ text })}
-            rewrite={rewrite}
-            onShowRewrite={setRewrite}
-            onCloseRewrite={() => setRewrite(null)}
-          />
-        </div>
-        {detailsPanel.shown && (
-          <>
-            <ResizeHandle className="panel-handle" {...panelResize("details")} />
-            <div className={`details-frame${detailsPanel.closing ? " closing" : ""}`} style={{ width: detailsWidth, ["--panel-width" as string]: `${detailsWidth}px` }}>
-              {detailsPanel.content}
-            </div>
-          </>
-        )}
-      </main>
+      {preferences.simpleMode ? (
+        <SimpleView
+          snapshot={snapshot}
+          ahead={counts.ahead}
+          behind={counts.behind}
+          running={running}
+          act={act}
+          locks={lfs}
+          checks={props.checks}
+          localBranches={[...counts.localBranches].sort()}
+          draft={props.draft.draft}
+          setDraft={props.draft.setDraft}
+          openDialog={openDialog}
+          onFullView={() => preferences.setSimpleMode(false)}
+          overlaps={props.overlaps}
+        />
+      ) : (
+        <main className="workspace">
+          {sidebarPanel.shown && (
+            <>
+              <div className={`sidebar-frame${sidebarPanel.closing ? " closing" : ""}`} style={{ width: sidebarWidth }}>
+                {sidebarPanel.content}
+              </div>
+              <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
+            </>
+          )}
+          <div className="center-pane">
+            <CommitList
+              key={snapshot.path}
+              snapshot={snapshot}
+              selectedId={selection.selectedId}
+              selectedIds={selectedIds}
+              onSelect={select}
+              matchIds={search.matchIds}
+              focusIds={highlight.focusIds}
+              dense={preferences.dense}
+              columnWidths={preferences.columnWidths}
+              onColumnWidths={preferences.setColumnWidths}
+              columnOptions={preferences.columnOptions}
+              daySeparators={preferences.daySeparators}
+              onHeaderContextMenu={(x, y) =>
+                menu.show(x, y, columnMenuItems(preferences.columnOptions, preferences.setColumnOptions, preferences.daySeparators, preferences.setDaySeparators))
+              }
+              previews={preferences.previews}
+              loadDetails={props.details.load}
+              initialScrollTop={props.place.initialScroll}
+              onScrollChange={props.place.onScroll}
+              onContextMenu={(commit, x, y) =>
+                menu.show(x, y, selection.multi && selectedIds?.has(commit.id) ? selectionMenu(ctx, selectedCommits) : commitMenu(ctx, commit))
+              }
+              onPillActivate={(pill, commit) => checkout({ pill, commit })}
+              onPillContextMenu={(pill, commit, x, y) => menu.show(x, y, pillMenu(ctx, pill, commit))}
+              onMorePills={(pills, commit, x, y) =>
+                menu.show(
+                  x,
+                  y,
+                  pills.map((pill) => ({
+                    label: pill.name,
+                    icon: pill.kind === "tag" ? <TagIcon /> : pill.kind === "stash" ? <StashIcon /> : <BranchIcon />,
+                    onSelect: () => menu.show(x, y, pillMenu(ctx, pill, commit)),
+                  })),
+                )
+              }
+              onPillFocus={(pill, commit) => highlight.highlightHistory(pill.name, commit.id)}
+              onDropRef={(revision, _commit, x, y) => {
+                if (revision !== snapshot.headBranch) menu.show(x, y, dropMenu(ctx, revision));
+              }}
+              onLoadMore={() => repo.load(snapshot.path, "more", snapshot.commits.length + PAGE_SIZE)}
+              loadingMore={repo.busy?.kind === "more"}
+            />
+            <ListOverlays
+              snapshot={snapshot}
+              views={views}
+              highlight={highlight}
+              run={run}
+              hasCommit={(id) => byId.has(id)}
+              select={select}
+              notLoaded={notLoaded}
+              openSettings={props.openSettings}
+              locks={lfs.locks?.locks ?? null}
+              overlaps={props.overlaps}
+              teamOpen={props.teamOpen}
+              onCloseTeam={props.onCloseTeam}
+              request={props.request}
+              onCloseRequest={props.onCloseRequest}
+              notify={(text) => props.notify({ text })}
+              rewrite={rewrite}
+              onShowRewrite={setRewrite}
+              onCloseRewrite={() => setRewrite(null)}
+            />
+          </div>
+          {detailsPanel.shown && (
+            <>
+              <ResizeHandle className="panel-handle" {...panelResize("details")} />
+              <div className={`details-frame${detailsPanel.closing ? " closing" : ""}`} style={{ width: detailsWidth, ["--panel-width" as string]: `${detailsWidth}px` }}>
+                {detailsPanel.content}
+              </div>
+            </>
+          )}
+        </main>
+      )}
       {activityOpen && (
         <ActivityPanel
           entries={activityHere}
