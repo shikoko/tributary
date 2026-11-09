@@ -105,6 +105,17 @@
 
   --purple: #a77bff;
   --purple-rgb: 167 123 255;
+
+  /* Colours for people in charts (Team activity), checked for colour blindness on this background. */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --series-other: #596071;
   /* Code, coloured by its syntax (diffs, blame, conflicts). */
   --syntax-keyword: #c792ea;
   --syntax-string: #a5d98a;
@@ -230,6 +241,16 @@
   --teal: #00957f;
   --teal-rgb: 0 149 127;
   --pink-rgb: 230 60 130;
+
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
+  --series-other: #a3a9b5;
 
   color-scheme: light;
 }

@@ -542,6 +542,12 @@ fn sums_up_who_committed_where_lately() {
     assert!(!team.people.is_empty());
     let total: usize = team.people.iter().map(|p| p.commits).sum();
     assert_eq!(total, 3);
+    // Each commit's time, the newest first.
+    let times: usize = team.people.iter().map(|p| p.times.len()).sum();
+    assert_eq!(times, 3);
+    assert!(team.people.iter().all(|p| p.times.windows(2).all(|w| w[0] >= w[1])));
+    assert_eq!(export.times.len(), 2);
+    assert_eq!(team.days, 30);
 }
 
 #[test]

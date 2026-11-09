@@ -9,7 +9,8 @@ export const ProfilePictures = createContext<string | null>(null);
 /** While a picture is being asked for, initials wait this long (the answer is usually quicker). */
 const INITIALS_AFTER = 400;
 
-export function Avatar({ name, email, size = 20 }: { name: string; email: string; size?: number }) {
+/** `color` replaces the initials' usual colour (Team activity gives each person theirs). */
+export function Avatar({ name, email, size = 20, color }: { name: string; email: string; size?: number; color?: string }) {
   const repo = useContext(ProfilePictures);
   // A picture already known shows at once.
   const known = repo && email ? knownAvatar(repo, email) : null;
@@ -31,7 +32,7 @@ export function Avatar({ name, email, size = 20 }: { name: string; email: string
   if (repo && url) {
     return <img className="avatar picture" src={url} alt="" style={{ width: size, height: size }} />;
   }
-  const style = { width: size, height: size, background: avatarColor(email || name), fontSize: Math.round(size * 0.42) };
+  const style = { width: size, height: size, background: color ?? avatarColor(email || name), fontSize: Math.round(size * 0.42) };
   // Asking for a picture: a plain circle for a moment, rather than initials that are about to change.
   const asking = Boolean(repo && email) && url === undefined && !waited;
   return (

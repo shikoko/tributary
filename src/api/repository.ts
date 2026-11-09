@@ -373,8 +373,9 @@ export function changedElsewhere(path: string, changed: string[]): Promise<Overl
 
 /** Who committed where lately: people, the branches they work on, and how far those are from the main branch. */
 export interface TeamActivity {
-  /** Since when (seconds since the Unix epoch). */
+  /** Since when (seconds since the Unix epoch), and over how many days. */
   since: number;
+  days: number;
   /** The branch the others are compared with, like "origin/main". */
   main: string;
   people: TeamPerson[];
@@ -390,6 +391,8 @@ export interface TeamPerson {
   latest: number;
   /** The branches they committed to (the main one included). */
   branches: string[];
+  /** When each of their commits was made (seconds since the epoch), the newest first. */
+  times: number[];
 }
 
 export interface BranchActivity {
@@ -402,6 +405,8 @@ export interface BranchActivity {
   /** Files it changed since it split from the main branch. */
   files: number;
   people: { name: string; email: string; commits: number }[];
+  /** When each of its own commits in the period was made, the newest first. */
+  times: number[];
 }
 
 export function teamActivity(path: string, days: number): Promise<TeamActivity> {

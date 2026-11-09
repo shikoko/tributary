@@ -285,7 +285,7 @@ const shots = {
     const page = await open(fresh().studio);
     await page.locator(".menu-bar-item", { hasText: "View" }).dispatchEvent("mousedown", { button: 0 });
     await page.locator(".menu-item", { hasText: "Team Activity" }).click();
-    await page.locator(".team-view .team-person").first().waitFor();
+    await page.locator(".team-view .team-person-card").first().waitFor();
     await settle(page);
     return page;
   },

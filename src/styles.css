@@ -20,6 +20,7 @@
 @import "./styles/media-and-files.css";
 @import "./styles/conflicts-and-compare.css";
 @import "./styles/blame-and-team.css";
+@import "./styles/team.css";
 @import "./styles/syntax.css";
 @import "./styles/pull-requests.css";
 @import "./styles/signing-remotes-bisect.css";

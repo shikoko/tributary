@@ -11,12 +11,15 @@ use crate::git::Git;
 
 /// At most this many branches are looked at, the most recently changed first.
 const MAX_BRANCHES: usize = 40;
+/// At most this many commit times are kept for each person and branch.
+const MAX_TIMES: usize = 2000;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TeamActivity {
-    /// Since when (seconds since the Unix epoch).
+    /// Since when (seconds since the Unix epoch), and over how many days.
     pub since: i64,
+    pub days: u32,
     /// The branch the others are compared with, like "origin/main".
     pub main: String,
     /// Everyone who committed since then, the most recently active first.
@@ -37,6 +40,8 @@ pub struct TeamPerson {
     pub latest: i64,
     /// The branches they committed to (`main` included).
     pub branches: Vec<String>,
+    /// When each of their commits was made, the newest first.
+    pub times: Vec<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -53,6 +58,8 @@ pub struct BranchActivity {
     pub files: usize,
     /// Who committed to it since then, the busiest first.
     pub people: Vec<BranchPerson>,
+    /// When each of its own commits since then was made, the newest first.
+    pub times: Vec<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -178,9 +185,13 @@ pub fn team_activity(path: &Path, days: u32) -> Result<TeamActivity, Error> {
             commits: 0,
             latest: 0,
             branches: Vec::new(),
+            times: Vec::new(),
         });
         if seen.insert(id.to_owned()) {
             person.commits += 1;
+            if person.times.len() < MAX_TIMES {
+                person.times.push(time);
+            }
         }
         person.latest = person.latest.max(time);
         if !person.branches.iter().any(|b| b == branch) {
@@ -236,6 +247,7 @@ pub fn team_activity(path: &Path, days: u32) -> Result<TeamActivity, Error> {
             ])
             .map(|names| names.lines().filter(|line| !line.is_empty()).count())
             .unwrap_or(0);
+        let times = found.iter().map(|commit| commit.3).take(MAX_TIMES).collect();
         branches.push(BranchActivity {
             name: short,
             tip,
@@ -244,6 +256,7 @@ pub fn team_activity(path: &Path, days: u32) -> Result<TeamActivity, Error> {
             behind,
             files,
             people: branch_people,
+            times,
         });
     }
 
@@ -252,9 +265,13 @@ pub fn team_activity(path: &Path, days: u32) -> Result<TeamActivity, Error> {
         count(id, name, email, *time, &main, &mut people);
     }
     let mut people: Vec<TeamPerson> = people.into_values().collect();
+    for person in &mut people {
+        person.times.sort_unstable_by(|a, b| b.cmp(a));
+    }
     people.sort_by(|a, b| b.latest.cmp(&a.latest).then_with(|| a.name.cmp(&b.name)));
     Ok(TeamActivity {
         since,
+        days: days.clamp(1, 365),
         main,
         people,
         branches,

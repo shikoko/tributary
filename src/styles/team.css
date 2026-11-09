@@ -1,0 +1,509 @@
+/* Team activity: who committed lately and where, the branches being worked on, and who
+   holds which locks, as cards. */
+
+.team-title {
+  font-weight: 600;
+}
+
+.team-body {
+  position: relative;
+  padding: 18px 22px 40px;
+}
+
+.team-heading {
+  margin: 22px 0 10px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.team-you {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgb(var(--accent-rgb) / 0.15);
+  color: var(--accent-ink);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.team-overlap {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(var(--notice-rgb) / 0.14);
+  color: var(--notice-text);
+  font-size: 11.5px;
+}
+
+.team-branch-chip {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A person's avatar in a ring of their colour, set apart from it by the background. */
+.team-ring {
+  display: inline-flex;
+  flex: none;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px var(--bg-panel),
+    0 0 0 4px var(--ring);
+}
+
+.team-swatch {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.team-avatars {
+  display: flex;
+  flex: none;
+}
+
+.team-avatars > * + * {
+  margin-left: -5px;
+}
+
+.team-avatars .avatar {
+  box-shadow: 0 0 0 2px var(--bg-panel);
+}
+
+/* Behind the main branch grows left of the line, ahead grows right. */
+.team-diverge {
+  display: flex;
+  flex: none;
+  align-items: center;
+  width: 120px;
+}
+
+.team-diverge-side {
+  display: flex;
+  flex: 1;
+  height: 6px;
+}
+
+.team-diverge-side.behind {
+  justify-content: flex-end;
+}
+
+.team-diverge-side > span {
+  height: 100%;
+}
+
+.team-diverge-side.behind > span {
+  border-radius: 3px 0 0 3px;
+  background: var(--text-faint);
+}
+
+.team-diverge-side.ahead > span {
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+
+.team-diverge-mid {
+  flex: none;
+  width: 1px;
+  height: 12px;
+  margin: 0 2px;
+  background: var(--border-strong);
+}
+
+.team-diverge.labelled {
+  gap: 8px;
+  width: 100%;
+}
+
+.team-diverge.labelled .team-diverge-side {
+  height: 8px;
+}
+
+.team-diverge.labelled .team-diverge-side.behind > span {
+  border-radius: 4px 0 0 4px;
+}
+
+.team-diverge.labelled .team-diverge-side.ahead > span {
+  border-radius: 0 4px 4px 0;
+}
+
+.team-diverge.labelled .team-diverge-mid {
+  margin: 0 -6px;
+  height: 14px;
+}
+
+.team-diverge-label {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.team-tip {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  box-shadow: 0 8px 24px var(--shadow);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 8px));
+}
+
+.team-tip.left {
+  transform: translate(-14px, calc(-100% - 8px));
+}
+
+.team-tip.right {
+  transform: translate(calc(-100% + 14px), calc(-100% - 8px));
+}
+
+.team-tip.beside.after {
+  transform: translate(14px, -50%);
+}
+
+.team-tip.beside.before {
+  transform: translate(calc(-100% - 14px), -50%);
+}
+
+.team-tip strong {
+  font-weight: 600;
+}
+
+.team-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.team-tip-value {
+  margin-left: auto;
+  padding-left: 16px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+
+.team-cards {
+  max-width: 1300px;
+}
+
+.team-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 20px 36px;
+  padding: 22px 24px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgb(var(--accent-rgb) / 0.1), transparent 55%),
+    var(--bg-panel);
+}
+
+.team-hero-summary {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 6px;
+}
+
+.team-hero-figure {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.team-hero-number {
+  font-size: 52px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.team-hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.team-hero-text .muted {
+  font-size: 12.5px;
+}
+
+.team-hero-people {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-left: 4px;
+}
+
+.team-hero-more {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.team-hero-chart {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.team-hero-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.team-hero-chart-head .muted {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* A gradient graph (AreaTrend): the line, its wash fading down, and a dot on the day shown. */
+.team-area {
+  position: relative;
+  width: 100%;
+}
+
+.team-area svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.team-area-line {
+  fill: none;
+  stroke: var(--area);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.team-area-cross {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--border-strong);
+}
+
+.team-area-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--area);
+  box-shadow: 0 0 0 2px var(--bg-panel);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.team-area-hits {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.team-area-hits span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.team-area-axis {
+  position: relative;
+  height: 16px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.team-area-axis span {
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.team-area-axis span:first-child {
+  transform: none;
+}
+
+.team-area-axis span:last-child {
+  transform: translateX(-100%);
+}
+
+.team-area-axis .today {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.team-section-title {
+  margin: 24px 0 10px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.team-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.team-person-card,
+.team-branch-card,
+.team-lock-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-panel);
+  color: var(--text);
+  text-align: left;
+  transition: border-color 0.15s;
+}
+
+.team-person-card:hover,
+.team-branch-card:hover {
+  border-color: var(--border-hover);
+}
+
+.team-person-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.team-person-card-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.team-person-card-name > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.team-person-card-name .muted {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.team-person-card-count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: auto;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.team-person-card-count .muted {
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.team-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.team-branch-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-branch-card-head > svg {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.team-branch-card-head .muted {
+  flex: none;
+  font-size: 12px;
+}
+
+.team-branch-card-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-branch-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  font-size: 12px;
+}
+
+.team-lock-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.team-lock-card-head .muted {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.team-lock-card-files {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-line;
+}

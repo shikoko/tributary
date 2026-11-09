@@ -550,10 +550,10 @@ try {
     await page.locator(".menu-bar-item", { hasText: "View" }).dispatchEvent("mousedown", { button: 0 });
     await page.locator(".menu-item", { hasText: "Team Activity" }).click();
     const view = page.locator(".team-view");
-    await view.locator(".team-person", { hasText: "Rosa Bell" }).waitFor({ timeout: 10_000 });
-    const barber = view.locator(".team-branch", { hasText: "art/barber-v2" });
+    await view.locator(".team-person-card", { hasText: "Rosa Bell" }).waitFor({ timeout: 10_000 });
+    const barber = view.locator(".team-branch-card", { has: page.locator(".team-branch-card-name", { hasText: "art/barber-v2" }) });
     await barber.locator(".team-overlap", { hasText: "1 of your files" }).waitFor({ timeout: 5000 });
-    await view.locator(".team-locks li", { hasText: "Tavern.umap" }).waitFor({ timeout: 10_000 });
+    await view.locator(".team-lock-card", { hasText: "Tavern.umap" }).waitFor({ timeout: 10_000 });
     await barber.click();
     await view.waitFor({ state: "detached", timeout: 5000 });
     await page.locator(".view-banner", { hasText: "art/barber-v2" }).waitFor({ timeout: 5000 });

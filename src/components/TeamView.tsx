@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { teamActivity, type BranchActivity, type Lock, type Overlap, type TeamActivity } from "../api";
-import { plural, relativeTime } from "../lib/format";
-import { baseName } from "../lib/paths";
-import { Avatar } from "./Avatar";
-import { BranchIcon, CloseIcon, LockIcon, UserIcon } from "./Icons";
+import { assignSlots, periodDays } from "../lib/team";
+import { CloseIcon, UserIcon } from "./Icons";
+import { useTip, type TeamData } from "./team/parts";
+import { TeamCards } from "./team/TeamCards";
 
 const PERIODS = [7, 14, 30];
+
 
 interface Props {
   repoPath: string;
@@ -63,12 +64,37 @@ export function TeamView({ repoPath, version, user, locks, overlaps, onClose, on
     }
     return found;
   }, [overlaps]);
+  // The overlap may name the local copy ("art/barber-v2" for "origin/art/barber-v2").
+  const yoursOn = (branch: BranchActivity) => touching.get(branch.name) ?? touching.get(branch.name.slice(branch.name.indexOf("/") + 1)) ?? [];
   const isYou = (email: string) => Boolean(user?.email && user.email.toLowerCase() === email.toLowerCase());
   const lockOwners = useMemo(() => {
+    if (!locks) return null;
     const byOwner = new Map<string, Lock[]>();
-    for (const lock of locks ?? []) byOwner.set(lock.owner, [...(byOwner.get(lock.owner) ?? []), lock]);
+    for (const lock of locks) byOwner.set(lock.owner, [...(byOwner.get(lock.owner) ?? []), lock]);
     return [...byOwner.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [locks]);
+  // Everyone keeps their colour while the view is open, whichever period is shown.
+  const [slots, setSlots] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (team) setSlots((known) => assignSlots(known, team.people.map((person) => person.email)));
+  }, [team]);
+  const slotOf = (email: string) => slots.get(email.toLowerCase()) ?? 0;
+  const { layer, tip, view: tipView } = useTip();
+  const now = Date.now();
+  const data =
+    team &&
+    ({
+      team,
+      days: periodDays(team.since, now),
+      now,
+      slotOf,
+      isYou,
+      yoursOn,
+      lockOwners,
+      tip,
+      onShowBranch,
+      onShowPerson: (person) => onShowPerson(person.name, person.email),
+    } satisfies TeamData);
 
   return (
     <section className="diff-view team-view" aria-label="Team activity">
@@ -88,111 +114,20 @@ export function TeamView({ repoPath, version, user, locks, overlaps, onClose, on
           <CloseIcon />
         </button>
       </header>
-      <div className="diff-body team-body">
+      <div className="diff-body team-body" ref={layer} onScroll={tip.hide}>
         {error ? (
           <div className="diff-message">
             <strong>Couldn't read the activity</strong>
             <span>{error}</span>
           </div>
-        ) : !team ? (
+        ) : !data ? (
           <div className="diff-message muted">Loading…</div>
-        ) : team.people.length === 0 ? (
-          <div className="diff-message muted">Nobody committed in the last {days} days{team.branches.length === 0 ? "" : "."} Fetch to see your teammates' latest work.</div>
+        ) : data.team.people.length === 0 ? (
+          <div className="diff-message muted">Nobody committed in the last {days} days. Fetch to see your teammates' latest work.</div>
         ) : (
-          <>
-            <p className="team-summary">
-              {plural(team.people.length, "person", "people")} committed in the last {days} days: {plural(team.mainCommits, "commit")} on{" "}
-              <span className="mono">{team.main}</span>
-              {team.branches.length > 0 && <>, and work on {plural(team.branches.length, "other branch", "other branches")}</>}.
-            </p>
-
-            <h3 className="team-heading">People</h3>
-            <ul className="team-people">
-              {team.people.map((person) => (
-                <li key={person.email}>
-                  <button className="team-person" onClick={() => onShowPerson(person.name, person.email)} title={`Highlight ${person.name}'s commits`}>
-                    <Avatar name={person.name} email={person.email} size={30} />
-                    <span className="team-person-text">
-                      <span className="team-person-name">
-                        {person.name}
-                        {isYou(person.email) && <span className="team-you">you</span>}
-                      </span>
-                      <span className="team-person-facts">
-                        {plural(person.commits, "commit")} · {relativeTime(person.latest)}
-                      </span>
-                      <span className="team-person-branches">
-                        {person.branches.slice(0, 3).map((branch) => (
-                          <span key={branch} className="team-branch-chip mono">
-                            {branch.replace(/^origin\//, "")}
-                          </span>
-                        ))}
-                        {person.branches.length > 3 && <span className="muted">+{person.branches.length - 3}</span>}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-
-            {team.branches.length > 0 && (
-              <>
-                <h3 className="team-heading">Branches being worked on</h3>
-                <ul className="team-branches">
-                  {team.branches.map((branch) => {
-                    // The overlap may name the local copy ("art/barber-v2" for "origin/art/barber-v2").
-                    const local = branch.name.slice(branch.name.indexOf("/") + 1);
-                    const yours = touching.get(branch.name) ?? touching.get(local) ?? [];
-                    return (
-                      <li key={branch.name}>
-                        <button className="team-branch" onClick={() => onShowBranch(branch)} title={`Highlight ${branch.name}'s history`}>
-                          <BranchIcon size={13} />
-                          <span className="team-branch-name mono">{branch.name}</span>
-                          <span className="team-branch-people">
-                            {branch.people.slice(0, 4).map((person) => (
-                              <Avatar key={person.email} name={person.name} email={person.email} size={18} />
-                            ))}
-                          </span>
-                          <span className="team-branch-facts">
-                            {branch.ahead > 0 && <span title={`${plural(branch.ahead, "commit")} that ${team.main} doesn't have`}>↑{branch.ahead}</span>}
-                            {branch.behind > 0 && <span title={`${plural(branch.behind, "commit")} on ${team.main} that it doesn't have`}>↓{branch.behind}</span>}
-                            <span>{plural(branch.files, "file")}</span>
-                          </span>
-                          {yours.length > 0 && (
-                            <span className="team-overlap" title={`Also changes ${yours.map(baseName).join(", ")}, which you're changing`}>
-                              {yours.length === 1 ? "1 of your files" : `${yours.length} of your files`}
-                            </span>
-                          )}
-                          <span className="team-branch-when">{relativeTime(branch.latest)}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </>
-            )}
-
-            {lockOwners.length > 0 && (
-              <>
-                <h3 className="team-heading">Locked files</h3>
-                <ul className="team-locks">
-                  {lockOwners.map(([owner, held]) => (
-                    <li key={owner}>
-                      <LockIcon size={13} />
-                      <span className="team-lock-owner">{held[0].mine ? `${owner} (you)` : owner}</span>
-                      <span className="team-lock-files" title={held.map((lock) => lock.path).join("\n")}>
-                        {held
-                          .slice(0, 4)
-                          .map((lock) => baseName(lock.path))
-                          .join(", ")}
-                        {held.length > 4 && ` and ${held.length - 4} more`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </>
+          <TeamCards {...data} />
         )}
+        {tipView}
       </div>
     </section>
   );
