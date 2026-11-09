@@ -131,6 +131,64 @@ function coin(shiny) {
   });
 }
 
+/** A flat Photoshop file (no layers), `paint(x, y)` giving each pixel's [r, g, b]. */
+function psd(size, paint) {
+  const header = Buffer.alloc(26);
+  header.write("8BPS", 0);
+  header.writeUInt16BE(1, 4); // version
+  header.writeUInt16BE(3, 12); // channels
+  header.writeUInt32BE(size, 14);
+  header.writeUInt32BE(size, 18);
+  header.writeUInt16BE(8, 22); // bits per channel
+  header.writeUInt16BE(3, 24); // RGB
+  const planes = [0, 1, 2].map(() => Buffer.alloc(size * size));
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) paint(x, y).forEach((value, channel) => (planes[channel][y * size + x] = value));
+  }
+  // No colour mode data, image resources or layers; the picture uncompressed.
+  return Buffer.concat([header, Buffer.alloc(4), Buffer.alloc(4), Buffer.alloc(4), Buffer.alloc(2), ...planes]);
+}
+
+/** An uncompressed 32-bit Targa, top row first. */
+function tga(size, paint) {
+  const header = Buffer.alloc(18);
+  header[2] = 2; // true colour
+  header.writeUInt16LE(size, 12);
+  header.writeUInt16LE(size, 14);
+  header[16] = 32;
+  header[17] = 0x28; // 8 bits of alpha, top-left origin
+  const pixels = Buffer.alloc(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const [r, g, b] = paint(x, y);
+      pixels.set([b, g, r, 255], (y * size + x) * 4);
+    }
+  }
+  return Buffer.concat([header, pixels]);
+}
+
+/** The tavern's sign: wooden planks in a dark frame, and (later) a mug of ale painted on. */
+function sign(mug) {
+  return (x, y) => {
+    const frame = x < 10 || y < 10 || x > 245 || y > 245;
+    if (frame) return [46, 30, 20];
+    const seam = y % 59 < 3;
+    const grain = Math.sin(x / 9 + Math.sin(y / 23) * 3) * 14 + Math.sin(y * 1.7) * 6;
+    let [r, g, b] = seam ? [70, 44, 28] : [150 + grain, 98 + grain * 0.7, 56 + grain * 0.4];
+    // A red disc, the tavern's mark.
+    if (Math.hypot(x - 84, y - 128) < 34) [r, g, b] = [178, 42, 36];
+    if (mug) {
+      const body = x >= 150 && x <= 196 && y >= 104 && y <= 172;
+      const foam = x >= 146 && x <= 200 && y >= 90 && y < 104 && Math.sin(x / 4) * 4 + 98 < y + 6;
+      const handle = Math.abs(Math.hypot(x - 198, y - 136) - 16) < 5 && x > 198;
+      if (foam) [r, g, b] = [246, 240, 222];
+      else if (body) [r, g, b] = x < 158 || x > 188 ? [196, 128, 24] : [232, 166, 38];
+      else if (handle) [r, g, b] = [196, 128, 24];
+    }
+    return [r, g, b].map((value) => Math.max(0, Math.min(255, Math.round(value))));
+  };
+}
+
 /** A door's creak as a mono 16-bit WAV: a wobbling tone that falls, `seconds` long. */
 function creak(seconds, wobble) {
   const rate = 22050;
@@ -511,6 +569,13 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   commit("Seat guests by the fire", "theo");
   write("Content/UI/Icons/Coin.png", coin(true), { append: false });
   commit("Shinier coins for the tip jar", "rosa");
+  // Textures the window can't show by itself: a Photoshop source and the Targa exported from it.
+  write("Content/Textures/TavernSign.psd", psd(256, sign(false)), { append: false });
+  write("Content/Textures/T_TavernSign.tga", tga(256, sign(false)), { append: false });
+  commit("Paint the tavern sign", "rosa");
+  write("Content/Textures/TavernSign.psd", psd(256, sign(true)), { append: false });
+  write("Content/Textures/T_TavernSign.tga", tga(256, sign(true)), { append: false });
+  commit("Sign: paint a mug of ale next to the mark", "rosa");
   // A sound, a video and a 3D model, each changed once.
   write("Content/Audio/DoorCreak.wav", creak(0.9, 6), { append: false });
   write("Content/Cinematics/DoorOpen.webm", doorVideo(1), { append: false });

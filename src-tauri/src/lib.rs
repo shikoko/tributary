@@ -15,6 +15,7 @@ pub mod links;
 pub mod locks;
 pub mod repo;
 pub mod requests;
+pub mod textures;
 pub mod updates;
 pub mod watch;
 

@@ -83,10 +83,19 @@ pub struct Media {
     pub format: String,
     pub before: Option<String>,
     pub after: Option<String>,
+    /// How big a picture is, width and height, when what's shown is a preview of it (a
+    /// texture the window can't show by itself, made smaller when it's big).
+    pub before_dimensions: Option<[u32; 2]>,
+    pub after_dimensions: Option<[u32; 2]>,
+    /// Why a side that's there can't be shown, like a kind of DDS that can't be read.
+    pub before_note: Option<String>,
+    pub after_note: Option<String>,
 }
 
 /// The kinds of files shown as what they are, with their types and how big they can be.
-const MEDIA_TYPES: [(&str, MediaKind, &str); 25] = [
+/// Textures the window can't show itself (Targa, DDS, OpenEXR, Photoshop…) are made into
+/// PNG previews (textures.rs).
+const MEDIA_TYPES: [(&str, MediaKind, &str); 26] = [
     ("png", MediaKind::Image, "image/png"),
     ("jpg", MediaKind::Image, "image/jpeg"),
     ("jpeg", MediaKind::Image, "image/jpeg"),
@@ -94,6 +103,7 @@ const MEDIA_TYPES: [(&str, MediaKind, &str); 25] = [
     ("webp", MediaKind::Image, "image/webp"),
     ("bmp", MediaKind::Image, "image/bmp"),
     ("ico", MediaKind::Image, "image/x-icon"),
+    ("avif", MediaKind::Image, "image/avif"),
     ("wav", MediaKind::Audio, "audio/wav"),
     ("mp3", MediaKind::Audio, "audio/mpeg"),
     ("ogg", MediaKind::Audio, "audio/ogg"),
@@ -125,9 +135,16 @@ fn media_limit(kind: MediaKind) -> u64 {
     }
 }
 
+/// Textures are read here, not in the window, so they can be bigger (Photoshop files of
+/// a few hundred megabytes are common).
+const TEXTURE_LIMIT: u64 = 400 * 1024 * 1024;
+
 /// The file's kind and type, if it's one shown as what it is.
 fn media_type(file: &str) -> Option<(MediaKind, &'static str)> {
     let extension = file.rsplit_once('.')?.1.to_ascii_lowercase();
+    if crate::textures::reads(&extension) {
+        return Some((MediaKind::Image, "image/png"));
+    }
     MEDIA_TYPES
         .iter()
         .find(|(known, _, _)| *known == extension)
@@ -294,21 +311,40 @@ pub fn file_diff(
     if let Some((kind, mime)) = media
         && (diff.binary || diff.lfs || kind == MediaKind::Model)
     {
-        let limit = Some(media_limit(kind));
+        let format = file
+            .rsplit_once('.')
+            .map(|(_, ext)| ext.to_ascii_lowercase())
+            .unwrap_or_default();
+        let texture = crate::textures::reads(&format);
+        let limit = Some(if texture {
+            TEXTURE_LIMIT
+        } else {
+            media_limit(kind)
+        });
         let before = read_side(&git, &plan.before, file, diff.lfs, limit);
         let after = read_side(&git, &plan.after, file, diff.lfs, limit);
         diff.size_before = before.size;
         diff.size_after = after.size;
-        let url = |bytes: Vec<u8>| data_url(mime, &bytes);
-        diff.media = Some(Media {
+        let mut media = Media {
             kind,
-            format: file
-                .rsplit_once('.')
-                .map(|(_, ext)| ext.to_ascii_lowercase())
-                .unwrap_or_default(),
-            before: before.data.map(url),
-            after: after.data.map(url),
-        });
+            format,
+            before: None,
+            after: None,
+            before_dimensions: None,
+            after_dimensions: None,
+            before_note: None,
+            after_note: None,
+        };
+        if texture {
+            (media.before, media.before_dimensions, media.before_note) =
+                texture_side(&media.format, before.data);
+            (media.after, media.after_dimensions, media.after_note) =
+                texture_side(&media.format, after.data);
+        } else {
+            media.before = before.data.map(|bytes| data_url(mime, &bytes));
+            media.after = after.data.map(|bytes| data_url(mime, &bytes));
+        }
+        diff.media = Some(media);
     } else if diff.binary || diff.too_large {
         let before = read_side(&git, &plan.before, file, diff.lfs, None);
         let after = read_side(&git, &plan.after, file, diff.lfs, None);
@@ -594,6 +630,24 @@ fn pointer_size(pointer: &[u8]) -> Option<u64> {
 fn stored_with_lfs(git: &Git, file: &str) -> bool {
     git.run_with_env(&["check-attr", "filter", "--", file], &LITERAL)
         .is_ok_and(|output| output.trim_end().ends_with(": filter: lfs"))
+}
+
+/// A texture's preview as a `data:` URL, with its size, or why it can't be shown.
+fn texture_side(
+    format: &str,
+    data: Option<Vec<u8>>,
+) -> (Option<String>, Option<[u32; 2]>, Option<String>) {
+    let Some(bytes) = data else {
+        return (None, None, None);
+    };
+    match crate::textures::preview(format, &bytes) {
+        Ok(preview) => (
+            Some(data_url("image/png", &preview.png)),
+            Some([preview.width, preview.height]),
+            None,
+        ),
+        Err(note) => (None, None, Some(note)),
+    }
 }
 
 fn data_url(mime: &str, bytes: &[u8]) -> String {

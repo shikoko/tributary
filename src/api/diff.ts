@@ -58,6 +58,15 @@ export interface Media {
   format: string;
   before: string | null;
   after: string | null;
+  /**
+   * How big a picture is, [width, height], when what's shown is a preview of it (a texture
+   * the window can't show by itself, made smaller when it's big).
+   */
+  beforeDimensions: [number, number] | null;
+  afterDimensions: [number, number] | null;
+  /** Why a side that's there can't be shown, like a kind of DDS that can't be read. */
+  beforeNote: string | null;
+  afterNote: string | null;
 }
 
 /** A submodule moved from one commit to another. */

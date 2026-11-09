@@ -171,6 +171,117 @@
   color: var(--text);
 }
 
+/* Pictures before and after: side by side, wiped, faded or with the changed pixels lit up. */
+.diff-images-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.diff-image-modes {
+  align-self: center;
+}
+
+.diff-image-sizes {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diff-image-sizes > span {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.diff-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.diff-overlay-frame {
+  padding: 12px;
+}
+
+.diff-overlay-stage {
+  position: relative;
+  max-width: 100%;
+  margin: 0 auto;
+  touch-action: none;
+  user-select: none;
+}
+
+.diff-overlay-stage.swipe {
+  cursor: ew-resize;
+}
+
+.diff-overlay-stage img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+}
+
+/* The line between before (left of it) and after (right of it), with a grip. */
+.diff-swipe-handle {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+}
+
+.diff-swipe-handle span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 28px;
+  border: 2px solid var(--accent);
+  border-radius: 7px;
+  background: var(--bg-raised);
+  transform: translate(-50%, -50%);
+}
+
+.diff-overlay-slider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.diff-overlay-slider input {
+  width: min(320px, 50%);
+  accent-color: var(--accent);
+}
+
+.diff-pixels {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  image-rendering: pixelated;
+}
+
+.diff-pixels-summary {
+  margin: 0;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 /* The kind of each file (picture, sound, code, …): a small icon, quieter than its name. */
 .file-kind {
   flex: none;
