@@ -446,7 +446,8 @@ fn flags_new_file_names_windows_and_macos_cannot_have() {
     .iter()
     .map(|s| s.to_string())
     .collect();
-    let checks = tributary_lib::actions::file_checks(repo.path(), &changed, 1_000_000).unwrap();
+    let checks =
+        tributary_lib::actions::file_checks(repo.path(), &changed, &[], 1_000_000).unwrap();
     let found: Vec<(&str, Problem, &str)> = checks
         .names
         .iter()
@@ -463,5 +464,48 @@ fn flags_new_file_names_windows_and_macos_cannot_have() {
             ("aux.txt", Problem::Reserved, "aux.txt"),
             ("readme.md", Problem::CaseClash, "README.md"),
         ]
+    );
+}
+
+#[test]
+fn says_why_a_file_is_ignored_and_stages_it_anyway() {
+    let mut repo = TempRepo::new("ignored");
+    with_identity(&repo);
+    repo.commit(".gitignore", "*.tmp\nSaved/\n");
+    std::fs::create_dir_all(repo.path().join("Saved/Logs")).unwrap();
+    std::fs::write(repo.path().join("Saved/Logs/editor.log"), "log").unwrap();
+    std::fs::write(repo.path().join("keep.txt"), "kept").unwrap();
+
+    let absolute = repo.path().join("Saved/Logs/editor.log");
+    let reason =
+        tributary_lib::actions::ignore_reason(repo.path(), &absolute.to_string_lossy()).unwrap();
+    assert_eq!(reason.path, "Saved/Logs/editor.log");
+    let rule = reason.rule.unwrap();
+    assert_eq!(
+        (rule.source.as_str(), rule.line, rule.pattern.as_str()),
+        (".gitignore", 2, "Saved/")
+    );
+    assert!(
+        tributary_lib::actions::ignore_reason(repo.path(), "keep.txt")
+            .unwrap()
+            .rule
+            .is_none()
+    );
+
+    run(
+        &repo,
+        Action::StageIgnored {
+            paths: vec!["Saved/Logs/editor.log".into()],
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        repo.git(&["diff", "--cached", "--name-only"]),
+        "Saved/Logs/editor.log"
+    );
+    assert!(
+        tributary_lib::actions::ignore_reason(repo.path(), "Saved/Logs/editor.log")
+            .unwrap()
+            .tracked
     );
 }

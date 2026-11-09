@@ -145,8 +145,14 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         }
         "file_checks" => {
             let files: Vec<String> = arg(args, "files")?;
+            let deleted: Option<Vec<String>> = optional(args, "deleted")?;
             let threshold: u64 = arg(args, "threshold")?;
-            to_json(actions::file_checks(&path()?, &files, threshold)?)
+            to_json(actions::file_checks(
+                &path()?,
+                &files,
+                &deleted.unwrap_or_default(),
+                threshold,
+            )?)
         }
         "lfs_storage" => to_json(actions::lfs_storage_of(&path()?)?),
         "file_diff" => {
@@ -191,6 +197,12 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "sparse_settings" => to_json(actions::sparse_settings(&path()?)?),
         "speed_settings" => to_json(actions::speed_settings(&path()?)?),
         "branch_stacks" => to_json(actions::branch_stacks(&path()?)?),
+        "repo_size" => to_json(actions::repo_size(&path()?)?),
+        "installed_apps" => to_json(tributary_lib::apps::installed_apps()),
+        "ignore_reason" => {
+            let file: String = arg(args, "file")?;
+            to_json(actions::ignore_reason(&path()?, &file)?)
+        }
         "release_notes" => {
             let to: String = arg(args, "to")?;
             let from: Option<String> = optional(args, "from")?;

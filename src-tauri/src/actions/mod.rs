@@ -19,6 +19,7 @@ mod file_names;
 mod files;
 mod history;
 mod identity;
+mod ignored;
 mod lfs;
 mod lfs_health;
 mod lfs_settings;
@@ -32,6 +33,7 @@ mod remote_settings;
 mod rewrites;
 mod search;
 mod signing;
+mod size;
 mod sparse;
 mod speed;
 mod split;
@@ -42,6 +44,7 @@ mod support;
 mod tags;
 mod team;
 mod unity;
+mod unity_meta;
 mod validate;
 mod worktrees;
 
@@ -66,6 +69,7 @@ pub use elsewhere::{OtherChange, Overlap, changed_elsewhere};
 pub use file_names::{LONG_PATH, NameProblem, Problem};
 pub use files::{FileHistory, file_history};
 pub use identity::{RepoIdentity, repo_identity};
+pub use ignored::{IgnoreReason, IgnoreRule, ignore_reason};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
 pub use lfs_health::{LfsHealth, lfs_health};
 pub use lfs_settings::{LfsFolder, LfsSettings, LfsSuggestion, lfs_settings};
@@ -80,12 +84,14 @@ pub use remote_settings::{RemoteInfo, remotes};
 pub use rewrites::{BranchVersion, CommitPair, PairStatus, RangeDiff, branch_versions, range_diff};
 pub use search::{SearchMode, SearchResult, search_commits};
 pub use signing::{SigningKey, SigningMode, SigningSettings, signing_settings};
+pub use size::{BigFile, RepoSize, SizeGroup, repo_size};
 pub use sparse::{FolderChoice, SparseSettings, sparse_settings};
 pub use speed::{SpeedSettings, SpeedUp, speed_settings};
 pub use stacks::{Stacked, branch_stacks};
 pub use submodules::{Submodule, SubmoduleState, submodules};
 pub use team::{BranchActivity, BranchPerson, TeamActivity, TeamPerson, team_activity};
 pub use unity::{UnitySetup, unity_setup};
+pub use unity_meta::{MetaKind, MetaProblem};
 
 use self::stash::{pop_stash, stash_top};
 
@@ -140,6 +146,8 @@ pub enum Action {
     StashDrop { index: usize, id: String },
     /// Stage files (`git add`).
     Stage { paths: Vec<String> },
+    /// Stage files even though they're ignored (`git add --force`).
+    StageIgnored { paths: Vec<String> },
     /// Unstage files, keeping their changes in the working tree.
     Unstage { paths: Vec<String> },
     /// Stage every change, including untracked files.
@@ -209,6 +217,13 @@ pub enum Action {
         paths: Vec<String>,
         first: String,
         second: String,
+    },
+    /// Move files matching `patterns` into Git LFS by rewriting history: the checked-out
+    /// branch's commits not pushed yet, or with `everything`, every local branch's history.
+    MigrateToLfs {
+        patterns: Vec<String>,
+        #[serde(default)]
+        everything: bool,
     },
     /// Move the checked-out branch onto the new version of `onto`, which was rewritten after
     /// it was built on `old` (an earlier version of `onto`).
@@ -559,6 +574,7 @@ fn perform(
         Action::StashPop { index, id } => stash::stash_pop(&git, index, id),
         Action::StashDrop { index, id } => stash::stash_drop(&git, index, id),
         Action::Stage { paths } => changes::stage(&git, paths),
+        Action::StageIgnored { paths } => ignored::stage_ignored(&git, paths),
         Action::Unstage { paths } => changes::unstage(&repo, &git, paths),
         Action::StageAll => changes::stage_all(&git),
         Action::UnstageAll => changes::unstage_all(&repo, &git),
@@ -598,6 +614,10 @@ fn perform(
             second,
         } => split::split_commit(&repo, &git, id, paths, first, second),
         Action::Restack { onto, old } => stacks::restack(&repo, &git, onto, old),
+        Action::MigrateToLfs {
+            patterns,
+            everything,
+        } => size::migrate_to_lfs(&repo, &git, patterns, everything),
         Action::CreateTag { name, id, message } => tags::create_tag(&repo, &git, name, id, message),
         Action::DeleteTag { name } => tags::delete_tag(&repo, &git, name),
         Action::RestoreTag { name, id } => tags::restore_tag(&repo, &git, name, id),

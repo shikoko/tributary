@@ -114,6 +114,41 @@ function png(size, paint) {
   return Buffer.concat([signature, chunk("IHDR", header), chunk("IDAT", deflateSync(rows)), chunk("IEND", Buffer.alloc(0))]);
 }
 
+/**
+ * An Unreal asset, as far as Tributary reads one: the package tag, filler standing in for
+ * the rest, and the thumbnail Unreal saves in it (a 256 × 256 PNG of `paint`).
+ */
+function uasset(filler, paint) {
+  const thumbnail = png(256, paint);
+  const head = Buffer.alloc(8);
+  head.writeUInt32LE(0x9e2a83c1, 0);
+  head.writeInt32LE(-8, 4);
+  const sizes = Buffer.alloc(12);
+  sizes.writeInt32LE(256, 0);
+  sizes.writeInt32LE(256, 4);
+  sizes.writeInt32LE(thumbnail.length, 8);
+  return Buffer.concat([head, Buffer.alloc(filler, 7), sizes, thumbnail, Buffer.alloc(filler, 3)]);
+}
+
+/** A wooden tavern chair on the content browser's grey, with a red cushion when `cushion`. */
+function chair(cushion) {
+  return (x, y) => {
+    const wood = (light) => [118 + light, 76 + light * 0.6, 42 + light * 0.3, 255];
+    const back = y >= 40 && y < 128 && (Math.abs(x - 84) <= 8 || Math.abs(x - 172) <= 8);
+    const slat = y >= 52 && y < 116 && (y - 52) % 22 < 10 && x >= 84 && x <= 172;
+    const seat = y >= 128 && y < 146 && x >= 70 && x <= 186;
+    const leg = y >= 146 && y < 224 && [74, 172].some((left) => x >= left && x <= left + 10);
+    const pad = cushion && y >= 114 && y < 130 && x >= 76 && x <= 180;
+    if (pad) return [176, 44, 40, 255];
+    if (seat) return wood(30);
+    if (back || leg) return wood(0);
+    if (slat) return wood(16);
+    if (y >= 222 && y < 230 && Math.abs(x - 128) < 70) return [34, 34, 38, 255];
+    const shade = 46 + Math.round((y / 256) * 20);
+    return [shade, shade, shade + 4, 255];
+  };
+}
+
 /** A coin icon: dull bronze, or shiny gold with a glint. */
 function coin(shiny) {
   const [r, g, b] = shiny ? [255, 196, 46] : [168, 112, 62];
@@ -740,7 +775,7 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   run(["fetch", "-q", "origin"]);
   run(["switch", "-q", "main"]);
   run(["branch", "-q", "-D", "fix/stool"]);
-  binary("Content/Props/Chair.uasset", 1800);
+  write("Content/Props/Chair.uasset", uasset(1800, chair(false)), { append: false });
   commit("Add a tavern chair", "rosa");
   run(["push", "-q", "origin", "main"]);
   run(["branch", "-q", "-u", "origin/main"]);
@@ -756,7 +791,7 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   binary("Content/Cinematics/Intro.mp4", 12_500_000);
   binary("Content/Audio/Theme.wav", 15_200_000);
   run(["add", "Content/Audio/Theme.wav"]);
-  binary("Content/Props/Chair.uasset", 1900);
+  write("Content/Props/Chair.uasset", uasset(1900, chair(true)), { append: false });
   binary("Content/Characters/Barber.uasset", 2700);
   write("Saved/Logs/editor.log", "LogInit: Display: Engine started\n", { append: false });
   return folder;

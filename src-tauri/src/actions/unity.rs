@@ -67,7 +67,7 @@ pub struct UnitySetup {
 }
 
 /// The Unity project in `workdir` (or a folder just below it): its folder and editor version.
-fn find_project(workdir: &Path) -> Option<(PathBuf, Option<String>)> {
+pub(super) fn find_project(workdir: &Path) -> Option<(PathBuf, Option<String>)> {
     let version_of = |folder: &Path| -> Option<Option<String>> {
         let text =
             std::fs::read_to_string(folder.join("ProjectSettings").join("ProjectVersion.txt"))

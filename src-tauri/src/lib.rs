@@ -3,6 +3,7 @@
 
 pub mod actions;
 mod app_icon;
+pub mod apps;
 pub mod avatars;
 pub mod codeowners;
 mod commands;
@@ -71,6 +72,10 @@ pub fn run() {
             commands::branch_versions,
             commands::branch_stacks,
             commands::release_notes,
+            commands::repo_size,
+            commands::ignore_reason,
+            commands::installed_apps,
+            commands::open_in_app,
             commands::publish_release,
             commands::range_diff,
             commands::patch_text,

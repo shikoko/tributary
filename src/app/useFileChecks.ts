@@ -14,14 +14,21 @@ export function useFileChecks(snapshot: RepoSnapshot | null, largeFileMB: number
         : [],
     [snapshot],
   );
-  const signature = changedFiles.join("\n");
+  const deletedFiles = useMemo(
+    () =>
+      snapshot?.worktree
+        ? [...snapshot.worktree.staged, ...snapshot.worktree.unstaged].filter((file) => file.status === "deleted").map((file) => file.path)
+        : [],
+    [snapshot],
+  );
+  const signature = `${changedFiles.join("\n")}\n--\n${deletedFiles.join("\n")}`;
   useEffect(() => {
-    if (!repoPath || changedFiles.length === 0) {
+    if (!repoPath || changedFiles.length + deletedFiles.length === 0) {
       setChecks(null);
       return;
     }
     let live = true;
-    fileChecks(repoPath, changedFiles, Math.max(1, largeFileMB) * 1_000_000)
+    fileChecks(repoPath, changedFiles, Math.max(1, largeFileMB) * 1_000_000, deletedFiles)
       .then((found) => live && setChecks(found))
       .catch(() => live && setChecks(null));
     return () => {

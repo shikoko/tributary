@@ -179,9 +179,11 @@ pub async fn file_history(path: String, file: String) -> Result<actions::FileHis
 pub async fn file_checks(
     path: String,
     files: Vec<String>,
+    deleted: Option<Vec<String>>,
     threshold: u64,
 ) -> Result<actions::FileChecks> {
-    blocking(move || actions::file_checks(&PathBuf::from(path), &files, threshold)).await
+    let deleted = deleted.unwrap_or_default();
+    blocking(move || actions::file_checks(&PathBuf::from(path), &files, &deleted, threshold)).await
 }
 
 /// Whether Git LFS works in the repository: installed, set up, files downloaded.
@@ -276,6 +278,49 @@ pub async fn merge_check(
     into: Option<String>,
 ) -> Result<actions::MergeCheck> {
     blocking(move || actions::merge_check(&PathBuf::from(path), &from, into.as_deref())).await
+}
+
+/// The editors and terminals installed here.
+#[tauri::command]
+pub async fn installed_apps() -> Result<Vec<crate::apps::App>> {
+    blocking(|| Ok(crate::apps::installed_apps())).await
+}
+
+/// Open the repository at `path` (and `file` in it, relative to its top, for an editor) in
+/// an editor or terminal.
+#[tauri::command]
+pub async fn open_in_app(app: String, path: String, file: Option<String>) -> Result<()> {
+    blocking(move || {
+        let folder = PathBuf::from(&path);
+        let file = match file {
+            Some(file) => {
+                let relative = std::path::Path::new(&file);
+                if relative.is_absolute()
+                    || relative
+                        .components()
+                        .any(|part| matches!(part, std::path::Component::ParentDir))
+                {
+                    return Err(format!("{file} isn't in this repository.").into());
+                }
+                Some(folder.join(relative))
+            }
+            None => None,
+        };
+        crate::apps::open_in(&app, &folder, file.as_deref())
+    })
+    .await
+}
+
+/// Why a file is ignored: the rule that leaves it out, if one does.
+#[tauri::command]
+pub async fn ignore_reason(path: String, file: String) -> Result<actions::IgnoreReason> {
+    blocking(move || actions::ignore_reason(&PathBuf::from(path), &file)).await
+}
+
+/// What makes the repository big: the biggest files in its history, by folder and kind.
+#[tauri::command]
+pub async fn repo_size(path: String) -> Result<actions::RepoSize> {
+    blocking(move || actions::repo_size(&PathBuf::from(path))).await
 }
 
 /// What went into `to` since `from` (the tag before it when None).

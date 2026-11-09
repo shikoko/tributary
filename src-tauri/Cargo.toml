@@ -32,7 +32,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Textures the window can't show by itself, made into PNG previews (textures.rs).
-image = { version = "0.25", default-features = false, features = ["png", "tga", "dds", "exr", "tiff", "hdr"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "tga", "dds", "exr", "tiff", "hdr"] }
 # Gravatar finds pictures by a SHA-256 hash of the email address.
 sha2 = "0.10"
 # Pure-Rust git implementation: reads history without needing git installed.

@@ -595,3 +595,51 @@ export function releaseNotes(path: string, to: string, from?: string | null): Pr
 export function publishRelease(path: string, tag: string, title: string, notes: string): Promise<string> {
   return invoke<string>("publish_release", { path, tag, title, notes });
 }
+
+/** What makes a repository big. */
+export interface RepoSize {
+  /** The history's size on disk, in bytes. */
+  historyBytes: number;
+  /** How many file versions it holds. */
+  versions: number;
+  /** The biggest file versions, biggest first. */
+  biggest: { path: string; bytes: number; diskBytes: number; current: boolean; inLfs: boolean }[];
+  /** What each top folder, and each kind of file, costs on disk, most first. */
+  folders: { name: string; diskBytes: number; versions: number }[];
+  kinds: { name: string; diskBytes: number; versions: number }[];
+}
+
+export function repoSize(path: string): Promise<RepoSize> {
+  return invoke<RepoSize>("repo_size", { path });
+}
+
+/** Why a file is ignored, if it is. */
+export interface IgnoreReason {
+  /** The file, relative to the repository's top. */
+  path: string;
+  /** It's committed: ignore rules don't apply to it. */
+  tracked: boolean;
+  /** The rule that ignores it: in which file, on which line, and the pattern. */
+  rule: { source: string; line: number; pattern: string } | null;
+}
+
+/** Why `file` (absolute, or relative to the repository's top) is ignored. */
+export function ignoreReason(path: string, file: string): Promise<IgnoreReason> {
+  return invoke<IgnoreReason>("ignore_reason", { path, file });
+}
+
+/** An editor or terminal installed on this computer. */
+export interface InstalledApp {
+  id: string;
+  name: string;
+  terminal: boolean;
+}
+
+export function installedApps(): Promise<InstalledApp[]> {
+  return invoke<InstalledApp[]>("installed_apps");
+}
+
+/** Open the repository at `path` (and `file` in it, for an editor) in app `app`. */
+export function openInApp(app: string, path: string, file?: string): Promise<void> {
+  return invoke<void>("open_in_app", { app, path, file: file ?? null });
+}

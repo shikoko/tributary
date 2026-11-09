@@ -1,7 +1,9 @@
 import { open as openFile } from "@tauri-apps/plugin-dialog";
-import type { Action, CommitRow, RepoSnapshot } from "../api";
+import type { Action, CommitRow, InstalledApp, RepoSnapshot } from "../api";
 import { WORKTREE_ID } from "../api";
 import {
+  CodeIcon,
+  TerminalIcon,
   BranchIcon,
   BroomIcon,
   CloneIcon,
@@ -22,6 +24,7 @@ import {
   PullRequestIcon,
   PushIcon,
   RecoverIcon,
+  IgnoreIcon,
   RefreshIcon,
   SearchIcon,
   StashIcon,
@@ -60,6 +63,8 @@ export interface MenuBarContext {
   usesLfs: boolean;
   /** Files stored with Git LFS that weren't downloaded. */
   lfsPointers: number;
+  /** The editor and terminal to open the repository in, if any are installed. */
+  openApps: { editor: InstalledApp | null; terminal: InstalledApp | null };
   do: {
     open: () => void;
     clone: () => void;
@@ -82,6 +87,8 @@ export interface MenuBarContext {
     history: (directory: boolean) => void;
     lockFiles: () => void;
     reveal: () => void;
+    /** Open the repository in an editor or terminal. */
+    openIn: (app: InstalledApp) => void;
     diagnostics: () => void;
   };
 }
@@ -208,6 +215,16 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
             ? [{ id: "download-lfs", label: "Download Git LFS Files", icon: <DownloadIcon />, enabled: canChange, run: () => run.act({ kind: "downloadLfsFiles" }, "download") }]
             : []),
           { id: "recover", label: "Recover Commits…", icon: <RecoverIcon />, run: () => run.dialog({ kind: "recover" }) },
+          { id: "repo-size", label: "What Makes It Big…", icon: <BroomIcon />, run: () => run.dialog({ kind: "repoSize" }) },
+          {
+            id: "ignore-reason",
+            label: "Why Is a File Ignored…",
+            icon: <IgnoreIcon />,
+            run: async () => {
+              const file = await openFile({ multiple: false, directory: false, title: "Which file is left out?", defaultPath: snapshot.path });
+              if (typeof file === "string") run.dialog({ kind: "ignoreReason", file });
+            },
+          },
           {
             id: "apply-patch",
             label: "Apply Patch…",
@@ -228,6 +245,12 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
               ]
             : []),
           { id: "reveal", label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, run: run.reveal },
+          ...(ctx.openApps.editor
+            ? [{ id: "open-editor", label: `Open in ${ctx.openApps.editor.name}`, icon: <CodeIcon />, run: () => ctx.openApps.editor && run.openIn(ctx.openApps.editor) }]
+            : []),
+          ...(ctx.openApps.terminal
+            ? [{ id: "open-terminal", label: `Open in ${ctx.openApps.terminal.name}`, icon: <TerminalIcon />, run: () => ctx.openApps.terminal && run.openIn(ctx.openApps.terminal) }]
+            : []),
           { id: "repo-settings", label: "Repository Settings…", icon: <GearIcon />, run: () => run.dialog({ kind: "repoSettings" }) },
           "-",
           settingCommands[2],

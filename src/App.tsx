@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { forgetAvatars, WORKTREE_ID, type Action, type PullRequest } from "./api";
+import { forgetAvatars, openInApp, WORKTREE_ID, type Action, type PullRequest } from "./api";
+import { useOpenApps } from "./lib/apps";
 import { useLfsLocks } from "./lib/locks";
 import { isPatchFile } from "./lib/patches";
 import { usePullRequestNews } from "./app/usePullRequestNews";
@@ -279,6 +280,8 @@ export default function App() {
   }, [firstParentOnly, firstParentLoaded]);
   const zoomBy = useZoom(preferences.zoom, preferences.setZoom);
 
+  // The editor and terminal "Open in …" uses.
+  const openApps = useOpenApps();
   // The menus: in the macOS menu bar, or in the tab bar elsewhere.
   const menuBarContext: MenuBarContext = {
     snapshot,
@@ -291,6 +294,7 @@ export default function App() {
     usesLocks: Boolean(lfs.locks),
     usesLfs: Boolean(checks?.usesLfs),
     lfsPointers: lfsHealth.health?.pointers ?? 0,
+    openApps,
     do: {
       open: repo.pick,
       clone: () => setDialog({ kind: "clone" }),
@@ -318,6 +322,7 @@ export default function App() {
       history: highlight.pickHistory,
       lockFiles,
       reveal: () => repoPath && revealItemInDir(repoPath).catch((e) => repo.setError({ message: String(e) })),
+      openIn: (app) => repoPath && openInApp(app.id, repoPath).catch((e) => repo.setError({ message: String(e) })),
       diagnostics: () => overlays.show("diagnostics"),
     },
   };

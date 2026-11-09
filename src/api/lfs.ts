@@ -43,6 +43,18 @@ export interface FileChecks {
   usesLfs: boolean;
   /** New files whose names will cause trouble on Windows or macOS. */
   names: NameProblem[];
+  /** In a Unity project: files whose `.meta` is missing, orphaned or left behind. */
+  metas: MetaProblem[];
+}
+
+/**
+ * A Unity asset whose `.meta` is wrong. missing: a new file or folder without one (`path`:
+ * the file or folder); orphan: a `.meta` whose file isn't there (`path`: the `.meta`);
+ * leftBehind: a deleted file whose `.meta` is still there.
+ */
+export interface MetaProblem {
+  path: string;
+  problem: "missing" | "orphan" | "leftBehind";
 }
 
 /** A new file whose name won't work on everyone's computer. */
@@ -59,8 +71,9 @@ export interface NameProblem {
   detail: string;
 }
 
-export function fileChecks(path: string, files: string[], threshold: number): Promise<FileChecks> {
-  return invoke<FileChecks>("file_checks", { path, files, threshold });
+/** `deleted`: the deleted files too, for Unity's `.meta` files left behind. */
+export function fileChecks(path: string, files: string[], threshold: number, deleted: string[] = []): Promise<FileChecks> {
+  return invoke<FileChecks>("file_checks", { path, files, threshold, deleted });
 }
 
 /** The Git LFS files kept on this computer. */

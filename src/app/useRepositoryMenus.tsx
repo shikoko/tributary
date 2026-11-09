@@ -7,7 +7,8 @@ import type { LfsLocks } from "../lib/locks";
 import { baseName, joinPath } from "../lib/paths";
 import { PullRequestsContext } from "../lib/pullRequests";
 import { openInBrowser } from "../lib/weblinks";
-import type { PullRequest, Stacked } from "../api";
+import { openInApp, type PullRequest, type Stacked } from "../api";
+import { useOpenApps } from "../lib/apps";
 import type { MenuContext, OpenDialog } from "../menus";
 import type { FileMenuContext } from "./fileMenus";
 import type { SubmoduleMenuContext, WorktreeMenuContext } from "./listMenus";
@@ -69,6 +70,7 @@ export function useRepositoryMenus({
   updateSubmodules,
 }: Options) {
   const requests = useContext(PullRequestsContext);
+  const openApps = useOpenApps();
   const run = (action: Action) => act(action);
   const ctx: MenuContext = {
     snapshot,
@@ -106,6 +108,8 @@ export function useRepositoryMenus({
     locks: lfs.locks ? lfs.byPath : null,
     checks: checks,
     reveal: (path) => revealItemInDir(joinPath(snapshot.path, path)).catch(() => notify({ text: `${baseName(path)} isn't in the working tree` })),
+    editor: openApps.editor,
+    openInEditor: (path) => openApps.editor && openInApp(openApps.editor.id, snapshot.path, path).catch((e) => notify({ text: String(e) })),
     showChanges,
     showBlame,
   };

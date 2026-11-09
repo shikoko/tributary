@@ -59,6 +59,21 @@ export const FixupIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** Angle brackets: code, for opening in an editor. */
+export const CodeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5" />
+  </Icon>
+);
+
+/** A prompt in a window: a terminal. */
+export const TerminalIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.75" />
+    <path d="M4.5 6.5 6.5 8l-2 1.5M8 10h3.5" />
+  </Icon>
+);
+
 /** A page with lines and a tag's notch: a release's notes. */
 export const NotesIcon = (p: IconProps) => (
   <Icon {...p}>

@@ -1,5 +1,6 @@
 import type { Action, FileChange, FileChecks, Lock } from "../../api";
 import { describeNameProblem } from "../../lib/fileNames";
+import { describeMeta } from "../../lib/unityMeta";
 import { formatBytes, plural } from "../../lib/format";
 import { baseName } from "../../lib/paths";
 import { LockIcon, WarningIcon } from "../Icons";
@@ -40,8 +41,28 @@ export function ChangeWarnings({ staged, unstaged, lockOf, checks, canLock, busy
   const patterns = [...new Set(large.map((file) => lfsPattern(file.path)))];
   const unlocked = canLock ? (checks?.lockable ?? []).filter((path) => !lockOf(path)) : [];
   const names = checks?.names ?? [];
+  const metas = checks?.metas ?? [];
   return (
     <>
+    {metas.length > 0 && (
+      <div className="file-warning large" role="status">
+        <WarningIcon size={14} />
+        <div>
+          <div>
+            {metas.length === 1 ? "A file's .meta is" : `${metas.length} files' .meta files are`} wrong. Unity finds assets by the id in
+            their .meta, so a teammate's copy would lose whatever uses {metas.length === 1 ? "it" : "them"}.
+          </div>
+          <ul className="file-warning-list">
+            {metas.slice(0, 6).map((problem) => (
+              <li key={problem.path} title={problem.path}>
+                <strong>{baseName(problem.path)}</strong> {describeMeta(problem)}
+              </li>
+            ))}
+            {metas.length > 6 && <li>and {plural(metas.length - 6, "more")}</li>}
+          </ul>
+        </div>
+      </div>
+    )}
     {names.length > 0 && (
       <div className="file-warning large" role="status">
         <WarningIcon size={14} />

@@ -26,12 +26,14 @@ interface Options {
   };
   /** Which diff and merge tools git opens. */
   diffTools: SettingRow[];
+  /** The editor and terminal "Open in …" uses. */
+  apps: SettingRow[];
   /** The theme in use (for "Same as the system", the system's). */
   theme: Theme;
 }
 
 /** Everything in the Settings window: the app's own settings (each repository has its own window). */
-export function settingsSections({ preferences, version, updates, onInstallUpdate, github, diffTools, theme }: Options): SettingsSection[] {
+export function settingsSections({ preferences, version, updates, onInstallUpdate, github, diffTools, apps, theme }: Options): SettingsSection[] {
   const { reopenTabs, setReopenTabs, autoUpdate, setAutoUpdate, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
@@ -43,6 +45,7 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
       icon: <GearIcon size={15} />,
       rows: [
         { kind: "toggle", label: "Reopen tabs on launch", value: reopenTabs, set: setReopenTabs },
+        ...apps,
         {
           kind: "select",
           label: "Submodules after a checkout or pull",

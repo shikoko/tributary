@@ -1,6 +1,7 @@
-import type { Action, DiffSource, FileChange, FileChecks, Lock, RepoSnapshot } from "../api";
+import type { Action, DiffSource, FileChange, FileChecks, InstalledApp, Lock, RepoSnapshot } from "../api";
 import type { MenuItem } from "../components/ContextMenu";
 import {
+  CodeIcon,
   BlameIcon,
   CheckIcon,
   CloudIcon,
@@ -35,6 +36,9 @@ export interface FileMenuContext {
   checks: FileChecks | null;
   /** Show a file in Finder or Explorer. */
   reveal: (path: string) => void;
+  /** The editor to open files in, if one is installed, and opening one in it. */
+  editor: InstalledApp | null;
+  openInEditor: (path: string) => void;
   /** Show a file's changes in the diff view. */
   showChanges: (file: FileChange, source: DiffSource) => void;
   /** Show who changed each line of a file, at the commit `source` is from (or as it is now). */
@@ -157,6 +161,7 @@ export function fileMenuItems(ctx: FileMenuContext, file: FileChange, source: Di
   items.push({ label: "Copy path", icon: <CopyIcon />, separated: true, onSelect: () => copyText(path) });
   if (where === "worktree" && file.status !== "deleted") {
     items.push({ label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, onSelect: () => reveal(path) });
+    if (ctx.editor) items.push({ label: `Open in ${ctx.editor.name}`, icon: <CodeIcon />, onSelect: () => ctx.openInEditor(path) });
   }
   return items;
 }

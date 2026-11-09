@@ -344,7 +344,11 @@ pub fn file_diff(
             media.before = before.data.map(|bytes| data_url(mime, &bytes));
             media.after = after.data.map(|bytes| data_url(mime, &bytes));
         }
-        diff.media = Some(media);
+        // An Unreal asset without a thumbnail on either side: a binary file like any other.
+        let pictureless = crate::textures::optional(&media.format)
+            && media.before.is_none()
+            && media.after.is_none();
+        diff.media = (!pictureless).then_some(media);
     } else if diff.binary || diff.too_large {
         let before = read_side(&git, &plan.before, file, diff.lfs, None);
         let after = read_side(&git, &plan.after, file, diff.lfs, None);

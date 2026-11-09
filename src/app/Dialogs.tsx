@@ -18,7 +18,9 @@ import { RenameBranchDialog } from "../components/RenameBranchDialog";
 import { ResetDialog } from "../components/ResetDialog";
 import { RestoreDialog } from "../components/RestoreDialog";
 import { ProtectedActionDialog } from "../components/Safety";
+import { IgnoreReasonDialog } from "../components/IgnoreReasonDialog";
 import { ReleaseNotesDialog } from "../components/ReleaseNotesDialog";
+import { RepoSizeDialog } from "../components/RepoSizeDialog";
 import { SplitCommitDialog } from "../components/SplitCommitDialog";
 import { StashDialog } from "../components/StashDialog";
 import { TagDialog } from "../components/TagDialog";
@@ -140,6 +142,18 @@ export function RepositoryDialogs(props: Props) {
         }}
       />
     )}
+    {dialog?.kind === "ignoreReason" && (
+      <IgnoreReasonDialog repoPath={snapshot.path} file={dialog.file} canChange={!snapshot.bare} onClose={() => onClose()} run={(action) => run(action)} />
+    )}
+    {dialog?.kind === "repoSize" && (
+      <RepoSizeDialog
+        repoPath={snapshot.path}
+        canChange={!snapshot.bare}
+        branch={snapshot.headBranch}
+        onClose={() => onClose()}
+        run={(action) => run(action)}
+      />
+    )}
     {dialog?.kind === "releaseNotes" && (
       <ReleaseNotesDialog
         repoPath={snapshot.path}
@@ -192,7 +206,7 @@ export function RepositoryDialogs(props: Props) {
       <ProtectedActionDialog
         branch={dialog.branch}
         title={`Rewrite ${dialog.branch}?`}
-        explanation={`${dialog.action.kind === "interactiveRebase" ? "This interactive rebase" : dialog.action.kind === "fixupInto" ? "Fixing up an earlier commit" : dialog.action.kind === "splitCommit" ? "Splitting a commit" : dialog.action.kind === "restack" ? "Moving it onto the new branch below" : "Rebasing"} rewrites ${dialog.branch}'s history: its commits get new ids, so anyone who already has them will have to reconcile. Tributary keeps a backup of where it was.`}
+        explanation={`${dialog.action.kind === "interactiveRebase" ? "This interactive rebase" : dialog.action.kind === "fixupInto" ? "Fixing up an earlier commit" : dialog.action.kind === "splitCommit" ? "Splitting a commit" : dialog.action.kind === "restack" ? "Moving it onto the new branch below" : dialog.action.kind === "migrateToLfs" ? "Moving files into Git LFS" : "Rebasing"} rewrites ${dialog.branch}'s history: its commits get new ids, so anyone who already has them will have to reconcile. Tributary keeps a backup of where it was.`}
         confirmLabel={
           dialog.action.kind === "interactiveRebase"
             ? "Start rebase"
@@ -202,7 +216,9 @@ export function RepositoryDialogs(props: Props) {
                 ? "Split it"
                 : dialog.action.kind === "restack"
                   ? "Move it"
-                  : `Rebase ${dialog.branch}`
+                  : dialog.action.kind === "migrateToLfs"
+                    ? "Rewrite it"
+                    : `Rebase ${dialog.branch}`
         }
         onCancel={() => onClose()}
         onConfirm={() => {

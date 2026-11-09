@@ -12,6 +12,7 @@ import { SettingsDialog } from "../components/SettingsDialog";
 import { ShortcutsDialog } from "../components/ShortcutsDialog";
 import { Toast, type ToastMessage } from "../components/Toast";
 import { UpdateDialog } from "../components/UpdateDialog";
+import { useAppRows } from "../components/AppRows";
 import { useDiffToolRows } from "../components/DiffToolRows";
 import { settingsSections } from "./settingsSections";
 import { useGitHubStatus } from "./useGitHub";
@@ -49,6 +50,7 @@ export function AppOverlays(props: Props) {
   const { theme } = useContext(ThemeContext);
   const { open, hide, show } = overlays;
   const github = useGitHubStatus(open.settings);
+  const appRows = useAppRows();
   const diffTools = useDiffToolRows({ open: open.settings, repoPath: props.repoPath, notify: (text) => notify({ text }) });
   const [version, setVersion] = useState<string | null>(null);
   useEffect(() => {
@@ -67,6 +69,7 @@ export function AppOverlays(props: Props) {
           initial={props.settingsSection}
           sections={settingsSections({
             diffTools,
+            apps: appRows,
             theme,
             preferences,
             version,

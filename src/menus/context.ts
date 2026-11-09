@@ -43,6 +43,10 @@ export type OpenDialog =
   | { kind: "repoSettings"; section?: string }
   /** Open a pull request for `branch` (its name on the remote); `url` opens it on the site instead. */
   | { kind: "createPullRequest"; branch: string; local: string | null; url: string | null }
+  /** Why a file (absolute, or relative to the repository) is ignored. */
+  | { kind: "ignoreReason"; file: string }
+  /** What makes the repository big, and moving big files into Git LFS. */
+  | { kind: "repoSize" }
   /** Release notes for a tag: what went into it since the tag before. */
   | { kind: "releaseNotes"; tag: string }
   /** Split a commit in two; `later`: how many commits come after it on the branch. */

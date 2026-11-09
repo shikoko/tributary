@@ -512,3 +512,111 @@ body.resizing * {
   font-size: 12px;
   line-height: 1.55;
 }
+
+/* What makes the repository big. */
+
+.repo-size {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.repo-size h3 {
+  margin: 6px 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.repo-size ul {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.repo-size li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.repo-size-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 6px 24px;
+}
+
+.repo-size-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repo-size-groups .repo-size-name {
+  flex: 0 0 38%;
+}
+
+.repo-size-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+
+.repo-size-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.repo-size-amount {
+  flex: none;
+  min-width: 64px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.repo-size-tag {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--bg-active);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.repo-size-tag.lfs {
+  background: rgb(var(--info-rgb) / 0.14);
+  color: var(--info-text);
+}
+
+.repo-size-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.repo-size-kinds .checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ignore-rule {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-panel);
+  font-size: 13px;
+}

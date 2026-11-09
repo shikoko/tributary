@@ -1,3 +1,4 @@
+import { stagedMetaWarnings } from "../lib/unityMeta";
 import { useState, type ReactNode } from "react";
 import type { Action, DiffSource, FileChange, FileChecks, Lock, Overlap, RepoSnapshot } from "../api";
 import { ActorNames, useActorNames } from "../lib/actorNames";
@@ -155,6 +156,7 @@ export function WorktreeDetailsPanel(props: Props) {
           stagedCount={status.staged.length}
           largeStaged={(checks?.large ?? []).filter((file) => stagedPaths.has(file.path))}
           namesStaged={(checks?.names ?? []).filter((problem) => stagedPaths.has(problem.path))}
+          metasStaged={stagedMetaWarnings(checks?.metas ?? [], status.staged, status.unstaged)}
           busy={busy}
           run={run}
           messageTools={props.messageTools}

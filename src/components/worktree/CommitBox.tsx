@@ -1,5 +1,6 @@
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { commitDetails, type Action, type LargeFile, type NameProblem, type RepoSnapshot } from "../../api";
+import { describeMeta, type MetaWarning } from "../../lib/unityMeta";
 import { plural } from "../../lib/format";
 import { baseName } from "../../lib/paths";
 import { modKey } from "../../lib/platform";
@@ -22,6 +23,8 @@ interface Props {
   largeStaged: LargeFile[];
   /** Staged new files whose names won't work everywhere: committing them asks first too. */
   namesStaged: NameProblem[];
+  /** Staged Unity assets whose .meta is wrong or not staged: committing them asks first too. */
+  metasStaged: MetaWarning[];
   busy: boolean;
   /** Runs a git action; resolves to true when it worked. */
   run: (action: Action) => Promise<boolean>;
@@ -34,9 +37,9 @@ interface Props {
  * cherry-pick or revert, or after a squash merge, it starts from the message git
  * prepared; amending starts from the last commit's.
  */
-export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, namesStaged, busy, run, messageTools }: Props) {
+export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, namesStaged, metasStaged, busy, run, messageTools }: Props) {
   const [confirmLarge, setConfirmLarge] = useState(false);
-  const worries = largeStaged.length + namesStaged.length;
+  const worries = largeStaged.length + namesStaged.length + metasStaged.length;
   useEffect(() => {
     if (worries === 0) setConfirmLarge(false);
   }, [worries]);
@@ -145,7 +148,12 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
             {namesStaged.length > 0 && (
               <>
                 {namesStaged.length === 1 ? `${baseName(namesStaged[0].path)}'s name` : `${namesStaged.length} staged files' names`}{" "}
-                won't work on everyone's computer.
+                won't work on everyone's computer.{" "}
+              </>
+            )}
+            {metasStaged.length > 0 && (
+              <>
+                {metasStaged.length === 1 ? `${baseName(metasStaged[0].path)} ${describeMeta(metasStaged[0])}.` : `${metasStaged.length} staged Unity files have .meta problems.`}
               </>
             )}
           </span>

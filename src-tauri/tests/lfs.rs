@@ -347,7 +347,7 @@ fn checks_changed_files_for_size_and_locking() {
     .iter()
     .map(|f| (*f).to_owned())
     .collect();
-    let checks = actions::file_checks(repo.path(), &files, 1000).unwrap();
+    let checks = actions::file_checks(repo.path(), &files, &[], 1000).unwrap();
     // art.psd is big too, but it goes to Git LFS.
     let large: Vec<_> = checks
         .large
@@ -393,7 +393,7 @@ fn moves_staged_files_into_git_lfs() {
     );
     let files = vec!["level.umap".to_owned()];
     assert!(
-        actions::file_checks(repo.path(), &files, 1000)
+        actions::file_checks(repo.path(), &files, &[], 1000)
             .unwrap()
             .large
             .is_empty()
@@ -628,5 +628,64 @@ fn downloads_only_the_git_lfs_files_in_chosen_folders() {
             .unwrap()
             .fetch_include
             .is_empty()
+    );
+}
+
+#[test]
+fn finds_what_makes_the_repository_big_and_moves_it_into_lfs() {
+    if !common::lfs_installed() {
+        return;
+    }
+    let mut repo = TempRepo::new("repo-size");
+    with_identity(&repo);
+    repo.commit("a.txt", "base");
+    std::fs::write(repo.path().join("old.bin"), vec![7u8; 300_000]).unwrap();
+    repo.git(&["add", "old.bin"]);
+    repo.git(&["commit", "--quiet", "-m", "A big file"]);
+    repo.git(&["rm", "--quiet", "old.bin"]);
+    repo.git(&["commit", "--quiet", "-m", "Gone again"]);
+    std::fs::write(repo.path().join("art.psd"), vec![1u8; 200_000]).unwrap();
+    repo.git(&["add", "art.psd"]);
+    repo.git(&["commit", "--quiet", "-m", "Art"]);
+
+    let size = actions::repo_size(repo.path()).unwrap();
+    let names: Vec<(&str, bool)> = size
+        .biggest
+        .iter()
+        .take(2)
+        .map(|f| (f.path.as_str(), f.current))
+        .collect();
+    assert_eq!(names, vec![("old.bin", false), ("art.psd", true)]);
+    assert!(size.kinds.iter().any(|k| k.name == "*.bin"));
+    assert!(size.history_bytes > 0);
+
+    // Not pushed anywhere: the branch's commits are all rewritten.
+    let message = run(
+        &repo,
+        Action::MigrateToLfs {
+            patterns: vec!["*.psd".into(), "*.bin".into()],
+            everything: false,
+        },
+    )
+    .unwrap();
+    assert!(
+        message.starts_with("Moved *.psd, *.bin into Git LFS"),
+        "{message}"
+    );
+    let pointer = repo.git(&["cat-file", "-p", "HEAD:art.psd"]);
+    assert!(pointer.starts_with("version https://git-lfs"), "{pointer}");
+    let size = actions::repo_size(repo.path()).unwrap();
+    assert!(size.biggest.iter().any(|f| f.path == "art.psd" && f.in_lfs));
+    // Uncommitted changes stop it.
+    std::fs::write(repo.path().join("a.txt"), "changed").unwrap();
+    assert!(
+        run(
+            &repo,
+            Action::MigrateToLfs {
+                patterns: vec!["*.txt".into()],
+                everything: false
+            }
+        )
+        .is_err()
     );
 }

@@ -45,6 +45,10 @@ export type Action =
   /** `mode`: "noFastForward" always makes a merge commit; "squash" stages the changes to commit as one. */
   | { kind: "merge"; target: string; mode?: "default" | "noFastForward" | "squash" }
   | { kind: "rebase"; onto: string }
+  /** Stage files even though they're ignored (git add --force). */
+  | { kind: "stageIgnored"; paths: string[] }
+  /** Move files matching `patterns` into Git LFS, rewriting the branch's unpushed commits (or with `everything`, every branch). */
+  | { kind: "migrateToLfs"; patterns: string[]; everything?: boolean }
   /** Move the checked-out branch onto the new version of `onto`, built on its earlier version `old`. */
   | { kind: "restack"; onto: string; old: string }
   /** Split a commit: `paths` move into a new commit right after it, with message `second`. */

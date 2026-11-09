@@ -170,6 +170,8 @@ pub struct FileChecks {
     pub uses_lfs: bool,
     /// New files whose names will cause trouble on Windows or macOS.
     pub names: Vec<super::NameProblem>,
+    /// In a Unity project: files whose `.meta` is missing, orphaned or left behind.
+    pub metas: Vec<super::MetaProblem>,
 }
 
 #[derive(Debug, Serialize)]
@@ -181,8 +183,14 @@ pub struct LargeFile {
 }
 
 /// Look at changed `files` (paths in the repository): which are at least `threshold`
-/// bytes and not in Git LFS, and which are lockable.
-pub fn file_checks(path: &Path, files: &[String], threshold: u64) -> Result<FileChecks, Error> {
+/// bytes and not in Git LFS, which are lockable, whose names won't work everywhere, and in
+/// a Unity project, whose `.meta` files are wrong (with the `deleted` files too).
+pub fn file_checks(
+    path: &Path,
+    files: &[String],
+    deleted: &[String],
+    threshold: u64,
+) -> Result<FileChecks, Error> {
     let repo = gix::discover(path).map_err(|e| Error::not_a_repository(path, e))?;
     let Some(workdir) = repo.workdir().map(Path::to_owned) else {
         return Ok(FileChecks::default());
@@ -234,6 +242,18 @@ pub fn file_checks(path: &Path, files: &[String], threshold: u64) -> Result<File
         }
     }
     let names = super::file_names::name_problems(&repo, &files);
+    let metas = match super::unity::find_project(&workdir) {
+        Some((project, _)) => {
+            let assets = project
+                .join("Assets")
+                .strip_prefix(&workdir)
+                .map(|rel| rel.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_default();
+            let deleted: Vec<&str> = deleted.iter().map(String::as_str).collect();
+            super::unity_meta::meta_problems(&workdir, &assets, &files, &deleted)
+        }
+        None => Vec::new(),
+    };
     let large = files
         .iter()
         .filter(|file| !in_lfs.contains(**file))
@@ -250,6 +270,7 @@ pub fn file_checks(path: &Path, files: &[String], threshold: u64) -> Result<File
         lockable,
         uses_lfs,
         names,
+        metas,
     })
 }
 
