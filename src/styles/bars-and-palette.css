@@ -101,8 +101,9 @@
   height: 3px;
 }
 
+/* The files: the accent's partner colour, so the two bars can't be mistaken for each other. */
 .progress-fill.progress-files-fill {
-  background: linear-gradient(to right, rgb(var(--accent-rgb) / 0.45), var(--accent));
+  background: linear-gradient(to right, rgb(var(--accent-pair-rgb) / 0.5), var(--accent-pair));
 }
 
 .progress-fill.indeterminate {

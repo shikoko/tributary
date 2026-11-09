@@ -55,6 +55,8 @@
   --accent-rgb: 31 181 255;
   /* Where buttons' gradients end. */
   --accent-2: #4d7cff;
+  --accent-pair: #a77bff;
+  --accent-pair-rgb: 167 123 255;
   --on-accent: #ffffff;
   /* Text and icons in the accent colour (readable on the background), lighter text for
      links and the checked-out branch, softer for notes, stronger for buttons in them. */
@@ -185,6 +187,8 @@
   --accent: #1fb5ff;
   --accent-rgb: 31 181 255;
   --accent-2: #4d7cff;
+  --accent-pair: #a77bff;
+  --accent-pair-rgb: 167 123 255;
   --accent-ink: #0f77a9;
   --accent-text: #0f6fa3;
   --accent-soft-text: #1b6690;

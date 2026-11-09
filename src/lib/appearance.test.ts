@@ -26,8 +26,19 @@ describe("appearance", () => {
     const roles = accentRoles("#1fb5ff", "dark");
     expect(roles["--accent"]).toBe("#1fb5ff");
     expect(roles["--accent-2"]).toBe("#4d7cff");
+    expect(roles["--accent-pair"]).toBe("#a77bff");
     expect(roles["--accent-ink"]).toBe("#1fb5ff");
     expect(roles["--on-accent"]).toBe("#ffffff");
+  });
+
+  it("pairs every accent with a different colour", () => {
+    for (const accent of [...ACCENTS.map((a) => a.color), "#123456", "#e04040"]) {
+      const roles = accentRoles(accent, "dark");
+      expect(roles["--accent-pair"], accent).not.toBe(roles["--accent"]);
+      expect(roles["--accent-pair-rgb"].split(" ")).toHaveLength(3);
+    }
+    // A colour of one's own: its partner is a third of the way round the colour wheel.
+    expect(accentRoles("#ff0000", "dark")["--accent-pair"]).toBe("#00ff00");
   });
 
   it("makes accent text readable on either theme, whatever the colour", () => {

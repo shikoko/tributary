@@ -44,17 +44,21 @@ export const DEFAULT_APPEARANCE: Appearance = {
 /** Your own lane colours: from two to this many. */
 export const MAX_CUSTOM_LANES = 16;
 
-/** Accent colours to pick from, with where their gradient ends. */
-export const ACCENTS: { name: string; color: string; end: string }[] = [
-  { name: "Azure", color: "#1fb5ff", end: "#4d7cff" },
-  { name: "Blue", color: "#4d7cff", end: "#8a5cff" },
-  { name: "Violet", color: "#a77bff", end: "#e65cff" },
-  { name: "Pink", color: "#ff4f9a", end: "#ff6a45" },
-  { name: "Coral", color: "#ff6a45", end: "#ff9a2e" },
-  { name: "Amber", color: "#ffad1f", end: "#ff7a2e" },
-  { name: "Green", color: "#2fd07a", end: "#14b8a6" },
-  { name: "Teal", color: "#19c9b4", end: "#1f9bff" },
-  { name: "Graphite", color: "#8e97a8", end: "#6c7486" },
+/**
+ * Accent colours to pick from, with where their gradient ends, and a partner: a different
+ * colour that goes with it, for a second thing shown beside the first (the file count under
+ * a progress bar).
+ */
+export const ACCENTS: { name: string; color: string; end: string; pair: string }[] = [
+  { name: "Azure", color: "#1fb5ff", end: "#4d7cff", pair: "#a77bff" },
+  { name: "Blue", color: "#4d7cff", end: "#8a5cff", pair: "#19d7b4" },
+  { name: "Violet", color: "#a77bff", end: "#e65cff", pair: "#1fb5ff" },
+  { name: "Pink", color: "#ff4f9a", end: "#ff6a45", pair: "#1fb5ff" },
+  { name: "Coral", color: "#ff6a45", end: "#ff9a2e", pair: "#19c9b4" },
+  { name: "Amber", color: "#ffad1f", end: "#ff7a2e", pair: "#a77bff" },
+  { name: "Green", color: "#2fd07a", end: "#14b8a6", pair: "#4d7cff" },
+  { name: "Teal", color: "#19c9b4", end: "#1f9bff", pair: "#ff4f9a" },
+  { name: "Graphite", color: "#8e97a8", end: "#6c7486", pair: "#c9cfda" },
 ];
 
 /**
@@ -159,6 +163,8 @@ export function accentRoles(accent: string, theme: Theme): Record<string, string
   // Without a preset's: the same colour turned a little towards blue-violet.
   const [h, s, l] = rgbToHsl(color);
   const end = preset ? (parseHex(preset.end) as Rgb) : hslToRgb([(h + 25) % 360, s, l]);
+  // Its partner: a third of the way round the colour wheel, unless a preset says.
+  const pair = preset ? (parseHex(preset.pair) as Rgb) : hslToRgb([(h + 120) % 360, s, l]);
   // Text on the gradient: white, unless the colours are light enough that dark reads better.
   const middle = mix(color, end, 0.5);
   const onAccent = luminance(middle) > 0.5 ? "#0d0f13" : "#ffffff";
@@ -173,6 +179,8 @@ export function accentRoles(accent: string, theme: Theme): Record<string, string
     "--accent": toHex(color),
     "--accent-rgb": color.map(Math.round).join(" "),
     "--accent-2": toHex(end),
+    "--accent-pair": toHex(pair),
+    "--accent-pair-rgb": pair.map(Math.round).join(" "),
     "--on-accent": onAccent,
     "--accent-ink": legible(color),
     "--accent-text": legible(text.text),
