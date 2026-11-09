@@ -286,6 +286,9 @@ const shots = {
     await page.locator(".menu-bar-item", { hasText: "View" }).dispatchEvent("mousedown", { button: 0 });
     await page.locator(".menu-item", { hasText: "Team Activity" }).click();
     await page.locator(".team-view .team-person-card").first().waitFor();
+    // Room for the statistics beside each other.
+    await page.getByRole("button", { name: "Close details" }).click().catch(() => {});
+    await page.locator(".team-view .team-panels .team-panel").nth(2).waitFor();
     await settle(page);
     return page;
   },
