@@ -37,7 +37,7 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
   return (
     <div className={`tab-bar${isWindows ? " with-window-controls" : ""}`} data-tauri-drag-region>
       <span className="tab-logo" data-tauri-drag-region>
-        <Logo size={20} gap="var(--chrome)" />
+        <Logo size={20} />
       </span>
       {menuBar}
       <div className="tabs" role="tablist">

@@ -432,9 +432,9 @@ const LOGO_TILE = "M924 512C924 922 922 924 512 924C102 924 100 922 100 512C100 
  * Tributary's logo, drawn like the app icon (tools/icons/draw.py): five branches in the
  * graph's colours flow in from above and merge into one commit, and one river flows on, in
  * the theme's colours (dark on light, white on dark). With `tile`, it's the whole app icon;
- * without, just the mark, and `gap` is the colour behind it (it keeps the lanes apart).
+ * without, just the mark.
  */
-export function Logo({ size = 32, gap = "var(--bg)", tile = false }: { size?: number; gap?: string; tile?: boolean }) {
+export function Logo({ size = 32, tile = false }: { size?: number; tile?: boolean }) {
   const id = useId().replace(/:/g, "");
   const lanes: [number, string][] = [
     [200, "#1fb5ff"],
@@ -444,17 +444,13 @@ export function Logo({ size = 32, gap = "var(--bg)", tile = false }: { size?: nu
     [824, "#8f6bff"],
   ];
   const lane = (x: number) => `M${x} 20V320C${x} 520 512 510 512 690`;
-  const between = tile ? "var(--logo-tile-gap)" : gap;
   const mark = (
     <>
       <path d="M450 690L418 1060H606L574 690Z" style={{ fill: "var(--logo-ink)" }} />
       <g fill="none" strokeLinecap="round">
-        {/* Outer lanes first, the middle one last, so they stack evenly where they meet. */}
+        {/* Outer lanes first, the middle one last, so they overlap evenly where they meet. */}
         {[0, 4, 1, 3, 2].map((i) => (
-          <g key={i}>
-            <path d={lane(lanes[i][0])} style={{ stroke: between }} strokeWidth={104} />
-            <path d={lane(lanes[i][0])} stroke={lanes[i][1]} strokeWidth={86} />
-          </g>
+          <path key={i} d={lane(lanes[i][0])} stroke={lanes[i][1]} strokeWidth={86} />
         ))}
       </g>
       <circle cx="512" cy="690" r="92" style={{ fill: "var(--logo-ink)" }} />

@@ -22,15 +22,10 @@
     <!-- The river, widening as it flows out -->
     <path d="M450 690L418 1060H606L574 690Z" fill="#ffffff"/>
     <g fill="none" stroke-linecap="round">
-    <path d="M200 20V320C200 520 512 510 512 690" stroke="#151a25" stroke-width="104"/>
     <path d="M200 20V320C200 520 512 510 512 690" stroke="#1fb5ff" stroke-width="86"/>
-    <path d="M824 20V320C824 520 512 510 512 690" stroke="#151a25" stroke-width="104"/>
     <path d="M824 20V320C824 520 512 510 512 690" stroke="#8f6bff" stroke-width="86"/>
-    <path d="M356 20V320C356 520 512 510 512 690" stroke="#151a25" stroke-width="104"/>
     <path d="M356 20V320C356 520 512 510 512 690" stroke="#ff4f9a" stroke-width="86"/>
-    <path d="M668 20V320C668 520 512 510 512 690" stroke="#151a25" stroke-width="104"/>
     <path d="M668 20V320C668 520 512 510 512 690" stroke="#2fd38a" stroke-width="86"/>
-    <path d="M512 20V320C512 520 512 510 512 690" stroke="#151a25" stroke-width="104"/>
     <path d="M512 20V320C512 520 512 510 512 690" stroke="#ffad1f" stroke-width="86"/>
     </g>
     <!-- Where they merge -->

@@ -20,14 +20,12 @@ MERGE_Y = 690
 THEMES = {
     "light": {
         "tile": [("0", "#ffffff"), ("1", "#e5eaf2")],
-        "gap": "#f4f6fa",      # between the lanes as they squeeze together: the tile's colour
         "ink": "#141a26",      # the merge and the river
         "dot": "#ffffff",
         "rim": 0.35,
     },
     "dark": {
         "tile": [("0", "#1c2333"), ("1", "#0b0e14")],
-        "gap": "#151a25",
         "ink": "#ffffff",
         "dot": "#141a26",
         "rim": 0.22,
@@ -44,12 +42,9 @@ def svg(theme):
     t = THEMES[theme]
     stops = "".join(f'<stop offset="{o}" stop-color="{c}"/>' for o, c in t["tile"])
     lanes = ""
-    # Outer lanes first and the middle one last, so they stack evenly where they meet.
+    # Outer lanes first and the middle one last, so they overlap evenly where they meet.
     for i in [0, 4, 1, 3, 2]:
-        lanes += (
-            f'\n    <path d="{lane(XS[i])}" stroke="{t["gap"]}" stroke-width="104"/>'
-            f'\n    <path d="{lane(XS[i])}" stroke="{LANES[i]}" stroke-width="86"/>'
-        )
+        lanes += f'\n    <path d="{lane(XS[i])}" stroke="{LANES[i]}" stroke-width="86"/>'
     return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!--
     Tributary's app icon ({theme}): five branches in the graph's colours flow in from beyond
