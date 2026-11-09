@@ -251,6 +251,29 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
                 arg(args, "body")?,
             ),
         )?),
+        "issues" => to_json(tauri::async_runtime::block_on(
+            tributary_lib::issues::issues(
+                &path()?,
+                &arg(args, "tracker")?,
+                &arg::<Vec<String>>(args, "keys")?,
+            ),
+        )?),
+        "my_issues" => to_json(tauri::async_runtime::block_on(
+            tributary_lib::issues::my_issues(&path()?, &arg(args, "tracker")?),
+        )?),
+        "tracker_status" => to_json(tauri::async_runtime::block_on(
+            tributary_lib::issues::tracker_status(&path()?, &arg(args, "tracker")?),
+        )?),
+        "tracker_sign_in" => to_json(tauri::async_runtime::block_on(
+            tributary_lib::issues::tracker_sign_in(
+                &arg(args, "tracker")?,
+                &arg::<String>(args, "user")?,
+                &arg::<String>(args, "token")?,
+            ),
+        )?),
+        "tracker_sign_out" => to_json(tributary_lib::issues::tracker_sign_out(&arg(
+            args, "tracker",
+        )?)?),
         "merge_request" => to_json(tauri::async_runtime::block_on(
             tributary_lib::reviews::merge(&path()?, arg(args, "number")?, arg(args, "options")?),
         )?),

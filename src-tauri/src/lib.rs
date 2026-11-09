@@ -11,6 +11,7 @@ pub mod git;
 pub mod github;
 pub mod gitlab;
 pub mod graph;
+pub mod issues;
 pub mod links;
 pub mod locks;
 pub mod repo;
@@ -85,6 +86,11 @@ pub fn run() {
             commands::comment_on_request,
             commands::review_request,
             commands::merge_request,
+            commands::issues,
+            commands::my_issues,
+            commands::tracker_status,
+            commands::tracker_sign_in,
+            commands::tracker_sign_out,
             commands::avatars,
             commands::github_status,
             commands::github_sign_in,

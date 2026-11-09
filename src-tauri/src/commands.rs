@@ -422,6 +422,50 @@ pub async fn review_request(
     crate::reviews::review(&PathBuf::from(path), number, verdict, body).await
 }
 
+/// The issues `keys` mentions (like "FEAST-12", or "#12") in the repository's tracker.
+#[tauri::command]
+pub async fn issues(
+    path: String,
+    tracker: crate::issues::Tracker,
+    keys: Vec<String>,
+) -> Result<Vec<crate::issues::Issue>> {
+    crate::issues::issues(&PathBuf::from(path), &tracker, &keys).await
+}
+
+/// The open issues assigned to you in the repository's tracker.
+#[tauri::command]
+pub async fn my_issues(
+    path: String,
+    tracker: crate::issues::Tracker,
+) -> Result<Vec<crate::issues::Issue>> {
+    crate::issues::my_issues(&PathBuf::from(path), &tracker).await
+}
+
+/// Whether you're signed in to the tracker.
+#[tauri::command]
+pub async fn tracker_status(
+    path: String,
+    tracker: crate::issues::Tracker,
+) -> Result<crate::issues::TrackerStatus> {
+    crate::issues::tracker_status(&PathBuf::from(path), &tracker).await
+}
+
+/// Sign in to Jira or Linear: the key is checked, then kept by git's credential helper.
+#[tauri::command]
+pub async fn tracker_sign_in(
+    tracker: crate::issues::Tracker,
+    user: String,
+    token: String,
+) -> Result<crate::issues::TrackerStatus> {
+    crate::issues::tracker_sign_in(&tracker, &user, &token).await
+}
+
+/// Forget Jira's or Linear's key.
+#[tauri::command]
+pub async fn tracker_sign_out(tracker: crate::issues::Tracker) -> Result<()> {
+    blocking(move || crate::issues::tracker_sign_out(&tracker)).await
+}
+
 /// Merge a request on its site.
 #[tauri::command]
 pub async fn merge_request(

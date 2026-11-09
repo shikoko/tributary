@@ -13,6 +13,8 @@
 //   update         an update to offer, like { version: "0.2.0", notes: "…", date: null }
 //   github         a stand-in GitHub sign-in, like { account: null, browserSignIn: true },
 //                  instead of git's real credential helper
+//   issues         a stand-in issue tracker: { all: [issues], mine: [their keys], user },
+//                  instead of asking Jira, Linear, GitHub or GitLab
 // and read what happened from it afterwards: opened (links and revealed files), notified.
 (() => {
   const preview = (window.__PREVIEW__ = {
@@ -205,6 +207,11 @@
     },
     check_for_update: () => preview.update,
     install_update: installUpdate,
+    issues: (args) => (preview.issues ? preview.issues.all.filter((issue) => args.keys.includes(issue.key)) : server("issues", args)),
+    my_issues: (args) => (preview.issues ? preview.issues.all.filter((issue) => preview.issues.mine.includes(issue.key)) : server("my_issues", args)),
+    tracker_status: (args) => (preview.issues ? { signedIn: Boolean(preview.issues.user), user: preview.issues.user ?? null } : server("tracker_status", args)),
+    tracker_sign_in: (args) => (preview.issues ? ((preview.issues.user = "Maya Chen"), { signedIn: true, user: "Maya Chen" }) : server("tracker_sign_in", args)),
+    tracker_sign_out: (args) => (preview.issues ? ((preview.issues.user = null), null) : server("tracker_sign_out", args)),
     pull_requests: (args) => (faking() ? structuredClone(preview.pullRequests) : server("pull_requests", args)),
     pull_request_details: (args) => (faking() ? fakeDetails(args) : server("pull_request_details", args)),
     request_conversation: (args) => (faking() ? structuredClone(conversationOf(args.number)) : server("request_conversation", args)),

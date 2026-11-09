@@ -400,3 +400,53 @@
   color: var(--danger-text);
   overflow-wrap: anywhere;
 }
+
+/* The issues a commit mentions, with their titles and states. */
+.mentioned-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mentioned-issue {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12.5px;
+}
+
+.mentioned-issue-key {
+  flex: none;
+  font-size: 12px;
+}
+
+.mentioned-issue-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mentioned-issue-status {
+  flex: none;
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--bg-raised);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.mentioned-issue.done .mentioned-issue-title {
+  color: var(--text-muted);
+}
+
+.field-note {
+  color: var(--text-muted);
+  font-size: 12px;
+}

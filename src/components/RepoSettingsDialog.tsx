@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { repoIdentity, signingSettings, type Action, type RepoIdentity, type SigningMode, type SigningSettings } from "../api";
-import { ActivityIcon, CloudIcon, FolderIcon, GlobeIcon, KeyIcon, LockIcon, MergeIcon, UserIcon } from "./Icons";
+import { repoIdentity, signingSettings, type Action, type RepoIdentity, type SigningMode, type SigningSettings, type Tracker } from "../api";
+import { ActivityIcon, CheckIcon, CloudIcon, FolderIcon, GlobeIcon, KeyIcon, LockIcon, MergeIcon, UserIcon } from "./Icons";
 import { useRemoteRows } from "./RemoteSettingsRows";
 import { useLfsSettingsRows } from "./LfsSettingsRows";
 import { useSparseRows } from "./SparseSettingsRows";
 import { useSpeedRows } from "./SpeedSettingsRows";
+import { useIssueRows } from "./IssueSettingsRows";
 import { useUnityRows } from "./UnitySettingsRows";
 import { NameList, SettingsDialog, type SettingRow, type SettingsSection } from "./SettingsDialog";
 
@@ -12,6 +13,8 @@ interface Props {
   /** The repository's folder name, and its folder. */
   name: string;
   path: string;
+  /** The remote's own issues, when it has them (GitHub, GitLab). */
+  automaticTracker: Tracker | null;
   protectedBranches: string[];
   setProtectedBranches: (names: string[]) => void;
   /** Runs a git action; resolves to true when it worked. */
@@ -34,7 +37,7 @@ function describe(name: string | null, email: string | null): string {
  * One repository's own settings, from its tab's menu or the Repository menu: who commits
  * are made as here, its protected branches, and its Git LFS files.
  */
-export function RepoSettingsDialog({ name, path, protectedBranches, setProtectedBranches, run, onCleanUpLfs, onClose, section }: Props) {
+export function RepoSettingsDialog({ name, path, automaticTracker, protectedBranches, setProtectedBranches, run, onCleanUpLfs, onClose, section }: Props) {
   const [identity, setIdentity] = useState<RepoIdentity | null>(null);
   const [draft, setDraft] = useState({ name: "", email: "" });
   const [saving, setSaving] = useState(false);
@@ -55,6 +58,7 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
   const unityRows = useUnityRows(path, run);
   const sparseRows = useSparseRows(path, run);
   const speedRows = useSpeedRows(path, run);
+  const issueRows = useIssueRows(path, automaticTracker);
   const own = Boolean(identity?.localName || identity?.localEmail);
   const usual = identity ? describe(identity.globalName, identity.globalEmail) : "…";
   const changed = identity !== null && (draft.name.trim() !== (identity.localName ?? "") || draft.email.trim() !== (identity.localEmail ?? ""));
@@ -135,6 +139,11 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
       title: "Remotes",
       icon: <GlobeIcon size={15} />,
       rows: remoteRows,
+    },
+    {
+      title: "Issues",
+      icon: <CheckIcon size={15} />,
+      rows: issueRows,
     },
     {
       title: "Branches",

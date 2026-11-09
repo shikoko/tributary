@@ -8,6 +8,7 @@ import { coAuthors } from "../lib/weblinks";
 import { Avatar } from "./Avatar";
 import { CheckIcon, CloseIcon, CopyIcon, KeyIcon } from "./Icons";
 import { describeSignature } from "../lib/signatures";
+import { MentionedIssues } from "./MentionedIssues";
 import { MessageText } from "./MessageText";
 import { RefPills } from "./RefPills";
 import { FileLine } from "./FileLine";
@@ -141,6 +142,7 @@ export function CommitDetailsPanel(props: Props) {
               })}
             </div>
           )}
+          <MentionedIssues text={`${details?.summary ?? commit.summary}\n${details?.body ?? ""}\n${commit.refs.map((ref) => ref.name).join("\n")}`} />
 
           {commit.refs.length > 0 && (
             <div className="details-refs">

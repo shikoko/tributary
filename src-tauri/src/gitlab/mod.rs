@@ -12,6 +12,7 @@ use crate::github::{CheckState, Forge, PullRequest, client};
 use crate::links::Host;
 
 /// Opening a merge request, and reading one in full.
+pub(crate) mod issues;
 mod requests;
 pub(crate) mod reviews;
 pub(crate) use requests::{create, details};

@@ -8,6 +8,7 @@ export * from "./diff";
 export * from "./diffTools";
 export * from "./github";
 export * from "./identity";
+export * from "./issues";
 export * from "./lfs";
 export * from "./repository";
 export * from "./submodules";

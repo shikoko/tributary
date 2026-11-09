@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { usePresence } from "../lib/usePresence";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { fullRefName, PAGE_SIZE, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type PullRequest, type RepoSnapshot, type Worktree } from "../api";
@@ -29,6 +29,9 @@ import { RepositoryDialogs } from "./Dialogs";
 import { fileMenuItems, lockMenuItems } from "./fileMenus";
 import { columnMenuItems, detailsActionsFor, pushMenuItems, submoduleMenuItems, worktreeMenuItems } from "./listMenus";
 import { RepositoryBanners } from "./RepositoryBanners";
+import { effectiveTracker, IssueTrackerContext, type TrackerSetting } from "../lib/issues";
+import { useRepoSetting } from "../lib/repoPrefs";
+import { webRemote } from "../lib/weblinks";
 import type { Actions } from "./useActions";
 import type { BranchCounts } from "./useBranchCounts";
 import type { CommitDetailsCache } from "./useCommitDetails";
@@ -107,6 +110,13 @@ export function RepositoryView(props: Props) {
   const run = (action: Action) => act(action);
   /** Sizes when a panel resize started. */
   const resizeStart = useRef({ sidebar: 0, details: 0 });
+  // The repository's issue tracker: the one chosen in its settings, or its remote's issues.
+  const [trackerSetting] = useRepoSetting<TrackerSetting>("issueTracker", snapshot.path, null);
+  const issueTracker = useMemo(
+    () => ({ repoPath: snapshot.path, tracker: effectiveTracker(trackerSetting, snapshot), remote: webRemote(snapshot) }),
+    // The remotes are what matters of the snapshot.
+    [trackerSetting, snapshot.path, snapshot.webRemotes, snapshot.upstream?.name],
+  );
 
   // A file's changes, who changed each line, and two commits compared.
   const views = useFileViews({
@@ -278,7 +288,7 @@ export function RepositoryView(props: Props) {
   );
 
   return (
-    <>
+    <IssueTrackerContext.Provider value={issueTracker}>
       <Toolbar
         snapshot={snapshot}
         refreshing={repo.busy !== null}
@@ -430,6 +440,7 @@ export function RepositoryView(props: Props) {
         <RepoSettingsDialog
           name={snapshot.name}
           path={snapshot.path}
+          automaticTracker={effectiveTracker(null, snapshot)}
           protectedBranches={settings.protectedBranches}
           setProtectedBranches={settings.setProtectedBranches}
           run={(action) => act(action)}
@@ -475,6 +486,6 @@ export function RepositoryView(props: Props) {
           props.openSettings("Accounts");
         }}
       />
-    </>
+    </IssueTrackerContext.Provider>
   );
 }
