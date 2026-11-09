@@ -27,6 +27,8 @@ mod remote;
 mod remote_settings;
 mod search;
 mod signing;
+mod sparse;
+mod speed;
 mod stash;
 mod submodules;
 mod support;
@@ -66,6 +68,8 @@ pub use prune::{
 pub use remote_settings::{RemoteInfo, remotes};
 pub use search::{SearchMode, SearchResult, search_commits};
 pub use signing::{SigningKey, SigningMode, SigningSettings, signing_settings};
+pub use sparse::{FolderChoice, SparseSettings, sparse_settings};
+pub use speed::{SpeedSettings, SpeedUp, speed_settings};
 pub use submodules::{Submodule, SubmoduleState, submodules};
 pub use team::{BranchActivity, BranchPerson, TeamActivity, TeamPerson, team_activity};
 pub use unity::{UnitySetup, unity_setup};
@@ -302,6 +306,13 @@ pub enum Action {
         url: String,
         push: bool,
     },
+    /// Check out only these folders (and the files at the top), or every folder when it's
+    /// empty.
+    SetSparseFolders { folders: Vec<String> },
+    /// Turn one of git's speed-ups for big repositories on or off here.
+    SetSpeedUp { which: SpeedUp, on: bool },
+    /// Turn on every speed-up git has here.
+    SpeedUpAll,
     /// Merge Unity's scenes, prefabs and other YAML files with Smart Merge (`tool`, the
     /// UnityYAMLMerge program) from now on, in this repository.
     SetUpUnityMerge { tool: String },
@@ -598,6 +609,11 @@ fn perform(
         Action::OpenInMergeTool { path } => diff::open_in_merge_tool(&git, path),
         Action::SetIdentity { name, email } => identity::set_identity(&git, name, email),
         Action::SetSigning { mode, key } => signing::set_signing(&git, mode, key),
+        Action::SetSpeedUp { which, on } => speed::set_speed_up(&git, which, on, on_progress),
+        Action::SpeedUpAll => speed::speed_up_all(&git, path, on_progress),
+        Action::SetSparseFolders { folders } => {
+            sparse::set_sparse_folders(&git, folders, on_progress)
+        }
         Action::SetUpUnityMerge { tool } => unity::set_up_unity_merge(&git, tool),
         Action::RemoveUnityMerge => unity::remove_unity_merge(&git),
         Action::UnitySmartMerge { file, tool } => unity::unity_smart_merge(&git, file, tool),

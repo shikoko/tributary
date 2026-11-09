@@ -228,3 +228,20 @@
   min-width: 0;
   flex: 1;
 }
+
+/* Folders to check out, in a repository's settings. */
+.sparse-folders {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  min-width: 240px;
+  padding: 6px 10px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.sparse-folder.nested {
+  padding-left: 20px;
+}

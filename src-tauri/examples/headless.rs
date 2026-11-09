@@ -188,6 +188,8 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "repo_identity" => to_json(actions::repo_identity(&path()?)?),
         "signing_settings" => to_json(actions::signing_settings(&path()?)?),
         "unity_setup" => to_json(actions::unity_setup(&path()?)?),
+        "sparse_settings" => to_json(actions::sparse_settings(&path()?)?),
+        "speed_settings" => to_json(actions::speed_settings(&path()?)?),
         "remotes" => to_json(actions::remotes(&path()?)?),
         // The browser preview has no app icon to change.
         "set_app_icon" => Ok(Value::Null),

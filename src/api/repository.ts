@@ -425,3 +425,50 @@ export interface RepoSummary {
 export function repoSummary(path: string): Promise<RepoSummary> {
   return invoke<RepoSummary>("repo_summary", { path });
 }
+
+/** A folder that could be checked out. */
+export interface FolderChoice {
+  /** Like "Content/Characters". */
+  path: string;
+  /** It's inside another folder offered. */
+  nested: boolean;
+}
+
+/** Which folders the repository has checked out (a sparse checkout), and which it could. */
+export interface SparseSettings {
+  /** Only some folders are checked out. */
+  sparse: boolean;
+  /** It's git's usual kind of sparse checkout (by folders), which Tributary can change. */
+  cone: boolean;
+  /** The folders checked out, when only some are. */
+  folders: string[];
+  /** The folders at the top, and those just inside them. */
+  available: FolderChoice[];
+  /** A partial clone: files outside the checked-out folders aren't downloaded. */
+  partial: boolean;
+}
+
+export function sparseSettings(path: string): Promise<SparseSettings> {
+  return invoke<SparseSettings>("sparse_settings", { path });
+}
+
+/** One of git's speed-ups for big repositories. */
+export type SpeedUp = "fileWatcher" | "untrackedCache" | "commitGraph" | "maintenance";
+
+/** How big the repository is, and which of git's speed-ups are on. */
+export interface SpeedSettings {
+  /** Files in the index. */
+  files: number;
+  /** Big enough for the speed-ups to matter. */
+  big: boolean;
+  /** Null where git has no file watcher of its own (Linux, or git before 2.36). */
+  fileWatcher: boolean | null;
+  untrackedCache: boolean;
+  commitGraph: boolean;
+  maintenance: boolean;
+  gitVersion: string;
+}
+
+export function speedSettings(path: string): Promise<SpeedSettings> {
+  return invoke<SpeedSettings>("speed_settings", { path });
+}

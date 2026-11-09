@@ -261,6 +261,18 @@ pub async fn remotes(path: String) -> Result<Vec<actions::RemoteInfo>> {
     blocking(move || actions::remotes(&PathBuf::from(path))).await
 }
 
+/// How big the repository is, and which of git's speed-ups are on.
+#[tauri::command]
+pub async fn speed_settings(path: String) -> Result<actions::SpeedSettings> {
+    blocking(move || actions::speed_settings(&PathBuf::from(path))).await
+}
+
+/// Which folders the repository has checked out, and which it could.
+#[tauri::command]
+pub async fn sparse_settings(path: String) -> Result<actions::SparseSettings> {
+    blocking(move || actions::sparse_settings(&PathBuf::from(path))).await
+}
+
 /// The repository's Unity project, if it has one, and how Smart Merge is set up for it.
 #[tauri::command]
 pub async fn unity_setup(path: String) -> Result<actions::UnitySetup> {

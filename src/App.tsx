@@ -3,6 +3,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { WORKTREE_ID, type Action, type PullRequest } from "./api";
 import { useLfsLocks } from "./lib/locks";
 import { usePullRequestNews } from "./app/usePullRequestNews";
+import { useSpeedOffer } from "./app/useSpeedOffer";
 import { makeLookup, PullRequestsContext, requestNumber, usePullRequests } from "./lib/pullRequests";
 import { BisectMarksContext, bisectMarks } from "./lib/bisect";
 import { useUpdates } from "./lib/updates";
@@ -165,6 +166,8 @@ export default function App() {
     () => new Set((snapshot?.commits ?? []).flatMap((commit) => commit.refs.filter((ref) => ref.kind === "branch").map((ref) => ref.name))),
     [snapshot?.commits],
   );
+  // A big repository without git's speed-ups: offered once.
+  useSpeedOffer(snapshot, setToast, () => setDialog({ kind: "repoSettings", section: "Speed" }));
   usePullRequestNews({
     repoPath,
     repoName: snapshot?.name ?? "",

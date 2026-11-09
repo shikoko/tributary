@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { repoIdentity, signingSettings, type Action, type RepoIdentity, type SigningMode, type SigningSettings } from "../api";
-import { CloudIcon, GlobeIcon, KeyIcon, LockIcon, MergeIcon, UserIcon } from "./Icons";
+import { ActivityIcon, CloudIcon, FolderIcon, GlobeIcon, KeyIcon, LockIcon, MergeIcon, UserIcon } from "./Icons";
 import { useRemoteRows } from "./RemoteSettingsRows";
 import { useLfsSettingsRows } from "./LfsSettingsRows";
+import { useSparseRows } from "./SparseSettingsRows";
+import { useSpeedRows } from "./SpeedSettingsRows";
 import { useUnityRows } from "./UnitySettingsRows";
 import { NameList, SettingsDialog, type SettingRow, type SettingsSection } from "./SettingsDialog";
 
@@ -51,6 +53,8 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
   const signingRows = useSigningRows(path, run);
   const remoteRows = useRemoteRows(path, run);
   const unityRows = useUnityRows(path, run);
+  const sparseRows = useSparseRows(path, run);
+  const speedRows = useSpeedRows(path, run);
   const own = Boolean(identity?.localName || identity?.localEmail);
   const usual = identity ? describe(identity.globalName, identity.globalEmail) : "…";
   const changed = identity !== null && (draft.name.trim() !== (identity.localName ?? "") || draft.email.trim() !== (identity.localEmail ?? ""));
@@ -143,6 +147,16 @@ export function RepoSettingsDialog({ name, path, protectedBranches, setProtected
           content: <NameList names={protectedBranches} onChange={setProtectedBranches} placeholder="Add a branch" />,
         },
       ],
+    },
+    {
+      title: "Folders",
+      icon: <FolderIcon size={15} />,
+      rows: sparseRows,
+    },
+    {
+      title: "Speed",
+      icon: <ActivityIcon size={15} />,
+      rows: speedRows,
     },
     {
       title: "Git LFS",

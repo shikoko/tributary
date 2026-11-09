@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { BranchTip } from "./branches";
 import type { DiffSource } from "./diff";
 import type { SigningMode } from "./identity";
+import type { SpeedUp } from "./repository";
 
 /** Something that changes the repository. These run the installed git. */
 /** What to do with some changed lines: stage them, unstage them, or undo them in the file. */
@@ -92,6 +93,11 @@ export type Action =
   /** Commit as this name and email in this repository; both empty go back to the usual ones. */
   | { kind: "setIdentity"; name: string; email: string }
   | { kind: "setSigning"; mode: SigningMode; key: string | null }
+  /** Turn one of git's speed-ups for big repositories on or off. */
+  | { kind: "setSpeedUp"; which: SpeedUp; on: boolean }
+  | { kind: "speedUpAll" }
+  /** Check out only these folders (and the files at the top), or every folder when it's empty. */
+  | { kind: "setSparseFolders"; folders: string[] }
   /** Merge Unity's scenes, prefabs and other YAML files with Smart Merge (`tool`) here from now on. */
   | { kind: "setUpUnityMerge"; tool: string }
   | { kind: "removeUnityMerge" }
