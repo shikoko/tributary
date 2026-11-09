@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import type { FileKind, KindCount, RecentRequest, TeamWork } from "../../api";
 import { plural } from "../../lib/format";
 import { baseName } from "../../lib/paths";
-import { dayLabel, median, perDay, punchCard, roughDuration, seriesColor } from "../../lib/team";
+import { dayLabel, median, perDay, punchCard, roughDuration } from "../../lib/team";
 import { Avatar } from "../Avatar";
 import { AreaTrend } from "./AreaTrend";
 import type { Tip } from "./parts";
@@ -112,7 +112,7 @@ function perDayWeighted(commits: TeamWork["commits"], days: number[], weight: (c
 }
 
 /** The files changed most, with who changed them; those that can't be merged stand out. */
-export function HotspotsCard({ work, nameOf, slotOf, tip }: { work: TeamWork; nameOf: (email: string) => string; slotOf: (email: string) => number; tip: Tip }) {
+export function HotspotsCard({ work, nameOf, colorOf, tip }: { work: TeamWork; nameOf: (email: string) => string; colorOf: (email: string) => string; tip: Tip }) {
   const most = Math.max(1, ...work.hotspots.map((spot) => spot.changes));
   return (
     <section className="team-panel">
@@ -141,7 +141,7 @@ export function HotspotsCard({ work, nameOf, slotOf, tip }: { work: TeamWork; na
               <span className="team-avatars">
                 {spot.people.slice(0, 3).map((email) => (
                   <span key={email} onMouseEnter={(event) => tip.show(event, <strong>{nameOf(email)}</strong>)} onMouseLeave={tip.hide}>
-                    <Avatar name={nameOf(email)} email={email} size={18} color={seriesColor(slotOf(email))} />
+                    <Avatar name={nameOf(email)} email={email} size={18} color={colorOf(email)} />
                   </span>
                 ))}
               </span>

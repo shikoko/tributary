@@ -1,9 +1,6 @@
 // The arithmetic behind Team activity's charts: which day each commit falls on, everyone's
 // colour, and the scales.
 
-/** Colours for people, in this order (theme.css: --series-1 to --series-8); the ninth person on is grey. */
-export const SERIES_SLOTS = 8;
-
 /** The local midnight before `ms`. */
 export function dayStart(ms: number): number {
   const day = new Date(ms);
@@ -41,8 +38,8 @@ export function perDay(times: number[], days: number[]): number[] {
 }
 
 /**
- * Everyone's colour slot, 1 to 8 (0, grey, past that), in the order they're listed. Slots
- * already given stay, so changing the period never repaints someone.
+ * Everyone's place in the colours, from 1, in the order they're listed. Places already given
+ * stay, so changing the period never repaints someone.
  */
 export function assignSlots(known: ReadonlyMap<string, number>, emails: string[]): Map<string, number> {
   const slots = new Map(known);
@@ -52,15 +49,10 @@ export function assignSlots(known: ReadonlyMap<string, number>, emails: string[]
     if (slots.has(key)) continue;
     let slot = 1;
     while (used.has(slot)) slot++;
-    slots.set(key, slot <= SERIES_SLOTS ? slot : 0);
+    slots.set(key, slot);
     used.add(slot);
   }
   return slots;
-}
-
-/** A slot's colour, as a CSS value. */
-export function seriesColor(slot: number): string {
-  return slot > 0 ? `var(--series-${slot})` : "var(--series-other)";
 }
 
 /** "Today", "Yesterday", or like "Tue 3". */

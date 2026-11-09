@@ -29,8 +29,7 @@ describe("team activity charts", () => {
     expect(later.get("theo@example.com")).toBe(2);
     expect(later.get("maya@example.com")).toBe(3);
     const crowd = assignSlots(new Map(), Array.from({ length: 10 }, (_, i) => `p${i}@example.com`));
-    expect(crowd.get("p7@example.com")).toBe(8);
-    expect(crowd.get("p8@example.com")).toBe(0);
+    expect(crowd.get("p9@example.com")).toBe(10);
   });
 
   it("draws a smooth line that doesn't bulge past its points", () => {

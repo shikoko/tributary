@@ -106,22 +106,14 @@
   --purple: #a77bff;
   --purple-rgb: 167 123 255;
 
-  /* Colours for people in charts (Team activity), checked for colour blindness on this background. */
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --series-3: #199e70;
-  --series-4: #c98500;
-  --series-5: #d55181;
-  --series-6: #008300;
-  --series-7: #9085e9;
-  --series-8: #e66767;
-  --series-other: #596071;
-  /* Kinds of work (Team activity), in an order checked for colour blindness. */
-  --kind-code: var(--series-1);
-  --kind-art: var(--series-2);
-  --kind-levels: var(--series-3);
-  --kind-audio: var(--series-4);
-  --kind-other: var(--series-other);
+  /* Team activity: kinds of work, checked for colour blindness on this background, and
+     people once the graph colours run out. */
+  --kind-code: #3987e5;
+  --kind-art: #d95926;
+  --kind-levels: #199e70;
+  --kind-audio: #c98500;
+  --kind-other: #596071;
+  --team-other: #596071;
   /* Code, coloured by its syntax (diffs, blame, conflicts). */
   --syntax-keyword: #c792ea;
   --syntax-string: #a5d98a;
@@ -248,15 +240,12 @@
   --teal-rgb: 0 149 127;
   --pink-rgb: 230 60 130;
 
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --series-4: #eda100;
-  --series-5: #e87ba4;
-  --series-6: #008300;
-  --series-7: #6250d6;
-  --series-8: #e34948;
-  --series-other: #a3a9b5;
+  --kind-code: #2a78d6;
+  --kind-art: #eb6834;
+  --kind-levels: #1baf7a;
+  --kind-audio: #eda100;
+  --kind-other: #a3a9b5;
+  --team-other: #a3a9b5;
 
   color-scheme: light;
 }

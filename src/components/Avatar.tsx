@@ -36,7 +36,7 @@ export function Avatar({ name, email, size = 20, color }: { name: string; email:
   // Asking for a picture: a plain circle for a moment, rather than initials that are about to change.
   const asking = Boolean(repo && email) && url === undefined && !waited;
   return (
-    <span className="avatar" style={style} aria-hidden="true">
+    <span className={`avatar${color ? " lane" : ""}`} style={style} aria-hidden="true">
       {!asking && <span className="avatar-initials">{initials(name)}</span>}
     </span>
   );

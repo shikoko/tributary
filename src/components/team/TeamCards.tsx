@@ -2,16 +2,16 @@
 // each person with their own graph in their colour, and a card for each branch.
 import { plural, relativeTime } from "../../lib/format";
 import { baseName } from "../../lib/paths";
-import { change, dayLabel, labelledDays, perDay, previousPerDay, rhythm, seriesColor, withoutRemote } from "../../lib/team";
+import { change, dayLabel, labelledDays, perDay, previousPerDay, rhythm, withoutRemote } from "../../lib/team";
 import { Avatar } from "../Avatar";
 import { BranchIcon, LockIcon } from "../Icons";
 import { AreaTrend } from "./AreaTrend";
 import { DayTip, Divergence, Overlap, RingedAvatar, YouTag, type TeamData } from "./parts";
 import { HotspotsCard, KindBar, KindsCard, LinesCard, PunchCard, RequestsCard } from "./TeamStats";
 
-export function TeamCards({ team, work, requests, days, now, slotOf, isYou, yoursOn, lockOwners, tip, onShowBranch, onShowPerson }: TeamData) {
+export function TeamCards({ team, work, requests, days, now, colorOf, isYou, yoursOn, lockOwners, tip, onShowBranch, onShowPerson }: TeamData) {
   const today = days[days.length - 1];
-  const people = team.people.map((person) => ({ person, slot: slotOf(person.email), daily: perDay(person.times, days) }));
+  const people = team.people.map((person) => ({ person, color: colorOf(person.email), daily: perDay(person.times, days) }));
   const totals = days.map((_, index) => people.reduce((sum, entry) => sum + entry.daily[index], 0));
   const total = team.people.reduce((sum, person) => sum + person.commits, 0);
   const busiestDay = totals.reduce((best, count, index) => (count > totals[best] ? index : best), 0);
@@ -50,8 +50,8 @@ export function TeamCards({ team, work, requests, days, now, slotOf, isYou, your
             </span>
           </div>
           <div className="team-hero-people">
-            {people.slice(0, 8).map(({ person, slot }) => (
-              <RingedAvatar key={person.email} person={person} slot={slot} size={30} />
+            {people.slice(0, 8).map(({ person, color }) => (
+              <RingedAvatar key={person.email} person={person} color={color} size={30} />
             ))}
             {people.length > 8 && <span className="team-hero-more">+{people.length - 8}</span>}
           </div>
@@ -99,7 +99,7 @@ export function TeamCards({ team, work, requests, days, now, slotOf, isYou, your
         <div className="team-panels">
           {work && work.kinds.length > 0 && <KindsCard work={work} tip={tip} />}
           {work && <LinesCard work={work} days={days} today={today} tip={tip} />}
-          {work && work.hotspots.length > 0 && <HotspotsCard work={work} nameOf={nameOf} slotOf={slotOf} tip={tip} />}
+          {work && work.hotspots.length > 0 && <HotspotsCard work={work} nameOf={nameOf} colorOf={colorOf} tip={tip} />}
           <PunchCard times={allTimes} tip={tip} />
           {requests && requests.length > 0 && <RequestsCard requests={requests} since={team.since} />}
         </div>
@@ -107,11 +107,11 @@ export function TeamCards({ team, work, requests, days, now, slotOf, isYou, your
 
       <h3 className="team-section-title">People</h3>
       <ul className="team-card-grid">
-        {people.map(({ person, slot, daily }) => (
+        {people.map(({ person, color, daily }) => (
           <li key={person.email}>
             <button className="team-person-card" onClick={() => onShowPerson(person)} title={`Highlight ${person.name}'s commits`}>
               <span className="team-person-card-head">
-                <RingedAvatar person={person} slot={slot} size={36} />
+                <RingedAvatar person={person} color={color} size={36} />
                 <span className="team-person-card-name">
                   <span>
                     {person.name}
@@ -127,7 +127,7 @@ export function TeamCards({ team, work, requests, days, now, slotOf, isYou, your
               <AreaTrend
                 values={daily}
                 top={busiestPerson}
-                color={seriesColor(slot)}
+                color={color}
                 height={52}
                 label={`${person.name}'s commits per day`}
                 tip={tip}
@@ -176,7 +176,7 @@ export function TeamCards({ team, work, requests, days, now, slotOf, isYou, your
                   <span className="team-branch-card-foot">
                     <span className="team-avatars">
                       {branch.people.slice(0, 4).map((person) => (
-                        <Avatar key={person.email} name={person.name} email={person.email} size={20} color={seriesColor(slotOf(person.email))} />
+                        <Avatar key={person.email} name={person.name} email={person.email} size={20} color={colorOf(person.email)} />
                       ))}
                     </span>
                     <span className="muted">

@@ -75,6 +75,11 @@
   margin-left: -5px;
 }
 
+/* Avatars in a graph colour: initials in the colour that reads on lanes. */
+.team-view .avatar.lane {
+  color: var(--on-lane);
+}
+
 .team-avatars .avatar {
   box-shadow: 0 0 0 2px var(--bg-panel);
 }

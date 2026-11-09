@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { recentRequests, teamActivity, teamWork, type BranchActivity, type Lock, type Overlap, type RecentRequest, type TeamActivity, type TeamWork } from "../api";
 import { assignSlots, periodDays } from "../lib/team";
+import { useThemeColors } from "../app/useAppearance";
 import { CloseIcon, UserIcon } from "./Icons";
 import { useTip, type TeamData } from "./team/parts";
 import { TeamCards } from "./team/TeamCards";
@@ -99,7 +100,12 @@ export function TeamView({ repoPath, version, user, locks, overlaps, onClose, on
   useEffect(() => {
     if (team) setSlots((known) => assignSlots(known, team.people.map((person) => person.email)));
   }, [team]);
-  const slotOf = (email: string) => slots.get(email.toLowerCase()) ?? 0;
+  // Their colour: the graph colours chosen in Settings, in turn; grey once they run out.
+  const { lanes } = useThemeColors();
+  const colorOf = (email: string) => {
+    const slot = slots.get(email.toLowerCase()) ?? 0;
+    return slot > 0 && slot <= lanes.length ? lanes[slot - 1] : "var(--team-other)";
+  };
   const { layer, tip, view: tipView } = useTip();
   const now = Date.now();
   const data =
@@ -110,7 +116,7 @@ export function TeamView({ repoPath, version, user, locks, overlaps, onClose, on
       requests: requests?.path === repoPath ? requests.requests : null,
       days: periodDays(team.since, now),
       now,
-      slotOf,
+      colorOf,
       isYou,
       yoursOn,
       lockOwners,

@@ -4,7 +4,6 @@ import { useRef, useState, type CSSProperties, type FocusEvent, type MouseEvent,
 import type { BranchActivity, Lock, RecentRequest, TeamActivity, TeamPerson, TeamWork } from "../../api";
 import { plural } from "../../lib/format";
 import { baseName } from "../../lib/paths";
-import { seriesColor } from "../../lib/team";
 import { Avatar } from "../Avatar";
 
 export interface TeamData {
@@ -16,8 +15,8 @@ export interface TeamData {
   /** The period's days, each as its midnight (milliseconds), and now. */
   days: number[];
   now: number;
-  /** Someone's colour slot (lib/team: seriesColor). */
-  slotOf: (email: string) => number;
+  /** Someone's colour: from the graph colours chosen in Settings, in the order people appear. */
+  colorOf: (email: string) => string;
   isYou: (email: string) => boolean;
   /** Files you're changing that a branch also changes. */
   yoursOn: (branch: BranchActivity) => string[];
@@ -29,17 +28,17 @@ export interface TeamData {
 }
 
 /** A person's picture or initials, ringed in their colour. */
-export function RingedAvatar({ person, slot, size }: { person: { name: string; email: string }; slot: number; size: number }) {
+export function RingedAvatar({ person, color, size }: { person: { name: string; email: string }; color: string; size: number }) {
   return (
-    <span className="team-ring" style={{ "--ring": seriesColor(slot) } as CSSProperties}>
-      <Avatar name={person.name} email={person.email} size={size} color={seriesColor(slot)} />
+    <span className="team-ring" style={{ "--ring": color } as CSSProperties}>
+      <Avatar name={person.name} email={person.email} size={size} color={color} />
     </span>
   );
 }
 
 /** A dot of someone's colour, for legends. */
-export function Swatch({ slot }: { slot: number }) {
-  return <span className="team-swatch" style={{ background: seriesColor(slot) }} />;
+export function Swatch({ color }: { color: string }) {
+  return <span className="team-swatch" style={{ background: color }} />;
 }
 
 export function YouTag() {
@@ -119,7 +118,7 @@ export function useTip() {
 }
 
 /** The tooltip for one day: everyone's commits that day, busiest first. */
-export function DayTip({ label, entries }: { label: string; entries: { person: TeamPerson; slot: number; count: number }[] }) {
+export function DayTip({ label, entries }: { label: string; entries: { person: TeamPerson; color: string; count: number }[] }) {
   const total = entries.reduce((sum, entry) => sum + entry.count, 0);
   return (
     <>
@@ -131,7 +130,7 @@ export function DayTip({ label, entries }: { label: string; entries: { person: T
         .sort((a, b) => b.count - a.count)
         .map((entry) => (
           <span key={entry.person.email} className="team-tip-row">
-            <Swatch slot={entry.slot} />
+            <Swatch color={entry.color} />
             {entry.person.name}
             <span className="team-tip-value">{entry.count}</span>
           </span>
