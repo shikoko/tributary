@@ -195,8 +195,8 @@ export default function App() {
       // Locks change when you lock or unlock, and may have changed on the server; a push
       // can open the way for a pull request, and a fetch can bring new ones.
       if (action.kind === "lockFiles" || action.kind === "unlockFiles") lfs.refresh(true);
-      else if (kind && kind !== "other") lfs.refresh();
-      if (kind && kind !== "other") prs.refresh(true);
+      else if (kind && kind !== "other" && kind !== "checkout") lfs.refresh();
+      if (kind && kind !== "other" && kind !== "checkout") prs.refresh(true);
       if (action.kind === "push" && outcome?.pushedFiles) lockRelease.pushedFiles(outcome.pushedFiles);
       submodules.ran(action);
     },

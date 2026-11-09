@@ -5,7 +5,7 @@ import { undoFor } from "../lib/undo";
 import { openInBrowser } from "../lib/weblinks";
 import type { ToastMessage } from "../components/Toast";
 import { splitRemoteBranch, type OpenDialog } from "../menus";
-import { PROGRESS_DELAY, RETRYABLE, RUNNING_LABELS, type Running } from "./constants";
+import { checkoutTarget, PROGRESS_DELAY, RETRYABLE, RUNNING_LABELS, type Running } from "./constants";
 import type { LoadMode, RepoError } from "./useRepository";
 
 export interface ActOptions {
@@ -36,6 +36,8 @@ export interface ProgressState {
   value: Progress | null;
   /** Only shown when it takes a moment. */
   visible: boolean;
+  /** It can be stopped halfway (a checkout can't: the files would be half switched). */
+  cancellable: boolean;
 }
 
 /**
@@ -51,8 +53,11 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
 
   /** Run a git action, reload, then show what happened. Resolves to true when it worked. */
   const act = useCallback(
-    async (action: Action, kind: Running = "other", options: ActOptions = {}): Promise<boolean> => {
+    async (action: Action, requested: Running = "other", options: ActOptions = {}): Promise<boolean> => {
       if (!snapshot) return false;
+      // Checkouts show their progress too (big ones, and Git LFS files, take a while).
+      const target = checkoutTarget(action);
+      const kind: Running = requested === "other" && target !== null ? "checkout" : requested;
       const { openDialog, setError, notify, after, showChanges } = callbacks.current;
       if (!options.confirmed && protectedHead && (action.kind === "rebase" || action.kind === "interactiveRebase" || action.kind === "fixupInto")) {
         openDialog({ kind: "protectedAction", action, branch: protectedHead });
@@ -67,7 +72,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       let stopListening: (() => void) | undefined;
       let showTimer: number | undefined;
       if (kind && kind !== "other") {
-        setProgress({ label: RUNNING_LABELS[kind], value: null, visible: false });
+        setProgress({ label: kind === "checkout" ? `Checking out ${target}` : RUNNING_LABELS[kind], value: null, visible: false, cancellable: kind !== "checkout" });
         showTimer = window.setTimeout(() => setProgress((current) => current && { ...current, visible: true }), PROGRESS_DELAY);
         stopListening = await onProgress((value) => setProgress((current) => current && { ...current, value })).catch(() => undefined);
       }

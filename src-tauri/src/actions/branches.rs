@@ -24,9 +24,14 @@ pub(super) fn reset_hard(repo: &gix::Repository, git: &Git, id: String) -> Resul
 }
 
 /// Switch to a local branch.
-pub(super) fn checkout_branch(repo: &gix::Repository, git: &Git, name: String) -> Result<String> {
+pub(super) fn checkout_branch(
+    repo: &gix::Repository,
+    git: &Git,
+    name: String,
+    on_progress: &dyn Fn(Progress),
+) -> Result<String> {
     require_ref(repo, &format!("refs/heads/{name}"), &name)?;
-    git.run(&["switch", "--quiet", &name])?;
+    git.run_progress(&["switch", "--progress", &name], on_progress)?;
     Ok(format!("Checked out {name}"))
 }
 
@@ -35,13 +40,14 @@ pub(super) fn checkout_remote_branch(
     repo: &gix::Repository,
     git: &Git,
     name: String,
+    on_progress: &dyn Fn(Progress),
 ) -> Result<String> {
     require_ref(repo, &format!("refs/remotes/{name}"), &name)?;
     let local = name
         .split_once('/')
         .map_or(name.as_str(), |(_, branch)| branch);
     let Some(local_id) = ref_id(repo, &format!("refs/heads/{local}")) else {
-        git.run(&["switch", "--quiet", "--track", &name])?;
+        git.run_progress(&["switch", "--progress", "--track", &name], on_progress)?;
         return Ok(format!("Checked out {local}, tracking {name}"));
     };
     // There's a local branch already: check it out, and when it only lags behind the
@@ -69,7 +75,7 @@ pub(super) fn checkout_remote_branch(
             .is_ok();
     if !tracks || !behind {
         if !current {
-            git.run(&["switch", "--quiet", local])?;
+            git.run_progress(&["switch", "--progress", local], on_progress)?;
         }
         let ahead = remote_id != local_id
             && git
@@ -106,7 +112,7 @@ pub(super) fn checkout_remote_branch(
         format!("{behind_by} commits")
     };
     if current {
-        git.run(&["merge", "--ff-only", "--quiet", &name])?;
+        git.run_progress(&["merge", "--ff-only", "--progress", &name], on_progress)?;
     } else {
         // Move the branch first, so its files are only checked out once (at the new commit),
         // and only if it's still where it was.
@@ -118,7 +124,7 @@ pub(super) fn checkout_remote_branch(
             &remote_id.to_string(),
             &local_id.to_string(),
         ])?;
-        if let Err(error) = git.run(&["switch", "--quiet", local]) {
+        if let Err(error) = git.run_progress(&["switch", "--progress", local], on_progress) {
             return Err(format!("Brought {local} up to date with {name} ({commits}), but couldn't check it out: {error}").into());
         }
     }
@@ -136,9 +142,17 @@ pub(super) fn checkout_remote_branch(
 }
 
 /// Check out a commit without a branch (detached HEAD).
-pub(super) fn checkout_commit(repo: &gix::Repository, git: &Git, id: String) -> Result<String> {
+pub(super) fn checkout_commit(
+    repo: &gix::Repository,
+    git: &Git,
+    id: String,
+    on_progress: &dyn Fn(Progress),
+) -> Result<String> {
     let id = commit_id(repo, &id)?;
-    git.run(&["switch", "--quiet", "--detach", &id.to_string()])?;
+    git.run_progress(
+        &["switch", "--progress", "--detach", &id.to_string()],
+        on_progress,
+    )?;
     Ok(format!(
         "Checked out {} (detached HEAD)",
         id.to_hex_with_len(7)
@@ -152,12 +166,16 @@ pub(super) fn create_branch(
     name: String,
     id: String,
     checkout: bool,
+    on_progress: &dyn Fn(Progress),
 ) -> Result<String> {
     let name = name.trim().to_owned();
     check_new_branch_name(repo, git, &name)?;
     let id = commit_id(repo, &id)?.to_string();
     if checkout {
-        git.run(&["switch", "--quiet", "--create", &name, &id])?;
+        git.run_progress(
+            &["switch", "--progress", "--create", &name, &id],
+            on_progress,
+        )?;
         Ok(format!("Created and checked out {name}"))
     } else {
         git.run(&["branch", &name, &id])?;

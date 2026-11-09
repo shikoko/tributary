@@ -70,9 +70,10 @@ pub fn parse_progress(line: &str) -> Option<Progress> {
         Some((counts, amounts)) => (counts.trim_start_matches('('), Some(amounts)),
         None => (after.trim_start_matches('(').trim_end_matches(')'), None),
     };
-    let lfs = phase.contains("LFS") || phase == "Filtering content";
+    // Counts of files (rather than objects): Git LFS's, and a checkout's.
+    let files = phase.contains("LFS") || phase == "Filtering content" || phase == "Updating files";
     let mut detail = Vec::new();
-    if lfs && let Some((done, total)) = counts.split_once('/') {
+    if files && let Some((done, total)) = counts.split_once('/') {
         detail.push(format!("{done} of {total} files"));
     }
     for amount in amounts.into_iter().flat_map(|amounts| amounts.split(" | ")) {
@@ -332,6 +333,10 @@ mod tests {
                 50,
                 Some("1 of 2 files · 15 MB · 7.5 MB/s")
             ))
+        );
+        assert_eq!(
+            parse_progress("Updating files:  37% (148/400)"),
+            Some(progress("Updating files", 37, Some("148 of 400 files")))
         );
         assert_eq!(parse_progress("To github.com:someone/repo.git"), None);
         assert_eq!(

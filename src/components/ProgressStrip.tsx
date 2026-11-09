@@ -4,7 +4,8 @@ interface Props {
   /** Like "Pulling". */
   label: string;
   progress: Progress | null;
-  onCancel: () => void;
+  /** Without it, there's no Cancel (a checkout can't stop halfway). */
+  onCancel?: () => void;
 }
 
 /** "Uploading LFS files 44%", and what's known about it, like "1 of 3 files · 44 MB of 98 MB". */
@@ -25,7 +26,7 @@ export function ProgressText({ label, progress }: { label: string; progress: Pro
   );
 }
 
-/** A thin bar under the toolbar while a fetch, pull or push runs. */
+/** A thin bar under the toolbar while a fetch, pull, push or checkout runs. */
 export function ProgressStrip({ label, progress, onCancel }: Props) {
   const percent = progress?.percent ?? null;
   return (
@@ -37,9 +38,11 @@ export function ProgressStrip({ label, progress, onCancel }: Props) {
           style={percent === null ? undefined : { width: `${percent}%` }}
         />
       </div>
-      <button className="secondary-button small" onClick={onCancel}>
-        Cancel
-      </button>
+      {onCancel && (
+        <button className="secondary-button small" onClick={onCancel}>
+          Cancel
+        </button>
+      )}
     </div>
   );
 }

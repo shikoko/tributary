@@ -52,7 +52,7 @@ export function RepositoryBanners(props: Props) {
 
   return (
     <>
-      {progress?.visible && <ProgressStrip label={progress.label} progress={progress.value} onCancel={() => cancelAction().catch(() => {})} />}
+      {progress?.visible && <ProgressStrip label={progress.label} progress={progress.value} onCancel={progress.cancellable ? () => cancelAction().catch(() => {}) : undefined} />}
       {snapshot.operation && (
         <OperationBar
           operation={snapshot.operation}

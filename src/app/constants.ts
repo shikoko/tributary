@@ -3,8 +3,8 @@ import type { RemoteAction } from "../components/Toolbar";
 
 /** What's loading. */
 export type Busy = { kind: "open"; path: string } | { kind: "refresh" } | { kind: "more" } | null;
-/** A fetch, pull or push, downloading Git LFS files (all with a progress bar), or anything else. */
-export type Running = RemoteAction | "download" | "submodules" | "other" | null;
+/** A fetch, pull or push, downloading Git LFS files, a checkout (all with a progress bar), or anything else. */
+export type Running = RemoteAction | "download" | "submodules" | "checkout" | "other" | null;
 /** What's highlighted: a branch's (or commit's) history, an author's commits, or the commits that changed a file or folder. */
 export type Focus =
   | { kind: "history"; name: string; commitId: string }
@@ -45,4 +45,23 @@ export const RUNNING_LABELS: Record<Exclude<Running, "other" | null>, string> = 
   push: "Pushing",
   download: "Downloading Git LFS files",
   submodules: "Updating submodules",
+  checkout: "Checking out",
 };
+
+/** What a checkout is checking out, for its progress bar: "Checking out art/barber-v2". */
+export function checkoutTarget(action: Action): string | null {
+  switch (action.kind) {
+    case "checkoutBranch":
+      return action.name;
+    case "checkoutRemoteBranch":
+      return action.name.slice(action.name.indexOf("/") + 1);
+    case "checkoutCommit":
+      return action.id.slice(0, 7);
+    case "createBranch":
+      return action.checkout ? action.name : null;
+    case "stashAndRetry":
+      return checkoutTarget(action.action);
+    default:
+      return null;
+  }
+}

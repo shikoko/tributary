@@ -476,13 +476,15 @@ fn perform(
 
     match action {
         Action::ResetHard { id } => branches::reset_hard(&repo, &git, id),
-        Action::CheckoutBranch { name } => branches::checkout_branch(&repo, &git, name),
-        Action::CheckoutRemoteBranch { name } => {
-            branches::checkout_remote_branch(&repo, &git, name)
+        Action::CheckoutBranch { name } => {
+            branches::checkout_branch(&repo, &git, name, on_progress)
         }
-        Action::CheckoutCommit { id } => branches::checkout_commit(&repo, &git, id),
+        Action::CheckoutRemoteBranch { name } => {
+            branches::checkout_remote_branch(&repo, &git, name, on_progress)
+        }
+        Action::CheckoutCommit { id } => branches::checkout_commit(&repo, &git, id, on_progress),
         Action::CreateBranch { name, id, checkout } => {
-            branches::create_branch(&repo, &git, name, id, checkout)
+            branches::create_branch(&repo, &git, name, id, checkout, on_progress)
         }
         Action::Fetch { background } => remote::fetch(&repo, &git, background, on_progress),
         Action::Pull => remote::pull(&repo, &git, on_progress),
