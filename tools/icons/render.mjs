@@ -7,7 +7,8 @@
 // - Everything else (icon.ico for Windows, the PNGs for Linux) is the tile edge to edge, so
 //   it's as big as it can be in a 16 px taskbar or title bar.
 // - icons/theme/ holds the icons the app switches between to match its light or dark theme
-//   (app_icon.rs): the Dock icon on macOS, the window's icon elsewhere.
+//   (app_icon.rs): the Dock icon on macOS, the taskbar's on Windows (every size in an .ico),
+//   the window's on Linux.
 import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -35,8 +36,10 @@ async function render(svg, size, bleed, out) {
 
 const light = join(work, "light.png");
 const lightFull = join(work, "light-full.png");
+const darkFull = join(work, "dark-full.png");
 await render("app-icon.svg", 1024, false, light);
 await render("app-icon.svg", 1024, true, lightFull);
+await render("app-icon-dark.svg", 1024, true, darkFull);
 mkdirSync(join(icons, "theme"), { recursive: true });
 for (const theme of ["light", "dark"]) {
   const svg = theme === "light" ? "app-icon.svg" : "app-icon-dark.svg";
@@ -49,8 +52,10 @@ await browser.close();
 const tauri = (input, output) => execFileSync("npx", ["tauri", "icon", input, "-o", output], { cwd: root, stdio: "ignore" });
 const full = join(work, "full");
 const framed = join(work, "framed");
+const dark = join(work, "dark");
 tauri(lightFull, full);
 tauri(light, framed);
+tauri(darkFull, dark);
 for (const name of ["32x32.png", "64x64.png", "128x128.png", "128x128@2x.png", "icon.png", "icon.ico", "StoreLogo.png"]) {
   copyFileSync(join(full, name), join(icons, name));
 }
@@ -58,5 +63,8 @@ for (const size of [30, 44, 71, 89, 107, 142, 150, 284, 310]) {
   copyFileSync(join(full, `Square${size}x${size}Logo.png`), join(icons, `Square${size}x${size}Logo.png`));
 }
 copyFileSync(join(framed, "icon.icns"), join(icons, "icon.icns"));
+// Each theme's icon at every size, for Windows to pick from while the app runs.
+copyFileSync(join(full, "icon.ico"), join(icons, "theme", "light.ico"));
+copyFileSync(join(dark, "icon.ico"), join(icons, "theme", "dark.ico"));
 rmSync(work, { recursive: true, force: true });
 console.log(`Rendered the icons into ${icons}`);
