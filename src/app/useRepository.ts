@@ -20,6 +20,8 @@ export interface RepoError {
   worktree?: string;
   /** A hook stopped this commit or push: it again, without the hook. */
   skipHooks?: Action;
+  /** There didn't seem to be room for its Git LFS files: it again, without checking. */
+  anyway?: Action;
 }
 
 /** What the rest of the app does when the open repository changes. */

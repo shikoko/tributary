@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type MutableRefObject } from "react";
 import { onProgress, PAGE_SIZE, runActionFor, type Action, type Outcome, type Progress, type RepoSnapshot } from "../api";
-import { hookFailure, involvesUntrackedFiles, isLocalChangesError } from "../lib/errors";
+import { hookFailure, involvesUntrackedFiles, isLocalChangesError, NOT_ENOUGH_SPACE } from "../lib/errors";
 import { undoFor } from "../lib/undo";
 import { openInBrowser } from "../lib/weblinks";
 import { notifySystem } from "../lib/notify";
@@ -128,7 +128,9 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
         // A hook stopped it: offer to go ahead without it.
         const skipHooks: Action | undefined =
           hookFailure(message) && (action.kind === "commit" || action.kind === "push") ? { ...action, noVerify: true } : undefined;
-        setError({ message, retry, worktree, skipHooks });
+        // Too little disk space, it seemed: offer to go ahead all the same.
+        const anyway: Action | undefined = message.startsWith(NOT_ENOUGH_SPACE) && action.kind !== "anyDiskSpace" ? { kind: "anyDiskSpace", action } : undefined;
+        setError({ message, retry: anyway ? undefined : retry, worktree, skipHooks, anyway });
         return false;
       }
       const { message, pullRequest, backup } = outcome;

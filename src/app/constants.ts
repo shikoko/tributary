@@ -62,6 +62,7 @@ export function checkoutTarget(action: Action): string | null {
     case "createBranch":
       return action.checkout ? action.name : null;
     case "stashAndRetry":
+    case "anyDiskSpace":
       return checkoutTarget(action.action);
     default:
       return null;

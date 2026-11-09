@@ -8,7 +8,7 @@ use serde::Serialize;
 
 use super::lfs_settings::FetchFilter;
 use crate::error::{Error, Result};
-use crate::git::{Git, Progress};
+use crate::git::{ExpectedFiles, Git, Progress};
 
 /// How many pointer files are named.
 const EXAMPLES: usize = 5;
@@ -101,7 +101,18 @@ fn is_pointer(file: &Path) -> bool {
 
 /// Download the files stored with Git LFS that are still pointers (`git lfs pull`).
 pub(super) fn download_lfs_files(git: &Git, on_progress: &dyn Fn(Progress)) -> Result<String> {
-    let before = pointer_files(git).len();
+    let pointers = pointer_files(git);
+    // Each one's size is in its pointer: first, whether there's room for them.
+    let sizes: ExpectedFiles = pointers
+        .iter()
+        .filter_map(|path| {
+            let bytes = std::fs::read(git.workdir().join(path)).ok()?;
+            let (_, size) = super::lfs_count::pointer(&bytes)?;
+            Some((path.clone(), size))
+        })
+        .collect();
+    super::lfs_count::check_space(git.workdir(), &sizes)?;
+    let before = pointers.len();
     git.run_progress(&["lfs", "pull"], on_progress)?;
     let after = pointer_files(git).len();
     let downloaded = before.saturating_sub(after);

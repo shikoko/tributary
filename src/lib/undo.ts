@@ -43,6 +43,8 @@ export function undoFor(action: Action, before: Pick<RepoSnapshot, "headBranch" 
       return { kind: "renameRemote", from: action.to.trim(), to: action.from };
     case "ignorePaths":
       return { kind: "unignorePaths", patterns: action.patterns };
+    case "anyDiskSpace":
+      return undoFor(action.action, before);
     case "stashAndRetry": {
       // Undo the same way: put the changes aside, undo, and put them back.
       const inner = undoFor(action.action, before);

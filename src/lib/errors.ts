@@ -20,3 +20,6 @@ export function hookFailure(message: string): { hook: string; what: "commit" | "
   const match = /^The ([\w-]+) hook stopped the (commit|push)\.\s*([\s\S]*)$/.exec(message);
   return match ? { hook: match[1], what: match[2] as "commit" | "push", output: match[3].trim() } : null;
 }
+
+/** What the backend's message about too little disk space for Git LFS files starts with. */
+export const NOT_ENOUGH_SPACE = "Not enough disk space";

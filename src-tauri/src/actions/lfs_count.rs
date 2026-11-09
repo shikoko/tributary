@@ -5,12 +5,72 @@
 //! first, all together and several at a time (`git lfs fetch`), and the checkout finds
 //! them here; and what's left (if that failed) is at least counted.
 
+use std::cell::Cell;
 use std::collections::HashSet;
 use std::path::Path;
 
 use super::support::{LITERAL, in_batches};
 use crate::error::Error;
+use crate::git::lfs_progress::format_bytes;
 use crate::git::{ExpectedFiles, Git, Progress};
+
+/// Room kept free besides what the files take: git needs some for itself.
+const SPARE_SPACE: u64 = 256 * 1024 * 1024;
+
+/// What a message about too little disk space starts with (the frontend offers to go ahead).
+pub const NOT_ENOUGH_SPACE: &str = "Not enough disk space";
+
+thread_local! {
+    /// The person chose to download anyway: no disk space check on this thread.
+    static ANY_SPACE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Run `run` without checking for disk space first.
+pub(super) fn without_space_check<T>(run: impl FnOnce() -> T) -> T {
+    ANY_SPACE.set(true);
+    let result = run();
+    ANY_SPACE.set(false);
+    result
+}
+
+/// Whether there's room for `files` on the disk `folder` is on: each takes its size twice,
+/// once in Git LFS's store and once checked out. Not knowing how much is free isn't a reason
+/// to stop.
+pub(super) fn check_space(folder: &Path, files: &ExpectedFiles) -> Result<(), Error> {
+    if ANY_SPACE.get() {
+        return Ok(());
+    }
+    // In development builds, a made-up amount (bytes) shows the check without filling a disk.
+    #[cfg(debug_assertions)]
+    if let Some(free) = std::env::var("TRIBUTARY_TEST_FREE_SPACE")
+        .ok()
+        .and_then(|free| free.parse().ok())
+    {
+        return room_for(files, free);
+    }
+    let Ok(free) = fs4::available_space(folder) else {
+        return Ok(());
+    };
+    room_for(files, free)
+}
+
+fn room_for(files: &ExpectedFiles, free: u64) -> Result<(), Error> {
+    let bytes: u64 = files.iter().map(|(_, size)| size).sum();
+    let needed = bytes.saturating_mul(2);
+    if free >= needed.saturating_add(SPARE_SPACE) {
+        return Ok(());
+    }
+    let count = files.len();
+    Err(format!(
+        "{NOT_ENOUGH_SPACE}: this downloads {count} Git LFS {} ({}), about {} on disk once \
+         checked out, and only {} is free. Make room and try again.",
+        if count == 1 { "file" } else { "files" },
+        format_bytes(bytes),
+        format_bytes(needed),
+        format_bytes(free),
+    )
+    .into())
+}
 
 /// Run a checkout (`args`, a switch or a fast-forward to `target`) with its progress,
 /// downloading the Git LFS files it needs first, all together.
@@ -59,6 +119,7 @@ pub(super) fn prefetch(
     let Some(files) = lfs_downloads(git, common_dir, range, to, &HashSet::new()) else {
         return Ok(());
     };
+    check_space(common_dir, &files)?;
     let (Some(remote), Ok(id)) = (
         remote_for(git, to),
         git.run(&[
@@ -206,7 +267,7 @@ fn pointers(mut output: &[u8]) -> Vec<Option<(String, u64)>> {
 }
 
 /// A Git LFS pointer's object id and size.
-fn pointer(bytes: &[u8]) -> Option<(String, u64)> {
+pub(super) fn pointer(bytes: &[u8]) -> Option<(String, u64)> {
     if bytes.len() > 1024 || !bytes.starts_with(b"version https://git-lfs") {
         return None;
     }
@@ -237,6 +298,22 @@ fn lfs_object(common_dir: &Path, oid: &str) -> std::path::PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn needs_room_for_both_copies_of_each_file() {
+        let files: ExpectedFiles = vec![
+            ("a.psd".into(), 3_000_000_000),
+            ("b.wav".into(), 1_000_000_000),
+        ];
+        // 8 GB, and some to spare.
+        assert!(room_for(&files, 9_000_000_000).is_ok());
+        let error = room_for(&files, 7_000_000_000).unwrap_err().to_string();
+        assert!(error.starts_with(NOT_ENOUGH_SPACE), "{error}");
+        assert!(error.contains("2 Git LFS files (4.0 GB)"), "{error}");
+        assert!(error.contains("about 8.0 GB"), "{error}");
+        assert!(error.contains("only 7.0 GB is free"), "{error}");
+        assert!(room_for(&files, 8_100_000_000).is_err());
+    }
 
     #[test]
     fn reads_pointers_from_batch_output() {

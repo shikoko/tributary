@@ -23,6 +23,8 @@ export type Action =
   | { kind: "push"; force: boolean; noVerify?: boolean }
   /** Stash uncommitted changes, run `action`, then put the changes back. */
   | { kind: "stashAndRetry"; action: Action; includeUntracked: boolean }
+  /** Run `action` without checking there's room on the disk for its Git LFS files. */
+  | { kind: "anyDiskSpace"; action: Action }
   /** `paths`: only these files (all changes when left out). */
   | { kind: "stashPush"; message: string | null; includeUntracked: boolean; paths?: string[] }
   | { kind: "stashApply"; index: number; id: string }

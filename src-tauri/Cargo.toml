@@ -46,6 +46,8 @@ ignore = "0.4"
 # preview pictures are read from the start of them (textures/blend.rs).
 flate2 = "1"
 ruzstd = "0.9"
+# How much room is left on a disk, before downloading gigabytes of Git LFS files (lfs_count.rs).
+fs4 = "1"
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

@@ -28,6 +28,7 @@ export const KEPT = 50;
 export function checkFor(action: Action): UndoCheck {
   switch (action.kind) {
     case "stashAndRetry":
+    case "anyDiskSpace":
       return checkFor(action.action);
     case "resolveConflicts":
     case "resolveWithText":

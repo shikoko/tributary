@@ -130,6 +130,16 @@ export function RepositoryBanners(props: Props) {
               Stash changes and retry
             </button>
           )}
+          {error.anyway && (
+            <button
+              className="error-action"
+              onClick={() => act(error.anyway!, "download")}
+              disabled={running !== null}
+              title="Download them anyway: if the disk fills up, the download stops partway"
+            >
+              Download anyway
+            </button>
+          )}
           {error.worktree && (
             <button className="error-action" onClick={() => openWorktree(error.worktree!)}>
               Open that worktree

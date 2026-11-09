@@ -135,6 +135,9 @@ pub enum Action {
         #[serde(default, rename = "noVerify")]
         no_verify: bool,
     },
+    /// Run `action` without checking there's room on the disk for the Git LFS files it
+    /// downloads (the person chose to go ahead anyway).
+    AnyDiskSpace { action: Box<Action> },
     /// Stash uncommitted changes, run `action`, then put the changes back.
     StashAndRetry {
         action: Box<Action>,
@@ -549,6 +552,9 @@ fn perform(
         Action::Pull => remote::pull(&repo, &git, on_progress),
         Action::Push { force, no_verify } => {
             remote::push(&repo, &git, force, no_verify, on_progress, extra)
+        }
+        Action::AnyDiskSpace { action } => {
+            lfs_count::without_space_check(|| perform(path, *action, on_progress, extra))
         }
         Action::StashAndRetry {
             action,
