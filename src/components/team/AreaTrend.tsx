@@ -38,6 +38,7 @@ export function AreaTrend({
   // Some room above the busiest day, so its peak and dot aren't cut off.
   const y = (value: number) => 100 - (value / Math.max(1, top)) * 88;
   const line = smoothPath(values.map((value, index) => [index, y(value)]));
+  const ghostLine = ghost && ghost.length === values.length ? smoothPath(ghost.map((value, index) => [index, y(value)])) : null;
   const x = (index: number) => `${(index / span) * 100}%`;
   const marked = hover ?? last;
 
@@ -49,11 +50,15 @@ export function AreaTrend({
             <stop offset="0" style={{ stopColor: color, stopOpacity: 0.42 }} />
             <stop offset="1" style={{ stopColor: color, stopOpacity: 0 }} />
           </linearGradient>
+          <linearGradient id={`${gradient}-ghost`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" style={{ stopColor: "var(--text-muted)", stopOpacity: 0.28 }} />
+            <stop offset="1" style={{ stopColor: "var(--text-muted)", stopOpacity: 0 }} />
+          </linearGradient>
         </defs>
+        {/* The period before underneath, this period in front; both lines over both washes. */}
+        {ghostLine && <path d={`${ghostLine} L${span},100 L0,100 Z`} fill={`url(#${gradient}-ghost)`} />}
         <path d={`${line} L${span},100 L0,100 Z`} fill={`url(#${gradient})`} />
-        {ghost && ghost.length === values.length && (
-          <path d={smoothPath(ghost.map((value, index) => [index, y(value)]))} className="team-area-ghost" vectorEffect="non-scaling-stroke" />
-        )}
+        {ghostLine && <path d={ghostLine} className="team-area-ghost" vectorEffect="non-scaling-stroke" />}
         <path d={line} className="team-area-line" vectorEffect="non-scaling-stroke" />
       </svg>
       {hover !== null && <span className="team-area-cross" style={{ left: x(hover) }} />}
