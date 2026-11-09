@@ -10,6 +10,7 @@ import {
   type ReviewVerdict,
 } from "../api";
 import { relativeTime } from "../lib/format";
+import { noteMergedHere } from "../lib/requestNews";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
 
@@ -60,7 +61,10 @@ export function MergeRequestDialog({
     setRunning(true);
     setError(null);
     try {
-      onDone(await mergeRequest(repoPath, details.number, { method, title: method === "rebase" ? "" : title, message: method === "rebase" ? "" : message, deleteBranch }));
+      const done = await mergeRequest(repoPath, details.number, { method, title: method === "rebase" ? "" : title, message: method === "rebase" ? "" : message, deleteBranch });
+      // Merged here: not news later.
+      noteMergedHere(repoPath, details.number);
+      onDone(done);
     } catch (e) {
       setError(String(e));
       setRunning(false);

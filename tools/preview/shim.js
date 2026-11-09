@@ -205,7 +205,7 @@
     },
     check_for_update: () => preview.update,
     install_update: installUpdate,
-    pull_requests: (args) => (faking() ? preview.pullRequests : server("pull_requests", args)),
+    pull_requests: (args) => (faking() ? structuredClone(preview.pullRequests) : server("pull_requests", args)),
     pull_request_details: (args) => (faking() ? fakeDetails(args) : server("pull_request_details", args)),
     request_conversation: (args) => (faking() ? structuredClone(conversationOf(args.number)) : server("request_conversation", args)),
     comment_on_request: (args) => (faking() ? fakeComment(args) : server("comment_on_request", args)),

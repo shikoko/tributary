@@ -28,6 +28,8 @@ export function usePreferences() {
   const [fetchMinutes, setFetchMinutes] = useStoredState("fetch.minutes", 5);
   /** New commits found by a background fetch: not mentioned, a message in the window, or a system notification too. */
   const [newCommitNotices, setNewCommitNotices] = useStoredState<NewCommitNotices>("notify.newCommits", "app");
+  /** News of your pull requests (reviews, comments, checks, merges): the same choices. */
+  const [requestNotices, setRequestNotices] = useStoredState<NewCommitNotices>("notify.pullRequests", "app");
   const [autoUpdate, setAutoUpdate] = useStoredState("updates.auto", true);
   /** Warn about files at least this big (in MB) that aren't in Git LFS. */
   const [largeFileMB, setLargeFileMB] = useStoredState("files.largeMB", 10);
@@ -44,7 +46,7 @@ export function usePreferences() {
     columnWidths, setColumnWidths, columnOptions, setColumnOptions, daySeparators, setDaySeparators,
     dense, setDense, zoom, setZoom, autoFetch, setAutoFetch, reopenTabs, setReopenTabs,
     firstParentOnly, setFirstParentOnly, profilePictures, setProfilePictures, previews, setPreviews,
-    activityOpen, setActivityOpen, fetchMinutes, setFetchMinutes, newCommitNotices, setNewCommitNotices,
+    activityOpen, setActivityOpen, fetchMinutes, setFetchMinutes, newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices,
     autoUpdate, setAutoUpdate, largeFileMB, setLargeFileMB, autoLock, setAutoLock, releaseLocks, setReleaseLocks,
     submoduleUpdates, setSubmoduleUpdates, appearance, setAppearance,
   };

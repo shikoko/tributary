@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { WORKTREE_ID, type Action, type PullRequest } from "./api";
 import { useLfsLocks } from "./lib/locks";
+import { usePullRequestNews } from "./app/usePullRequestNews";
 import { makeLookup, PullRequestsContext, requestNumber, usePullRequests } from "./lib/pullRequests";
 import { BisectMarksContext, bisectMarks } from "./lib/bisect";
 import { useUpdates } from "./lib/updates";
@@ -160,6 +161,19 @@ export default function App() {
   const prs = usePullRequests(repoPath, Boolean(snapshot?.webRemotes.some((remote) => remote.host === "github" || remote.host === "gitlab")));
   const marks = useMemo(() => bisectMarks(snapshot?.bisect), [snapshot?.bisect]);
   const prLookup = useMemo(() => makeLookup(prs.list, showRequest), [prs.list, showRequest]);
+  const localBranches = useMemo(
+    () => new Set((snapshot?.commits ?? []).flatMap((commit) => commit.refs.filter((ref) => ref.kind === "branch").map((ref) => ref.name))),
+    [snapshot?.commits],
+  );
+  usePullRequestNews({
+    repoPath,
+    repoName: snapshot?.name ?? "",
+    list: prs.list,
+    localBranches,
+    notices: preferences.requestNotices,
+    notify: setToast,
+    open: showRequest,
+  });
   // Another repository: its own pull requests.
   useEffect(() => setShownRequest(null), [repoPath]);
   const checks = useFileChecks(snapshot, preferences.largeFileMB);

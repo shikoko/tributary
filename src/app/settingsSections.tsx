@@ -33,7 +33,7 @@ interface Options {
 /** Everything in the Settings window: the app's own settings (each repository has its own window). */
 export function settingsSections({ preferences, version, updates, onInstallUpdate, github, diffTools, theme }: Options): SettingsSection[] {
   const { reopenTabs, setReopenTabs, autoUpdate, setAutoUpdate, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
-  const { newCommitNotices, setNewCommitNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
+  const { newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
   const { daySeparators, setDaySeparators, previews, setPreviews, profilePictures, setProfilePictures } = preferences;
   const { columnOptions, setColumnOptions, zoom, setZoom } = preferences;
@@ -149,6 +149,18 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
           ],
           set: (value) => setNewCommitNotices(value as NewCommitNotices),
           disabled: !autoFetch,
+        },
+        {
+          kind: "select",
+          label: "Your pull requests",
+          hint: "Reviews and comments on the pull requests you opened (or from your branches), checks that finish or fail, and merges, on GitHub and GitLab.",
+          value: requestNotices,
+          options: [
+            { value: "off", label: "Don't tell me" },
+            { value: "app", label: "Show a message in Tributary" },
+            { value: "system", label: "Also notify me when Tributary is in the background" },
+          ],
+          set: (value) => setRequestNotices(value as NewCommitNotices),
         },
       ],
     },
