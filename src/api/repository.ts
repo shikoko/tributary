@@ -490,3 +490,108 @@ export function patchInfo(path: string, file: string): Promise<PatchInfo> {
 export function patchText(path: string, ids: string[]): Promise<string> {
   return invoke<string>("patch_text", { path, ids });
 }
+
+/** How a merge would go, worked out without merging. */
+export interface MergeCheck {
+  /** "unknown": git is older than 2.38, or the two share no history. */
+  outcome: "upToDate" | "fastForward" | "clean" | "conflicts" | "unknown";
+  /** The files that would conflict (the first 200). */
+  conflicts: string[];
+  conflictCount: number;
+  /** Commits merging would bring in. */
+  incoming: number;
+  /** Commits on the branch merged into that aren't on the other (those a rebase replays). */
+  outgoing: number;
+}
+
+/** How merging `from` into `into` (the checked-out commit, when left out) would go. */
+export function mergeCheck(path: string, from: string, into?: string): Promise<MergeCheck> {
+  return invoke<MergeCheck>("merge_check", { path, from, into: into ?? null });
+}
+
+/** Who owns each of `files`, by the repository's CODEOWNERS (empty when it has none). */
+export function codeOwners(path: string, files: string[]): Promise<{ path: string; owners: string[] }[]> {
+  return invoke<{ path: string; owners: string[] }[]>("code_owners", { path, files });
+}
+
+/** Where a branch pointed, and how it got there. */
+export interface BranchVersion {
+  id: string;
+  /** When it moved there (seconds since 1970). */
+  at: number;
+  /** It was rewritten to get there: a forced update, a rebase, a reset or an amend. */
+  rewritten: boolean;
+  /** What moved it, as git says, like "fetch: forced-update". */
+  how: string;
+}
+
+/** Where branch `name` (like "fix/door" or "origin/fix/door") pointed, newest first. */
+export function branchVersions(path: string, name: string): Promise<BranchVersion[]> {
+  return invoke<BranchVersion[]>("branch_versions", { path, name });
+}
+
+/** A commit of a branch's old version matched with its new version (git range-diff). */
+export interface CommitPair {
+  status: "same" | "changed" | "added" | "removed";
+  /** Short ids. */
+  old: string | null;
+  new: string | null;
+  summary: string;
+  /** For a changed commit, how its changes differ: git's diff of the two diffs. */
+  changes: string[];
+  cut: boolean;
+}
+
+export interface RangeDiff {
+  /** The branch both versions were compared on top of. */
+  base: string | null;
+  pairs: CommitPair[];
+}
+
+/**
+ * How version `next` of a branch differs from version `old`, commit by commit; `base`: the
+ * branch both are on top of (found from `branch`'s remote when left out).
+ */
+export function rangeDiff(path: string, old: string, next: string, base?: string | null, branch?: string): Promise<RangeDiff> {
+  return invoke<RangeDiff>("range_diff", { path, old, new: next, base: base ?? null, branch: branch ?? null });
+}
+
+/** A local branch built on another unmerged branch. */
+export interface Stacked {
+  branch: string;
+  /** The branch it's built on. */
+  on: string;
+  /** It's built on an earlier version of `on`, since rewritten: it can be moved onto the new one. */
+  moved: boolean;
+  /** For a moved one: the earlier version of `on` it's built on. */
+  old: string | null;
+}
+
+/** The local branches built on other unmerged branches, and those whose base was rewritten. */
+export function branchStacks(path: string): Promise<Stacked[]> {
+  return invoke<Stacked[]>("branch_stacks", { path });
+}
+
+/** What went into a release, between the tag before it and its own. */
+export interface ReleaseNotes {
+  /** The tag (or commit) they start after; null when there's no earlier tag. */
+  from: string | null;
+  to: string;
+  /** The earlier tags in its history, newest first. */
+  earlier: string[];
+  /** Each change on the main line, newest first. */
+  items: { title: string; number: string | null; author: string; id: string; body: string }[];
+  /** Who made its commits, most commits first. */
+  contributors: string[];
+  commits: number;
+}
+
+/** What went into `to` since `from` (the tag before it when left out). */
+export function releaseNotes(path: string, to: string, from?: string | null): Promise<ReleaseNotes> {
+  return invoke<ReleaseNotes>("release_notes", { path, to, from: from ?? null });
+}
+
+/** Publish a release for `tag` (pushed already) on GitHub or GitLab; resolves to its page. */
+export function publishRelease(path: string, tag: string, title: string, notes: string): Promise<string> {
+  return invoke<string>("publish_release", { path, tag, title, notes });
+}

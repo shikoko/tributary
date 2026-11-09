@@ -168,6 +168,8 @@ pub struct FileChecks {
     pub lockable: Vec<String>,
     /// The repository uses Git LFS.
     pub uses_lfs: bool,
+    /// New files whose names will cause trouble on Windows or macOS.
+    pub names: Vec<super::NameProblem>,
 }
 
 #[derive(Debug, Serialize)]
@@ -231,6 +233,7 @@ pub fn file_checks(path: &Path, files: &[String], threshold: u64) -> Result<File
             }
         }
     }
+    let names = super::file_names::name_problems(&repo, &files);
     let large = files
         .iter()
         .filter(|file| !in_lfs.contains(**file))
@@ -246,6 +249,7 @@ pub fn file_checks(path: &Path, files: &[String], threshold: u64) -> Result<File
         large,
         lockable,
         uses_lfs,
+        names,
     })
 }
 

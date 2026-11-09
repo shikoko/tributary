@@ -4,6 +4,7 @@
 pub mod actions;
 mod app_icon;
 pub mod avatars;
+pub mod codeowners;
 mod commands;
 pub mod diagnostics;
 pub mod error;
@@ -65,6 +66,13 @@ pub fn run() {
             commands::sparse_settings,
             commands::speed_settings,
             commands::patch_info,
+            commands::merge_check,
+            commands::code_owners,
+            commands::branch_versions,
+            commands::branch_stacks,
+            commands::release_notes,
+            commands::publish_release,
+            commands::range_diff,
             commands::patch_text,
             commands::remotes,
             commands::repo_summary,

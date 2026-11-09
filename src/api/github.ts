@@ -78,6 +78,8 @@ export interface NewRequestInfo {
   unpushed: number;
   /** The commits it would bring into the suggested base, oldest first. */
   commits: CommitMessage[];
+  /** Who owns the files it changes, by the repository's CODEOWNERS (most files first). */
+  owners: string[];
 }
 
 /** `branch`: its name on the remote; `local`: the local branch, if there is one. */
@@ -91,6 +93,8 @@ export interface NewRequest {
   title: string;
   body: string;
   draft: boolean;
+  /** People (`@user`) and teams (`@org/team`) to ask for a review. */
+  reviewers?: string[];
 }
 
 /** Open a pull request (GitHub) or merge request (GitLab). */

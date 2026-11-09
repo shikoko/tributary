@@ -1,5 +1,5 @@
 // What the menus need from the app, and helpers they share with the dialogs.
-import type { Action, CommitRow, Lock, PullRequest, RepoSnapshot, Visibility, Worktree } from "../api";
+import type { Action, CommitRow, Lock, PullRequest, RepoSnapshot, Stacked, Visibility, Worktree } from "../api";
 import type { PullRequestLookup } from "../lib/pullRequests";
 import { type RefPill } from "../lib/refs";
 import { shortId } from "../lib/format";
@@ -43,6 +43,10 @@ export type OpenDialog =
   | { kind: "repoSettings"; section?: string }
   /** Open a pull request for `branch` (its name on the remote); `url` opens it on the site instead. */
   | { kind: "createPullRequest"; branch: string; local: string | null; url: string | null }
+  /** Release notes for a tag: what went into it since the tag before. */
+  | { kind: "releaseNotes"; tag: string }
+  /** Split a commit in two; `later`: how many commits come after it on the branch. */
+  | { kind: "splitCommit"; commit: CommitRow; later: number }
   /** Start bisecting from `good` (which worked) to the checked-out commit. */
   | { kind: "bisect"; good: CommitRow }
   | null;
@@ -60,6 +64,10 @@ export interface MenuContext {
   requests: PullRequestLookup | null;
   /** Show a pull request in the app. */
   showRequest: (pr: PullRequest) => void;
+  /** Show what changed when a branch was rewritten (rebased, amended, force-pushed). */
+  showRewrite: (rewrite: { branch: string; base: string | null }) => void;
+  /** The branch a local branch is built on, when that's another unmerged branch. */
+  stackOf: (branch: string) => Stacked | undefined;
   /** Highlight the history of a branch, tag or commit. */
   focus: (name: string, commitId: string) => void;
   /** Highlight everything an author committed. */

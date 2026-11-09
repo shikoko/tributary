@@ -419,3 +419,49 @@ fn stages_and_unstages_thousands_of_files_at_once() {
     run(&repo, Action::Unstage { paths }).unwrap();
     assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "");
 }
+
+#[test]
+fn flags_new_file_names_windows_and_macos_cannot_have() {
+    use tributary_lib::actions::Problem;
+    let mut repo = TempRepo::new("file-names");
+    with_identity(&repo);
+    std::fs::create_dir_all(repo.path().join("Content/Maps")).unwrap();
+    repo.commit("Content/Maps/Arena.umap", "arena");
+    repo.commit("README.md", "readme");
+    // Already committed: not news.
+    std::fs::write(repo.path().join("README.md"), "changed").unwrap();
+    std::fs::create_dir_all(repo.path().join("Content/maps")).unwrap();
+    std::fs::write(repo.path().join("Content/maps/Tavern.umap"), "tavern").unwrap();
+    std::fs::write(repo.path().join("readme.md"), "another").unwrap();
+    std::fs::write(repo.path().join("aux.txt"), "aux").unwrap();
+    std::fs::write(repo.path().join("Content/Maps/Fine.umap"), "fine").unwrap();
+
+    let changed: Vec<String> = [
+        "README.md",
+        "Content/maps/",
+        "readme.md",
+        "aux.txt",
+        "Content/Maps/Fine.umap",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
+    let checks = tributary_lib::actions::file_checks(repo.path(), &changed, 1_000_000).unwrap();
+    let found: Vec<(&str, Problem, &str)> = checks
+        .names
+        .iter()
+        .map(|n| (n.path.as_str(), n.problem, n.detail.as_str()))
+        .collect();
+    assert_eq!(
+        found,
+        vec![
+            (
+                "Content/maps/Tavern.umap",
+                Problem::CaseClash,
+                "Content/Maps"
+            ),
+            ("aux.txt", Problem::Reserved, "aux.txt"),
+            ("readme.md", Problem::CaseClash, "README.md"),
+        ]
+    );
+}

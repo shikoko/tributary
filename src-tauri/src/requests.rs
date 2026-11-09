@@ -30,6 +30,8 @@ pub struct NewRequestInfo {
     pub unpushed: u32,
     /// The commits the request would bring into the suggested base, oldest first (at most 50).
     pub commits: Vec<CommitMessage>,
+    /// Who owns the files it changes, by the repository's CODEOWNERS (most files first).
+    pub owners: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -50,6 +52,9 @@ pub struct NewRequest {
     pub body: String,
     #[serde(default)]
     pub draft: bool,
+    /// People (`@user`) and teams (`@org/team`) to ask for a review.
+    #[serde(default)]
+    pub reviewers: Vec<String>,
 }
 
 /// Where a request is.
@@ -193,7 +198,7 @@ pub async fn new_request_info(
     };
     let path = path.to_owned();
     let remote_name = remote.clone();
-    let (bases, base, on_remote, unpushed, commits) =
+    let (bases, base, on_remote, unpushed, commits, owners) =
         tauri::async_runtime::spawn_blocking(move || {
             let repo = crate::repo::open(&path)?;
             let git = Git::find(path.clone())?;
@@ -215,6 +220,19 @@ pub async fn new_request_info(
                 (None, _) => 0,
             };
             let head = local_ref.unwrap_or(remote_ref);
+            // The files it changes, and who owns them.
+            let owners = match &base {
+                Some(base) => {
+                    let range = format!("refs/remotes/{remote_name}/{base}...{head}");
+                    let files = git
+                        .run(&["diff", "--name-only", "--no-renames", "-z", &range])
+                        .unwrap_or_default();
+                    let files: Vec<&str> = files.split('\0').filter(|f| !f.is_empty()).collect();
+                    let top = repo.workdir().unwrap_or(&path).to_owned();
+                    crate::codeowners::owners_of_all(&top, &files)
+                }
+                None => Vec::new(),
+            };
             let commits = match &base {
                 Some(base) => {
                     let range = format!("refs/remotes/{remote_name}/{base}..{head}");
@@ -230,7 +248,7 @@ pub async fn new_request_info(
                 }
                 None => Vec::new(),
             };
-            Ok::<_, Error>((bases, base, on_remote, unpushed, commits))
+            Ok::<_, Error>((bases, base, on_remote, unpushed, commits, owners))
         })
         .await
         .map_err(|e| Error::Message(e.to_string()))??;
@@ -243,6 +261,7 @@ pub async fn new_request_info(
         on_remote,
         unpushed,
         commits,
+        owners,
     })
 }
 
@@ -398,6 +417,63 @@ pub(crate) fn sort_checks(checks: &mut [Check]) {
             .cmp(&rank(b))
             .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
     });
+}
+
+/// Publish a release for `tag` (already on the remote) on the repository's site, titled
+/// `title`, described by `notes` (Markdown). Returns its page.
+pub async fn publish_release(
+    path: &Path,
+    tag: String,
+    title: String,
+    notes: String,
+) -> Result<String> {
+    if tag.trim().is_empty() || tag.starts_with('-') {
+        return Err("Choose the tag to publish.".into());
+    }
+    let title = if title.trim().is_empty() {
+        tag.clone()
+    } else {
+        title.trim().to_owned()
+    };
+    match site_of(path).await? {
+        Site::GitHub {
+            full_name, token, ..
+        } => {
+            let token = token.ok_or("Sign in to GitHub first (Settings, GitHub).")?;
+            let response = crate::github::client()?
+                .post(format!("https://api.github.com/repos/{full_name}/releases"))
+                .header("Accept", "application/vnd.github+json")
+                .header("X-GitHub-Api-Version", "2022-11-28")
+                .bearer_auth(&token)
+                .json(&serde_json::json!({ "tag_name": tag, "name": title, "body": notes }))
+                .send()
+                .await
+                .map_err(|e| format!("Couldn't reach GitHub ({e})"))?;
+            let status = response.status();
+            let answer: serde_json::Value = response.json().await.unwrap_or_default();
+            if !status.is_success() {
+                let message = error_message(&answer).unwrap_or_else(|| status.to_string());
+                return Err(match status.as_u16() {
+                    422 if message.contains("already_exists")
+                        || message.contains("already exists") =>
+                    {
+                        format!("{tag} already has a release on GitHub.").into()
+                    }
+                    422 => format!("GitHub didn't publish it ({message}). Is {tag} pushed?").into(),
+                    401 => "GitHub didn't accept the token git keeps: sign in again in Settings."
+                        .into(),
+                    _ => format!("GitHub didn't publish it: {message}").into(),
+                });
+            }
+            Ok(answer["html_url"].as_str().unwrap_or_default().to_owned())
+        }
+        Site::GitLab { project, token } => {
+            let token = token.ok_or(
+                "Git has no token for this GitLab server yet: push or fetch once to sign in.",
+            )?;
+            crate::gitlab::publish_release(&project, &token, &tag, &title, &notes).await
+        }
+    }
 }
 
 #[cfg(test)]

@@ -267,6 +267,88 @@ pub async fn patch_info(path: String, file: String) -> Result<actions::PatchInfo
     blocking(move || actions::patch_info(&PathBuf::from(path), &PathBuf::from(file))).await
 }
 
+/// How merging `from` into `into` (the checked-out commit, when None) would go, without
+/// merging: whether it conflicts, and where.
+#[tauri::command]
+pub async fn merge_check(
+    path: String,
+    from: String,
+    into: Option<String>,
+) -> Result<actions::MergeCheck> {
+    blocking(move || actions::merge_check(&PathBuf::from(path), &from, into.as_deref())).await
+}
+
+/// What went into `to` since `from` (the tag before it when None).
+#[tauri::command]
+pub async fn release_notes(
+    path: String,
+    to: String,
+    from: Option<String>,
+) -> Result<actions::ReleaseNotes> {
+    blocking(move || actions::release_notes(&PathBuf::from(path), &to, from.as_deref())).await
+}
+
+/// Publish a release for a tag on the repository's site; returns its page.
+#[tauri::command]
+pub async fn publish_release(
+    path: String,
+    tag: String,
+    title: String,
+    notes: String,
+) -> Result<String> {
+    crate::requests::publish_release(&PathBuf::from(path), tag, title, notes).await
+}
+
+/// Local branches built on other unmerged branches, and those whose base was rewritten.
+#[tauri::command]
+pub async fn branch_stacks(path: String) -> Result<Vec<actions::Stacked>> {
+    blocking(move || actions::branch_stacks(&PathBuf::from(path))).await
+}
+
+/// Where a branch pointed before, newest first (from its reflog).
+#[tauri::command]
+pub async fn branch_versions(path: String, name: String) -> Result<Vec<actions::BranchVersion>> {
+    blocking(move || actions::branch_versions(&PathBuf::from(path), &name)).await
+}
+
+/// How version `new` of a branch differs from version `old`, commit by commit.
+#[tauri::command]
+pub async fn range_diff(
+    path: String,
+    old: String,
+    new: String,
+    base: Option<String>,
+    branch: Option<String>,
+) -> Result<actions::RangeDiff> {
+    blocking(move || {
+        actions::range_diff(
+            &PathBuf::from(path),
+            &old,
+            &new,
+            base.as_deref(),
+            branch.as_deref(),
+        )
+    })
+    .await
+}
+
+/// Who owns each of `files`, by the repository's CODEOWNERS (empty without one).
+#[tauri::command]
+pub async fn code_owners(
+    path: String,
+    files: Vec<String>,
+) -> Result<Vec<crate::codeowners::FileOwners>> {
+    blocking(move || {
+        let path = PathBuf::from(path);
+        let top = gix::discover(&path)
+            .ok()
+            .and_then(|repo| repo.workdir().map(PathBuf::from))
+            .unwrap_or(path);
+        Ok(crate::codeowners::owners_of(&top, &files))
+    })
+    .await
+}
+
 /// Commits as one patch, oldest first, to copy.
 #[tauri::command]
 pub async fn patch_text(path: String, ids: Vec<String>) -> Result<String> {

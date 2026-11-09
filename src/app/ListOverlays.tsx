@@ -2,6 +2,7 @@ import type { Action, Lock, Overlap, PullRequest, RepoSnapshot } from "../api";
 import { BlameView } from "../components/BlameView";
 import { DiffView } from "../components/diff/DiffView";
 import { PullRequestView } from "../components/PullRequestView";
+import { RewriteView } from "../components/RewriteView";
 import { TeamView } from "../components/TeamView";
 import { conflictSides } from "../components/WorktreeDetails";
 import { openInBrowser } from "../lib/weblinks";
@@ -26,10 +27,39 @@ interface Props {
   request: PullRequest | null;
   onCloseRequest: () => void;
   notify: (text: string) => void;
+  /** A branch whose rewrite is shown: what changed when it was rebased or force-pushed. */
+  rewrite: RewriteShown | null;
+  onShowRewrite: (rewrite: RewriteShown) => void;
+  onCloseRewrite: () => void;
+}
+
+/** A branch (like "origin/fix/door") and the branch it's on top of (found when null). */
+export interface RewriteShown {
+  branch: string;
+  base: string | null;
 }
 
 /** What shows over the commit list: a file's changes, who changed each line, team activity, a pull request. */
-export function ListOverlays({ snapshot, views, highlight, run, hasCommit, select, notLoaded, openSettings, locks, overlaps, teamOpen, onCloseTeam, request, onCloseRequest, notify }: Props) {
+export function ListOverlays({
+  snapshot,
+  views,
+  highlight,
+  run,
+  hasCommit,
+  select,
+  notLoaded,
+  openSettings,
+  locks,
+  overlaps,
+  teamOpen,
+  onCloseTeam,
+  request,
+  onCloseRequest,
+  notify,
+  rewrite,
+  onShowRewrite,
+  onCloseRewrite,
+}: Props) {
   const { shownDiff, diffTargets, diffIndex, stepDiff, closeDiff, showBlame, blameAt, closeBlame } = views;
   return (
     <>
@@ -77,6 +107,7 @@ export function ListOverlays({ snapshot, views, highlight, run, hasCommit, selec
           openUrl={openInBrowser}
           hasCommit={hasCommit}
           notify={notify}
+          onShowRewrite={(branch, base) => onShowRewrite({ branch: `${request.remote}/${branch}`, base: `${request.remote}/${base}` })}
           onCompare={(details) => {
             if (!details.baseSha || !details.headSha) return;
             views.comparing.compare({ from: { id: details.baseSha, label: details.base }, to: { id: details.headSha, label: details.branch }, split: true });
@@ -93,6 +124,7 @@ export function ListOverlays({ snapshot, views, highlight, run, hasCommit, selec
           }}
         />
       )}
+      {rewrite && <RewriteView repoPath={snapshot.path} branch={rewrite.branch} base={rewrite.base} onClose={onCloseRewrite} />}
       {blameAt && <BlameView repoPath={snapshot.path} path={blameAt.path} at={blameAt.at} onClose={closeBlame} onSelectCommit={select} hasCommit={hasCommit} />}
     </>
   );

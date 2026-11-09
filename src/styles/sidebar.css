@@ -280,3 +280,18 @@
   border-color: var(--accent);
   color: var(--text);
 }
+
+/* A branch built on another unmerged branch: "on feat/api". */
+.sidebar-stack {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.sidebar-stack.moved {
+  color: var(--warning-text);
+}

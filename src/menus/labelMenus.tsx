@@ -16,7 +16,9 @@ import {
   TagIcon,
   TrashIcon,
   CompareIcon,
-  ResetIcon } from "../components/Icons";
+  ResetIcon,
+  RebaseIcon,
+  NotesIcon } from "../components/Icons";
 import { worktreeOf, splitRemoteBranch, headSide, canResetTo, type MenuContext } from "./context";
 import { mergeItems, visibilityItems, webItems } from "./shared";
 import { stashMenu } from "./commitMenus";
@@ -72,6 +74,25 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
           },
         ]
       : [];
+  // Built on an earlier version of a branch that was rewritten since: move it onto the new one.
+  const stacked = pill.kind === "branch" && pill.local ? ctx.stackOf(pill.name) : undefined;
+  if (stacked?.moved && stacked.old) {
+    const old = stacked.old;
+    compare.push({
+      label: pill.current ? `Move ${pill.name} onto the new ${stacked.on}` : `Move it onto the new ${stacked.on}: check ${pill.name} out first`,
+      icon: <RebaseIcon />,
+      disabled: !ctx.canChange || !pill.current || snapshot.operation !== null,
+      onSelect: () => ctx.run({ kind: "restack", onto: stacked.on, old }),
+    });
+  }
+  // What changed when it was rebased, amended or force-pushed.
+  if (pill.kind === "branch") {
+    compare.push({
+      label: pill.local ? `What changed when ${pill.name} was rewritten…` : `What changed when ${pill.name} was force-pushed…`,
+      icon: <RebaseIcon />,
+      onSelect: () => ctx.showRewrite({ branch: pill.name, base: null }),
+    });
+  }
   if (pill.kind === "tag") {
     const label = commit.refs.find((ref) => ref.kind === "tag" && ref.name === pill.name);
     const remote = snapshot.remotes.includes("origin") ? "origin" : (snapshot.remotes[0] ?? null);
@@ -82,9 +103,14 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
         disabled: !canChange || commit.id === snapshot.headCommit,
         onSelect: () => checkout && ctx.run(checkout),
       },
-      ...mergeItems(ctx, pill.name, pill.name),
+      ...mergeItems(ctx, pill.name, pill.name, commit.id),
       highlight,
       ...compare,
+      {
+        label: `Release notes for ${pill.name}…`,
+        icon: <NotesIcon />,
+        onSelect: () => ctx.open({ kind: "releaseNotes", tag: pill.name }),
+      },
       ...visibilityItems(ctx, pill),
       ...webItems(ctx, pill),
       ...(remote
@@ -172,7 +198,7 @@ export function pillMenu(ctx: MenuContext, pill: RefPill, commit: CommitRow): Me
       onSelect: () => checkout && ctx.run(checkout),
     });
   }
-  if (!pill.current) items.push(...mergeItems(ctx, pill.name, pill.name));
+  if (!pill.current) items.push(...mergeItems(ctx, pill.name, pill.name, commit.id));
   items.push(highlight, ...compare, ...visibilityItems(ctx, pill), ...webItems(ctx, pill));
   // Remote copies of this branch at the same commit.
   const remoteNames = pill.local ? pill.remotes.map((remote) => `${remote}/${pill.name}`) : [pill.name];

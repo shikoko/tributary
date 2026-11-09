@@ -9,6 +9,62 @@ use crate::requests::{
     sort_checks,
 };
 
+/// People and teams to ask for a review: `@user` are people; `@org/team` teams of the
+/// repository's own organization. Email addresses, and the request's author (who can't
+/// review it), are left out.
+fn reviewers_and_teams(
+    full_name: &str,
+    wanted: &[String],
+    author: &str,
+) -> (Vec<String>, Vec<String>) {
+    let org = full_name
+        .split('/')
+        .next()
+        .unwrap_or_default()
+        .to_lowercase();
+    let (mut people, mut teams) = (Vec::new(), Vec::new());
+    for name in wanted {
+        let Some(name) = name.strip_prefix('@') else {
+            continue;
+        };
+        match name.split_once('/') {
+            Some((team_org, team)) if team_org.to_lowercase() == org => teams.push(team.to_owned()),
+            Some(_) => {}
+            None if !name.eq_ignore_ascii_case(author) => people.push(name.to_owned()),
+            None => {}
+        }
+    }
+    (people, teams)
+}
+
+/// Ask for reviews on pull request `number`. It's opened by then, so a refusal (someone
+/// without access, say) leaves it as it is: the request shows who was asked.
+async fn ask_for_reviews(
+    full_name: &str,
+    token: &str,
+    number: u64,
+    wanted: &[String],
+    author: &str,
+) {
+    let (reviewers, team_reviewers) = reviewers_and_teams(full_name, wanted, author);
+    if reviewers.is_empty() && team_reviewers.is_empty() {
+        return;
+    }
+    let Ok(client) = client() else {
+        return;
+    };
+    let _ = client
+        .post(format!(
+            "https://api.github.com/repos/{full_name}/pulls/{number}/requested_reviewers"
+        ))
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2022-11-28")
+        .bearer_auth(token)
+        .json(&serde_json::json!({ "reviewers": reviewers, "team_reviewers": team_reviewers }))
+        .send()
+        .await;
+}
+
 /// Open a pull request from `request.branch` into `request.base`.
 pub(crate) async fn create(
     remote: &str,
@@ -49,6 +105,12 @@ pub(crate) async fn create(
         .json()
         .await
         .map_err(|e| format!("Couldn't read GitHub's answer ({e})"))?;
+    let author = pull
+        .user
+        .as_ref()
+        .map(|user| user.login.as_str())
+        .unwrap_or_default();
+    ask_for_reviews(full_name, token, pull.number, &request.reviewers, author).await;
     Ok(PullRequest {
         number: pull.number,
         title: pull.title,
@@ -328,6 +390,24 @@ mod tests {
             user: Some(Login { login: user.into() }),
             state: state.into(),
         }
+    }
+
+    #[test]
+    fn asks_people_and_the_organizations_teams() {
+        let wanted: Vec<String> = [
+            "@maya",
+            "@studio/art",
+            "@other/team",
+            "rosa@example.com",
+            "@Theo",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        assert_eq!(
+            reviewers_and_teams("Studio/feast", &wanted, "theo"),
+            (vec!["maya".to_owned()], vec!["art".to_owned()])
+        );
     }
 
     #[test]

@@ -1,6 +1,7 @@
 //! Merging, rebasing, cherry-picking and reverting, including interactive rebases.
 
 use super::backups::back_up_rewrite;
+use super::stacks::{and_moved, branch_tips, moved_along, updates_refs};
 use super::support::{count, is_merge, ref_id, short};
 use super::validate::{commit_id, commit_ids, current_branch, revision_name};
 use super::{MergeMode, RebaseStep, StepAction};
@@ -54,10 +55,22 @@ pub(super) fn rebase(repo: &gix::Repository, git: &Git, onto: String) -> Result<
     let branch = current_branch(repo)?;
     let onto = revision_name(repo, &onto)?;
     let before = ref_id(repo, &format!("refs/heads/{branch}"));
-    let result = git.run(&["rebase", &onto]);
+    // Branches built on its commits (stacked on it) move along.
+    let tips = branch_tips(git);
+    let mut args = vec!["rebase"];
+    if updates_refs(git) {
+        args.push("--update-refs");
+    }
+    args.push(&onto);
+    let result = git.run(&args);
     back_up_rewrite(repo, git, &branch, before);
+    let moved = moved_along(repo, git, &branch, &tips);
     result?;
-    Ok(format!("Rebased {branch} onto {}", short(&onto)))
+    Ok(format!(
+        "Rebased {branch} onto {}{}",
+        short(&onto),
+        and_moved(&moved)
+    ))
 }
 
 /// Apply the changes of a commit on top of the checked-out branch.
@@ -133,11 +146,14 @@ pub(super) fn interactive_rebase(
     let before = branch
         .as_ref()
         .and_then(|branch| ref_id(repo, &format!("refs/heads/{branch}")));
+    let tips = branch_tips(git);
     let result = rewrite(repo, git, &onto, &steps);
-    if let Some(branch) = branch {
-        back_up_rewrite(repo, git, &branch, before);
-    }
-    result
+    let Some(branch) = branch else {
+        return result;
+    };
+    back_up_rewrite(repo, git, &branch, before);
+    let moved = moved_along(repo, git, &branch, &tips);
+    result.map(|message| format!("{message}{}", and_moved(&moved)))
 }
 
 /// Fold the staged changes into commit `id` of the checked-out branch. Unstaged changes
@@ -178,14 +194,23 @@ pub(super) fn fixup_into(repo: &gix::Repository, git: &Git, id: String) -> Resul
         .map(|parent| parent.detach().to_string());
 
     let before = ref_id(repo, &format!("refs/heads/{branch}"));
+    let tips = branch_tips(git);
     git.run(&["commit", "--quiet", "--fixup", &target])?;
-    // The rebase's to-do list already has the fixup in place (--autosquash): nothing to edit.
+    // The rebase's to-do list already has the fixup in place (--autosquash), and the
+    // branches built on these commits move along (--update-refs): nothing to edit.
     let mut args = vec!["rebase", "--interactive", "--autosquash", "--autostash"];
+    if updates_refs(git) {
+        args.push("--update-refs");
+    }
     args.push(parent.as_deref().unwrap_or("--root"));
     let result = git.run_with_env(&args, &[("GIT_SEQUENCE_EDITOR", ":")]);
     back_up_rewrite(repo, git, &branch, before);
+    let moved = moved_along(repo, git, &branch, &tips);
     result?;
-    Ok(format!("Fixed up {short_id} with your staged changes"))
+    Ok(format!(
+        "Fixed up {short_id} with your staged changes{}",
+        and_moved(&moved)
+    ))
 }
 
 /// Rewrite the commits after `onto`: git's own interactive rebase, with the to-do list
@@ -251,6 +276,18 @@ fn rewrite(
     let _ = std::fs::remove_dir_all(&folder);
     std::fs::create_dir_all(&folder).map_err(|e| format!("Could not prepare the rebase: {e}"))?;
     let executable = sh_quote(&git.executable().to_string_lossy());
+    // Other branches pointing at these commits (stacked on them): moved along with them,
+    // as git's own --update-refs does, by an update-ref line after each one's commit.
+    let update_refs = updates_refs(git);
+    let mut stacked: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    if update_refs {
+        for (name, id) in branch_tips(git) {
+            if name != branch {
+                stacked.entry(id).or_default().push(name);
+            }
+        }
+    }
     let mut todo = String::new();
     for (index, step) in steps.iter().enumerate() {
         let id = &step.id;
@@ -275,15 +312,20 @@ fn rewrite(
                 ));
             }
         }
+        for name in stacked.get(id).into_iter().flatten() {
+            todo.push_str(&format!("update-ref refs/heads/{name}\n"));
+        }
     }
     let todo_file = folder.join("todo");
     std::fs::write(&todo_file, todo).map_err(|e| format!("Could not prepare the rebase: {e}"))?;
     // git hands its to-do file to this "editor", which replaces it with ours.
     let editor = format!("cp {}", sh_quote(&todo_file.to_string_lossy()));
-    git.run_with_env(
-        &["rebase", "--interactive", "--no-autosquash", &onto],
-        &[("GIT_SEQUENCE_EDITOR", &editor)],
-    )?;
+    let mut args = vec!["rebase", "--interactive", "--no-autosquash"];
+    if update_refs {
+        args.push("--update-refs");
+    }
+    args.push(&onto);
+    git.run_with_env(&args, &[("GIT_SEQUENCE_EDITOR", &editor)])?;
     let _ = std::fs::remove_dir_all(&folder);
     Ok(format!("Rewrote {}'s history", branch))
 }

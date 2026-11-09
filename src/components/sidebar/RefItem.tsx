@@ -1,5 +1,5 @@
 import { useContext, type MouseEvent, type ReactNode } from "react";
-import { fullRefName, type Visibility } from "../../api";
+import { fullRefName, type Stacked, type Visibility } from "../../api";
 import { pressLabel } from "../../lib/drag";
 import { PullRequestsContext } from "../../lib/pullRequests";
 import type { RefEntry } from "../../lib/refs";
@@ -28,13 +28,18 @@ interface Props {
   visibility: Visibility;
   /** Commits to push and to pull, for a branch with an upstream. */
   counts?: { ahead: number; behind: number };
+  /** For a branch built on another unmerged branch: which, and whether that was rewritten since. */
+  stack?: Stacked;
   isProtected: boolean;
   handlers: RefHandlers;
 }
 
 /** A branch, remote branch, tag or stash in the sidebar. Branches can be dragged onto commits to merge or rebase. */
-export function RefItem({ entry, label, icon, depth = 0, selected, visibility, counts, isProtected, handlers }: Props) {
+export function RefItem({ entry, label, icon, depth = 0, selected, visibility, counts, stack, isProtected, handlers }: Props) {
   const pullRequests = useContext(PullRequestsContext);
+  // The branch below, without the folder both are in ("on export" for feature/export).
+  const folder = label && entry.name.endsWith(label) ? entry.name.slice(0, entry.name.length - label.length) : "";
+  const below = stack && folder && stack.on.startsWith(folder) ? stack.on.slice(folder.length) : stack?.on;
   const fullName = fullRefName(entry);
   const soloing = visibility.solo.length > 0;
   const soloed = soloing && fullName !== null && visibility.solo.includes(fullName);
@@ -67,6 +72,18 @@ export function RefItem({ entry, label, icon, depth = 0, selected, visibility, c
       >
         <span className="sidebar-icon">{entry.current ? <CheckIcon size={13} /> : icon}</span>
         <span className="sidebar-name">{label}</span>
+        {stack && (
+          <span
+            className={`sidebar-stack${stack.moved ? " moved" : ""}`}
+            title={
+              stack.moved
+                ? `Built on an earlier version of ${stack.on}, which was rewritten since: check ${entry.name} out, then move it onto the new one from its menu`
+                : `Built on ${stack.on}: rebasing ${entry.name} moves ${stack.on} along`
+            }
+          >
+            {stack.moved ? `${below} moved` : `on ${below}`}
+          </span>
+        )}
         {isProtected && (
           <span className="sidebar-lock" title={`${entry.name} is protected: it can't be deleted, and rewriting it needs its name typed`}>
             <LockIcon size={11} />

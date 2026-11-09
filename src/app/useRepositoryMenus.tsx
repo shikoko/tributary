@@ -7,7 +7,7 @@ import type { LfsLocks } from "../lib/locks";
 import { baseName, joinPath } from "../lib/paths";
 import { PullRequestsContext } from "../lib/pullRequests";
 import { openInBrowser } from "../lib/weblinks";
-import type { PullRequest } from "../api";
+import type { PullRequest, Stacked } from "../api";
 import type { MenuContext, OpenDialog } from "../menus";
 import type { FileMenuContext } from "./fileMenus";
 import type { SubmoduleMenuContext, WorktreeMenuContext } from "./listMenus";
@@ -25,6 +25,10 @@ interface Options {
   act: (action: Action) => Promise<boolean>;
   openDialog: (dialog: OpenDialog) => void;
   showRequest: (pr: PullRequest) => void;
+  /** Show what changed when a branch was rewritten. */
+  showRewrite: (rewrite: { branch: string; base: string | null }) => void;
+  /** Branches built on other unmerged branches. */
+  stacks: Map<string, Stacked>;
   highlight: Highlight;
   settings: RepositorySettings;
   byId: Map<string, CommitRow>;
@@ -48,6 +52,8 @@ export function useRepositoryMenus({
   act,
   openDialog,
   showRequest,
+  showRewrite,
+  stacks,
   highlight,
   settings,
   byId,
@@ -72,6 +78,8 @@ export function useRepositoryMenus({
     open: openDialog,
     requests,
     showRequest: showRequest,
+    showRewrite,
+    stackOf: (branch: string) => stacks.get(branch),
     focus: highlight.highlightHistory,
     focusAuthor: highlight.highlightAuthor,
     visibility: settings.visibility,

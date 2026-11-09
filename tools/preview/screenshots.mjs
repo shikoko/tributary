@@ -163,6 +163,25 @@ const shots = {
     return page;
   },
 
+  /** A branch's menu saying whether merging it would conflict, worked out without merging. */
+  async "merge-check"() {
+    const page = await open(fresh().studio);
+    await page.locator(".commit-list .ref-pill[title*='art/barber-v2']").first().click({ button: "right" });
+    await page.locator(".menu-detail", { hasText: "Conflicts in" }).first().waitFor({ timeout: 20_000 });
+    await settle(page);
+    return page;
+  },
+
+  /** What changed when a teammate force-pushed a branch, commit by commit. */
+  async rewrite() {
+    const page = await open(fresh().studio);
+    await page.locator(".commit-list .ref-pill[title*='fix/stool']").first().click({ button: "right" });
+    await page.locator(".menu-item", { hasText: "force-pushed" }).click();
+    await page.locator(".rewrite-pair").first().waitFor();
+    await settle(page);
+    return page;
+  },
+
   /** A pull request's reviews and checks. */
   async "pull-request"() {
     const page = await open(fresh().studio, {
@@ -309,7 +328,7 @@ const shots = {
 };
 
 /** Shots whose hover is part of the picture. */
-const HOVERED = new Set(["blame", "compare"]);
+const HOVERED = new Set(["blame", "compare", "merge-check"]);
 
 let failed = 0;
 for (const [name, shoot] of Object.entries(shots)) {

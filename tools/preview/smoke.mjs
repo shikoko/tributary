@@ -613,7 +613,7 @@ try {
     expect(["SM_Bench_Old", "SM_Bench_Long", "PointLight_Hearth", "BP_Fireplace"].every((name) => listed.includes(name)), listed.join(", "));
   });
 
-  await step("shows a sound, a video and a 3D model as what they are", async () => {
+  await step("shows a sound, a video, a Blender file's preview and a 3D model as what they are", async () => {
     await row("A slower door with a longer creak").click();
     await page.locator(".details .file", { hasText: "DoorCreak.wav" }).click();
     const view = page.locator(".diff-view");
@@ -621,6 +621,10 @@ try {
     await view.locator(".diff-media-facts", { hasText: "0:01.6" }).waitFor({ timeout: 10_000 });
     await page.keyboard.press("]");
     await view.locator(".diff-media-facts", { hasText: "0:03.0 · 320×180" }).waitFor({ timeout: 10_000 });
+    // The preview Blender saved in the file, before and after, and who owns it (CODEOWNERS).
+    await page.keyboard.press("]");
+    await view.locator("img").nth(1).waitFor({ timeout: 10_000 });
+    await view.locator(".diff-owners", { hasText: "@theo and @rosa" }).waitFor({ timeout: 10_000 });
     await page.keyboard.press("]");
     const facts = view.locator(".diff-model-facts");
     await facts.waitFor({ timeout: 20_000 });

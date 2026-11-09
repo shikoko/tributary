@@ -190,6 +190,42 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "unity_setup" => to_json(actions::unity_setup(&path()?)?),
         "sparse_settings" => to_json(actions::sparse_settings(&path()?)?),
         "speed_settings" => to_json(actions::speed_settings(&path()?)?),
+        "branch_stacks" => to_json(actions::branch_stacks(&path()?)?),
+        "release_notes" => {
+            let to: String = arg(args, "to")?;
+            let from: Option<String> = optional(args, "from")?;
+            to_json(actions::release_notes(&path()?, &to, from.as_deref())?)
+        }
+        "branch_versions" => {
+            let name: String = arg(args, "name")?;
+            to_json(actions::branch_versions(&path()?, &name)?)
+        }
+        "range_diff" => {
+            let old: String = arg(args, "old")?;
+            let new: String = arg(args, "new")?;
+            let base: Option<String> = optional(args, "base")?;
+            let branch: Option<String> = optional(args, "branch")?;
+            to_json(actions::range_diff(
+                &path()?,
+                &old,
+                &new,
+                base.as_deref(),
+                branch.as_deref(),
+            )?)
+        }
+        "code_owners" => {
+            let files: Vec<String> = arg(args, "files")?;
+            let top = gix::discover(path()?)
+                .ok()
+                .and_then(|repo| repo.workdir().map(PathBuf::from))
+                .unwrap_or(path()?);
+            to_json(tributary_lib::codeowners::owners_of(&top, &files))
+        }
+        "merge_check" => {
+            let from: String = arg(args, "from")?;
+            let into: Option<String> = optional(args, "into")?;
+            to_json(actions::merge_check(&path()?, &from, into.as_deref())?)
+        }
         "patch_info" => to_json(actions::patch_info(
             &path()?,
             &arg::<PathBuf>(args, "file")?,

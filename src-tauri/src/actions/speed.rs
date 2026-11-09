@@ -45,7 +45,7 @@ pub struct SpeedSettings {
 }
 
 /// git's version, as numbers: "git version 2.45.1.windows.1" is [2, 45, 1].
-fn version(git: &Git) -> (String, Vec<u32>) {
+pub(super) fn version(git: &Git) -> (String, Vec<u32>) {
     let text = git.run(&["--version"]).unwrap_or_default();
     let number = text
         .trim()

@@ -1,5 +1,5 @@
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
-import { commitDetails, type Action, type LargeFile, type RepoSnapshot } from "../../api";
+import { commitDetails, type Action, type LargeFile, type NameProblem, type RepoSnapshot } from "../../api";
 import { plural } from "../../lib/format";
 import { baseName } from "../../lib/paths";
 import { modKey } from "../../lib/platform";
@@ -20,6 +20,8 @@ interface Props {
   stagedCount: number;
   /** Big staged files outside Git LFS: committing them asks first. */
   largeStaged: LargeFile[];
+  /** Staged new files whose names won't work everywhere: committing them asks first too. */
+  namesStaged: NameProblem[];
   busy: boolean;
   /** Runs a git action; resolves to true when it worked. */
   run: (action: Action) => Promise<boolean>;
@@ -32,11 +34,12 @@ interface Props {
  * cherry-pick or revert, or after a squash merge, it starts from the message git
  * prepared; amending starts from the last commit's.
  */
-export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, busy, run, messageTools }: Props) {
+export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, namesStaged, busy, run, messageTools }: Props) {
   const [confirmLarge, setConfirmLarge] = useState(false);
+  const worries = largeStaged.length + namesStaged.length;
   useEffect(() => {
-    if (largeStaged.length === 0) setConfirmLarge(false);
-  }, [largeStaged.length]);
+    if (worries === 0) setConfirmLarge(false);
+  }, [worries]);
   const [committing, setCommitting] = useState(false);
   const [lastMessage, setLastMessage] = useState<string | null>(null);
 
@@ -69,8 +72,9 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
     !busy && !committing && draft.summary.trim() !== "" && (stagedCount > 0 || draft.amend) && !snapshot.bare;
   const commit = async (anyway = false) => {
     if (!canCommit) return;
-    // Big files committed outside Git LFS stay in every clone forever: ask first.
-    if (largeStaged.length > 0 && !anyway) {
+    // Big files committed outside Git LFS stay in every clone forever, and names that don't
+    // work on Windows or macOS break teammates' checkouts: ask first.
+    if (worries > 0 && !anyway) {
       setConfirmLarge(true);
       return;
     }
@@ -128,8 +132,18 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
       {confirmLarge && (
         <div className="commit-warning" role="alert">
           <span>
-            {largeStaged.length === 1 ? `${baseName(largeStaged[0].path)} is` : `${largeStaged.length} staged files are`} big and
-            not in Git LFS.
+            {largeStaged.length > 0 && (
+              <>
+                {largeStaged.length === 1 ? `${baseName(largeStaged[0].path)} is` : `${largeStaged.length} staged files are`} big
+                and not in Git LFS.{" "}
+              </>
+            )}
+            {namesStaged.length > 0 && (
+              <>
+                {namesStaged.length === 1 ? `${baseName(namesStaged[0].path)}'s name` : `${namesStaged.length} staged files' names`}{" "}
+                won't work on everyone's computer.
+              </>
+            )}
           </span>
           <button className="link-button" onClick={() => setConfirmLarge(false)}>
             Cancel

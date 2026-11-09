@@ -79,6 +79,27 @@ impl Git {
         self.run_with_env(args, &[])
     }
 
+    /// Run git with `args` when its exit code is an answer rather than a failure (like
+    /// `git merge-tree`, where 1 means "it conflicts"): the code and what it printed.
+    /// Only failing to run git at all is an error.
+    pub(crate) fn run_status(&self, args: &[&str]) -> Result<(Option<i32>, String)> {
+        let (started, took) = (SystemTime::now(), Instant::now());
+        let output = command(&self.executable)
+            .arg("-C")
+            .arg(&self.workdir)
+            .args(args)
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .output()
+            .map_err(|e| format!("Could not run git: {e}"))?;
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let printed = format!("{}\n{}", stdout.trim_end(), stderr.trim_end());
+        // An answer either way, as far as the log goes; only git's own errors (128) failed.
+        let answered = output.status.code().is_some_and(|code| code < 128);
+        record(self, args, started, took, answered, &printed);
+        Ok((output.status.code(), stdout))
+    }
+
     pub(crate) fn run_with_env(
         &self,
         args: &[&str],

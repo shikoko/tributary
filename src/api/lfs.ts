@@ -41,6 +41,22 @@ export interface FileChecks {
   /** Files marked lockable. */
   lockable: string[];
   usesLfs: boolean;
+  /** New files whose names will cause trouble on Windows or macOS. */
+  names: NameProblem[];
+}
+
+/** A new file whose name won't work on everyone's computer. */
+export interface NameProblem {
+  path: string;
+  /**
+   * caseClash: another file or folder has the same name but for capitals (`detail`: its path);
+   * reserved: a name Windows keeps for devices, like CON (`detail`: the name);
+   * character: a character Windows doesn't allow (`detail`: it);
+   * trailingDot: a name ending in a dot or space (`detail`: the name);
+   * tooLong: a long path (`detail`: its length).
+   */
+  problem: "caseClash" | "reserved" | "character" | "trailingDot" | "tooLong";
+  detail: string;
 }
 
 export function fileChecks(path: string, files: string[], threshold: number): Promise<FileChecks> {

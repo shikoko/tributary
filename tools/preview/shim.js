@@ -168,6 +168,7 @@
     onRemote: true,
     unpushed: 0,
     commits: [{ summary: `Work on ${branch}`, body: "" }],
+    owners: [],
     ...(preview.newRequest || {}),
   });
 

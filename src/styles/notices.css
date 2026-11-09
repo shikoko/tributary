@@ -91,6 +91,15 @@
   color: var(--info-strong-text);
 }
 
+.file-warning-list {
+  margin: 6px 0 0;
+  padding-left: 16px;
+}
+
+.file-warning-list li {
+  overflow-wrap: anywhere;
+}
+
 .file-warning-actions {
   display: flex;
   flex-wrap: wrap;

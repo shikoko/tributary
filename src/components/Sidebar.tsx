@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import type { BranchSync } from "../lib/branchSync";
+import type { Stacked } from "../api";
 import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Submodule, type Visibility, type Worktree } from "../api";
 import { stepFocus } from "../lib/inputMode";
 import type { RefEntry } from "../lib/refs";
@@ -39,6 +40,8 @@ interface Props {
   protectedBranches: string[];
   /** For local branches that track a remote branch: commits to push and to pull. */
   aheadBehind: Map<string, BranchSync>;
+  /** Local branches built on other unmerged branches. */
+  stacks: Map<string, Stacked>;
   /** Files locked with Git LFS, or null when the repository doesn't use locking. */
   locks: Lock[] | null;
   /** Why the locks couldn't be refreshed. */
@@ -87,6 +90,7 @@ export function Sidebar(props: Props) {
       selected={entry.commitId === selectedId}
       visibility={visibility}
       counts={entry.kind === "branch" ? aheadBehind.get(entry.name) : undefined}
+      stack={entry.kind === "branch" ? props.stacks.get(entry.name) : undefined}
       isProtected={entry.kind === "branch" && props.protectedBranches.includes(entry.name)}
       handlers={handlers}
     />

@@ -3,7 +3,7 @@ import { CreatePullRequestDialog } from "../components/CreatePullRequestDialog";
 import { BisectDialog } from "../components/BisectDialog";
 import { ancestors, countMissing } from "../lib/graph";
 import { shortId } from "../lib/format";
-import { openInBrowser } from "../lib/weblinks";
+import { openInBrowser, webRemote } from "../lib/weblinks";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DeleteBranchDialog, DeleteRemoteBranchDialog } from "../components/DeleteBranchDialogs";
 import { ForcePushDialog } from "../components/ForcePushDialog";
@@ -18,6 +18,8 @@ import { RenameBranchDialog } from "../components/RenameBranchDialog";
 import { ResetDialog } from "../components/ResetDialog";
 import { RestoreDialog } from "../components/RestoreDialog";
 import { ProtectedActionDialog } from "../components/Safety";
+import { ReleaseNotesDialog } from "../components/ReleaseNotesDialog";
+import { SplitCommitDialog } from "../components/SplitCommitDialog";
 import { StashDialog } from "../components/StashDialog";
 import { TagDialog } from "../components/TagDialog";
 import { baseName } from "../lib/paths";
@@ -54,6 +56,8 @@ interface Props {
   onRequestCreated: (pr: PullRequest) => void;
   /** Sign in to GitHub, in Settings. */
   signIn: () => void;
+  /** Say something briefly, like "Copied the release notes". */
+  notify: (text: string) => void;
 }
 
 /** The dialog that's open over a repository, if any. */
@@ -136,6 +140,31 @@ export function RepositoryDialogs(props: Props) {
         }}
       />
     )}
+    {dialog?.kind === "releaseNotes" && (
+      <ReleaseNotesDialog
+        repoPath={snapshot.path}
+        tag={dialog.tag}
+        site={(() => {
+          const remote = webRemote(snapshot);
+          return remote?.host === "github" ? "GitHub" : remote?.host === "gitlab" ? "GitLab" : null;
+        })()}
+        onClose={() => onClose()}
+        notify={props.notify}
+        openUrl={openInBrowser}
+      />
+    )}
+    {dialog?.kind === "splitCommit" && (
+      <SplitCommitDialog
+        commit={dialog.commit}
+        later={dialog.later}
+        loadDetails={loadDetails}
+        onCancel={() => onClose()}
+        onSplit={(paths, first, second) => {
+          onClose();
+          run({ kind: "splitCommit", id: dialog.commit.id, paths, first, second });
+        }}
+      />
+    )}
     {dialog?.kind === "prune" && (
       <PruneDialog
         repoPath={snapshot.path}
@@ -163,8 +192,18 @@ export function RepositoryDialogs(props: Props) {
       <ProtectedActionDialog
         branch={dialog.branch}
         title={`Rewrite ${dialog.branch}?`}
-        explanation={`${dialog.action.kind === "interactiveRebase" ? "This interactive rebase" : dialog.action.kind === "fixupInto" ? "Fixing up an earlier commit" : "Rebasing"} rewrites ${dialog.branch}'s history: its commits get new ids, so anyone who already has them will have to reconcile. Tributary keeps a backup of where it was.`}
-        confirmLabel={dialog.action.kind === "interactiveRebase" ? "Start rebase" : dialog.action.kind === "fixupInto" ? "Fix it up" : `Rebase ${dialog.branch}`}
+        explanation={`${dialog.action.kind === "interactiveRebase" ? "This interactive rebase" : dialog.action.kind === "fixupInto" ? "Fixing up an earlier commit" : dialog.action.kind === "splitCommit" ? "Splitting a commit" : dialog.action.kind === "restack" ? "Moving it onto the new branch below" : "Rebasing"} rewrites ${dialog.branch}'s history: its commits get new ids, so anyone who already has them will have to reconcile. Tributary keeps a backup of where it was.`}
+        confirmLabel={
+          dialog.action.kind === "interactiveRebase"
+            ? "Start rebase"
+            : dialog.action.kind === "fixupInto"
+              ? "Fix it up"
+              : dialog.action.kind === "splitCommit"
+                ? "Split it"
+                : dialog.action.kind === "restack"
+                  ? "Move it"
+                  : `Rebase ${dialog.branch}`
+        }
         onCancel={() => onClose()}
         onConfirm={() => {
           onClose();

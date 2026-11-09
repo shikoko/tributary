@@ -1,16 +1,19 @@
 //! Pictures the window can't show by itself, like the textures game projects keep (Targa,
-//! DDS, OpenEXR, TIFF, Radiance HDR and Photoshop files): read here and handed over as PNG,
-//! made smaller when they're big.
+//! DDS, OpenEXR, TIFF, Radiance HDR and Photoshop files, and the previews saved in Blender
+//! files): read here and handed over as PNG, made smaller when they're big.
 
 use std::io::Cursor;
 
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{DynamicImage, ImageEncoder, ImageFormat, ImageReader, Limits, RgbaImage};
 
+mod blend;
 mod psd;
 
 /// The extensions read here.
-pub const FORMATS: [&str; 8] = ["tga", "dds", "exr", "tif", "tiff", "hdr", "psd", "psb"];
+pub const FORMATS: [&str; 9] = [
+    "tga", "dds", "exr", "tif", "tiff", "hdr", "psd", "psb", "blend",
+];
 
 /// The longest side of a preview: bigger pictures are made smaller (they'd be slow to hand
 /// over, and the window shows them smaller anyway).
@@ -37,6 +40,7 @@ pub fn preview(extension: &str, bytes: &[u8]) -> Result<Preview, String> {
     let extension = extension.to_ascii_lowercase();
     let image = match extension.as_str() {
         "psd" | "psb" => psd::composite(bytes, MOST_PIXELS)?,
+        "blend" => blend::preview(bytes)?,
         _ => decode(&extension, bytes)?,
     };
     let (width, height) = image.dimensions();

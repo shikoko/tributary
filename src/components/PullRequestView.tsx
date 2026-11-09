@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { pullRequestDetails, requestConversation, type PullRequest, type RequestCheck, type RequestConversation, type RequestDetails, type RequestReview } from "../api";
+import { branchVersions, pullRequestDetails, requestConversation, type MergeCheck, type PullRequest, type RequestCheck, type RequestConversation, type RequestDetails, type RequestReview } from "../api";
 import { plural, relativeTime } from "../lib/format";
+import { checkMerge, describeMergeCheck } from "../lib/mergeChecks";
 import { describeMergeable, requestNoun, requestNumber, summarizeChecks } from "../lib/pullRequests";
 import { Avatar } from "./Avatar";
-import { CloseIcon, CompareIcon, ExternalLinkIcon, MergeIcon, PullRequestIcon, RefreshIcon } from "./Icons";
+import { CloseIcon, CompareIcon, ExternalLinkIcon, MergeIcon, PullRequestIcon, RebaseIcon, RefreshIcon } from "./Icons";
 import { ConversationList, MergeRequestDialog, ReviewBox } from "./RequestReview";
 
 /** While checks are running, they're asked about again this often. */
@@ -23,6 +24,8 @@ interface Props {
   onCompare: (details: RequestDetails) => void;
   /** Say what was done, like "Approved #12". */
   notify: (text: string) => void;
+  /** Show what changed when its branch was force-pushed (`branch` and `base`: their names on the remote). */
+  onShowRewrite: (branch: string, base: string) => void;
 }
 
 const STATES: Record<RequestDetails["state"], string> = { open: "Open", draft: "Draft", merged: "Merged", closed: "Closed" };
@@ -38,7 +41,7 @@ const REVIEWS: Record<RequestReview["state"], string> = {
  * A pull request (or GitLab merge request), over the commit list: where it stands, what
  * reviewers said, each check, and its description. Checks still running are followed.
  */
-export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBranch, hasCommit, onCompare, notify }: Props) {
+export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBranch, hasCommit, onCompare, notify, onShowRewrite }: Props) {
   const [details, setDetails] = useState<RequestDetails | null>(null);
   const [conversation, setConversation] = useState<RequestConversation | null>(null);
   const [conversationError, setConversationError] = useState<string | null>(null);
@@ -123,6 +126,37 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
   const merge = details && describeMergeable(details);
   // Its commits are loaded, so the app can compare them.
   const fetched = Boolean(details?.baseSha && details.headSha && hasCommit(details.baseSha) && hasCommit(details.headSha));
+  // Which files conflict (the site only says that some do), or, when the site doesn't say,
+  // whether it would merge: worked out here, from its commits.
+  const [local, setLocal] = useState<MergeCheck | null>(null);
+  const open = details?.state === "open" || details?.state === "draft";
+  const wanted = fetched && open && details && (details.mergeable === "conflicts" || !merge) ? `${details.headSha}:${details.baseSha}` : null;
+  useEffect(() => {
+    setLocal(null);
+    if (!wanted || !details?.headSha || !details.baseSha) return;
+    let current = true;
+    checkMerge(repoPath, details.headSha, details.baseSha, wanted)
+      .then((found) => current && setLocal(found))
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+    // `wanted` stands for the two commits.
+  }, [repoPath, wanted]);
+  const localSaid = local && !merge ? describeMergeCheck(local, "merge") : null;
+  // Its branch was force-pushed since this copy of the repository first saw it: offer what changed.
+  const [forcePushed, setForcePushed] = useState(false);
+  const remoteBranch = `${request.remote}/${request.branch}`;
+  useEffect(() => {
+    let current = true;
+    setForcePushed(false);
+    branchVersions(repoPath, remoteBranch)
+      .then((versions) => current && setForcePushed(versions.some((version, index) => version.rewritten && index + 1 < versions.length)))
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [repoPath, remoteBranch, details?.headSha]);
   const canAct = Boolean(conversation?.you) && (details?.state === "open" || details?.state === "draft");
   const created = details ? Date.parse(details.created) / 1000 : NaN;
   return (
@@ -185,6 +219,22 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
             </div>
 
             {merge && <div className={`request-merge ${merge.tone}`}>{merge.text}</div>}
+            {localSaid && (
+              <div className={`request-merge ${localSaid.tone === "bad" ? "bad" : localSaid.tone === "good" ? "good" : "waiting"}`}>
+                Into {details.base}: {localSaid.text[0].toLowerCase() + localSaid.text.slice(1)} (checked here)
+              </div>
+            )}
+            {local?.outcome === "conflicts" && local.conflicts.length > 0 && (
+              <div className="request-conflicts">
+                <span className="muted">{local.conflictCount === 1 ? "The file that conflicts" : `The ${local.conflictCount} files that conflict`}, as merged here:</span>
+                <ul className="mono">
+                  {local.conflicts.slice(0, 12).map((file) => (
+                    <li key={file}>{file}</li>
+                  ))}
+                  {local.conflictCount > 12 && <li className="muted">and {plural(local.conflictCount - 12, "more file")}</li>}
+                </ul>
+              </div>
+            )}
 
             <div className="request-actions">
               <button
@@ -196,6 +246,16 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
                 <CompareIcon size={13} />
                 <span className="button-label">See its changes</span>
               </button>
+              {forcePushed && (
+                <button
+                  className="outline-button"
+                  onClick={() => onShowRewrite(details.branch, details.base)}
+                  title={`${details.branch} was force-pushed: see what changed, commit by commit`}
+                >
+                  <RebaseIcon size={13} />
+                  <span className="button-label">Since the force-push</span>
+                </button>
+              )}
               {canAct && (
                 <button className={`outline-button${reviewing ? " active" : ""}`} onClick={() => setReviewing(!reviewing)} aria-expanded={reviewing}>
                   <span className="button-label">Review</span>

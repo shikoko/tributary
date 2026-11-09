@@ -1,4 +1,5 @@
 import type { Action, FileChange, FileChecks, Lock } from "../../api";
+import { describeNameProblem } from "../../lib/fileNames";
 import { formatBytes, plural } from "../../lib/format";
 import { baseName } from "../../lib/paths";
 import { LockIcon, WarningIcon } from "../Icons";
@@ -38,8 +39,28 @@ export function ChangeWarnings({ staged, unstaged, lockOf, checks, canLock, busy
   const stagedPaths = new Set(staged.map((file) => file.path));
   const patterns = [...new Set(large.map((file) => lfsPattern(file.path)))];
   const unlocked = canLock ? (checks?.lockable ?? []).filter((path) => !lockOf(path)) : [];
+  const names = checks?.names ?? [];
   return (
     <>
+    {names.length > 0 && (
+      <div className="file-warning large" role="status">
+        <WarningIcon size={14} />
+        <div>
+          <div>
+            {names.length === 1 ? "A new file's name" : `${names.length} new files' names`} won't work on everyone's computer: a
+            teammate's checkout fails, or goes wrong. Rename {names.length === 1 ? "it" : "them"} before committing.
+          </div>
+          <ul className="file-warning-list">
+            {names.slice(0, 6).map((problem) => (
+              <li key={problem.path} title={problem.path}>
+                <strong>{baseName(problem.path)}</strong>: {describeNameProblem(problem)}
+              </li>
+            ))}
+            {names.length > 6 && <li>and {plural(names.length - 6, "more file")}</li>}
+          </ul>
+        </div>
+      </div>
+    )}
     {lockedByOthers.length > 0 && (
       <div className="lock-warning" role="status">
         <LockIcon size={13} />

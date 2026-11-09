@@ -10,6 +10,42 @@ use crate::requests::{
     sort_checks,
 };
 
+/// GitLab's ids for the people (`@user`) among `wanted`, to ask them for a review. Groups
+/// can't review on GitLab, and names it doesn't know are left out.
+async fn reviewer_ids(
+    client: &reqwest::Client,
+    project: &Project,
+    token: &str,
+    bearer: bool,
+    wanted: &[String],
+) -> Vec<u64> {
+    #[derive(Deserialize)]
+    struct User {
+        id: u64,
+    }
+    let Some((api, _)) = project.api.split_once("/projects/") else {
+        return Vec::new();
+    };
+    let mut ids = Vec::new();
+    for name in wanted.iter().filter_map(|name| name.strip_prefix('@')) {
+        if name.contains('/')
+            || !name
+                .chars()
+                .all(|c| c.is_alphanumeric() || "._-".contains(c))
+        {
+            continue;
+        }
+        let url = format!("{api}/users?username={name}");
+        let Ok(answer) = get(client, &url, Some(token), bearer).await else {
+            continue;
+        };
+        if let Ok(users) = answer.json::<Vec<User>>().await {
+            ids.extend(users.first().map(|user| user.id));
+        }
+    }
+    ids
+}
+
 /// Open a merge request from `request.branch` into `request.base`.
 pub(crate) async fn create(
     project: &Project,
@@ -27,11 +63,13 @@ pub(crate) async fn create(
     } else {
         title.to_owned()
     };
+    let reviewer_ids = reviewer_ids(&client, project, token, bearer, &request.reviewers).await;
     let body = serde_json::json!({
         "source_branch": request.branch,
         "target_branch": request.base,
         "title": title,
         "description": request.body,
+        "reviewer_ids": reviewer_ids,
     });
     let post = client
         .post(format!("{}/merge_requests", project.api))
@@ -299,6 +337,45 @@ pub(crate) async fn details(
             .and_then(|refs| refs.head_sha)
             .or(request.sha),
     })
+}
+
+/// Publish a release for `tag` (already on the remote), described by `notes`. Returns its page.
+pub(crate) async fn publish_release(
+    project: &Project,
+    token: &str,
+    tag: &str,
+    title: &str,
+    notes: &str,
+) -> Result<String> {
+    let client = client()?;
+    let bearer = auth_mode(&client, project, token).await?.ok_or(
+        "GitLab didn't accept the token git keeps for it. Push or fetch to sign in again.",
+    )?;
+    let post = client
+        .post(format!("{}/releases", project.api))
+        .json(&serde_json::json!({ "tag_name": tag, "name": title, "description": notes }));
+    let post = if bearer {
+        post.bearer_auth(token)
+    } else {
+        post.header("PRIVATE-TOKEN", token)
+    };
+    let response = post
+        .send()
+        .await
+        .map_err(|e| format!("Couldn't reach GitLab ({e})"))?;
+    let status = response.status();
+    let answer: serde_json::Value = response.json().await.unwrap_or_default();
+    if !status.is_success() {
+        let message = error_message(&answer).unwrap_or_else(|| status.to_string());
+        return Err(match status.as_u16() {
+            409 => format!("{tag} already has a release on GitLab.").into(),
+            _ => format!("GitLab didn't publish it: {message}").into(),
+        });
+    }
+    Ok(answer["_links"]["self"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned())
 }
 
 #[cfg(test)]

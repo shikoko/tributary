@@ -12,6 +12,7 @@ import {
   EyeOffIcon,
   PinIcon,
   PullRequestIcon } from "../components/Icons";
+import { MergeHint } from "../components/MergeHint";
 import { pillRefNames, splitRemoteBranch, type MenuContext } from "./context";
 
 /** Hide, solo and pin entries for a label. */
@@ -99,16 +100,24 @@ export function webItems(ctx: MenuContext, pill: RefPill): MenuItem[] {
   return items;
 }
 
-/** Merge and rebase entries for a branch, tag or commit, relative to the checked-out branch. */
-export function mergeItems(ctx: MenuContext, revision: string, label: string): MenuItem[] {
-  const branch = ctx.snapshot.headBranch;
-  const disabled = !ctx.canChange || !branch || ctx.snapshot.operation !== null;
+/**
+ * Merge and rebase entries for a branch, tag or commit, relative to the checked-out branch,
+ * saying whether they'd conflict. `targetId`: the commit `revision` is at, when known.
+ */
+export function mergeItems(ctx: MenuContext, revision: string, label: string, targetId?: string): MenuItem[] {
+  const { snapshot } = ctx;
+  const branch = snapshot.headBranch;
+  const disabled = !ctx.canChange || !branch || snapshot.operation !== null;
+  // Checked only where it could be done.
+  const at = `${snapshot.headCommit}:${targetId ?? ""}`;
+  const hint = (kind: "merge" | "rebase") => (disabled || !snapshot.headCommit ? undefined : <MergeHint repo={snapshot.path} from={revision} at={at} kind={kind} />);
   return [
     {
       label: `Merge ${label} into ${branch ?? "HEAD"}`,
       icon: <MergeIcon />,
       separated: true,
       disabled,
+      detail: hint("merge"),
       onSelect: () => ctx.run({ kind: "merge", target: revision }),
     },
     {
@@ -127,6 +136,7 @@ export function mergeItems(ctx: MenuContext, revision: string, label: string): M
       label: `Rebase ${branch ?? "HEAD"} onto ${label}`,
       icon: <RebaseIcon />,
       disabled,
+      detail: hint("rebase"),
       onSelect: () => ctx.run({ kind: "rebase", onto: revision }),
     },
   ];

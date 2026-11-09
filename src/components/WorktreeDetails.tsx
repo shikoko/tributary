@@ -154,6 +154,7 @@ export function WorktreeDetailsPanel(props: Props) {
           onDraft={props.onDraft}
           stagedCount={status.staged.length}
           largeStaged={(checks?.large ?? []).filter((file) => stagedPaths.has(file.path))}
+          namesStaged={(checks?.names ?? []).filter((problem) => stagedPaths.has(problem.path))}
           busy={busy}
           run={run}
           messageTools={props.messageTools}

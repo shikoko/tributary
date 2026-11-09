@@ -59,6 +59,23 @@ export const FixupIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A page with lines and a tag's notch: a release's notes. */
+export const NotesIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 1.75h5.5L12.5 4.75v9.5H4z" />
+    <path d="M6 7h4.5M6 9.5h4.5M6 12h2.5" />
+  </Icon>
+);
+
+/** One commit cut into two: two commits on a line, with a cut between them. */
+export const SplitCommitIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="3.75" r="2" />
+    <circle cx="8" cy="12.25" r="2" />
+    <path d="M8 5.75v1M8 9.25v1M4.25 8h7.5" />
+  </Icon>
+);
+
 /** Two columns: before and after, side by side. */
 export const SplitIcon = (p: IconProps) => (
   <Icon {...p}>
@@ -419,11 +436,6 @@ export const RewriteIcon = (p: IconProps) => (
   </Icon>
 );
 
-export const MenuIcon = (p: IconProps) => (
-  <Icon {...p}>
-    <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
-  </Icon>
-);
 
 /** The app icon's tile: a rounded square with continuous (Apple-style) corners. */
 const LOGO_TILE = "M924 512C924 922 922 924 512 924C102 924 100 922 100 512C100 102 102 100 512 100C922 100 924 102 924 512Z";

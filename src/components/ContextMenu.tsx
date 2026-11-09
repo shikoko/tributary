@@ -14,6 +14,8 @@ export interface MenuItem {
   checked?: boolean;
   /** A keyboard shortcut to show on the right, like "⌘B". */
   shortcut?: string;
+  /** A second, smaller line under the label (like whether a merge would conflict). */
+  detail?: ReactNode;
 }
 
 interface Props {
@@ -109,7 +111,14 @@ export function ContextMenu({ x, y, items, onClose, onSideways }: Props) {
               }}
             >
               <span className="menu-icon">{item.checked ? <CheckIcon /> : item.icon}</span>
-              <span className="menu-label">{item.label}</span>
+              {item.detail ? (
+                <span className="menu-text">
+                  <span className="menu-label">{item.label}</span>
+                  <span className="menu-detail">{item.detail}</span>
+                </span>
+              ) : (
+                <span className="menu-label">{item.label}</span>
+              )}
               {item.shortcut && <span className="menu-shortcut">{item.shortcut}</span>}
             </button>
           </div>

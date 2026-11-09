@@ -15,7 +15,7 @@ use crate::links::Host;
 pub(crate) mod issues;
 mod requests;
 pub(crate) mod reviews;
-pub(crate) use requests::{create, details};
+pub(crate) use requests::{create, details, publish_release};
 
 /// At most this many merge requests get their pipeline looked up.
 const MAX_CHECKED: usize = 25;

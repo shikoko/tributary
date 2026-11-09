@@ -9,6 +9,7 @@ import { describeActor, useActorNames } from "../../lib/actorNames";
 import { BlameIcon, ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon, SplitIcon } from "../Icons";
 import { DiffBinary } from "./DiffBinary";
 import { DiffMedia } from "./DiffMedia";
+import { describeOwners, useCodeOwners } from "../../lib/codeOwners";
 import { FileKindIcon } from "../FileKindIcon";
 import { ConflictEditor } from "./ConflictEditor";
 import { DiffLines, type LinePicking } from "./DiffLines";
@@ -140,6 +141,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
   const both = Boolean(diff?.media && diff.hunks.length > 0);
   const showMedia = Boolean(diff?.media && !(both && asText));
   const tools = useDiffTools(repoPath);
+  const owners = useCodeOwners(repoPath, path);
   const tool = tools ? (conflicted ? tools.merge : tools.diff) : null;
   /** Open the file in the diff (or merge) tool, or choose one first. */
   const openInTool = () =>
@@ -177,6 +179,11 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           )}
           {actor?.level ? <span className="diff-dir">{actor.level}</span> : slash > 0 && <span className="diff-dir">{path.slice(0, slash)}</span>}
           <span className="diff-source">{target.label}</span>
+          {owners.length > 0 && (
+            <span className="diff-source diff-owners" title={`Its owners, by CODEOWNERS: ${owners.join(", ")}`}>
+              Owned by {describeOwners(owners)}
+            </span>
+          )}
           {diff?.lfs && !diff.binary && !diff.tooLarge && (
             <span className="diff-source" title="Stored with Git LFS: these are the files' real contents">
               Git LFS

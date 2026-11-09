@@ -22,6 +22,11 @@ interface Props {
   signIn: () => void;
 }
 
+/** Whether the site can be asked for `owner`'s review: people, and on GitHub teams (not email addresses). */
+function canAsk(owner: string, forge: NewRequestInfo["forge"]): boolean {
+  return owner.startsWith("@") && (forge === "github" || !owner.includes("/"));
+}
+
 /**
  * Open a pull request (or a GitLab merge request) for a branch without leaving the app:
  * its title and description (suggested from its commits), the branch to merge it into,
@@ -35,6 +40,8 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
   const [base, setBase] = useState("");
   const [draft, setDraft] = useState(false);
   const [pushFirst, setPushFirst] = useState(true);
+  // The owners of the files it changes to ask for a review: those the site can ask.
+  const [reviewers, setReviewers] = useState<string[]>([]);
   const [running, setRunning] = useState<"push" | "create" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +55,7 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
         setTitle(suggested.title);
         setBody(suggested.body);
         setBase(found.base ?? found.bases.find((name) => name !== branch) ?? "");
+        setReviewers(found.owners.filter((owner) => canAsk(owner, found.forge)));
       })
       .catch((e) => current && setLoadError(String(e)));
     return () => {
@@ -77,7 +85,7 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
     }
     setRunning("create");
     try {
-      onCreated(await createPullRequest(repoPath, { branch, base, title: title.trim(), body, draft }));
+      onCreated(await createPullRequest(repoPath, { branch, base, title: title.trim(), body, draft, reviewers }));
     } catch (e) {
       setError(String(e));
       setRunning(null);
@@ -179,6 +187,31 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
             <input type="checkbox" checked={draft} onChange={(event) => setDraft(event.target.checked)} />
             Draft: not ready for review yet
           </label>
+          {info.owners.length > 0 && (
+            <div className="request-owners" role="group" aria-label="Ask for reviews">
+              <span className="request-owners-label">Ask the owners of the files it changes to review (CODEOWNERS):</span>
+              <div className="request-owner-list">
+                {info.owners.slice(0, 12).map((owner) => {
+                  const askable = canAsk(owner, info.forge);
+                  return (
+                    <label
+                      key={owner}
+                      className="checkbox"
+                      title={askable ? undefined : info.forge === "gitlab" && owner.includes("/") ? "GitLab can't ask a group" : "Only people with an account can be asked"}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={!askable}
+                        checked={reviewers.includes(owner)}
+                        onChange={(event) => setReviewers((now) => (event.target.checked ? [...now, owner] : now.filter((name) => name !== owner)))}
+                      />
+                      <span className="mono">{owner}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {checkedOut && unpushed > 0 && (
             <label className="checkbox">
               <input type="checkbox" checked={pushFirst || mustPush} disabled={mustPush} onChange={(event) => setPushFirst(event.target.checked)} />

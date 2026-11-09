@@ -342,6 +342,54 @@ const doorVideo = (version) => readFileSync(join(dirname(fileURLToPath(import.me
 const days = (n) => n * 86400;
 const now = () => Math.floor(Date.now() / 1000);
 
+/**
+ * A Blender file, as far as Tributary reads one: the header, a render block, the preview
+ * picture Blender saves (128 × 128, RGBA, bottom row first), and the end. A stool on a grey
+ * backdrop, with a back when `back`.
+ */
+function blend(back) {
+  const size = 128;
+  const paint = (x, y) => {
+    const shade = 58 + Math.round((y / size) * 30);
+    const wood = (light) => [128 + light, 84 + light * 0.6, 48 + light * 0.3];
+    const seat = y >= 62 && y <= 70 && x >= 34 && x <= 94;
+    const leg = y > 70 && y <= 112 && [38, 50, 78, 90].some((left) => x >= left && x <= left + 5);
+    const rung = y >= 94 && y <= 97 && x >= 38 && x <= 95;
+    const post = back && y >= 20 && y < 62 && (Math.abs(x - 40) <= 3 || Math.abs(x - 88) <= 3);
+    const rail = back && ((y >= 22 && y <= 28) || (y >= 38 && y <= 42)) && x >= 37 && x <= 91;
+    if (seat) return [...wood(28), 255];
+    if (leg || post) return [...wood(0), 255];
+    if (rung || rail) return [...wood(14), 255];
+    // The stool's shadow on the floor.
+    if (y > 110 && y < 117 && Math.abs(x - 64) < 34) return [40, 40, 44, 255];
+    return [shade, shade, shade + 6, 255];
+  };
+  const pixels = Buffer.alloc(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      // Bottom row first.
+      pixels.set(paint(x, y), ((size - 1 - y) * size + x) * 4);
+    }
+  }
+  const block = (code, data) => {
+    const head = Buffer.alloc(24);
+    head.write(code, 0, "latin1");
+    head.writeUInt32LE(data.length, 4);
+    head.writeUInt32LE(1, 20);
+    return Buffer.concat([head, data]);
+  };
+  const sides = Buffer.alloc(8);
+  sides.writeUInt32LE(size, 0);
+  sides.writeUInt32LE(size, 4);
+  return Buffer.concat([
+    Buffer.from("BLENDER-v405", "latin1"),
+    block("REND", Buffer.alloc(72)),
+    block("TEST", Buffer.concat([sides, pixels])),
+    block("GLOB", Buffer.alloc(16)),
+    block("ENDB", Buffer.alloc(0)),
+  ]);
+}
+
 function setUp(folder, configFile) {
   rmSync(folder, { recursive: true, force: true });
   mkdirSync(folder, { recursive: true });
@@ -516,6 +564,9 @@ export function buildNotebook(root, configFile) {
   merge("feature/sync", "Merge pull request #18 from feature/sync", "maya", 3);
   checkout("feature/export");
   commit("Export a whole notebook as a zip", "sam", 4, "src/export/zip.ts");
+  // Stacked on feature/export: rebasing it moves feature/export along.
+  branch("feature/export-pdf");
+  commit("Export a notebook as a PDF", "sam", 3, "src/export/pdf.ts");
   checkout("main");
   repo.write("src/store.ts", STORE.paged, { append: false });
   commit("Speed up opening large notebooks", "priya", 5);
@@ -580,6 +631,12 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   run(["remote", "add", "origin", origin]);
 
   write(".gitattributes", "*.uasset lockable\n*.umap lockable\n", { append: false });
+  // Who reviews what: suggested when opening a pull request, and shown with each file.
+  write(
+    ".github/CODEOWNERS",
+    "# Everything, unless a line below says otherwise\n*                      @maya\n/Content/Characters/   @rosa\n/Content/Textures/     @rosa\n/Content/Props/        @theo @rosa\n/Source/               @theo\n",
+    { append: false },
+  );
   write("Config/DefaultGame.ini", "[/Script/EngineSettings.GeneralProjectSettings]\nProjectName=Feast of the Forgotten\n", { append: false });
   write("Source/Feast/FeastGameMode.cpp", "// Game mode\n", { append: false });
   binary("Content/Characters/Barber.uasset", 2000);
@@ -640,10 +697,12 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   write("Content/Audio/DoorCreak.wav", creak(0.9, 6), { append: false });
   write("Content/Cinematics/DoorOpen.webm", doorVideo(1), { append: false });
   write("Content/Props/Stool.glb", stool(false), { append: false });
+  write("Content/Props/Stool.blend", blend(false), { append: false });
   commit("Record the tavern door, and model a stool", "theo");
   write("Content/Audio/DoorCreak.wav", creak(1.6, 11), { append: false });
   write("Content/Cinematics/DoorOpen.webm", doorVideo(2), { append: false });
   write("Content/Props/Stool.glb", stool(true), { append: false });
+  write("Content/Props/Stool.blend", blend(true), { append: false });
   commit("A slower door with a longer creak, and a stool with a back", "rosa");
   // A huge commit, like an engine's import: thousands of small generated files.
   for (let level = 1; level <= 4; level++) {
@@ -660,6 +719,27 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   commit("Make the door creak", "theo");
   run(["push", "-q", "-u", "origin", "fix/door"]);
   run(["switch", "-q", "main"]);
+  // A branch a teammate rewrote and force-pushed after it was fetched here: "What changed
+  // when origin/fix/stool was force-pushed" shows the difference.
+  const stoolCode = (wobble, more = "") => `// Stool\nfloat Wobble = ${wobble};\nfloat Height = 45.0f;\nfloat Seat = 30.0f;\n${more}`;
+  run(["switch", "-q", "-c", "fix/stool"]);
+  write("Source/Feast/Stool.cpp", stoolCode("0.4f"), { append: false });
+  commit("Stop the stool wobbling", "theo");
+  write("Source/Feast/Stool.cpp", stoolCode("0.4f", "bool HasBack = true;\n"), { append: false });
+  commit("Give the stool a back", "theo");
+  run(["push", "-q", "-u", "origin", "fix/stool"]);
+  run(["reset", "-q", "--hard", "HEAD~2"]);
+  write("Source/Feast/Stool.cpp", stoolCode("0.0f"), { append: false });
+  commit("Stop the stool wobbling", "theo");
+  write("Source/Feast/Stool.cpp", stoolCode("0.0f", "bool HasBack = true;\n"), { append: false });
+  commit("Give the stool a back", "theo");
+  write("Source/Feast/Stool.cpp", stoolCode("0.0f", "bool HasBack = true;\nfloat Padding = 2.0f;\n"), { append: false });
+  commit("Pad the stool's seat", "rosa");
+  // Pushed from elsewhere (by address, so this copy's origin/fix/stool doesn't move), then fetched.
+  run(["push", "-q", "--force", origin, "fix/stool:refs/heads/fix/stool"]);
+  run(["fetch", "-q", "origin"]);
+  run(["switch", "-q", "main"]);
+  run(["branch", "-q", "-D", "fix/stool"]);
   binary("Content/Props/Chair.uasset", 1800);
   commit("Add a tavern chair", "rosa");
   run(["push", "-q", "origin", "main"]);

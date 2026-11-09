@@ -15,12 +15,16 @@ export function undoFor(action: Action, before: Pick<RepoSnapshot, "headBranch" 
     case "resetHard":
     case "merge":
     case "rebase":
+    case "restack":
     case "cherryPick":
     case "revert":
     case "cherryPickMany":
     case "revertMany":
     case "interactiveRebase":
       return before.headCommit ? { kind: "resetHard", id: before.headCommit } : null;
+    case "splitCommit":
+      // The files are as they were: moving the branch back is enough.
+      return before.headCommit ? { kind: "resetSoft", id: before.headCommit } : null;
     case "commit":
     case "fixupInto":
       // The staged changes go back to being staged.

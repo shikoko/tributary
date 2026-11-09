@@ -42,6 +42,10 @@ thiserror = "2"
 notify = "8"
 # Leaves out what .gitignore ignores (build output) when watching: ripgrep's matcher.
 ignore = "0.4"
+# Blender files are often compressed (gzip before Blender 3.0, zstd since): their
+# preview pictures are read from the start of them (textures/blend.rs).
+flate2 = "1"
+ruzstd = "0.9"
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

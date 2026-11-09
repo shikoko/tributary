@@ -15,21 +15,27 @@ mod conflicts;
 mod diff;
 mod diff_tools;
 mod elsewhere;
+mod file_names;
 mod files;
 mod history;
 mod identity;
 mod lfs;
 mod lfs_health;
 mod lfs_settings;
+mod merge_check;
 mod partial;
 mod patches;
 mod prune;
+mod releases;
 mod remote;
 mod remote_settings;
+mod rewrites;
 mod search;
 mod signing;
 mod sparse;
 mod speed;
+mod split;
+mod stacks;
 mod stash;
 mod submodules;
 mod support;
@@ -57,21 +63,26 @@ pub use diff::{
 };
 pub use diff_tools::{DiffToolSettings, Scope, ToolChoice, diff_tool_settings, set_diff_tool};
 pub use elsewhere::{OtherChange, Overlap, changed_elsewhere};
+pub use file_names::{LONG_PATH, NameProblem, Problem};
 pub use files::{FileHistory, file_history};
 pub use identity::{RepoIdentity, repo_identity};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
 pub use lfs_health::{LfsHealth, lfs_health};
 pub use lfs_settings::{LfsFolder, LfsSettings, LfsSuggestion, lfs_settings};
+pub use merge_check::{MergeCheck, MergeOutcome, merge_check};
 pub use partial::LineMode;
 pub use patches::{PatchCommit, PatchFile, PatchInfo, patch_info, patch_text};
 pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
 };
+pub use releases::{ReleaseItem, ReleaseNotes, release_notes};
 pub use remote_settings::{RemoteInfo, remotes};
+pub use rewrites::{BranchVersion, CommitPair, PairStatus, RangeDiff, branch_versions, range_diff};
 pub use search::{SearchMode, SearchResult, search_commits};
 pub use signing::{SigningKey, SigningMode, SigningSettings, signing_settings};
 pub use sparse::{FolderChoice, SparseSettings, sparse_settings};
 pub use speed::{SpeedSettings, SpeedUp, speed_settings};
+pub use stacks::{Stacked, branch_stacks};
 pub use submodules::{Submodule, SubmoduleState, submodules};
 pub use team::{BranchActivity, BranchPerson, TeamActivity, TeamPerson, team_activity};
 pub use unity::{UnitySetup, unity_setup};
@@ -191,6 +202,17 @@ pub enum Action {
     /// Fold the staged changes into an earlier commit of the checked-out branch: commit
     /// them as a fixup of it, then rebase the commits after it with the fixup squashed in.
     FixupInto { id: String },
+    /// Split a commit of the checked-out branch in two: `paths` (some of its files) move into
+    /// a new commit right after it, with message `second`; it keeps the rest, with `first`.
+    SplitCommit {
+        id: String,
+        paths: Vec<String>,
+        first: String,
+        second: String,
+    },
+    /// Move the checked-out branch onto the new version of `onto`, which was rewritten after
+    /// it was built on `old` (an earlier version of `onto`).
+    Restack { onto: String, old: String },
     /// Create a tag on a commit: annotated when there is a message, lightweight otherwise.
     CreateTag {
         name: String,
@@ -569,6 +591,13 @@ fn perform(
             history::interactive_rebase(&repo, &git, onto, steps)
         }
         Action::FixupInto { id } => history::fixup_into(&repo, &git, id),
+        Action::SplitCommit {
+            id,
+            paths,
+            first,
+            second,
+        } => split::split_commit(&repo, &git, id, paths, first, second),
+        Action::Restack { onto, old } => stacks::restack(&repo, &git, onto, old),
         Action::CreateTag { name, id, message } => tags::create_tag(&repo, &git, name, id, message),
         Action::DeleteTag { name } => tags::delete_tag(&repo, &git, name),
         Action::RestoreTag { name, id } => tags::restore_tag(&repo, &git, name, id),

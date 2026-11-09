@@ -59,7 +59,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       const target = checkoutTarget(action);
       const kind: Running = requested === "other" && target !== null ? "checkout" : requested;
       const { openDialog, setError, notify, after, showChanges } = callbacks.current;
-      if (!options.confirmed && protectedHead && (action.kind === "rebase" || action.kind === "interactiveRebase" || action.kind === "fixupInto")) {
+      if (!options.confirmed && protectedHead && (action.kind === "rebase" || action.kind === "interactiveRebase" || action.kind === "fixupInto" || action.kind === "splitCommit" || action.kind === "restack")) {
         openDialog({ kind: "protectedAction", action, branch: protectedHead });
         return false;
       }

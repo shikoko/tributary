@@ -45,6 +45,10 @@ export type Action =
   /** `mode`: "noFastForward" always makes a merge commit; "squash" stages the changes to commit as one. */
   | { kind: "merge"; target: string; mode?: "default" | "noFastForward" | "squash" }
   | { kind: "rebase"; onto: string }
+  /** Move the checked-out branch onto the new version of `onto`, built on its earlier version `old`. */
+  | { kind: "restack"; onto: string; old: string }
+  /** Split a commit: `paths` move into a new commit right after it, with message `second`. */
+  | { kind: "splitCommit"; id: string; paths: string[]; first: string; second: string }
   | { kind: "cherryPick"; id: string }
   | { kind: "revert"; id: string }
   | { kind: "continueOperation" }

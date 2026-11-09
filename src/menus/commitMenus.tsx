@@ -29,7 +29,8 @@ import {
   TagIcon,
   TrashIcon,
   CompareIcon,
-  DownloadIcon } from "../components/Icons";
+  DownloadIcon,
+  SplitCommitIcon } from "../components/Icons";
 import { worktreeOf, canResetTo, splitRemoteBranch, commitLabel, headSide, type MenuContext } from "./context";
 
 /** Right-click while several commits are selected. */
@@ -221,6 +222,22 @@ export function commitMenu(ctx: MenuContext, commit: CommitRow): MenuItem[] {
     icon: <FixupIcon />,
     disabled: busy || fixupBlocked !== null,
     onSelect: () => ctx.run({ kind: "fixupInto", id: commit.id }),
+  });
+  // Moving some of its files into a commit of their own rewrites it and the commits after it.
+  const splitBlocked = !snapshot.headBranch
+    ? "check out a branch first"
+    : commit.parents.length > 1
+      ? "a merge commit can't be split"
+      : commit.parents.length === 0
+        ? "the very first commit can't be"
+        : !isHead && typeof rewritable === "string"
+          ? rewritable
+          : null;
+  items.push({
+    label: splitBlocked ? `Split this commit: ${splitBlocked}` : "Split this commit in two…",
+    icon: <SplitCommitIcon />,
+    disabled: busy || splitBlocked !== null,
+    onSelect: () => ctx.open({ kind: "splitCommit", commit, later: typeof rewritable === "string" ? 0 : rewritable.length }),
   });
   items.push(
     {

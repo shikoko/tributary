@@ -13,7 +13,8 @@ import { ElsewherePanel } from "../components/ElsewherePanel";
 import { RepoSettingsDialog } from "../components/RepoSettingsDialog";
 import { ComparePanel } from "../components/ComparePanel";
 import { useFileViews } from "./useFileViews";
-import { ListOverlays } from "./ListOverlays";
+import { ListOverlays, type RewriteShown } from "./ListOverlays";
+import { useStacks } from "./useStacks";
 import { useRepositoryMenus } from "./useRepositoryMenus";
 import type { MenuItem } from "../components/ContextMenu";
 import { BranchIcon, EyeIcon, PlusIcon, StashIcon, TagIcon } from "../components/Icons";
@@ -118,6 +119,16 @@ export function RepositoryView(props: Props) {
     [trackerSetting, snapshot.path, snapshot.webRemotes, snapshot.upstream?.name],
   );
 
+  /** Branches built on other unmerged branches. */
+  const stacks = useStacks(snapshot);
+  /** A branch whose rewrite is shown over the list (what changed when it was force-pushed). */
+  const [rewrite, setRewrite] = useState<RewriteShown | null>(null);
+  const shownIn = useRef(snapshot.path);
+  if (shownIn.current !== snapshot.path) {
+    shownIn.current = snapshot.path;
+    if (rewrite) setRewrite(null);
+  }
+
   // A file's changes, who changed each line, and two commits compared.
   const views = useFileViews({
     snapshot,
@@ -128,6 +139,7 @@ export function RepositoryView(props: Props) {
     closeOthers: () => {
       if (props.teamOpen) props.onCloseTeam();
       if (props.request) props.onCloseRequest();
+      setRewrite(null);
     },
   });
   const { comparing, compared, showChanges, showBlame, shownDiff } = views;
@@ -140,6 +152,8 @@ export function RepositoryView(props: Props) {
     act,
     openDialog,
     showRequest: props.onShowRequest,
+    showRewrite: setRewrite,
+    stacks,
     highlight,
     settings,
     byId,
@@ -214,6 +228,7 @@ export function RepositoryView(props: Props) {
         selectedId={selection.selectedId}
         width={sidebarWidth}
         aheadBehind={counts.aheadBehind}
+        stacks={stacks}
         onSelect={(id) => byId.has(id) && select(id)}
         onActivate={(entry) => checkout({ pill: pillForEntry(entry), commit: byId.get(entry.commitId) })}
         onContextMenu={sidebarMenu}
@@ -405,6 +420,9 @@ export function RepositoryView(props: Props) {
             request={props.request}
             onCloseRequest={props.onCloseRequest}
             notify={(text) => props.notify({ text })}
+            rewrite={rewrite}
+            onShowRewrite={setRewrite}
+            onCloseRewrite={() => setRewrite(null)}
           />
         </div>
         {detailsPanel.shown && (
@@ -459,6 +477,7 @@ export function RepositoryView(props: Props) {
         />
       )}
       <RepositoryDialogs
+        notify={(text) => props.notify({ text })}
         dialog={props.dialog}
         snapshot={snapshot}
         byId={byId}
