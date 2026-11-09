@@ -7,7 +7,9 @@
 //                  without it, the picker asks with a prompt
 //   pullRequests   the pull requests to show, instead of asking GitHub; with it, opening
 //                  one is faked too, and their details come from pullRequestDetails (by
-//                  number) and the new pull request dialog from newRequest
+//                  number), their comments from conversations (by number), and the new
+//                  pull request dialog from newRequest; commenting, reviewing and merging
+//                  change those
 //   update         an update to offer, like { version: "0.2.0", notes: "…", date: null }
 //   github         a stand-in GitHub sign-in, like { account: null, browserSignIn: true },
 //                  instead of git's real credential helper
@@ -83,7 +85,7 @@
   const faking = () => preview.pullRequests !== undefined;
   const fakeDetails = ({ number }) => {
     const known = preview.pullRequestDetails?.[number];
-    if (known) return known;
+    if (known) return structuredClone(known);
     const pr = (preview.pullRequests || []).find((each) => each.number === number);
     if (!pr) return Promise.reject(`GitHub didn't show pull request #${number}: it isn't there.`);
     return {
@@ -105,6 +107,43 @@
       checks: [],
       forge: pr.forge || "github",
     };
+  };
+  /** A request's conversation, made up when the script didn't give one. */
+  const conversationOf = (number) => {
+    preview.conversations = preview.conversations || {};
+    preview.conversations[number] = preview.conversations[number] || { comments: [], you: "maya-chen", mergeMethods: ["merge", "squash", "rebase"], canRequestChanges: true };
+    return preview.conversations[number];
+  };
+  const later = (value) => new Promise((resolve) => setTimeout(() => resolve(value), 300));
+  const say = (number, body, more = {}) => {
+    const conversation = conversationOf(number);
+    const id = `fake${conversation.comments.length + 1}`;
+    conversation.comments.push({ id, author: conversation.you, body, created: new Date().toISOString(), review: null, path: null, line: null, hunk: null, thread: null, reply: false, ...more });
+  };
+  const fakeComment = ({ number, body, thread }) => {
+    if (thread) {
+      // After the thread's last comment.
+      const comments = conversationOf(number).comments;
+      const at = comments.map((comment) => comment.thread).lastIndexOf(thread) + 1;
+      comments.splice(at, 0, { id: `fake${comments.length + 1}`, author: conversationOf(number).you, body, created: new Date().toISOString(), review: null, path: null, line: null, hunk: null, thread, reply: true });
+    } else say(number, body);
+    return later(thread ? "Replied" : "Commented");
+  };
+  const fakeReview = ({ number, verdict, body }) => {
+    const state = { approve: "approved", requestChanges: "changesRequested", comment: "commented" }[verdict];
+    say(number, body, { review: state });
+    const details = preview.pullRequestDetails?.[number];
+    if (details) {
+      const you = conversationOf(number).you;
+      details.reviews = [...details.reviews.filter((review) => review.author !== you), { author: you, state }];
+    }
+    return later({ approve: `Approved #${number}`, requestChanges: `Asked for changes to #${number}`, comment: `Reviewed #${number}` }[verdict]);
+  };
+  const fakeMerge = ({ number, options }) => {
+    const details = preview.pullRequestDetails?.[number];
+    if (details) Object.assign(details, { state: "merged", mergeable: null });
+    preview.merged = { number, ...options };
+    return later(`Merged #${number}${options.deleteBranch && details ? ` and deleted ${details.branch}` : ""}`);
   };
   const fakeCreate = ({ request }) =>
     new Promise((resolve, reject) =>
@@ -168,6 +207,10 @@
     install_update: installUpdate,
     pull_requests: (args) => (faking() ? preview.pullRequests : server("pull_requests", args)),
     pull_request_details: (args) => (faking() ? fakeDetails(args) : server("pull_request_details", args)),
+    request_conversation: (args) => (faking() ? structuredClone(conversationOf(args.number)) : server("request_conversation", args)),
+    comment_on_request: (args) => (faking() ? fakeComment(args) : server("comment_on_request", args)),
+    review_request: (args) => (faking() ? fakeReview(args) : server("review_request", args)),
+    merge_request: (args) => (faking() ? fakeMerge(args) : server("merge_request", args)),
     create_pull_request: (args) => (faking() ? fakeCreate(args) : server("create_pull_request", args)),
     new_request_info: (args) => (faking() ? fakeRequestInfo(args) : server("new_request_info", args)),
     github_status: () =>

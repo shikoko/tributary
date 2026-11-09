@@ -379,6 +379,47 @@ pub async fn pull_request_details(
     crate::requests::request_details(&PathBuf::from(path), number).await
 }
 
+/// A pull (or merge) request's conversation, and how it can be merged.
+#[tauri::command]
+pub async fn request_conversation(
+    path: String,
+    number: u64,
+) -> Result<crate::reviews::Conversation> {
+    crate::reviews::conversation(&PathBuf::from(path), number).await
+}
+
+/// Comment on a request, or reply in one of its threads.
+#[tauri::command]
+pub async fn comment_on_request(
+    path: String,
+    number: u64,
+    body: String,
+    thread: Option<String>,
+) -> Result<String> {
+    crate::reviews::comment(&PathBuf::from(path), number, body, thread).await
+}
+
+/// Approve a request, ask for changes, or comment on it as a review.
+#[tauri::command]
+pub async fn review_request(
+    path: String,
+    number: u64,
+    verdict: crate::reviews::ReviewVerdict,
+    body: String,
+) -> Result<String> {
+    crate::reviews::review(&PathBuf::from(path), number, verdict, body).await
+}
+
+/// Merge a request on its site.
+#[tauri::command]
+pub async fn merge_request(
+    path: String,
+    number: u64,
+    options: crate::reviews::MergeRequestOptions,
+) -> Result<String> {
+    crate::reviews::merge(&PathBuf::from(path), number, options).await
+}
+
 /// Who's signed in to GitHub (going by the token git keeps), and how one can sign in.
 #[tauri::command]
 pub async fn github_status() -> Result<github::account::GitHubStatus> {

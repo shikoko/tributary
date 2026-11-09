@@ -324,3 +324,183 @@ button.request-ref:hover {
   color: var(--warning-text);
   font-size: 12px;
 }
+
+/* Reviewing and merging in the app */
+.request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 4px;
+}
+
+.request-actions .outline-button.active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.request-actions .primary-small-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.request-sign-in {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.review-box,
+.comment-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.review-box textarea,
+.comment-box textarea,
+textarea.request-body.short {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+}
+
+.request-hunk .added {
+  color: var(--added);
+}
+
+.request-hunk .removed {
+  color: var(--removed);
+}
+
+.review-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-buttons .spacer {
+  flex: 1;
+}
+
+.review-changes .button-label {
+  color: var(--danger-text);
+}
+
+.review-error {
+  margin: 0;
+  color: var(--danger-text);
+  font-size: 12px;
+}
+
+.request-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.request-comment.reply {
+  margin-top: -4px;
+  margin-left: 28px;
+}
+
+.request-comment-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.request-comment-head .request-review {
+  margin-left: 0;
+}
+
+.request-comment-where {
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-comment-when {
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+/* The lines a comment is about. */
+.request-hunk {
+  margin: 0 0 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.request-comment.review > .request-comment-body > .request-description {
+  border-left: 3px solid var(--border-strong);
+}
+
+.request-comment.review.approved > .request-comment-body > .request-description {
+  border-left-color: var(--success-text);
+}
+
+.request-comment.review.changesRequested > .request-comment-body > .request-description {
+  border-left-color: var(--danger-text);
+}
+
+.request-reply {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+/* How to merge, in the merge dialog. */
+.merge-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.merge-method {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.merge-method.selected {
+  border-color: var(--accent);
+}
+
+.merge-method input {
+  grid-row: span 2;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.merge-method-label {
+  font-weight: 600;
+}
+
+.merge-method-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.dialog-note-line.warning {
+  color: var(--warning-text);
+}

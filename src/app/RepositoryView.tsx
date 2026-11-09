@@ -394,6 +394,7 @@ export function RepositoryView(props: Props) {
             onCloseTeam={props.onCloseTeam}
             request={props.request}
             onCloseRequest={props.onCloseRequest}
+            notify={(text) => props.notify({ text })}
           />
         </div>
         {detailsPanel.shown && (

@@ -136,8 +136,76 @@ export interface RequestDetails {
   reviews: RequestReview[];
   checks: RequestCheck[];
   forge: "github" | "gitlab";
+  /** The commits it's between: where the branch it goes into is, and its own branch's last commit. */
+  baseSha: string | null;
+  headSha: string | null;
 }
 
 export function pullRequestDetails(path: string, number: number): Promise<RequestDetails> {
   return invoke<RequestDetails>("pull_request_details", { path, number });
+}
+
+/** One comment in a request's conversation. */
+export interface RequestComment {
+  id: string;
+  author: string;
+  /** As written (Markdown). */
+  body: string;
+  /** When (RFC 3339). */
+  created: string;
+  /** A review's verdict, when the comment is one. */
+  review: RequestReview["state"] | null;
+  /** The file and line it's on, for a comment on the changes. */
+  path: string | null;
+  line: number | null;
+  /** The lines it's about, from the diff. */
+  hunk: string | null;
+  /** The thread it's in: replies go to it. Null when it can't be replied to. */
+  thread: string | null;
+  /** It answers an earlier comment in its thread. */
+  reply: boolean;
+}
+
+/** How to merge a request: with a merge commit, squashed into one, or rebased (GitHub). */
+export type MergeMethod = "merge" | "squash" | "rebase";
+
+/** A request's conversation, and what you can do with it. */
+export interface RequestConversation {
+  /** Oldest first; replies follow their thread's first comment. */
+  comments: RequestComment[];
+  /** Who you are on the site, when git has a token for it. */
+  you: string | null;
+  /** The ways it can be merged there, the site's default first. */
+  mergeMethods: MergeMethod[];
+  /** Asking for changes is possible (GitHub). */
+  canRequestChanges: boolean;
+}
+
+export function requestConversation(path: string, number: number): Promise<RequestConversation> {
+  return invoke<RequestConversation>("request_conversation", { path, number });
+}
+
+/** Comment on a request, or reply in one of its threads. Resolves to what was done. */
+export function commentOnRequest(path: string, number: number, body: string, thread: string | null): Promise<string> {
+  return invoke<string>("comment_on_request", { path, number, body, thread });
+}
+
+export type ReviewVerdict = "approve" | "requestChanges" | "comment";
+
+/** Approve a request, ask for changes, or comment on it as a review. */
+export function reviewRequest(path: string, number: number, verdict: ReviewVerdict, body: string): Promise<string> {
+  return invoke<string>("review_request", { path, number, verdict, body });
+}
+
+export interface MergeRequestOptions {
+  method: MergeMethod;
+  /** The merge (or squashed) commit's summary and message; the site's own when empty. */
+  title: string;
+  message: string;
+  deleteBranch: boolean;
+}
+
+/** Merge a request on its site. */
+export function mergeRequest(path: string, number: number, options: MergeRequestOptions): Promise<string> {
+  return invoke<string>("merge_request", { path, number, options });
 }

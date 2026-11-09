@@ -13,6 +13,7 @@ use crate::links::Host;
 
 /// Opening a merge request, and reading one in full.
 mod requests;
+pub(crate) mod reviews;
 pub(crate) use requests::{create, details};
 
 /// At most this many merge requests get their pipeline looked up.

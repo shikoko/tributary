@@ -96,6 +96,18 @@ struct RawDetails {
     #[serde(default)]
     reviewers: Vec<RawAuthor>,
     head_pipeline: Option<RawHeadPipeline>,
+    #[serde(default)]
+    diff_refs: Option<RawDiffRefs>,
+    /// Its branch's last commit.
+    #[serde(default)]
+    sha: Option<String>,
+}
+
+/// The commits a merge request is between.
+#[derive(Deserialize)]
+struct RawDiffRefs {
+    base_sha: Option<String>,
+    head_sha: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -278,6 +290,14 @@ pub(crate) async fn details(
         ),
         checks,
         forge: Forge::GitLab,
+        base_sha: request
+            .diff_refs
+            .as_ref()
+            .and_then(|refs| refs.base_sha.clone()),
+        head_sha: request
+            .diff_refs
+            .and_then(|refs| refs.head_sha)
+            .or(request.sha),
     })
 }
 

@@ -230,6 +230,28 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "pull_request_details" => to_json(tauri::async_runtime::block_on(
             tributary_lib::requests::request_details(&path()?, arg(args, "number")?),
         )?),
+        "request_conversation" => to_json(tauri::async_runtime::block_on(
+            tributary_lib::reviews::conversation(&path()?, arg(args, "number")?),
+        )?),
+        "comment_on_request" => to_json(tauri::async_runtime::block_on(
+            tributary_lib::reviews::comment(
+                &path()?,
+                arg(args, "number")?,
+                arg(args, "body")?,
+                optional(args, "thread")?,
+            ),
+        )?),
+        "review_request" => to_json(tauri::async_runtime::block_on(
+            tributary_lib::reviews::review(
+                &path()?,
+                arg(args, "number")?,
+                arg(args, "verdict")?,
+                arg(args, "body")?,
+            ),
+        )?),
+        "merge_request" => to_json(tauri::async_runtime::block_on(
+            tributary_lib::reviews::merge(&path()?, arg(args, "number")?, arg(args, "options")?),
+        )?),
         "avatars" => {
             let emails: Vec<String> = arg(args, "emails")?;
             to_json(tauri::async_runtime::block_on(

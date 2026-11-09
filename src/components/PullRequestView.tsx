@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { pullRequestDetails, type PullRequest, type RequestCheck, type RequestDetails, type RequestReview } from "../api";
+import { pullRequestDetails, requestConversation, type PullRequest, type RequestCheck, type RequestConversation, type RequestDetails, type RequestReview } from "../api";
 import { plural, relativeTime } from "../lib/format";
 import { describeMergeable, requestNoun, requestNumber, summarizeChecks } from "../lib/pullRequests";
 import { Avatar } from "./Avatar";
-import { CloseIcon, ExternalLinkIcon, PullRequestIcon, RefreshIcon } from "./Icons";
+import { CloseIcon, CompareIcon, ExternalLinkIcon, MergeIcon, PullRequestIcon, RefreshIcon } from "./Icons";
+import { ConversationList, MergeRequestDialog, ReviewBox } from "./RequestReview";
 
 /** While checks are running, they're asked about again this often. */
 const POLL = 20_000;
@@ -16,6 +17,12 @@ interface Props {
   openUrl: (url: string) => void;
   /** Highlight its branch's history in the list. */
   onShowBranch: (branch: string) => void;
+  /** Whether a commit is loaded in the list. */
+  hasCommit: (id: string) => boolean;
+  /** Compare its branch with the one it goes into, in the app. */
+  onCompare: (details: RequestDetails) => void;
+  /** Say what was done, like "Approved #12". */
+  notify: (text: string) => void;
 }
 
 const STATES: Record<RequestDetails["state"], string> = { open: "Open", draft: "Draft", merged: "Merged", closed: "Closed" };
@@ -31,8 +38,12 @@ const REVIEWS: Record<RequestReview["state"], string> = {
  * A pull request (or GitLab merge request), over the commit list: where it stands, what
  * reviewers said, each check, and its description. Checks still running are followed.
  */
-export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBranch }: Props) {
+export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBranch, hasCommit, onCompare, notify }: Props) {
   const [details, setDetails] = useState<RequestDetails | null>(null);
+  const [conversation, setConversation] = useState<RequestConversation | null>(null);
+  const [conversationError, setConversationError] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState(false);
+  const [merging, setMerging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const noun = requestNoun(request.forge);
@@ -54,11 +65,41 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
     };
   }, [repoPath, request.number]);
 
+  const loadConversation = useCallback(() => {
+    let current = true;
+    requestConversation(repoPath, request.number)
+      .then((found) => {
+        if (!current) return;
+        setConversation(found);
+        setConversationError(null);
+      })
+      .catch((e) => current && setConversationError(String(e)));
+    return () => {
+      current = false;
+    };
+  }, [repoPath, request.number]);
+
   useEffect(() => {
     setDetails(null);
     setError(null);
     return load();
   }, [load]);
+
+  useEffect(() => {
+    setConversation(null);
+    setConversationError(null);
+    setReviewing(false);
+    return loadConversation();
+  }, [loadConversation]);
+
+  /** After commenting, reviewing or merging: say so, and show where it stands now. */
+  const done = (message: string) => {
+    notify(message);
+    setReviewing(false);
+    setMerging(false);
+    load();
+    loadConversation();
+  };
 
   // Follow checks that are still running.
   const running = details?.checks.some((check) => check.state === "pending") || details?.mergeable === "checking";
@@ -80,6 +121,9 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
   }, [onClose]);
 
   const merge = details && describeMergeable(details);
+  // Its commits are loaded, so the app can compare them.
+  const fetched = Boolean(details?.baseSha && details.headSha && hasCommit(details.baseSha) && hasCommit(details.headSha));
+  const canAct = Boolean(conversation?.you) && (details?.state === "open" || details?.state === "draft");
   const created = details ? Date.parse(details.created) / 1000 : NaN;
   return (
     <section className="diff-view request-view" aria-label={`${noun} ${requestNumber(request)}`}>
@@ -89,10 +133,19 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
           <span className="request-number">{requestNumber(request)}</span>
           <span className="request-title">{details?.title ?? request.title}</span>
         </div>
-        <button className="icon-button" onClick={load} disabled={loading} title="Refresh" aria-label={`Refresh the ${noun}`}>
+        <button
+          className="icon-button"
+          onClick={() => {
+            load();
+            loadConversation();
+          }}
+          disabled={loading}
+          title="Refresh"
+          aria-label={`Refresh the ${noun}`}
+        >
           <RefreshIcon size={14} />
         </button>
-        <button className="outline-button" onClick={() => openUrl(details?.url ?? request.url)} title={`Open it on ${site} to comment, review or merge`}>
+        <button className="outline-button" onClick={() => openUrl(details?.url ?? request.url)} title={`Open it on ${site}`}>
           <ExternalLinkIcon size={13} />
           <span className="button-label">Open on {site}</span>
         </button>
@@ -133,6 +186,37 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
 
             {merge && <div className={`request-merge ${merge.tone}`}>{merge.text}</div>}
 
+            <div className="request-actions">
+              <button
+                className="outline-button"
+                onClick={() => onCompare(details)}
+                disabled={!fetched}
+                title={fetched ? `What ${details.branch} changes, compared with ${details.base}` : `Fetch to see its changes here: its commits aren't loaded`}
+              >
+                <CompareIcon size={13} />
+                <span className="button-label">See its changes</span>
+              </button>
+              {canAct && (
+                <button className={`outline-button${reviewing ? " active" : ""}`} onClick={() => setReviewing(!reviewing)} aria-expanded={reviewing}>
+                  <span className="button-label">Review</span>
+                </button>
+              )}
+              {canAct && details.state === "open" && conversation && conversation.mergeMethods.length > 0 && (
+                <button className="primary-small-button" onClick={() => setMerging(true)}>
+                  <MergeIcon size={13} />
+                  Merge…
+                </button>
+              )}
+              {conversation && !conversation.you && (details.state === "open" || details.state === "draft") && (
+                <span className="request-sign-in">
+                  {details.forge === "gitlab"
+                    ? "To comment, review or merge here, git needs a token for GitLab: push or fetch once to sign in."
+                    : "To comment, review or merge here, sign in to GitHub in Settings."}
+                </span>
+              )}
+            </div>
+            {reviewing && conversation && <ReviewBox repoPath={repoPath} details={details} conversation={conversation} onDone={done} onCancel={() => setReviewing(false)} />}
+
             <div className="request-columns">
               <section className="request-section" aria-label="Reviews">
                 <h3 className="team-heading">Reviews</h3>
@@ -171,10 +255,23 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
               <h3 className="team-heading">Description</h3>
               {details.body.trim() ? <div className="request-description">{details.body.trim()}</div> : <p className="muted request-empty">No description.</p>}
             </section>
+            <section className="request-section" aria-label="Conversation">
+              <h3 className="team-heading">Conversation</h3>
+              {conversation ? (
+                <ConversationList repoPath={repoPath} details={details} conversation={conversation} onDone={done} />
+              ) : conversationError ? (
+                <p className="muted request-empty">Couldn't read the comments: {conversationError}</p>
+              ) : (
+                <p className="muted request-empty">Loading…</p>
+              )}
+            </section>
             {error && <p className="request-stale">Couldn't refresh it: {error}</p>}
           </div>
         )}
       </div>
+      {merging && details && conversation && (
+        <MergeRequestDialog repoPath={repoPath} details={details} methods={conversation.mergeMethods} onCancel={() => setMerging(false)} onDone={done} />
+      )}
     </section>
   );
 }

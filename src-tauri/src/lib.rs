@@ -15,6 +15,7 @@ pub mod links;
 pub mod locks;
 pub mod repo;
 pub mod requests;
+pub mod reviews;
 pub mod textures;
 pub mod unreal;
 pub mod updates;
@@ -78,6 +79,10 @@ pub fn run() {
             commands::new_request_info,
             commands::create_pull_request,
             commands::pull_request_details,
+            commands::request_conversation,
+            commands::comment_on_request,
+            commands::review_request,
+            commands::merge_request,
             commands::avatars,
             commands::github_status,
             commands::github_sign_in,

@@ -134,6 +134,10 @@ pub struct RequestDetails {
     pub reviews: Vec<Review>,
     pub checks: Vec<Check>,
     pub forge: Forge,
+    /// The commits it's between: where the branch it goes into is, and its own branch's
+    /// last commit (to compare them in the app once they're fetched).
+    pub base_sha: Option<String>,
+    pub head_sha: Option<String>,
 }
 
 /// The site the repository's pull requests are on, and its token.

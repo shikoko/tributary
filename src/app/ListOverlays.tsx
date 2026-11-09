@@ -25,10 +25,11 @@ interface Props {
   onCloseTeam: () => void;
   request: PullRequest | null;
   onCloseRequest: () => void;
+  notify: (text: string) => void;
 }
 
 /** What shows over the commit list: a file's changes, who changed each line, team activity, a pull request. */
-export function ListOverlays({ snapshot, views, highlight, run, hasCommit, select, notLoaded, openSettings, locks, overlaps, teamOpen, onCloseTeam, request, onCloseRequest }: Props) {
+export function ListOverlays({ snapshot, views, highlight, run, hasCommit, select, notLoaded, openSettings, locks, overlaps, teamOpen, onCloseTeam, request, onCloseRequest, notify }: Props) {
   const { shownDiff, diffTargets, diffIndex, stepDiff, closeDiff, showBlame, blameAt, closeBlame } = views;
   return (
     <>
@@ -74,6 +75,13 @@ export function ListOverlays({ snapshot, views, highlight, run, hasCommit, selec
           request={request}
           onClose={onCloseRequest}
           openUrl={openInBrowser}
+          hasCommit={hasCommit}
+          notify={notify}
+          onCompare={(details) => {
+            if (!details.baseSha || !details.headSha) return;
+            views.comparing.compare({ from: { id: details.baseSha, label: details.base }, to: { id: details.headSha, label: details.branch }, split: true });
+            onCloseRequest();
+          }}
           onShowBranch={(branch) => {
             const ref = snapshot.commits.find((commit) => commit.refs.some((r) => r.kind === "branch" && (r.name === `${request.remote}/${branch}` || r.name === branch)));
             if (!ref) {

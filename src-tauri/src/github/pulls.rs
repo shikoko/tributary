@@ -282,6 +282,7 @@ pub(crate) async fn details(
     }
     sort_checks(&mut checks);
 
+    let (base_sha, head_sha) = (Some(pull.base.sha.clone()), Some(pull.head.sha.clone()));
     let state = if pull.merged {
         RequestState::Merged
     } else if pull.state == "closed" {
@@ -313,6 +314,8 @@ pub(crate) async fn details(
         reviews: reviews(raw_reviews, requested),
         checks,
         forge: Forge::GitHub,
+        base_sha,
+        head_sha,
     })
 }
 

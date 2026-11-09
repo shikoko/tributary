@@ -754,6 +754,8 @@ export const STUDIO_PULL_REQUEST_DETAILS = {
       { name: "Deploy preview", state: null, url: null, detail: "Skipped" },
     ],
     forge: "github",
+    baseSha: null,
+    headSha: null,
   },
   14: {
     number: 14,
@@ -780,6 +782,38 @@ export const STUDIO_PULL_REQUEST_DETAILS = {
       { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/9", detail: null },
     ],
     forge: "github",
+    baseSha: null,
+    headSha: null,
+  },
+};
+
+/** What was said on the studio's pull requests, for the preview's fakes. */
+const comment = (id, author, body, created, more = {}) => ({ id, author, body, created, review: null, path: null, line: null, hunk: null, thread: null, reply: false, ...more });
+export const STUDIO_PULL_REQUEST_CONVERSATIONS = {
+  12: {
+    comments: [
+      comment("l1", "lena-fischer", "Should the version bump go in with the art? Fine by me, just checking.", daysAgo(1.6), {
+        path: "Config/DefaultGame.ini",
+        line: 3,
+        hunk: " [/Script/EngineSettings.GeneralProjectSettings]\n ProjectName=Feast of the Forgotten\n+ProjectVersion=0.3",
+        thread: "1",
+      }),
+      comment("l2", "rosa-bell", "Yes: the build script reads it for the patch notes.", daysAgo(1.5), { thread: "1", reply: true, path: "Config/DefaultGame.ini", line: 3 }),
+      comment("c1", "sam-okafor", "I'll check the scissors socket against the cutting animation tomorrow.", daysAgo(1.2)),
+      comment("r1", "maya-chen", "Looks great in the tavern. The apron reads well from across the room.", daysAgo(0.4), { review: "approved" }),
+    ],
+    you: "maya-chen",
+    mergeMethods: ["squash", "merge", "rebase"],
+    canRequestChanges: true,
+  },
+  14: {
+    comments: [
+      comment("r2", "diego-ramos", "The creak peaks at -0.4 dB: please bring it down to -3 dB like the other door sounds.", daysAgo(0.8), { review: "changesRequested" }),
+      comment("c2", "theo-park", "Will do, re-exporting it tonight.", daysAgo(0.6)),
+    ],
+    you: "maya-chen",
+    mergeMethods: ["squash", "merge", "rebase"],
+    canRequestChanges: true,
   },
 };
 

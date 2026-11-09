@@ -4,6 +4,7 @@
 
 pub mod account;
 pub(crate) mod pulls;
+pub(crate) mod reviews;
 
 use std::path::Path;
 use std::time::Duration;

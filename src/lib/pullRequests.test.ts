@@ -48,6 +48,8 @@ describe("describeMergeable", () => {
     reviews: [],
     checks: [],
     forge: "github",
+    baseSha: null,
+    headSha: null,
     ...overrides,
   });
 
