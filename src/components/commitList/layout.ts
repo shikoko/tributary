@@ -30,8 +30,6 @@ const OVERSCAN = 12;
 export const FOOTER_HEIGHT = 56;
 /** Below this width the SHA column and author names are hidden. */
 const NARROW_WIDTH = 760;
-/** The graph gets narrower before the commit message column goes below this width. */
-const MIN_MESSAGE_WIDTH = 200;
 
 /** Column widths chosen by dragging; null means automatic. */
 export interface ColumnWidths {
@@ -88,15 +86,71 @@ interface LayoutInput {
 
 /**
  * The list's columns and which rows to render. The graph column is as wide as the lanes
- * of the rows on screen (not every lane in the history) need, leaving room for the commit
- * message in narrow windows, unless a width was chosen by dragging.
+ * of the rows on screen (not every lane in the history) need, unless a width was chosen
+ * by dragging (see fitColumns for what gives way in a narrow list).
  */
+/** How wide the columns are, given the room and the lanes to show. */
+export interface ColumnSizes {
+  refsWidth: number;
+  graphWidth: number;
+  authorWidth: number;
+  dateWidth: number;
+  shaWidth: number;
+}
+
+/** The commit message gives way to the graph's lanes down to this width. */
+const SQUEEZED_MESSAGE_WIDTH = 120;
+/** The branch and tag column gives a little to the lanes, down to this width, before more goes. */
+const READABLE_REFS_WIDTH = 110;
+
+/**
+ * The columns' widths in a list `width` wide. The graph is as wide as `lanes` need (unless
+ * a width was chosen by dragging). When that doesn't fit, the commit message gives way
+ * first (down to 120 px), then a little of the branch and tag column (when its width
+ * wasn't chosen), then, in a narrow list, the dates (the labels getting their room back),
+ * then the rest of the branch and tag column: the lanes are cut off only when even that
+ * isn't enough.
+ */
+export function fitColumns(input: {
+  width: number;
+  narrow: boolean;
+  lanes: number;
+  laneWidth: number;
+  columnWidths: ColumnWidths;
+  show: ColumnOptions;
+  authorsOnGraph: boolean;
+}): ColumnSizes {
+  const { width, narrow, lanes, laneWidth, columnWidths, show, authorsOnGraph } = input;
+  let refsWidth = columnWidths.refs ?? (narrow ? NARROW_REFS_WIDTH : REFS_WIDTH);
+  const authorWidth = show.author ? (narrow ? (authorsOnGraph ? 0 : 44) : 180) : 0;
+  let dateWidth = show.date ? (show.dateFormat === "exact" ? (narrow ? 132 : 164) : 116) : 0;
+  const shaWidth = show.sha && !narrow ? 80 : 0;
+  const sizes = () => ({ refsWidth, authorWidth, dateWidth, shaWidth });
+  if (columnWidths.graph !== null) return { ...sizes(), graphWidth: columnWidths.graph };
+  const wanted = Math.min(MAX_GRAPH_WIDTH, Math.max(MIN_GRAPH_WIDTH, GRAPH_PADDING * 2 + lanes * laneWidth));
+  // The room the graph has when the message keeps `message` px.
+  const room = (message: number) => width - refsWidth - authorWidth - dateWidth - shaWidth - message;
+  const short = () => wanted - room(SQUEEZED_MESSAGE_WIDTH);
+  if (width > 0 && short() > 0) {
+    const autoRefs = columnWidths.refs === null;
+    // The labels can give a little and stay readable.
+    const given = autoRefs ? Math.min(short(), Math.max(0, refsWidth - READABLE_REFS_WIDTH)) : 0;
+    refsWidth -= given;
+    if (short() > 0 && narrow && dateWidth > 0) {
+      // Not enough: the dates make way instead, and the labels get back what they can.
+      dateWidth = 0;
+      refsWidth += Math.min(given, Math.max(0, -short()));
+    }
+    // Still not enough: the labels shrink further, as far as they go.
+    if (short() > 0 && autoRefs) refsWidth = Math.max(MIN_REFS_WIDTH, refsWidth - short());
+  }
+  // As wide as the lanes need, as far as the message can give way (it takes the rest).
+  const graphWidth = width > 0 ? Math.max(MIN_GRAPH_WIDTH, Math.min(wanted, room(SQUEEZED_MESSAGE_WIDTH))) : wanted;
+  return { ...sizes(), graphWidth };
+}
+
 export function useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport, settledWidth, columnWidths, show, laneWidth, authorsOnGraph }: LayoutInput) {
   const narrow = settledWidth > 0 && settledWidth < NARROW_WIDTH;
-  const refsWidth = columnWidths.refs ?? (narrow ? NARROW_REFS_WIDTH : REFS_WIDTH);
-  const authorWidth = show.author ? (narrow ? (authorsOnGraph ? 0 : 44) : 180) : 0;
-  const dateWidth = show.date ? (show.dateFormat === "exact" ? (narrow ? 132 : 164) : 116) : 0;
-  const shaWidth = show.sha && !narrow ? 80 : 0;
   const first = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN);
   const last = Math.min(slots.length, Math.ceil((scrollTop + viewport.height) / rowHeight) + OVERSCAN);
 
@@ -126,13 +180,15 @@ export function useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport
   }, [lanesInView, settledLanes]);
   const lanes = Math.max(lanesInView, settledLanes);
 
-  const graphWidth =
-    columnWidths.graph ??
-    Math.min(
-      MAX_GRAPH_WIDTH,
-      Math.max(MIN_GRAPH_WIDTH, GRAPH_PADDING * 2 + lanes * laneWidth),
-      Math.max(MIN_GRAPH_WIDTH, viewport.width - refsWidth - authorWidth - dateWidth - shaWidth - MIN_MESSAGE_WIDTH),
-    );
+  const { refsWidth, graphWidth, authorWidth, dateWidth, shaWidth } = fitColumns({
+    width: viewport.width,
+    narrow,
+    lanes,
+    laneWidth,
+    columnWidths,
+    show,
+    authorsOnGraph,
+  });
   // Widening for new lanes happens at once (easing it would let them run over the messages
   // for a moment). Widening because there's more room eases like the other columns.
   const shown = useRef({ width: graphWidth, lanes });
