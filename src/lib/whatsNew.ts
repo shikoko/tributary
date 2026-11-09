@@ -1,9 +1,12 @@
 // What changed in each version, shown once after an update (and from Help), and whether to
 // greet someone new with the tour instead.
 
+/** The picture beside an item. */
+export type WhatsNewIcon = "lfs" | "progress" | "team" | "undo" | "commit" | "setup" | "open";
+
 export interface Release {
   version: string;
-  items: { title: string; text: string }[];
+  items: { title: string; text: string; icon?: WhatsNewIcon }[];
 }
 
 /** Newest first. Add the next version's entry when it's released (with the version bumped). */
@@ -11,13 +14,33 @@ export const RELEASES: Release[] = [
   {
     version: "0.2.0",
     items: [
-      { title: "Faster Git LFS pulls", text: "A pull or checkout downloads the Git LFS files it needs all together, several at a time, before checking them out, instead of one request per file. A second bar counts the files, with about how long is left; hover it for the speed, the file it's on and the biggest still to come." },
-      { title: "Progress outside the window", text: "The taskbar button or Dock icon fills up during a long pull, a tab in the background shows a ring, and a pull that took a while says so when it ends while you're in another app." },
-      { title: "Team activity, redesigned", text: "Cards with gradient graphs of everyone's days, what kind of work it was, lines of code, hotspots, when the team works and pull requests. The people button in the toolbar (or Ctrl+Shift+T) opens it." },
-      { title: "Your actions, with Undo", text: "Activity → Your actions lists what you did in a repository, each with Undo while it's still safe to." },
-      { title: "Commit messages", text: "On a branch for a Jira or Linear issue, the summary starts with its key. A message template (yours, or your team's commit.template) can be set in the repository's settings." },
-      { title: "Project setup check", text: "Repository → Check Project Setup looks at an Unreal or Unity project's .gitignore, .gitattributes, Git LFS and lockable files, line endings and long paths, with a fix for each." },
-      { title: "Open", text: "The toolbar's Open button opens the repository on GitHub or GitLab, in Finder or Explorer, or in your editor or terminal." },
+      {
+        icon: "lfs",
+        title: "Faster Git LFS pulls",
+        text: "Pulls and checkouts download the Git LFS files they need all together, several at a time, before checking out. A second bar counts the files and the time left; hover it for the speed and the biggest file still to come.",
+      },
+      {
+        icon: "progress",
+        title: "Progress outside the window",
+        text: "The taskbar button or Dock icon fills up during a long pull, a tab in the background shows a ring, and a notification says when it's done if you're in another app.",
+      },
+      {
+        icon: "team",
+        title: "Team activity, redesigned",
+        text: "Gradient graphs of everyone's days, the kinds of work, lines of code, hotspots, when the team works and pull requests. The people button in the toolbar opens it.",
+      },
+      { icon: "undo", title: "Your actions, with Undo", text: "Activity → Your actions lists what you did in a repository, each with Undo for as long as it's safe." },
+      {
+        icon: "commit",
+        title: "Smarter commit messages",
+        text: "On a branch for a Jira or Linear issue, the summary starts with its key. Set a message template, or use your team's, in the repository's settings.",
+      },
+      {
+        icon: "setup",
+        title: "Project setup check",
+        text: "Repository → Check Project Setup looks over an Unreal or Unity project's ignores, Git LFS, lockable files, line endings and long paths, with a fix for each.",
+      },
+      { icon: "open", title: "Open it anywhere", text: "The toolbar's Open button opens the repository on GitHub or GitLab, in Finder or Explorer, or in your editor or terminal." },
     ],
   },
 ];
