@@ -8,6 +8,25 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(() => ({
   plugins: [react()],
 
+  build: {
+    rolldownOptions: {
+      output: {
+        // The libraries in files of their own, apart from the app's code.
+        codeSplitting: {
+          groups: [
+            { name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: "highlight", test: /node_modules[\\/]highlight\.js[\\/]/ },
+            { name: "tauri", test: /node_modules[\\/]@tauri-apps[\\/]/ },
+          ],
+        },
+      },
+    },
+    // The 3D model viewer is about 720 kB, nearly all three.js, which can't be made much
+    // smaller; it's only loaded when a model is shown, from disk. Everything else is well
+    // under the usual 500 kB.
+    chunkSizeWarningLimit: 750,
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors
