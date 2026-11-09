@@ -40,8 +40,99 @@ pub(super) fn checkout_remote_branch(
     let local = name
         .split_once('/')
         .map_or(name.as_str(), |(_, branch)| branch);
-    git.run(&["switch", "--quiet", "--track", &name])?;
-    Ok(format!("Checked out {local}, tracking {name}"))
+    let Some(local_id) = ref_id(repo, &format!("refs/heads/{local}")) else {
+        git.run(&["switch", "--quiet", "--track", &name])?;
+        return Ok(format!("Checked out {local}, tracking {name}"));
+    };
+    // There's a local branch already: check it out, and when it only lags behind the
+    // remote one (and tracks it, or nothing), bring it up to date: a fast-forward.
+    let remote_id = ref_id(repo, &format!("refs/remotes/{name}"))
+        .ok_or_else(|| format!("There's no {name}."))?;
+    let upstream = git
+        .run(&[
+            "rev-parse",
+            "--abbrev-ref",
+            &format!("{local}@{{upstream}}"),
+        ])
+        .ok()
+        .map(|upstream| upstream.trim().to_owned());
+    let tracks = upstream.as_deref().is_none_or(|upstream| upstream == name);
+    let current = current_branch(repo).ok().as_deref() == Some(local);
+    let behind = remote_id != local_id
+        && git
+            .run(&[
+                "merge-base",
+                "--is-ancestor",
+                &local_id.to_string(),
+                &remote_id.to_string(),
+            ])
+            .is_ok();
+    if !tracks || !behind {
+        if !current {
+            git.run(&["switch", "--quiet", local])?;
+        }
+        let ahead = remote_id != local_id
+            && git
+                .run(&[
+                    "merge-base",
+                    "--is-ancestor",
+                    &remote_id.to_string(),
+                    &local_id.to_string(),
+                ])
+                .is_ok();
+        return Ok(if remote_id == local_id {
+            format!("Checked out {local}, the same as {name}")
+        } else if !tracks {
+            format!(
+                "Checked out {local} (it tracks {}, not {name})",
+                upstream.unwrap_or_default()
+            )
+        } else if ahead {
+            format!("Checked out {local}, which is ahead of {name}")
+        } else {
+            format!(
+                "Checked out {local}: it and {name} have both changed, so it wasn't updated (pull to merge them)"
+            )
+        });
+    }
+    let behind_by = git
+        .run(&["rev-list", "--count", &format!("{local_id}..{remote_id}")])
+        .ok()
+        .and_then(|count| count.trim().parse::<usize>().ok())
+        .unwrap_or(0);
+    let commits = if behind_by == 1 {
+        "1 commit".to_owned()
+    } else {
+        format!("{behind_by} commits")
+    };
+    if current {
+        git.run(&["merge", "--ff-only", "--quiet", &name])?;
+    } else {
+        // Move the branch first, so its files are only checked out once (at the new commit),
+        // and only if it's still where it was.
+        git.run(&[
+            "update-ref",
+            "-m",
+            &format!("Tributary: fast-forward to {name}"),
+            &format!("refs/heads/{local}"),
+            &remote_id.to_string(),
+            &local_id.to_string(),
+        ])?;
+        if let Err(error) = git.run(&["switch", "--quiet", local]) {
+            return Err(format!("Brought {local} up to date with {name} ({commits}), but couldn't check it out: {error}").into());
+        }
+    }
+    if upstream.is_none() {
+        let _ = git.run(&[
+            "branch",
+            "--quiet",
+            &format!("--set-upstream-to={name}"),
+            local,
+        ]);
+    }
+    Ok(format!(
+        "Checked out {local} and brought it up to date with {name} ({commits})"
+    ))
 }
 
 /// Check out a commit without a branch (detached HEAD).

@@ -22,14 +22,13 @@ import { mergeItems, visibilityItems, webItems } from "./shared";
 import { stashMenu } from "./commitMenus";
 
 /** The action that checks out a branch label, or null when there's nothing to do. */
-export function checkoutFor(ctx: MenuContext, pill: RefPill, commit: CommitRow): Action | null {
+export function checkoutFor(_ctx: MenuContext, pill: RefPill, commit: CommitRow): Action | null {
   if (pill.kind === "tag") return { kind: "checkoutCommit", id: commit.id };
   if (pill.kind !== "branch" || pill.current) return null;
   if (pill.local) return { kind: "checkoutBranch", name: pill.name };
-  const { branch } = splitRemoteBranch(pill.name, ctx.snapshot.remotes);
-  return ctx.localBranches.has(branch)
-    ? { kind: "checkoutBranch", name: branch }
-    : { kind: "checkoutRemoteBranch", name: pill.name };
+  // With a local branch already, it's checked out, and brought up to date when it's only
+  // behind (a fast-forward); without one, a local branch tracking it is made.
+  return { kind: "checkoutRemoteBranch", name: pill.name };
 }
 
 /** Right-click on a branch or tag label. */

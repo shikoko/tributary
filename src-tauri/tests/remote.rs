@@ -116,6 +116,56 @@ fn checks_out_remote_branches_as_tracking_branches() {
         bob.git(&["rev-parse", "--abbrev-ref", "feature@{upstream}"]),
         "origin/feature"
     );
+
+    // Behind: checking out origin/feature again brings feature up to date.
+    let newer = alice.commit("c.txt", "More feature");
+    alice.git(&["push", "--quiet", "origin", "feature"]);
+    bob.git(&["fetch", "--quiet", "origin"]);
+    bob.git(&["switch", "--quiet", "main"]);
+    let message = run(
+        &bob,
+        Action::CheckoutRemoteBranch {
+            name: "origin/feature".into(),
+        },
+    );
+    assert_eq!(
+        message.as_deref(),
+        Ok("Checked out feature and brought it up to date with origin/feature (1 commit)")
+    );
+    assert_eq!(bob.git(&["branch", "--show-current"]), "feature");
+    assert_eq!(bob.git(&["rev-parse", "HEAD"]), newer);
+
+    // Already checked out and behind: a fast-forward, like pulling without fetching.
+    let newest = alice.commit("d.txt", "Even more");
+    alice.git(&["push", "--quiet", "origin", "feature"]);
+    bob.git(&["fetch", "--quiet", "origin"]);
+    assert!(
+        run(
+            &bob,
+            Action::CheckoutRemoteBranch {
+                name: "origin/feature".into()
+            }
+        )
+        .is_ok()
+    );
+    assert_eq!(bob.git(&["rev-parse", "HEAD"]), newest);
+
+    // Both changed: checked out, but left as it is.
+    let mut bob = bob;
+    let mine = bob.commit("bob.txt", "Bob's own");
+    alice.commit("e.txt", "Alice's own");
+    alice.git(&["push", "--quiet", "origin", "feature"]);
+    bob.git(&["fetch", "--quiet", "origin"]);
+    bob.git(&["switch", "--quiet", "main"]);
+    let message = run(
+        &bob,
+        Action::CheckoutRemoteBranch {
+            name: "origin/feature".into(),
+        },
+    )
+    .unwrap_or_default();
+    assert!(message.contains("both changed"), "{message}");
+    assert_eq!(bob.git(&["rev-parse", "HEAD"]), mine);
 }
 
 #[test]
