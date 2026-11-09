@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { WelcomeTour, WhatsNewDialog } from "../components/WhatsNew";
-import { compareVersions, onStart, RELEASES, type Release } from "../lib/whatsNew";
+import { forMenu, onStart, type Release } from "../lib/whatsNew";
 import { loadRecent } from "../lib/recent";
 import { useStoredState } from "../lib/settings";
 import { getVersion } from "@tauri-apps/api/app";
@@ -78,8 +78,8 @@ export function AppOverlays(props: Props) {
     // Only when the version is known.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version]);
-  // From Help: what this version (or the newest) brought.
-  const shownNews = news.length > 0 ? news : RELEASES.filter((release) => !version || compareVersions(release.version, version) <= 0).slice(0, 1);
+  // From Help: what this version brought (or the newest notes there are).
+  const shownNews = news.length > 0 ? news : forMenu(version);
 
   return (
     <>

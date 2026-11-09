@@ -57,6 +57,15 @@ export function compareVersions(a: string, b: string): number {
 }
 
 /**
+ * What Help → What's New shows: the notes of the newest version up to `version`, or, when
+ * there are none (a build from before its version was raised for a release), the newest.
+ */
+export function forMenu(version: string | null, releases = RELEASES): Release[] {
+  const upTo = releases.filter((release) => !version || compareVersions(release.version, version) <= 0);
+  return (upTo.length > 0 ? upTo : releases).slice(0, 1);
+}
+
+/**
  * What to show when the app starts: the tour for someone new (no version seen, no
  * repositories opened before), what's new since the version last seen, or nothing.
  */

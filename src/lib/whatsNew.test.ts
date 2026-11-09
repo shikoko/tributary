@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareVersions, onStart, type Release } from "./whatsNew";
+import { compareVersions, forMenu, onStart, type Release } from "./whatsNew";
 
 const releases: Release[] = [
   { version: "0.3.0", items: [{ title: "C", text: "" }] },
@@ -22,5 +22,14 @@ describe("what's new", () => {
     // Used before this existed: this version's news.
     expect(onStart("0.2.0", null, true, releases).releases.map((r) => r.version)).toEqual(["0.2.0"]);
     expect(onStart("0.2.5", null, true, releases).show).toBeNull();
+  });
+
+  it("always has something to show from the Help menu", () => {
+    const versions = (version: string | null) => forMenu(version, releases).map((r) => r.version);
+    expect(versions("0.2.4")).toEqual(["0.2.0"]);
+    expect(versions("0.3.0")).toEqual(["0.3.0"]);
+    // A build from before its version was raised: the newest notes there are.
+    expect(versions("0.0.9")).toEqual(["0.3.0"]);
+    expect(versions(null)).toEqual(["0.3.0"]);
   });
 });
