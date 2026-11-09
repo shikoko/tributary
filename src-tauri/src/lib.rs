@@ -100,6 +100,7 @@ pub fn run() {
             commands::search_commits,
             commands::team_activity,
             commands::team_work,
+            commands::team_pulse,
             commands::recent_requests,
             commands::watch_repository,
             commands::stop_watching,

@@ -65,7 +65,10 @@ pub fn file_kind(path: &str) -> FileKind {
 pub struct KindCount {
     pub kind: FileKind,
     /// File changes (a file changed in three commits counts three times).
-    pub changes: u64,
+    pub files: u64,
+    /// The share of the commits' work: each commit counts as one, split between the kinds of
+    /// file it changed (so importing 2,000 generated files is one commit's work, not 2,000).
+    pub work: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -109,16 +112,34 @@ pub struct TeamWork {
     pub hotspots: Vec<Hotspot>,
 }
 
-fn counted(kinds: &HashMap<FileKind, u64>) -> Vec<KindCount> {
+/// File changes and work by kind of file.
+type Kinds = HashMap<FileKind, (u64, f64)>;
+
+fn counted(kinds: &Kinds) -> Vec<KindCount> {
     KINDS
         .iter()
         .filter_map(|kind| {
-            kinds.get(kind).map(|changes| KindCount {
+            kinds.get(kind).map(|(files, work)| KindCount {
                 kind: *kind,
-                changes: *changes,
+                files: *files,
+                work: *work,
             })
         })
         .collect()
+}
+
+/// Adds one commit's file changes by kind: each file once, and the commit's one unit of
+/// work split between its kinds in proportion.
+fn add_commit(total: &mut Kinds, commit: &HashMap<FileKind, u64>) {
+    let files: u64 = commit.values().sum();
+    if files == 0 {
+        return;
+    }
+    for (kind, count) in commit {
+        let entry = total.entry(*kind).or_default();
+        entry.0 += count;
+        entry.1 += *count as f64 / files as f64;
+    }
 }
 
 /// A path as `--numstat` prints it: quoted when it has unusual characters.
@@ -158,8 +179,8 @@ pub fn team_work(path: &Path, days: u32) -> Result<TeamWork, Error> {
 }
 
 fn summarize(git: &Git, log: &str) -> TeamWork {
-    let mut kinds: HashMap<FileKind, u64> = HashMap::new();
-    let mut people: HashMap<String, (HashMap<FileKind, u64>, u64, u64)> = HashMap::new();
+    let mut kinds: Kinds = HashMap::new();
+    let mut people: HashMap<String, (Kinds, u64, u64)> = HashMap::new();
     let mut files: HashMap<String, (u64, HashMap<String, u64>)> = HashMap::new();
     let mut commits = Vec::new();
     for record in log.split('\u{1e}').filter(|record| !record.trim().is_empty()) {
@@ -175,6 +196,7 @@ fn summarize(git: &Git, log: &str) -> TeamWork {
             files: 0,
         };
         let person = people.entry(email.clone()).or_default();
+        let mut by_kind: HashMap<FileKind, u64> = HashMap::new();
         for line in lines {
             let mut parts = line.splitn(3, '\t');
             let (Some(added), Some(removed), Some(path)) = (parts.next(), parts.next(), parts.next())
@@ -184,8 +206,7 @@ fn summarize(git: &Git, log: &str) -> TeamWork {
             let path = unquote(path);
             let kind = file_kind(&path);
             commit.files += 1;
-            *kinds.entry(kind).or_default() += 1;
-            *person.0.entry(kind).or_default() += 1;
+            *by_kind.entry(kind).or_default() += 1;
             // Lines count for code only ("-" for binary files).
             if kind == FileKind::Code
                 && let (Ok(added), Ok(removed)) = (added.parse::<u64>(), removed.parse::<u64>())
@@ -199,6 +220,8 @@ fn summarize(git: &Git, log: &str) -> TeamWork {
             file.0 += 1;
             *file.1.entry(email.clone()).or_default() += 1;
         }
+        add_commit(&mut kinds, &by_kind);
+        add_commit(&mut person.0, &by_kind);
         if commits.len() < MOST_COMMITS {
             commits.push(commit);
         }
@@ -264,5 +287,23 @@ mod tests {
         assert_eq!(file_kind("README.md"), FileKind::Other);
         assert_eq!(file_kind("Makefile"), FileKind::Other);
         assert_eq!(unquote("\"Art/Caf\\\\\u{e9}.png\""), "Art/Caf\\\u{e9}.png");
+    }
+
+    #[test]
+    fn counts_each_commit_as_one_piece_of_work() {
+        let mut total = Kinds::new();
+        // A commit importing 2,000 generated files, and one changing a script and a texture.
+        add_commit(&mut total, &HashMap::from([(FileKind::Other, 2000)]));
+        add_commit(&mut total, &HashMap::from([(FileKind::Code, 1), (FileKind::Art, 1)]));
+        let kinds = counted(&total);
+        let work: Vec<(FileKind, u64, f64)> = kinds.iter().map(|k| (k.kind, k.files, k.work)).collect();
+        assert_eq!(
+            work,
+            vec![
+                (FileKind::Code, 1, 0.5),
+                (FileKind::Art, 1, 0.5),
+                (FileKind::Other, 2000, 1.0)
+            ]
+        );
     }
 }

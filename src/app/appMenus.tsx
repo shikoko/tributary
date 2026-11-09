@@ -176,7 +176,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           { id: "first-parent", label: `Only ${snapshot.headBranch ?? "HEAD"}'s Own History`, checked: firstParentOnly, run: () => setFirstParentOnly(!firstParentOnly) },
           { id: "show-all", label: "Show All Branches", enabled: ctx.hiddenCount > 0, run: run.showAllBranches },
           { id: "mine", label: "Highlight My Commits", checked: ctx.highlightingMine, enabled: Boolean(snapshot.user), run: run.highlightMine },
-          { id: "team", label: "Team Activity", checked: ctx.teamOpen, run: run.team },
+          { id: "team", label: "Team Activity", keys: "CmdOrCtrl+Shift+T", checked: ctx.teamOpen, run: run.team },
           "-",
           { id: "day-separators", label: "Day Separators", checked: daySeparators, run: () => setDaySeparators(!daySeparators) },
           { id: "dense", label: "Compact Rows", checked: dense, run: () => setDense(!dense) },

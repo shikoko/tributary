@@ -122,6 +122,42 @@ fn commits(git: &Git, args: &[&str]) -> Vec<(String, String, String, i64)> {
         .collect()
 }
 
+/// How many people committed, and how many commits, on any branch in the last `days` days.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TeamPulse {
+    pub people: usize,
+    pub commits: usize,
+}
+
+/// A quick count for the status bar: who committed on any branch lately, and how much.
+pub fn team_pulse(path: &Path, days: u32) -> Result<TeamPulse, Error> {
+    let repo = gix::discover(path).map_err(|e| Error::not_a_repository(path, e))?;
+    let workdir = repo
+        .workdir()
+        .map(Path::to_owned)
+        .unwrap_or_else(|| repo.git_dir().to_owned());
+    let git = Git::find(workdir)?.in_background();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let since = now - i64::from(days.clamp(1, 365)) * 24 * 3600;
+    let log = git.run(&[
+        "log",
+        "--branches",
+        "--remotes",
+        &format!("--since=@{since}"),
+        "--format=%ae",
+    ])?;
+    let emails: Vec<String> = log.lines().map(str::to_lowercase).collect();
+    let people: BTreeSet<&String> = emails.iter().collect();
+    Ok(TeamPulse {
+        people: people.len(),
+        commits: emails.len(),
+    })
+}
+
 /// Who committed where in the last `days` days.
 pub fn team_activity(path: &Path, days: u32) -> Result<TeamActivity, Error> {
     let repo = gix::discover(path).map_err(|e| Error::not_a_repository(path, e))?;

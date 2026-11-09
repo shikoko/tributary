@@ -172,6 +172,7 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "watch_repository" | "stop_watching" => to_json(()),
         "team_activity" => to_json(actions::team_activity(&path()?, arg(args, "days")?)?),
         "team_work" => to_json(actions::team_work(&path()?, arg(args, "days")?)?),
+        "team_pulse" => to_json(actions::team_pulse(&path()?, arg(args, "days")?)?),
         "search_commits" => {
             let mode: actions::SearchMode = arg(args, "mode")?;
             let query: String = arg(args, "query")?;

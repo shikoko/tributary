@@ -437,6 +437,16 @@ export const UserIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** Two people: the team. */
+export const TeamIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="6" cy="5.5" r="2.25" />
+    <path d="M1.75 13.25c.5-2.2 2.2-3.6 4.25-3.6s3.75 1.4 4.25 3.6" />
+    <path d="M10.25 3.4a2.25 2.25 0 0 1 0 4.2" />
+    <path d="M11.6 9.9c1.4.4 2.3 1.6 2.65 3.35" />
+  </Icon>
+);
+
 export const ColumnsIcon = (p: IconProps) => (
   <Icon {...p}>
     <rect x="2" y="3" width="12" height="10" rx="1.5" />

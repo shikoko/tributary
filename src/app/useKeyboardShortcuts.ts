@@ -15,6 +15,7 @@ export interface ShortcutHandlers {
   focusSearch: () => void;
   toggleSidebar: () => void;
   toggleActivity: () => void;
+  toggleTeam: () => void;
   zoom: (step: 1 | -1 | 0) => void;
   showShortcuts: () => void;
   /** F10: the menu bar's first menu. */
@@ -51,6 +52,7 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
       else if (mod && key === "f") run(on.focusSearch);
       else if (mod && key === "b") run(on.toggleSidebar);
       else if (mod && event.shiftKey && key === "l") run(on.toggleActivity);
+      else if (mod && event.shiftKey && key === "t") run(on.toggleTeam);
       else if (mod && (key === "=" || key === "+")) run(() => on.zoom(1));
       else if (mod && key === "-") run(() => on.zoom(-1));
       else if (mod && key === "0") run(() => on.zoom(0));

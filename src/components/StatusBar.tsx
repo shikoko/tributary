@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import type { RepoSnapshot } from "../api";
-import { relativeTime } from "../lib/format";
+import { plural, relativeTime } from "../lib/format";
 import { isMac } from "../lib/platform";
-import { ActivityIcon, BranchIcon, BroomIcon, CloseIcon, CloudIcon, CommitIcon, EyeOffIcon, FolderIcon } from "./Icons";
+import { ActivityIcon, BranchIcon, BroomIcon, CloseIcon, CloudIcon, CommitIcon, EyeOffIcon, FolderIcon, TeamIcon } from "./Icons";
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -19,6 +19,10 @@ interface Props {
   /** The last git command failed. */
   activityFailed: boolean;
   onToggleActivity: () => void;
+  /** Who committed this week, on any branch; opens team activity. */
+  pulse: { people: number; commits: number } | null;
+  teamOpen: boolean;
+  onToggleTeam: () => void;
   onReveal: () => void;
   /** Local branches gone from the remote, to offer cleaning up. */
   pruneHint: { count: number; remote: string } | null;
@@ -107,6 +111,16 @@ export function StatusBar(props: Props) {
         <button className="status-item status-button" onClick={props.onShowAll} title="Show every branch">
           <EyeOffIcon size={12} />
           {soloing ? `Showing ${hiddenCount} soloed` : `${hiddenCount} hidden`}
+        </button>
+      )}
+      {props.pulse && props.pulse.people > 0 && (
+        <button
+          className={`status-item status-button${props.teamOpen ? " active" : ""}`}
+          onClick={props.onToggleTeam}
+          title={`${plural(props.pulse.commits, "commit")} on any branch in the last 7 days: show team activity`}
+        >
+          <TeamIcon size={12} />
+          {props.pulse.people === 1 ? "1 person" : `${props.pulse.people} people`} this week
         </button>
       )}
       <span className="status-item muted">

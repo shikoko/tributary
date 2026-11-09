@@ -17,6 +17,7 @@ import {
   RefreshIcon,
   SearchIcon,
   SidebarIcon,
+  TeamIcon,
   ViewIcon,
 } from "./Icons";
 import { relativeTime } from "../lib/format";
@@ -67,6 +68,9 @@ interface Props {
   onToggleSidebar: () => void;
   onViewMenu: (anchor: HTMLElement) => void;
   onRefresh: () => void;
+  /** Team activity: who's been working on what. */
+  teamOpen: boolean;
+  onToggleTeam: () => void;
   /** The Open menu: the repository on its website, in Finder or Explorer, in an editor or terminal. */
   onOpenMenu: (anchor: HTMLElement) => void;
   /** This repository's own settings. */
@@ -264,6 +268,15 @@ export function Toolbar(props: Props) {
 
         <span className="toolbar-divider" />
 
+        <button
+          className={`icon-button${props.teamOpen ? " active" : ""}`}
+          onClick={props.onToggleTeam}
+          title={`Team activity: who's been working on what (${isMac ? "⇧⌘T" : "Ctrl+Shift+T"})`}
+          aria-label="Team activity"
+          aria-pressed={props.teamOpen}
+        >
+          <TeamIcon />
+        </button>
         <button
           ref={viewButton}
           className="icon-button"

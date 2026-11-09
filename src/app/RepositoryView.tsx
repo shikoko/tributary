@@ -1,7 +1,7 @@
-import { useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { usePresence } from "../lib/usePresence";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { fullRefName, PAGE_SIZE, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type PullRequest, type RepoSnapshot, type Worktree } from "../api";
+import { fullRefName, PAGE_SIZE, teamPulse, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type PullRequest, type RepoSnapshot, type Worktree } from "../api";
 import { isShown } from "../lib/diffTargets";
 import { withCoAuthor } from "../lib/commitMessage";
 import type { LfsLocks } from "../lib/locks";
@@ -94,6 +94,7 @@ interface Props {
   /** The team activity view (from the View menu). */
   teamOpen: boolean;
   onCloseTeam: () => void;
+  onToggleTeam: () => void;
   /** A pull request shown over the commit list. */
   request: PullRequest | null;
   onShowRequest: (pr: PullRequest) => void;
@@ -145,6 +146,18 @@ export function RepositoryView(props: Props) {
     },
   });
   const { comparing, compared, showChanges, showBlame, shownDiff } = views;
+
+  // Who committed this week, for the status bar: read again when the commits change (after a fetch, say).
+  const [pulse, setPulse] = useState<{ path: string; people: number; commits: number } | null>(null);
+  useEffect(() => {
+    let current = true;
+    teamPulse(snapshot.path, 7)
+      .then((found) => current && setPulse({ path: snapshot.path, ...found }))
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [snapshot.path, snapshot.commits]);
 
   // What the commit, branch, file and list menus need.
   const { ctx, fileMenuContext, worktreeContext, submoduleContext, openMenu } = useRepositoryMenus({
@@ -325,6 +338,8 @@ export function RepositoryView(props: Props) {
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         onViewMenu={(anchor) => menu.under(anchor, props.viewMenu, 320)}
         onRefresh={repo.refresh}
+        teamOpen={props.teamOpen}
+        onToggleTeam={props.onToggleTeam}
         onOpenMenu={(anchor) => menu.under(anchor, openMenu())}
         onSettings={() => openDialog({ kind: "repoSettings" })}
         onClose={() => props.closeTab(snapshot.path)}
@@ -451,6 +466,9 @@ export function RepositoryView(props: Props) {
         activityOpen={activityOpen}
         activityFailed={Boolean(lastHere && !lastHere.success)}
         onToggleActivity={() => setActivityOpen(!activityOpen)}
+        pulse={pulse?.path === snapshot.path ? pulse : null}
+        teamOpen={props.teamOpen}
+        onToggleTeam={props.onToggleTeam}
         onReveal={() => revealItemInDir(snapshot.path).catch((e) => repo.setError({ message: String(e) }))}
         pruneHint={settings.pruneHint}
         onPrune={canChange ? () => openDialog({ kind: "prune" }) : null}

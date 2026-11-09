@@ -420,7 +420,12 @@ export type FileKind = "code" | "art" | "levels" | "audio" | "other";
 export interface KindCount {
   kind: FileKind;
   /** File changes (a file changed in three commits counts three times). */
-  changes: number;
+  files: number;
+  /**
+   * The share of the commits' work: each commit counts as one, split between the kinds of
+   * file it changed (so importing 2,000 generated files is one commit's work).
+   */
+  work: number;
 }
 
 /** What the team changed lately: kinds of file, hotspots, lines of code. */
@@ -453,6 +458,11 @@ export interface RecentRequest {
   created: string;
   merged: string | null;
   closed: string | null;
+}
+
+/** How many people committed, and how many commits, on any branch in the last `days` days. */
+export function teamPulse(path: string, days: number): Promise<{ people: number; commits: number }> {
+  return invoke("team_pulse", { path, days });
 }
 
 export function recentRequests(path: string): Promise<RecentRequest[]> {

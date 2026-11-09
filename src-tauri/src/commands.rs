@@ -543,6 +543,12 @@ pub async fn team_work(path: String, days: u32) -> Result<actions::TeamWork> {
     blocking(move || actions::team_work(&PathBuf::from(path), days)).await
 }
 
+/// How many people committed, and how many commits, on any branch in the last `days` days.
+#[tauri::command]
+pub async fn team_pulse(path: String, days: u32) -> Result<actions::TeamPulse> {
+    blocking(move || actions::team_pulse(&PathBuf::from(path), days)).await
+}
+
 /// The pull or merge requests opened or updated lately, newest first.
 #[tauri::command]
 pub async fn recent_requests(path: String) -> Result<Vec<crate::requests::RecentRequest>> {

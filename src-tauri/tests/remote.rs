@@ -555,7 +555,11 @@ fn sums_up_who_committed_where_lately() {
     let work = tributary_lib::actions::team_work(alice.path(), 30).unwrap();
     assert_eq!(work.commits.len(), 3);
     assert_eq!(work.kinds.len(), 1);
-    assert_eq!(work.kinds[0].changes, 3);
+    assert_eq!(work.kinds[0].files, 3);
+    assert_eq!(work.kinds[0].work, 3.0);
+    // Two people, three commits (the old branch's is long ago).
+    let pulse = tributary_lib::actions::team_pulse(alice.path(), 30).unwrap();
+    assert_eq!((pulse.people, pulse.commits), (team.people.len(), 3));
     assert_eq!(work.hotspots.len(), 3);
     assert!(work.hotspots.iter().all(|spot| spot.changes == 1 && !spot.unmergeable));
 }

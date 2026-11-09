@@ -347,6 +347,7 @@ export default function App() {
     focusSearch: search.focus,
     toggleSidebar: () => preferences.setSidebarOpen((open) => !open),
     toggleActivity: () => preferences.setActivityOpen((open) => !open),
+    toggleTeam: () => setTeamOpen((open) => !open),
     zoom: zoomBy,
     showShortcuts: () => overlays.show("shortcuts"),
     openMenuBar: menuBar.openFirst,
@@ -445,6 +446,7 @@ export default function App() {
               notify={setToast}
               teamOpen={teamOpen}
               onCloseTeam={closeTeam}
+              onToggleTeam={() => setTeamOpen((open) => !open)}
               request={shownRequest}
               onShowRequest={showRequest}
               onCloseRequest={closeRequest}

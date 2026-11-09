@@ -559,6 +559,15 @@ try {
     await page.locator(".view-banner", { hasText: "art/barber-v2" }).waitFor({ timeout: 5000 });
     await page.keyboard.press("Escape");
     await page.locator(".view-banner").waitFor({ state: "detached", timeout: 5000 });
+    // The toolbar's button, the shortcut and the status bar open and close it too.
+    await page.getByRole("button", { name: "Team activity", exact: true }).click();
+    await view.waitFor({ timeout: 5000 });
+    await page.keyboard.press("Control+Shift+T");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+    await page.locator(".status-bar button", { hasText: "this week" }).click();
+    await view.waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
   });
 
   await step("offers to release your locks after pushing", async () => {

@@ -20,22 +20,28 @@ export const KIND_NAMES: Record<FileKind, string> = {
 const kindColor = (kind: FileKind) => `var(--kind-${kind})`;
 
 /** One whole split into its kinds: tall with the shares printed inside, or thin. */
+/** Each kind's share of the work: commits count as one each, split between their kinds of file. */
+function shares(kinds: KindCount[]): Map<KindCount, number> {
+  const total = kinds.reduce((sum, entry) => sum + entry.work, 0);
+  return new Map(kinds.map((entry) => [entry, total > 0 ? Math.round((entry.work / total) * 100) : 0]));
+}
+
 export function KindBar({ kinds, tall = false, tip }: { kinds: KindCount[]; tall?: boolean; tip: Tip }) {
-  const total = kinds.reduce((sum, entry) => sum + entry.changes, 0);
-  if (total === 0) return null;
+  const share = shares(kinds);
+  if (kinds.every((entry) => entry.work <= 0)) return null;
   return (
-    <span className={`team-kinds${tall ? " tall" : ""}`} role="img" aria-label={kinds.map((entry) => `${KIND_NAMES[entry.kind]} ${Math.round((entry.changes / total) * 100)}%`).join(", ")}>
+    <span className={`team-kinds${tall ? " tall" : ""}`} role="img" aria-label={kinds.map((entry) => `${KIND_NAMES[entry.kind]} ${share.get(entry)}%`).join(", ")}>
       {kinds.map((entry) => {
-        const share = Math.round((entry.changes / total) * 100);
+        const percent = share.get(entry) ?? 0;
         return (
           <span
             key={entry.kind}
             className={`team-kind kind-${entry.kind}`}
-            style={{ flexGrow: entry.changes, background: kindColor(entry.kind) }}
-            onMouseEnter={(event) => tip.show(event, <strong>{`${KIND_NAMES[entry.kind]} · ${plural(entry.changes, "file change")} (${share}%)`}</strong>)}
+            style={{ flexGrow: entry.work, background: kindColor(entry.kind) }}
+            onMouseEnter={(event) => tip.show(event, <strong>{`${KIND_NAMES[entry.kind]} · ${percent}% of the work (${plural(entry.files, "file change")})`}</strong>)}
             onMouseLeave={tip.hide}
           >
-            {tall && share >= 9 && <span className="team-kind-share">{share}%</span>}
+            {tall && percent >= 9 && <span className="team-kind-share">{percent}%</span>}
           </span>
         );
       })}
@@ -44,11 +50,14 @@ export function KindBar({ kinds, tall = false, tip }: { kinds: KindCount[]; tall
 }
 
 export function KindsCard({ work, tip }: { work: TeamWork; tip: Tip }) {
+  const share = shares(work.kinds);
   return (
     <section className="team-panel">
       <header className="team-panel-head">
         <h3>What kind of work</h3>
-        <span className="muted">{plural(work.kinds.reduce((sum, entry) => sum + entry.changes, 0), "file change")}</span>
+        <span className="muted" title="Each commit counts as one, split between the kinds of file it changed">
+          by commit, not by file
+        </span>
       </header>
       <KindBar kinds={work.kinds} tall tip={tip} />
       <ul className="team-kind-legend">
@@ -56,7 +65,9 @@ export function KindsCard({ work, tip }: { work: TeamWork; tip: Tip }) {
           <li key={entry.kind}>
             <span className="team-swatch" style={{ background: kindColor(entry.kind) }} />
             {KIND_NAMES[entry.kind]}
-            <span className="muted">{entry.changes.toLocaleString()}</span>
+            <span className="muted" title={plural(entry.files, "file change")}>
+              {share.get(entry)}%
+            </span>
           </li>
         ))}
       </ul>
