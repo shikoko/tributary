@@ -2,13 +2,19 @@ import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { cancelAction, cloneRepository, onProgress, type CloneOptions, type Progress } from "../api";
 import { useStoredState } from "../lib/settings";
+import type { Accounts, Forge } from "../app/useAccounts";
+import { AccountChips } from "./AccountChips";
 import { Dialog } from "./Dialog";
 import { ProgressBars, ProgressText } from "./ProgressStrip";
+import { YourRepositories } from "./YourRepositories";
 
 interface Props {
   onCancel: () => void;
   /** Cloned into `path`: open it. */
   onDone: (path: string) => void;
+  /** Who's signed in, for picking one of your repositories. */
+  accounts: Accounts;
+  onSignIn: (forge: Forge) => void;
 }
 
 /** "https://github.com/owner/repo.git" → "repo". */
@@ -41,7 +47,7 @@ function join(folder: string, name: string) {
 }
 
 /** Clone a repository from an address into a new folder, then open it. */
-export function CloneDialog({ onCancel, onDone }: Props) {
+export function CloneDialog({ onCancel, onDone, accounts, onSignIn }: Props) {
   const [url, setUrl] = useState("");
   const [parent, setParent] = useStoredState<string>("clone.parent", "");
   const [name, setName] = useState("");
@@ -56,6 +62,7 @@ export function CloneDialog({ onCancel, onDone }: Props) {
   const [folders, setFolders] = useState("");
   const [depth, setDepth] = useState<number | null>(null);
   const [submodules, setSubmodules] = useState(true);
+  const signedIn = Boolean(accounts.github.status?.account || accounts.gitlab.status?.account);
 
   useEffect(() => {
     if (!nameEdited) setName(repoNameFromUrl(url));
@@ -114,8 +121,30 @@ export function CloneDialog({ onCancel, onDone }: Props) {
           clone();
         }}
       >
+        {signedIn ? (
+          <div className="field">
+            <span>Your repositories</span>
+            <YourRepositories
+              accounts={accounts}
+              picked={url.trim()}
+              onPick={(repo) => {
+                setUrl(repo.url);
+                setNameEdited(false);
+                setError(null);
+              }}
+            />
+            {!running && <AccountChips accounts={accounts} onSignIn={onSignIn} />}
+          </div>
+        ) : (
+          !running && (
+            <div className="field clone-sign-in">
+              <span>Sign in to pick one of your repositories</span>
+              <AccountChips accounts={accounts} onSignIn={onSignIn} />
+            </div>
+          )
+        )}
         <label className="field">
-          <span>Address</span>
+          <span>{signedIn ? "Or its address" : "Address"}</span>
           <input
             className="text-input"
             value={url}
@@ -127,7 +156,7 @@ export function CloneDialog({ onCancel, onDone }: Props) {
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
-            autoFocus
+            autoFocus={!signedIn}
             disabled={running}
           />
         </label>

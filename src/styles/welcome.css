@@ -116,3 +116,210 @@
 .logo-tile {
   filter: drop-shadow(0 8px 18px rgb(0 0 0 / 0.28));
 }
+
+/* Who you're signed in as on GitHub and GitLab: a chip each. */
+.account-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dialog .account-chips {
+  justify-content: flex-start;
+}
+
+.account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 12px 0 11px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Centre the letters themselves, not the font's line box (as the avatars do). */
+.account-chip > span:not(.avatar) {
+  text-box: trim-both cap alphabetic;
+}
+
+.account-chip > svg {
+  flex: none;
+  display: block;
+}
+
+.account-chip > .avatar {
+  flex: none;
+}
+
+.account-chip.on {
+  padding-left: 5px;
+  border-style: solid;
+  border-color: var(--border);
+  background: var(--bg-raised);
+  color: var(--text);
+}
+
+.account-chip.rejected {
+  border-color: rgb(var(--warning-rgb) / 0.6);
+  color: var(--warning-text);
+}
+
+.account-chip:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.account-chip:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.account-login {
+  color: var(--text-muted);
+}
+
+/* Your repositories, in the clone dialog. */
+.your-repos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.your-repos-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.your-repos-search:focus-within {
+  border-color: var(--accent);
+}
+
+.your-repos-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.your-repos ul {
+  max-height: 200px;
+  margin: 0;
+  padding: 2px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  list-style: none;
+}
+
+.your-repos-note {
+  padding: 14px 10px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+.your-repo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.your-repo:hover {
+  background: var(--bg-hover);
+}
+
+.your-repo.picked {
+  background: rgb(var(--accent-rgb) / 0.14);
+  box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / 0.5);
+}
+
+.your-repo-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.your-repo-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.your-repo-name > svg {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.your-repo-owner {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-weight: 400;
+  text-overflow: ellipsis;
+}
+
+.your-repo-forge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg-active);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.your-repo-desc {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.your-repo-when {
+  flex: none;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.clone-sign-in {
+  gap: 8px;
+}

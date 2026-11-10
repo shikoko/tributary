@@ -1,9 +1,11 @@
 import { useState } from "react";
 import type { RepoSummary } from "../api";
+import type { Accounts, Forge } from "../app/useAccounts";
 import type { RecentRepo } from "../lib/recent";
 import { avatarColor } from "../lib/colors";
 import { plural, relativeTime } from "../lib/format";
 import { modKey } from "../lib/platform";
+import { AccountChips } from "./AccountChips";
 import { BranchIcon, CloneIcon, CloseIcon, FolderIcon, Logo, NewRepoIcon, PinIcon, SearchIcon } from "./Icons";
 
 interface Props {
@@ -19,10 +21,13 @@ interface Props {
   onOpen: (path: string) => void;
   onForget: (path: string) => void;
   onPin: (path: string, pinned: boolean) => void;
+  /** Who's signed in to GitHub and GitLab, for the chips under the buttons. */
+  accounts: Accounts;
+  onSignIn: (forge: Forge) => void;
 }
 
 /** Shown when no repository is open: open, clone or create one, or pick a recent one. */
-export function Welcome({ recent, summaries, opening, error, onPick, onClone, onCreate, onOpen, onForget, onPin }: Props) {
+export function Welcome({ recent, summaries, opening, error, onPick, onClone, onCreate, onOpen, onForget, onPin, accounts, onSignIn }: Props) {
   const [filter, setFilter] = useState("");
   const needle = filter.trim().toLowerCase();
   const shown = recent.filter(
@@ -117,6 +122,7 @@ export function Welcome({ recent, summaries, opening, error, onPick, onClone, on
             New…
           </button>
         </div>
+        <AccountChips accounts={accounts} onSignIn={onSignIn} />
         <p className="welcome-hint">You can also drop a folder onto this window.</p>
 
         {opening && <div className="welcome-status">Opening {opening}…</div>}

@@ -86,7 +86,7 @@ pub async fn status() -> Result<GitHubStatus> {
 }
 
 /// Git Credential Manager, however it's set up: `manager`, `manager-core`, or its path.
-fn is_credential_manager(helper: &str) -> bool {
+pub(crate) fn is_credential_manager(helper: &str) -> bool {
     let name = helper.rsplit(['/', '\\']).next().unwrap_or(helper);
     name.starts_with("manager") || name.starts_with("git-credential-manager")
 }

@@ -819,12 +819,29 @@ try {
     await page.evaluate(() => (window.__PREVIEW__.github = { account: null }));
     await page.keyboard.press("Control+Comma");
     await page.getByRole("tab", { name: "Accounts" }).click();
-    await page.getByRole("button", { name: "Sign in…" }).click();
+    await page.locator(".settings-row", { hasText: "GitHub" }).getByRole("button", { name: "Sign in…" }).click();
     await page.getByPlaceholder(/ghp_/).fill("ghp_example");
     await page.locator(".dialog").getByRole("button", { name: "Sign in", exact: true }).click();
     const text = await toast();
     expect(text.includes("Signed in to GitHub as maya-chen"), `toast "${text}"`);
     await page.getByText("Signed in as maya-chen").waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await dismissToast();
+  });
+
+  await step("signs in to GitLab with a token, on a company's server", async () => {
+    await page.evaluate(() => (window.__PREVIEW__.gitlab = { account: null }));
+    await page.keyboard.press("Control+Comma");
+    await page.getByRole("tab", { name: "Accounts" }).click();
+    await page.locator(".settings-row", { hasText: "GitLab" }).getByRole("button", { name: "Sign in…" }).click();
+    const dialog = page.locator(".dialog", { hasText: "Sign in to GitLab" });
+    await dialog.getByPlaceholder(/your company's/).fill("https://GitLab.example.com/");
+    await dialog.getByPlaceholder("glpat-…").fill("glpat-example");
+    await dialog.getByRole("button", { name: "Sign in", exact: true }).click();
+    const text = await toast();
+    expect(text.includes("Signed in to gitlab.example.com as maya.chen"), `toast "${text}"`);
+    await page.getByText("Signed in as maya.chen").waitFor({ timeout: 5000 });
+    await page.locator(".settings-row", { hasText: "GitLab (gitlab.example.com)" }).waitFor();
     await page.keyboard.press("Escape");
     await dismissToast();
   });
