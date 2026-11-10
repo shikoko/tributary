@@ -133,6 +133,7 @@ fn stash_and_retry_keeps_the_stash_when_changes_conflict() {
 #[test]
 fn stages_unstages_commits_and_undoes() {
     let mut repo = TempRepo::new("commit");
+    with_identity(&repo);
     let first = repo.commit("a.txt", "first");
     std::fs::write(repo.path().join("a.txt"), "changed").unwrap();
     std::fs::write(repo.path().join("b.txt"), "new").unwrap();

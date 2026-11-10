@@ -17,9 +17,37 @@ pub struct TempRepo {
     pub clock: i64,
 }
 
+/// The app's own git (the code under test) runs with this process's environment, so
+/// unlike the tests' own git it would read this computer's git config: Git for Windows'
+/// system config turns on `core.autocrlf` and `pull.ff=only`, and a developer's own may
+/// sign commits or rebase on pull. Give it no system config, and a global one with
+/// nothing but Git LFS set up (as `git lfs install` does), where it's installed.
+fn keep_this_computers_git_config_out() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let global = Path::new(env!("CARGO_TARGET_TMPDIR")).join("tributary-tests.gitconfig");
+        let lfs = "[filter \"lfs\"]\n\
+                   \tclean = git-lfs clean -- %f\n\
+                   \tsmudge = git-lfs smudge -- %f\n\
+                   \tprocess = git-lfs filter-process\n\
+                   \trequired = true\n";
+        std::fs::write(&global, if lfs_installed() { lfs } else { "" }).unwrap();
+        // SAFETY: this runs once, as the first test repository is made (tests make theirs
+        // before running the app's code on it). Other tests' threads may be running, but
+        // they read the environment only through Rust's own `Command` and `env::var`,
+        // which take the same lock as `set_var`: nothing here reads it through C.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("GIT_CONFIG_NOSYSTEM", "1");
+            std::env::set_var("GIT_CONFIG_GLOBAL", &global);
+        }
+    });
+}
+
 impl TempRepo {
     /// An empty folder, with an empty git config next to it.
     pub fn empty(name: &str) -> Self {
+        keep_this_computers_git_config_out();
         let dir =
             std::env::temp_dir().join(format!("tributary-test-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);

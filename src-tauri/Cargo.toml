@@ -68,7 +68,8 @@ objc2-foundation = { version = "0.3.2", default-features = false, features = ["s
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_HiDpi", "Win32_UI_WindowsAndMessaging"] }
 
 [lints.rust]
-# The only exceptions, allowed where they are: setting the app's icon on macOS and Windows (app_icon.rs).
+# The only exceptions, allowed where they are: setting the app's icon on macOS and Windows (app_icon.rs),
+# and the tests keeping this computer's git config away from the app's git (tests/common/mod.rs).
 unsafe_code = "deny"
 
 [lints.clippy]

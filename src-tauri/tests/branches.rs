@@ -391,6 +391,7 @@ fn keeps_backups_of_changed_branches_and_restores_them() {
     let _turn = remote_turn();
     let remote = TempRepo::bare("backup-remote.git");
     let mut alice = TempRepo::new("backup-alice");
+    with_identity(&alice);
     alice.git(&["remote", "add", "origin", remote.url()]);
     let first = alice.commit("a.txt", "First");
     alice.git(&["push", "--quiet", "-u", "origin", "main"]);
