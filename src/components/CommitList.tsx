@@ -164,10 +164,18 @@ export function CommitList(props: Props) {
   const marked = useMemo(() => selectedIds ?? new Set(selectedId ? [selectedId] : []), [selectedIds, selectedId]);
   useScrollMarkers(markerCanvas, { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId: headCommit, selectedIds: marked, colors });
 
-  // Bring the selected commit into view when it changes.
+  // Bring the selected commit into view when it changes (or the rows change height), once:
+  // as soon as it's on the list, which may take more commits to load. Refreshes (a fetch,
+  // files changing, checks updating) recompute the rows too, but they don't move the list:
+  // otherwise scrolling away from the selected commit kept snapping back to it.
+  const reveal = useRef<string | null>(selectedId);
+  useEffect(() => {
+    reveal.current = selectedId;
+  }, [selectedId, rowHeight]);
   useEffect(() => {
     const element = scroller.current;
-    if (!element || selectedIndex < 0) return;
+    if (!element || selectedIndex < 0 || reveal.current !== selectedId) return;
+    reveal.current = null;
     const top = slotOf[selectedIndex] * rowHeight;
     const bottom = top + rowHeight;
     const viewTop = element.scrollTop;
@@ -182,7 +190,7 @@ export function CommitList(props: Props) {
     } else {
       element.scrollTop = bottom - element.clientHeight;
     }
-  }, [selectedIndex, slotOf, rowHeight]);
+  }, [selectedIndex, slotOf, rowHeight, selectedId]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (commits.length === 0) return;
