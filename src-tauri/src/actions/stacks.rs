@@ -93,12 +93,10 @@ pub(super) fn and_moved(moved: &[String]) -> String {
 
 /// The branch the others are measured against: the remote's default branch, or main/master.
 fn default_base(git: &Git) -> Option<String> {
-    for remote in ["origin"] {
-        if let Ok(head) = git.run(&["rev-parse", "--abbrev-ref", &format!("{remote}/HEAD")]) {
-            let head = head.trim();
-            if !head.is_empty() && !head.ends_with("/HEAD") {
-                return Some(head.to_owned());
-            }
+    if let Ok(head) = git.run(&["rev-parse", "--abbrev-ref", "origin/HEAD"]) {
+        let head = head.trim();
+        if !head.is_empty() && !head.ends_with("/HEAD") {
+            return Some(head.to_owned());
         }
     }
     [

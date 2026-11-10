@@ -4,7 +4,6 @@ mod common;
 
 use common::{TempRepo, outcome, remote_turn, run, with_identity};
 use tributary_lib::actions::{Action, CloneOptions};
-use tributary_lib::error::Error;
 use tributary_lib::{actions, git, repo};
 
 #[test]
@@ -297,7 +296,10 @@ fn cancels_a_slow_fetch() {
     std::thread::sleep(std::time::Duration::from_millis(500));
     assert!(git::cancel(), "a fetch was running");
     let result = fetch.join().unwrap();
-    assert!(matches!(result, Err(Error::Cancelled)), "{result:?}");
+    assert!(
+        matches!(result, Err(tributary_lib::error::Error::Cancelled)),
+        "{result:?}"
+    );
     assert!(
         started.elapsed().as_secs() < 5,
         "cancelling doesn't wait for the remote"

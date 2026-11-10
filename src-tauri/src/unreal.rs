@@ -85,8 +85,10 @@ fn read_string(bytes: &[u8], at: usize) -> Option<(String, usize)> {
         }
         let raw = bytes.get(start..start + units * 2)?;
         let mut words: Vec<u16> = raw
-            .chunks_exact(2)
-            .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|&pair| u16::from_le_bytes(pair))
             .collect();
         if words.pop() != Some(0) || words.contains(&0) {
             return None;

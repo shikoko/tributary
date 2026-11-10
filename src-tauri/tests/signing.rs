@@ -1,5 +1,6 @@
-//! Signing commits with GPG, and checking their signatures, with throwaway keys.
-
+//! Signing commits with GPG, and checking their signatures, with throwaway keys. Git runs
+//! GPG through a small shell script that points it at them.
+#![cfg(unix)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 mod common;
@@ -11,7 +12,6 @@ use tributary_lib::actions::{Action, SigningMode, signing_settings};
 use tributary_lib::repo::{self, SignatureStatus};
 
 #[test]
-#[cfg(unix)]
 fn signs_commits_with_gpg_and_checks_them() {
     if Command::new("gpg").arg("--version").output().is_err() {
         eprintln!("skipped: GPG isn't installed");
