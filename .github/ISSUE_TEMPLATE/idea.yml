@@ -1,0 +1,21 @@
+name: Idea
+description: Something Tributary could do, or do better
+labels: [idea]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: What you're trying to do
+      description: The task or problem, in your own words. Knowing what you're after often leads to a better answer than the first idea.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How Tributary could help. Sketches or screenshots of other apps are welcome.
+  - type: textarea
+    id: now
+    attributes:
+      label: How you do it now
+      description: Another app, the command line, a workaround, or not at all.

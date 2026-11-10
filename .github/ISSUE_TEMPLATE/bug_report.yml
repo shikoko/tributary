@@ -1,0 +1,43 @@
+name: Bug report
+description: Something doesn't work as it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. For a security problem, please don't open an issue: see [SECURITY.md](https://github.com/shikoko/tributary/blob/main/SECURITY.md) for how to report it privately.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead. Screenshots help a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      description: The steps, as exactly as you can, starting from opening Tributary.
+      placeholder: |
+        1. Open a repository that uses Git LFS
+        2. Right-click a branch and choose …
+        3. …
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: |
+        In Tributary, choose **Help → Copy Diagnostics…**, then paste it here. It has the versions of Tributary, git and Git LFS, your system, how the open repository is set up, and the last git commands that failed. Passwords and tokens are left out, but it does include the repository's folder and remote addresses: read it first, and change anything you'd rather not share.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: System
+      options:
+        - macOS
+        - Windows
+        - Linux (built from source)
+    validations:
+      required: true
