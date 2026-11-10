@@ -17,12 +17,21 @@ export function AccountChips({ accounts, onSignIn }: Props) {
   const [menu, setMenu] = useState<{ forge: Forge; x: number; y: number } | null>(null);
   const { github, gitlab } = accounts;
   const gitlabName = gitlab.host === GITLAB_COM ? "GitLab" : gitlab.host;
-  const chips: { forge: Forge; name: string; login: string | null; fullName: string | null; checking: boolean; rejected: boolean }[] = [
+  const chips: {
+    forge: Forge;
+    name: string;
+    login: string | null;
+    fullName: string | null;
+    picture: string | null;
+    checking: boolean;
+    rejected: boolean;
+  }[] = [
     {
       forge: "github",
       name: "GitHub",
       login: github.status?.account?.login ?? null,
       fullName: github.status?.account?.name ?? null,
+      picture: github.status?.account?.picture ?? null,
       checking: !github.status && !github.error,
       rejected: Boolean(github.status?.tokenRejected),
     },
@@ -31,6 +40,7 @@ export function AccountChips({ accounts, onSignIn }: Props) {
       name: gitlabName,
       login: gitlab.status?.account?.username ?? null,
       fullName: gitlab.status?.account?.name ?? null,
+      picture: gitlab.status?.account?.picture ?? null,
       checking: !gitlab.status && !gitlab.error,
       rejected: Boolean(gitlab.status?.tokenRejected),
     },
@@ -48,7 +58,7 @@ export function AccountChips({ accounts, onSignIn }: Props) {
               setMenu({ forge: chip.forge, x: rect.left, y: rect.bottom + 4 });
             }}
           >
-            <Avatar name={chip.fullName || chip.login} email="" size={20} />
+            {chip.picture ? <img className="account-picture" src={chip.picture} alt="" /> : <Avatar name={chip.fullName || chip.login} email="" size={20} />}
             <span>{chip.name}</span>
             <span className="account-login">@{chip.login}</span>
           </button>

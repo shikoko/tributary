@@ -5,6 +5,8 @@ import { invoke } from "@tauri-apps/api/core";
 export interface GitHubAccount {
   login: string;
   name: string | null;
+  /** The account's picture, as a data: URL (when it could be fetched). */
+  picture?: string | null;
 }
 
 /** Who's signed in to GitHub, going by the token git keeps, and how one can sign in. */

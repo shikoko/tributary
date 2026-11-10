@@ -22,6 +22,12 @@ pub struct Account {
     pub login: String,
     #[serde(default)]
     pub name: Option<String>,
+    /// Where GitHub keeps the account's picture.
+    #[serde(default, rename(deserialize = "avatar_url"), skip_serializing)]
+    pub avatar_url: Option<String>,
+    /// The account's picture, as a `data:` URL (for showing who's signed in).
+    #[serde(default, skip_deserializing)]
+    pub picture: Option<String>,
 }
 
 /// Who's signed in to GitHub, and how one can sign in.
@@ -73,10 +79,17 @@ pub async fn status() -> Result<GitHubStatus> {
     })
     .await
     .map_err(|e| e.to_string())??;
-    let account = match &stored {
+    let mut account = match &stored {
         Some(credential) => user(&credential.password).await?,
         None => None,
     };
+    // The picture, small: what the account's chip shows.
+    if let Some(account) = account.as_mut()
+        && let Some(url) = &account.avatar_url
+    {
+        let separator = if url.contains('?') { '&' } else { '?' };
+        account.picture = crate::avatars::picture_at(&format!("{url}{separator}s=64")).await;
+    }
     Ok(GitHubStatus {
         token_rejected: stored.is_some() && account.is_none(),
         account,
@@ -149,7 +162,23 @@ pub fn sign_out() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::is_credential_manager;
+    use super::{Account, is_credential_manager};
+
+    #[test]
+    fn reads_the_accounts_picture_address_but_only_passes_the_picture_on() {
+        let account: Account = serde_json::from_str(
+            r#"{"login":"maya-chen","name":"Maya Chen","avatar_url":"https://avatars.example.com/u/1?v=4"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            account.avatar_url.as_deref(),
+            Some("https://avatars.example.com/u/1?v=4")
+        );
+        assert_eq!(account.picture, None);
+        let sent = serde_json::to_value(&account).unwrap();
+        assert!(sent.get("avatarUrl").is_none() && sent.get("avatar_url").is_none());
+        assert_eq!(sent["login"], "maya-chen");
+    }
 
     #[test]
     fn recognizes_git_credential_manager() {
