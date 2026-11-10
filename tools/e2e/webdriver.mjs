@@ -71,20 +71,32 @@ class Session {
     }
   }
 
-  /** Click the first element matching `css` whose text is `text` (or else includes it). */
-  async click(css, text) {
-    await this.waitFor(css, { text });
-    const clicked = await this.execute(
-      `const [css, text] = arguments;
-       const all = [...document.querySelectorAll(css)];
-       const element = !text ? all[0] : all.find((each) => each.textContent.trim() === text) ?? all.find((each) => each.textContent.includes(text));
-       if (!element) return false;
-       element.scrollIntoView({ block: "center" });
-       element.click();
-       return true;`,
-      [css, text ?? null],
-    );
-    if (!clicked) throw new Error(`Couldn't click ${css}`);
+  /**
+   * Click the first element matching `css` whose text is `text` (or else includes it), once
+   * it shows up and isn't disabled, with the mouse, as WebDriver does: pressed and released
+   * over it. (Rows and the menu bar act on the press, which an `element.click()` in the page
+   * doesn't make; and a click on a disabled button is lost.)
+   */
+  async click(css, text, { timeout = 15_000 } = {}) {
+    const until = Date.now() + timeout;
+    for (;;) {
+      const found = await this.execute(
+        `const [css, text] = arguments;
+         const all = [...document.querySelectorAll(css)];
+         const element = !text ? all[0] : all.find((each) => each.textContent.trim() === text) ?? all.find((each) => each.textContent.includes(text));
+         if (!element || element.disabled || element.getAttribute("aria-disabled") === "true") return null;
+         element.scrollIntoView({ block: "center" });
+         return element;`,
+        [css, text ?? null],
+      ).catch(() => null);
+      const element = found?.[ELEMENT];
+      if (element) {
+        await this.call("POST", `/element/${element}/click`, {});
+        return;
+      }
+      if (Date.now() > until) throw new Error(`Nothing like ${css}${text ? ` with "${text}"` : ""} to click after ${timeout / 1000} s`);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
   }
 
   /** Type into an input or textarea the way React notices. */
