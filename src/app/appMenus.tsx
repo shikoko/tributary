@@ -244,10 +244,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
                 id: "ignore-reason",
                 label: "Why Is a File Ignored…",
                 icon: <IgnoreIcon />,
-                run: async () => {
-                  const file = await openFile({ multiple: false, directory: false, title: "Which file is left out?", defaultPath: snapshot.path });
-                  if (typeof file === "string") run.dialog({ kind: "ignoreReason", file });
-                },
+                run: () => run.dialog({ kind: "ignoreReason", file: null }),
               },
             ],
           },

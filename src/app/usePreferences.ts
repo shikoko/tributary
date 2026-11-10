@@ -5,6 +5,7 @@ import type { ScheduleDays, ScheduledRun } from "../lib/schedule";
 import type { TourId } from "../lib/tours";
 import { useStoredState } from "../lib/settings";
 import { APPEARANCE_KEY } from "./useAppearance";
+import { SKIP_INTRO_KEY } from "../components/IgnoreReasonDialog";
 
 /** How new commits found by a background fetch are announced. */
 export type NewCommitNotices = "off" | "app" | "system";
@@ -42,6 +43,7 @@ export function usePreferences() {
   const [submoduleUpdates, setSubmoduleUpdates] = useStoredState<SubmoduleUpdates>("submodules.update", "ask");
   /** Guided tours: never offered (Help → Tours still has them), offered or taken already, finished, and Getting started waiting for someone new's first repository. */
   const [toursOff, setToursOff] = useStoredState("tours.off", false);
+  const [skipIgnoreIntro, setSkipIgnoreIntro] = useStoredState(SKIP_INTRO_KEY, false);
   const [toursSeen, setToursSeen] = useStoredState<TourId[]>("tours.seen", []);
   const [toursDone, setToursDone] = useStoredState<TourId[]>("tours.done", []);
   const [toursFirst, setToursFirst] = useStoredState("tours.first", false);
@@ -68,7 +70,7 @@ export function usePreferences() {
     autoUpdate, setAutoUpdate, largeFileMB, setLargeFileMB, autoLock, setAutoLock, releaseLocks, setReleaseLocks,
     submoduleUpdates, setSubmoduleUpdates, appearance, setAppearance,
     simpleMode, setSimpleMode,
-    toursOff, setToursOff, toursSeen, setToursSeen, toursDone, setToursDone, toursFirst, setToursFirst,
+    toursOff, setToursOff, skipIgnoreIntro, setSkipIgnoreIntro, toursSeen, setToursSeen, toursDone, setToursDone, toursFirst, setToursFirst,
     historyMinutes, setHistoryMinutes, historyMaxMB, setHistoryMaxMB, historyDays, setHistoryDays,
     scheduleDays, setScheduleDays, scheduleTime, setScheduleTime, scheduleLast, setScheduleLast, scheduleRun, setScheduleRun,
   };

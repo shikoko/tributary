@@ -9,7 +9,7 @@
 // `npx playwright install chromium`, if they aren't installed already).
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -985,6 +985,46 @@ try {
     expect(readFileSync(file, "utf8").includes("A line worth keeping."), "not restored");
     writeFileSync(file, before);
     await dismissToast();
+  });
+
+  await step("explains Why Is a File Ignored first, then finds the rule", async () => {
+    const ignore = join(demos.notebook, ".gitignore");
+    const before = existsSync(ignore) ? readFileSync(ignore, "utf8") : null;
+    writeFileSync(ignore, `${before ?? ""}\n# Scratch\n*.scratch\n`);
+    writeFileSync(join(demos.notebook, "notes.scratch"), "scratch");
+    const openTool = async () => {
+      await page.locator(".menu-bar-item", { hasText: "Repository" }).dispatchEvent("mousedown", { button: 0 });
+      await page.getByRole("menuitem", { name: "Tools" }).click();
+      await page.getByRole("menuitem", { name: "Why Is a File Ignored…" }).click();
+    };
+    await openTool();
+    const intro = page.locator(".ignore-window", { hasText: "Choose the file" });
+    await intro.waitFor({ timeout: 10_000 });
+    await page.evaluate((pick) => Object.assign(window.__PREVIEW__, { pick }), join(demos.notebook, "notes.scratch"));
+    await intro.getByRole("button", { name: "Choose a file…" }).click();
+    const answer = page.locator(".ignore-window", { hasText: "Why notes.scratch is left out" });
+    await answer.locator(".ignore-rule-card", { hasText: "*.scratch" }).waitFor({ timeout: 10_000 });
+    await answer.locator("button.secondary-button", { hasText: "Close" }).click();
+    // Without the introduction: straight to choosing a file.
+    await openTool();
+    await intro.getByText("Don't show this again").click();
+    await intro.getByRole("button", { name: "Cancel" }).click();
+    await page.evaluate((pick) => Object.assign(window.__PREVIEW__, { pick }), join(demos.notebook, "README.md"));
+    await openTool();
+    await page.locator(".ignore-window", { hasText: "README.md isn't ignored" }).waitFor({ timeout: 10_000 });
+    await page.locator(".ignore-window button.secondary-button", { hasText: "Close" }).click();
+    // Settings brings it back.
+    await page.keyboard.press("Control+Comma");
+    const toggle = page.getByRole("switch", { name: "Introduce Why Is a File Ignored…" }).or(page.getByLabel("Introduce Why Is a File Ignored…"));
+    expect(!(await toggle.isChecked()), "the introduction is still on");
+    await toggle.click();
+    await page.keyboard.press("Escape");
+    await openTool();
+    await intro.waitFor({ timeout: 10_000 });
+    await intro.getByRole("button", { name: "Cancel" }).click();
+    if (before === null) rmSync(ignore);
+    else writeFileSync(ignore, before);
+    rmSync(join(demos.notebook, "notes.scratch"));
   });
 
   await step("shows the shelves, and switches to Simple mode and back", async () => {
