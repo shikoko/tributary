@@ -4,7 +4,7 @@ mod common;
 
 use common::{TempRepo, outcome, remote_turn, run, with_identity};
 use tributary_lib::actions::{Action, CloneOptions};
-use tributary_lib::{actions, git, repo};
+use tributary_lib::{actions, git, repo, settings_repo};
 
 #[test]
 fn pushes_fetches_and_pulls() {
@@ -144,6 +144,46 @@ fn fetch_latest_only_fast_forwards() {
         std::fs::read_to_string(bob.path().join("c.txt")).unwrap(),
         "Bob's unsaved work\n"
     );
+}
+
+#[test]
+fn keeps_settings_in_a_repository() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("settings-remote.git");
+    let identity = [
+        ("user.name", "Maya Chen"),
+        ("user.email", "maya@example.com"),
+        ("commit.gpgsign", "false"),
+    ];
+    // Nothing there yet, even in an empty repository.
+    assert!(
+        settings_repo::import(remote.url())
+            .unwrap_err()
+            .to_string()
+            .contains("no Tributary settings yet")
+    );
+    assert_eq!(
+        settings_repo::export(remote.url(), "{\"zoom\": 1}", &identity).unwrap(),
+        "Exported your settings to the repository"
+    );
+    assert_eq!(
+        settings_repo::import(remote.url()).unwrap(),
+        "{\"zoom\": 1}"
+    );
+    // The same again changes nothing; new ones are a new commit, beside what else is there.
+    assert!(
+        settings_repo::export(remote.url(), "{\"zoom\": 1}", &identity)
+            .unwrap()
+            .contains("already")
+    );
+    settings_repo::export(remote.url(), "{\"zoom\": 2}", &identity).unwrap();
+    assert_eq!(
+        settings_repo::import(remote.url()).unwrap(),
+        "{\"zoom\": 2}"
+    );
+    assert_eq!(remote.git(&["rev-list", "--count", "HEAD"]), "2");
+    // A link that isn't one.
+    assert!(settings_repo::import("--upload-pack=evil").is_err());
 }
 
 #[test]
