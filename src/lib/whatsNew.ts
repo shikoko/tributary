@@ -82,7 +82,7 @@ export function compareVersions(a: string, b: string): number {
 }
 
 /**
- * What Help → What's New shows: the notes of the newest version up to `version`, or, when
+ * What What's New in About Tributary shows: the notes of the newest version up to `version`, or, when
  * there are none (a build from before its version was raised for a release), the newest.
  */
 export function forMenu(version: string | null, releases = RELEASES): Release[] {
