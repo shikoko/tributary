@@ -19,6 +19,15 @@ describe("fitting the graph's lanes", () => {
     expect(fit(1200, 1).graphWidth).toBe(72);
   });
 
+  it("gives many lanes up to 40% of a wide list", () => {
+    // 14 lanes need 412 px: more than the usual 320, and within 40% of 1200.
+    expect(fit(1200, 14).graphWidth).toBe(10 * 2 + 14 * 28);
+    // 30 lanes would need 860 px: they get 40% (480 px), and the rest stay off the edge.
+    expect(fit(1200, 30).graphWidth).toBe(480);
+    // A narrower list keeps the 320 px most.
+    expect(fit(700, 14).graphWidth).toBeLessThanOrEqual(320);
+  });
+
   it("keeps every lane in a narrow list: the message, the branch column, then the dates give way", () => {
     // A 500 px list (a side panel open): the message gives way first.
     expect(fit(500, 3)).toMatchObject({ graphWidth: 104, refsWidth: 140, dateWidth: 116 });
@@ -36,9 +45,19 @@ describe("fitting the graph's lanes", () => {
     expect(many.graphWidth).toBe(395 - 80 - 120);
   });
 
-  it("leaves widths chosen by dragging as they are", () => {
-    expect(fit(500, 9, { columnWidths: { refs: 200, graph: 90 } })).toMatchObject({ refsWidth: 200, graphWidth: 90 });
-    // A branch column of a chosen width doesn't give way.
+  it("keeps a graph width chosen by dragging as the least it gets", () => {
+    // Wider than the lanes need: kept as it is.
+    expect(fit(1200, 2, { columnWidths: { refs: null, graph: 200 } }).graphWidth).toBe(200);
+    // Narrower than the lanes need: it widens for them, as it would without the choice.
+    expect(fit(1200, 5, { columnWidths: { refs: null, graph: 110 } }).graphWidth).toBe(10 * 2 + 5 * 28);
+    // Even past the usual most, when there's room.
+    expect(fit(1600, 14, { columnWidths: { refs: null, graph: 110 } }).graphWidth).toBe(10 * 2 + 14 * 28);
+    // In a narrow list the message gives way as usual, but the graph never goes under the choice.
+    expect(fit(500, 9, { columnWidths: { refs: 200, graph: 90 } })).toMatchObject({ refsWidth: 200 });
+    expect(fit(500, 9, { columnWidths: { refs: 200, graph: 90 } }).graphWidth).toBeGreaterThanOrEqual(90);
+  });
+
+  it("leaves a branch column width chosen by dragging as it is", () => {
     expect(fit(500, 6, { columnWidths: { refs: 200, graph: null } }).refsWidth).toBe(200);
   });
 });
