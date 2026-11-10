@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useThemeColors } from "../app/useAppearance";
 import { withAlpha } from "../lib/colors";
-import { readSetting } from "../lib/settings";
 import { shownStops, type Tour, type TourId } from "../lib/tours";
 import { DownloadIcon, RevertIcon, SparkleIcon, TeamIcon, ViewIcon } from "./Icons";
 
@@ -48,12 +47,6 @@ function place(box: DOMRect | null, card: { width: number; height: number }): { 
   return { left: center, top: clampTop(box.bottom - card.height - 24), side: "inside" };
 }
 
-/** Which look, while one is being chosen. */
-function readLook(): "spotlight" | "glow" | "card" {
-  const look = readSetting<string>("tours.look", "spotlight");
-  return look === "glow" || look === "card" ? look : "spotlight";
-}
-
 interface Props {
   tour: Tour;
   /** Ended: finished (or skipped). */
@@ -67,7 +60,6 @@ interface Props {
  * Back and Next (or the arrow keys) step through; Esc or Skip ends it.
  */
 export function TourOverlay({ tour, onClose, onNever }: Props) {
-  const look = readLook();
   const { lanes } = useThemeColors();
   const color = lanes[TOUR_LOOKS[tour.id].lane % lanes.length];
   const next = lanes[(TOUR_LOOKS[tour.id].lane + 1) % lanes.length];
@@ -99,7 +91,7 @@ export function TourOverlay({ tour, onClose, onNever }: Props) {
   useLayoutEffect(() => {
     if (!card.current) return;
     setSpot(place(box, { width: card.current.offsetWidth, height: card.current.offsetHeight }));
-  }, [box, at, look]);
+  }, [box, at]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -127,7 +119,7 @@ export function TourOverlay({ tour, onClose, onNever }: Props) {
   const arrow = box && spot && (spot.side === "right" || spot.side === "left") ? Math.max(18, Math.min(box.top + box.height / 2 - spot.top, (card.current?.offsetHeight ?? 200) - 18)) : null;
 
   return (
-    <div className={`tour tour-look-${look}`} style={style} role="dialog" aria-modal="true" aria-label={`${tour.title}: ${stop.title}`}>
+    <div className="tour" style={style} role="dialog" aria-modal="true" aria-label={`${tour.title}: ${stop.title}`}>
       {hole ? <div className="tour-hole" style={hole} /> : <div className="tour-backdrop" />}
       <div
         ref={card}
@@ -136,39 +128,16 @@ export function TourOverlay({ tour, onClose, onNever }: Props) {
         style={{ left: spot?.left ?? -9999, top: spot?.top ?? -9999, ...(arrow !== null ? { "--arrow": `${arrow}px` } : {}) } as CSSProperties}
         key={at}
       >
-        {look === "card" ? (
-          <div className="tour-card-head">
-            <span className="tour-tile">{TOUR_LOOKS[tour.id].icon(18)}</span>
-            <span className="tour-card-head-text">
-              <span className="tour-eyebrow">{tour.title}</span>
-              <span className="tour-step-count">
-                {at + 1} of {stops.length}
-              </span>
-            </span>
-          </div>
-        ) : (
-          <>
-            {look === "glow" && (
-              <div className="tour-progress">
-                <span style={{ width: `${((at + 1) / stops.length) * 100}%` }} />
-              </div>
-            )}
-            <span className="tour-eyebrow">
-              {TOUR_LOOKS[tour.id].icon(12)}
-              {tour.title} · {at + 1} of {stops.length}
-            </span>
-          </>
-        )}
+        <div className="tour-progress">
+          <span style={{ width: `${((at + 1) / stops.length) * 100}%` }} />
+        </div>
+        <span className="tour-eyebrow">
+          {TOUR_LOOKS[tour.id].icon(12)}
+          {tour.title} · {at + 1} of {stops.length}
+        </span>
         <h3>{stop.title}</h3>
         <p>{stop.text}</p>
         <div className="tour-buttons">
-          {look === "spotlight" && (
-            <span className="tour-dots" aria-hidden="true">
-              {stops.map((each, index) => (
-                <span key={each.title + index} className={index === at ? "on" : index < at ? "past" : undefined} />
-              ))}
-            </span>
-          )}
           <button className="link-button tour-skip" onClick={onClose}>
             {last ? "Close" : "Skip tour"}
           </button>

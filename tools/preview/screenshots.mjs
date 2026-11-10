@@ -455,6 +455,19 @@ const shots = {
     return page;
   },
 
+  /** A guided tour's stop: Fetch, Pull and Push. */
+  async tour() {
+    const page = await open(fresh().studio);
+    await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Tours" }).click();
+    await page.locator(".tours-dialog li", { hasText: "Getting started" }).getByRole("button").click();
+    await page.locator(".tour-card h3", { hasText: "The graph" }).waitFor({ timeout: 5000 });
+    for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowRight");
+    await page.locator(".tour-card h3", { hasText: "Fetch, Pull and Push" }).waitFor({ timeout: 5000 });
+    await settle(page, 900);
+    return page;
+  },
+
   /** The start screen, with where each recent repository stands. */
   async start() {
     const now = Date.now();

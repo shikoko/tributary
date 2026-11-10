@@ -247,7 +247,11 @@ The branch can be switched from the top, next to **Shelves** and **Local history
 - **Menu bar:** File, View, Repository and Help menus with every command and its shortcut: in the macOS menu bar, and next to the tabs on Windows. On Windows the tab bar is the title bar, with the minimize, maximize and close buttons at its right.
 - **Status bar:** the checked-out branch and how it compares to its upstream, when the repository was last fetched (click to fetch), and the repository's folder (click to show it in Finder or Explorer).
 - **Activity log:** what you did (**Your actions**, with Undo) and every git command Tributary runs (**Git commands**), with what git printed, how long it took and whether it worked. Open it from the status bar or with <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd>.
-- **What's new and a tour:** after an update, Tributary shows what's new in the version you got (and the ones you skipped). The first time it starts, a short tour shows where things are. Both are in the Help menu, to see again.
+- **Tours:** short guided tours that point at the real thing: the window dims but for the part being explained, with a card beside it (**Back** and **Next**, or the arrow keys; **Skip tour**, or Esc). Getting started (the graph, your changes, Fetch, Pull and Push, the sidebar, the command palette) runs the first time someone new opens a repository. The others (working with a team, big files and Git LFS, safety nets, Simple mode) are offered once each, in a small card in the corner, when you first come across what they're about; **Help → Tours** has them all, any time. **Don't show tours again**, on every card, stops the offers; Help → Tours or Settings → General turns them back on.
+
+  ![A tour stop: the window dimmed but for Fetch, Pull and Push, which glow, with a card beside them explaining what each does](docs/images/tour.png)
+
+- **What's new:** after an update, Tributary shows what's new in the version you got (and the ones you skipped), one thing at a time; it's in the Help menu, to see again.
 - **Command palette:** <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>K</kbd> lists the commands and branches, so you can check out, merge, highlight or run almost anything by typing a few letters. Press <kbd>?</kbd> to see all keyboard shortcuts.
 
 <sub>[↑ Contents](#contents)</sub>
