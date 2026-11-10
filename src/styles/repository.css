@@ -257,8 +257,8 @@
   opacity: 0.35;
 }
 
-/* A commit's CI, on its node's lower right: passed, failed or running. The ring in the row's
-   colour keeps it apart from the picture under it. */
+/* A commit's CI, half outside its node's lower right: passed, failed or running. A ring in
+   the row's colour cuts it out of the node. */
 .graph-ci {
   --ci-ring: var(--bg);
   position: absolute;

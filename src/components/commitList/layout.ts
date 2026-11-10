@@ -15,13 +15,12 @@ export function nodeAvatarSize(dense: boolean): number {
 }
 
 /**
- * Where a commit's CI dot sits, from the centre of its node: on the lower right, a little
- * inside the node's edge (an author's picture), or overlapping a plain dot's.
+ * Where a commit's CI dot sits, from the centre of its node: on the lower right, half
+ * outside the node's edge, whether that's an author's picture or a plain dot.
  */
 export function ciOffset({ avatar, dense, head, merge }: { avatar: boolean; dense: boolean; head: boolean; merge: boolean }): number {
   const radius = avatar ? (nodeAvatarSize(dense) + 2 * (head ? 3 : dense ? 1.5 : 2)) / 2 : merge ? 4 : head ? 8 : 6.5;
-  const along = avatar ? radius - 2 : radius + 1;
-  return Math.round((along / Math.SQRT2) * 2) / 2;
+  return Math.round(((radius + 1) / Math.SQRT2) * 2) / 2;
 }
 export const GRAPH_PADDING = 10;
 /** Default width of the branch and tag column, left of the graph. */

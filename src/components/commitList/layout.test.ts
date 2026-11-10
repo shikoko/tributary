@@ -63,16 +63,17 @@ describe("fitting the graph's lanes", () => {
 });
 
 describe("ciOffset", () => {
-  it("sits a CI dot just inside an author picture's edge", () => {
-    // A 25px node (21px picture, 2px ring): its centre 10.5px out along the diagonal.
-    expect(ciOffset({ avatar: true, dense: false, head: false, merge: false })).toBe(7.5);
-    // The checked-out commit's ring is thicker, so the dot moves out with it.
-    expect(ciOffset({ avatar: true, dense: false, head: true, merge: false })).toBeGreaterThan(7.5);
-    expect(ciOffset({ avatar: true, dense: true, head: false, merge: false })).toBeLessThan(7.5);
+  it("puts a CI dot half outside a node's edge", () => {
+    // A 25px node (a 21px picture in a 2px ring): its centre 13.5px out along the diagonal.
+    expect(ciOffset({ avatar: true, dense: false, head: false, merge: false })).toBe(9.5);
+    // A plain dot: 7.5px out.
+    expect(ciOffset({ avatar: false, dense: false, head: false, merge: false })).toBe(5.5);
   });
 
-  it("overlaps a plain dot's edge", () => {
-    expect(ciOffset({ avatar: false, dense: false, head: false, merge: false })).toBe(5.5);
+  it("follows the node's size", () => {
+    // The checked-out commit's ring is thicker; compact rows and merges are smaller.
+    expect(ciOffset({ avatar: true, dense: false, head: true, merge: false })).toBe(10.5);
+    expect(ciOffset({ avatar: true, dense: true, head: false, merge: false })).toBe(7);
     expect(ciOffset({ avatar: false, dense: false, head: false, merge: true })).toBe(3.5);
   });
 });
