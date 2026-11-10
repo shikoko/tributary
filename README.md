@@ -172,7 +172,7 @@ One line each here; the [feature guide](docs/features.md) has the details.
 Get the latest version from the [releases page](https://github.com/shikoko/tributary/releases):
 
 - **macOS:** the `.dmg`, one app for Apple Silicon and Intel.
-- **Windows:** the `-setup.exe` (64-bit): one window, one button, and it installs just for you, with no administrator needed. The `.msi` is there for IT departments.
+- **Windows:** the `-setup.exe` (64-bit). **Install** puts Tributary in your user folder, with no administrator needed; **Custom install** installs it for everyone on the PC (in Program Files) or somewhere else. For IT tools it installs silently: `/S` for the person running it, `/S /ALLUSERS` for everyone (from an administrator), and `/D=<folder>` for another folder.
 
 Tributary updates itself after that. It needs [git](https://git-scm.com) installed (and [Git LFS](https://git-lfs.com) for repositories that use it).
 

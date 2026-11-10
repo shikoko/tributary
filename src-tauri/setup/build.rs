@@ -1,17 +1,24 @@
-// The installer the setup carries: Tauri's NSIS installer for the app, from the path in
-// TRIBUTARY_INSTALLER (the release build sets it). Without it, the setup builds but has
-// nothing to install, which is enough for working on its window.
+// The installers the setup carries: Tauri's NSIS installers for the app, one installing just
+// for the person running it (TRIBUTARY_INSTALLER) and one for everyone on the PC
+// (TRIBUTARY_INSTALLER_ALL). The release build sets both. Without them, the setup builds but
+// has nothing to install, which is enough for working on its window.
 fn main() {
-    println!("cargo::rerun-if-env-changed=TRIBUTARY_INSTALLER");
     println!("cargo::rerun-if-env-changed=TRIBUTARY_VERSION");
-    if let Some(path) = std::env::var_os("TRIBUTARY_INSTALLER") {
+    for (variable, cfg) in [
+        ("TRIBUTARY_INSTALLER", "has_installer"),
+        ("TRIBUTARY_INSTALLER_ALL", "has_installer_all"),
+    ] {
+        println!("cargo::rerun-if-env-changed={variable}");
+        let Some(path) = std::env::var_os(variable) else {
+            continue;
+        };
         let path = std::path::PathBuf::from(path);
         if path.is_file() {
             println!("cargo::rerun-if-changed={}", path.display());
-            println!("cargo::rustc-cfg=has_installer");
+            println!("cargo::rustc-cfg={cfg}");
         } else {
             println!(
-                "cargo::warning=TRIBUTARY_INSTALLER doesn't name a file: {}",
+                "cargo::warning={variable} doesn't name a file: {}",
                 path.display()
             );
         }

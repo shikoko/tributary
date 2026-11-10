@@ -27,7 +27,7 @@ custom-protocol = ["tauri/custom-protocol"]
 
 [lints.rust]
 unsafe_code = "deny"
-unexpected_cfgs = { level = "warn", check-cfg = ["cfg(has_installer)"] }
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(has_installer)", "cfg(has_installer_all)"] }
 
 [lints.clippy]
 unwrap_used = "warn"

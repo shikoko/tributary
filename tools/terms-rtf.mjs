@@ -1,5 +1,5 @@
-// TERMS.txt as rich text, for the licence pages of the Windows installers (the .msi's needs
-// RTF; the .exe's shows it too, when it runs with its own pages).
+// TERMS.txt as rich text, for the Windows installer's licence page, which shows when the
+// setup can't show its own window and the installer runs with its own pages.
 //
 //   node tools/terms-rtf.mjs <out.rtf>
 import { readFileSync, writeFileSync } from "node:fs";

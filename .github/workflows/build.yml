@@ -42,10 +42,8 @@ jobs:
             target: x86_64-pc-windows-msvc
             rust-targets: x86_64-pc-windows-msvc
             bundles: |
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi.sig
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe.sig
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe.sig
 
     steps:
       - uses: actions/checkout@v7
@@ -70,8 +68,8 @@ jobs:
       - name: Third-party notices
         run: node tools/notices.mjs
 
-      # The terms of use, on the licence pages of the Windows installers (as rich text,
-      # which the .msi needs). The setup below shows them in its own window.
+      # The terms of use, on the installer's licence page (as rich text), which shows when
+      # the setup below can't show its own window. The setup shows them itself.
       - name: Terms of use
         if: matrix.name == 'Windows'
         shell: bash
@@ -109,26 +107,41 @@ jobs:
             if (process.env.TERMS_RTF) config.bundle.licenseFile = process.env.TERMS_RTF;
             console.log(JSON.stringify(config));
           ')
+          echo "$config" > "$RUNNER_TEMP/tauri-config.json"
           npm run tauri build -- --target ${{ matrix.target }} --config "$config"
 
       # On Windows, what people download is Tributary's own setup: a window in the app's
-      # style that carries the installer just built and runs it silently. That installer
-      # stays in the release as -update.exe, for the automatic updates (latest.json).
+      # style that carries two installers for the app (just for you, and for everyone on the
+      # PC) and runs one silently. It's also what the automatic updates download, so it's
+      # signed like the installers, and it's the only Windows file in the release.
       - name: Build the setup
         if: matrix.name == 'Windows'
         shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           bundle=src-tauri/target/${{ matrix.target }}/release/bundle/nsis
+          work=src-tauri/target/setup-installers
+          mkdir -p "$work"
           installer=$(ls "$bundle"/*-setup.exe)
           name=$(basename "$installer")
           version=$(sed -E 's/^Tributary_([^_]+)_.*$/\1/' <<<"$name")
+          mv "$installer" "$work/just-me.exe"
+          rm -f "$bundle"/*.sig
+          # The same app, as an installer for everyone on the PC (in Program Files).
+          npm run tauri bundle -- --target ${{ matrix.target }} --bundles nsis --config "$RUNNER_TEMP/tauri-config.json" \
+            --config '{"bundle":{"createUpdaterArtifacts":false,"windows":{"nsis":{"installMode":"perMachine"}}}}'
+          mv "$(ls "$bundle"/*-setup.exe)" "$work/everyone.exe"
           npm run setup:build
-          TRIBUTARY_INSTALLER="$(cygpath -w "$PWD/$installer")" TRIBUTARY_VERSION="$version" TAURI_CONFIG="{\"version\":\"$version\"}" \
+          TRIBUTARY_INSTALLER="$(cygpath -w "$PWD/$work/just-me.exe")" \
+          TRIBUTARY_INSTALLER_ALL="$(cygpath -w "$PWD/$work/everyone.exe")" \
+          TRIBUTARY_VERSION="$version" TAURI_CONFIG="{\"version\":\"$version\"}" \
             cargo build --release --manifest-path src-tauri/Cargo.toml -p tributary-setup --features custom-protocol --target ${{ matrix.target }}
-          update="$bundle/${name%-setup.exe}-update.exe"
-          mv "$installer" "$update"
-          if [ -f "$installer.sig" ]; then mv "$installer.sig" "$update.sig"; fi
           cp "src-tauri/target/${{ matrix.target }}/release/tributary-setup.exe" "$bundle/$name"
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            npm run tauri signer sign -- --app-version "$version" "$bundle/$name"
+          fi
           ls -l "$bundle"
 
       - uses: actions/upload-artifact@v7

@@ -23,16 +23,13 @@ function signed(suffix) {
 }
 
 const platforms = {};
-// Each Windows install is updated the way it was installed (the updater looks for its own
-// kind first): one from the .msi (for everyone on the PC) with the .msi, one from the setup
-// (just for you) with the NSIS installer the setup carries, -update.exe.
-const nsis = signed("-update.exe");
-if (nsis) {
-  platforms["windows-x86_64-nsis"] = nsis;
-  platforms["windows-x86_64"] = nsis;
+// Windows: Tributary's setup, which updates the copy that runs it (just for you, or for
+// everyone on the PC).
+const windows = signed("-setup.exe");
+if (windows) {
+  platforms["windows-x86_64"] = windows;
+  platforms["windows-x86_64-nsis"] = windows;
 }
-const msi = signed(".msi");
-if (msi) platforms["windows-x86_64-msi"] = msi;
 // One universal app for both kinds of Mac.
 const mac = signed(".app.tar.gz");
 if (mac) {
