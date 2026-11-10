@@ -110,7 +110,9 @@ The tests don't run on GitHub Actions, so run them before you build.
 - **`develop`** is where work comes together. Make a branch from it for each change, and open pull requests into it.
 - **`main`** is what's been released. It only changes through a pull request from `develop`, when a release is made.
 
-Merge a release's pull request with **Create a merge commit**, not squash or rebase: those copy the commits, so `develop` and `main` would drift apart and the next release's pull request would show old changes again.
+Merge every pull request with **Create a merge commit**, never squash or rebase. Those copy the commits instead: a branch merged that way looks unmerged in the graph, and between `develop` and `main` the two would drift apart, so the next release's pull request would show old changes again.
+
+Before merging a pull request into `develop`, rebase its branch onto the latest `develop` and push it (with `--force-with-lease`). The branch then starts from the tip of `develop`, and the history shows each change as a short loop that joins straight back in. Pull requests from `develop` into `main` aren't rebased.
 
 ## Release
 
