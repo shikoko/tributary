@@ -37,8 +37,10 @@ export interface Updates {
   /** A newer version, once a check found one. */
   available: UpdateInfo | null;
   checking: boolean;
-  /** What the last check found, for "Check now": "Tributary is up to date" or an error. */
-  status: string | null;
+  /** Why the last check didn't work, if it didn't. */
+  error: string | null;
+  /** When the last check that worked finished (ms since the epoch). */
+  checkedAt: number | null;
   check: () => Promise<void>;
 }
 
@@ -46,7 +48,8 @@ export interface Updates {
 export function useUpdates(auto: boolean): Updates {
   const [available, setAvailable] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [checkedAt, setCheckedAt] = useState<number | null>(null);
   const running = useRef(false);
 
   const check = useCallback(async () => {
@@ -56,9 +59,10 @@ export function useUpdates(auto: boolean): Updates {
     try {
       const found = await checkForUpdate();
       setAvailable(found);
-      setStatus(found ? `Version ${found.version} is available` : "Tributary is up to date");
+      setError(null);
+      setCheckedAt(Date.now());
     } catch (e) {
-      setStatus(String(e));
+      setError(String(e).replace(/^Error:\s*/, ""));
     } finally {
       running.current = false;
       setChecking(false);
@@ -76,5 +80,5 @@ export function useUpdates(auto: boolean): Updates {
     };
   }, [auto, check]);
 
-  return { available, checking, status, check };
+  return { available, checking, error, checkedAt, check };
 }

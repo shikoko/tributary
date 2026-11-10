@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
 
 /** Windows over the app that aren't about the repository. */
-export type Overlay = "palette" | "shortcuts" | "settings" | "diagnostics" | "signIn" | "gitlabSignIn" | "update" | "whatsNew" | "tours" | "licences";
+export type Overlay = "palette" | "shortcuts" | "settings" | "diagnostics" | "signIn" | "gitlabSignIn" | "update" | "whatsNew" | "tours" | "licences" | "about";
 
-const NONE: Record<Overlay, boolean> = { palette: false, shortcuts: false, settings: false, diagnostics: false, signIn: false, gitlabSignIn: false, update: false, whatsNew: false, tours: false, licences: false };
+const NONE: Record<Overlay, boolean> = { palette: false, shortcuts: false, settings: false, diagnostics: false, signIn: false, gitlabSignIn: false, update: false, whatsNew: false, tours: false, licences: false, about: false };
 
 /** Which overlays are open. Several can be (signing in, over Settings). */
 export function useOverlays() {

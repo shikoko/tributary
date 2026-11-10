@@ -343,7 +343,6 @@ export function RepositoryView(props: Props) {
       {!preferences.simpleMode && (
         <Toolbar
           snapshot={snapshot}
-          refreshing={repo.busy !== null}
           running={running === "fetch" || running === "pull" || running === "push" ? running : null}
           ahead={counts.ahead}
           behind={counts.behind}
@@ -360,7 +359,6 @@ export function RepositoryView(props: Props) {
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onViewMenu={(anchor) => menu.under(anchor, props.viewMenu, 320)}
-          onRefresh={repo.refresh}
           teamOpen={props.teamOpen}
           onToggleTeam={props.onToggleTeam}
           onOpenMenu={(anchor) => menu.under(anchor, openMenu())}

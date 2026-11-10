@@ -16,7 +16,7 @@ import { DownloadIcon } from "./components/Icons";
 import { TabBar } from "./components/TabBar";
 import type { ToastMessage } from "./components/Toast";
 import { menuItems, shortcutLabel } from "./app/appCommand";
-import { appMenus, helpCommandsFor, settingsCommand, startCommands, type MenuBarContext } from "./app/appMenus";
+import { aboutCommandsFor, appMenus, helpCommandsFor, settingsCommand, startCommands, type MenuBarContext } from "./app/appMenus";
 import { AppOverlays } from "./app/AppOverlays";
 import { FOCUS_REFRESH_INTERVAL, type Running } from "./app/constants";
 import { chooseFilesToLock } from "./app/lockPicker";
@@ -356,6 +356,11 @@ export default function App() {
       whatsNew: () => overlays.show("whatsNew"),
       tours: () => overlays.show("tours"),
       notices: () => overlays.show("licences"),
+      about: () => overlays.show("about"),
+      checkForUpdates: () => {
+        overlays.show("about");
+        void updates.check();
+      },
     },
   };
   const menus = appMenus(menuBarContext);
@@ -403,7 +408,7 @@ export default function App() {
           openSettings: () => openSettings(),
           highlightMine: highlight.highlightMine,
         })
-      : [...startCommands(menuBarContext), settingsCommand(menuBarContext), ...helpCommandsFor(menuBarContext)].map((c) => ({
+      : [...startCommands(menuBarContext), settingsCommand(menuBarContext), ...helpCommandsFor(menuBarContext), ...aboutCommandsFor(menuBarContext)].map((c) => ({
           id: c.id,
           label: c.label,
           icon: c.icon,

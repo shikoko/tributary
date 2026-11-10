@@ -29,8 +29,7 @@ export type SystemItem =
   | "HideOthers"
   | "ShowAll"
   | "Quit"
-  | "Services"
-  | "About";
+  | "Services";
 
 /** A submenu inside a menu, with its own items. */
 export interface NativeSubmenu {
@@ -58,7 +57,7 @@ export async function setNativeMenu(menus: NativeMenu[], onSelect: (id: string) 
     const items: Built[] = [];
     for (const item of list) {
       if ("system" in item) {
-        items.push(await PredefinedMenuItem.new({ item: item.system === "About" ? { About: null } : item.system }));
+        items.push(await PredefinedMenuItem.new({ item: item.system }));
         continue;
       }
       if (item.separated) items.push(await PredefinedMenuItem.new({ item: "Separator" }));

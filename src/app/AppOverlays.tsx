@@ -19,6 +19,7 @@ import { SettingsDialog } from "../components/SettingsDialog";
 import { ShortcutsDialog } from "../components/ShortcutsDialog";
 import { Toast, type ToastMessage } from "../components/Toast";
 import { UpdateDialog } from "../components/UpdateDialog";
+import { AboutDialog } from "../components/AboutDialog";
 import { useAppRows } from "../components/AppRows";
 import { settingsTransferRow } from "../components/SettingsTransferRow";
 import { useDiffToolRows } from "../components/DiffToolRows";
@@ -133,9 +134,6 @@ export function AppOverlays(props: Props) {
             transfer: settingsTransferRow((text) => notify({ text })),
             theme,
             preferences,
-            version,
-            updates,
-            onInstallUpdate: () => show("update"),
             onGetLatestNow: () => {
               hide("settings");
               void props.onGetLatestNow();
@@ -187,6 +185,24 @@ export function AppOverlays(props: Props) {
             notify({ text: "Copied the diagnostics" });
           }}
           onClose={() => hide("diagnostics")}
+        />
+      )}
+      {open.about && (
+        <AboutDialog
+          version={version}
+          updates={updates}
+          auto={preferences.autoUpdate}
+          setAuto={preferences.setAutoUpdate}
+          onInstall={() => show("update")}
+          onWhatsNew={() => {
+            hide("about");
+            show("whatsNew");
+          }}
+          onLicences={() => {
+            hide("about");
+            show("licences");
+          }}
+          onClose={() => hide("about")}
         />
       )}
       {open.licences && <LicencesDialog onClose={() => hide("licences")} />}
