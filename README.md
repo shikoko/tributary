@@ -183,8 +183,11 @@ Tributary updates itself after that. It needs [git](https://git-scm.com) install
 
 The installers aren't code-signed yet, so the first launch needs one extra step:
 
-- **macOS:** if it says the app "is damaged" or "can't be opened", move it to Applications and run `xattr -cr /Applications/Tributary.app` once.
+- **macOS, "Tributary Not Opened":** click **Done**, then open **System Settings → Privacy & Security**, scroll down to **Security** and click **Open Anyway** next to Tributary. Open it again and choose **Open Anyway**. On macOS 14 and earlier, you can instead Control-click the app in Applications and choose **Open**.
+- **macOS, "is damaged" (or it still won't open):** move it to Applications and run `xattr -cr /Applications/Tributary.app` once in Terminal.
 - **Windows:** if SmartScreen warns you, choose **More info → Run anyway**.
+
+It's only needed once: the updates Tributary installs itself open straight away.
 
 **Linux** is experimental: Tributary builds and runs there from source (see below), but there are no Linux installers or automatic updates yet, and it isn't tested on every release. Reports and fixes are welcome.
 
