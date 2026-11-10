@@ -15,8 +15,7 @@ permissions:
   contents: read
 
 jobs:
-  # The app's TypeScript: types, lint and unit tests, and the version being the same in
-  # every file that has it.
+  # The app's TypeScript: types, lint and unit tests.
   app:
     name: App
     runs-on: ubuntu-latest
@@ -29,8 +28,6 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - name: Version
-        run: node tools/version.mjs
       - name: Types
         run: npx tsc --noEmit -p .
       - name: Lint
@@ -131,27 +128,28 @@ jobs:
       - name: Smoke test
         run: npm run preview:smoke
 
-  # A pull request into main makes a release when it's merged: it needs a version that
-  # hasn't been released yet, and the notes for it.
+  # A pull request into main makes a release when it's merged: this says which version,
+  # and checks its notes are written.
   release:
     name: Ready to release
     if: github.base_ref == 'main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      - name: A new version, with its notes
+      - name: The version, and its notes
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          version=$(node tools/version.mjs)
-          tag="v$version"
+          tag="v$(node .github/scripts/next-version.mjs)"
           if [ ! -f "docs/release-notes/$tag.md" ]; then
-            echo "::error::There are no release notes for $tag: write them in docs/release-notes/$tag.md."
+            echo "::error::Merging this releases $tag, which has no notes yet: write them in docs/release-notes/$tag.md."
             exit 1
           fi
-          latest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null || true)
-          if [ -n "$latest" ]; then
-            node tools/version.mjs --after "$latest"
-          fi
-          echo "Merging this releases $tag."
+          echo "::notice::Merging this releases $tag."

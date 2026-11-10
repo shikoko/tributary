@@ -132,18 +132,22 @@ The **Build** workflow (`.github/workflows/build.yml`) makes the installers:
 
 It runs on every merge into `develop`, so the latest is always there to try: open the run in the **Actions** tab and download them from its **Artifacts**. To try a branch before it's merged, start a build by hand: **Actions → Build → Run workflow**, and choose the branch. These builds aren't signed for updates, so they install by hand but aren't offered as an update.
 
-The version is in several files (the app's and the setup's `Cargo.toml` and `tauri.conf.json`, `package.json` and the lock files). Set it in all of them at once:
+Nobody sets the version by hand: it's worked out from the pull requests merged into `develop` since the last release (`.github/scripts/next-version.mjs`). Each pull request into `develop` gets one label for its kind of change, and the **Labels** check asks for it:
 
-```bash
-npm run set-version -- 0.3.0
-```
+| Label | The next release |
+| --- | --- |
+| `fix` (fixes and other small changes) | 0.2.0 → 0.2.1 |
+| `feature` | 0.2.0 → 0.3.0 |
+| `breaking` | 0.2.0 → 1.0.0 |
+
+The biggest change since the last release decides, once: two features and a fix after 0.2.0 make 0.3.0. Builds of `develop` are named after the release they lead to and the number of pull requests merged since the last one, like `0.3.0-dev.3`, so About shows which build it is, and a release counts as newer. Before the first release, the version is the one in `package.json`. The version in the other files (`Cargo.toml`, `tauri.conf.json`) is only for builds on your own computer.
 
 A merge into `main` makes a release. To make one:
 
-1. In a pull request into `develop` as usual, set the new version and write its notes in `docs/release-notes/v<version>.md` (like `v0.2.0.md`). They become the release page's notes, and the update window shows them up to the `<!-- release page only -->` comment (put install steps and the like after it).
-2. Open a pull request from `develop` into `main`. Its checks include **Ready to release**: the version is newer than the latest release, and its notes are there. Merge it with **Create a merge commit**.
+1. In a pull request into `develop` as usual, write the release's notes in `docs/release-notes/v<version>.md` (like `v0.2.0.md`): the latest build of `develop` shows the version, like `0.3.0-dev.3` for 0.3.0. They become the release page's notes, and the update window shows them up to the `<!-- release page only -->` comment (put install steps and the like after it).
+2. Open a pull request from `develop` into `main`. Its checks include **Ready to release**, which says which version merging it releases, and fails if that version's notes aren't there. Merge it with **Create a merge commit**.
 3. The merge starts the Build workflow on `main`, which signs the installers with the key in the protected `release` environment (if the environment asks for approval, open the run, choose **Review deployments**, tick **release** and approve).
-4. When it finishes, a draft GitHub release for the version, with the installers attached, is waiting on the **Releases** page. Publish it, and Tributary offers the update to everyone running an older version.
+4. When it finishes, a draft GitHub release of that version, with the installers attached, is waiting on the **Releases** page. Publish it, and Tributary offers the update to everyone running an older version. Publishing tags the release, and the next version counts from there.
 
 If a release build fails, **Re-run failed jobs** on its run, or start **Build** by hand on `main`: a draft of the same version is replaced, and a version that's already been published is never built again.
 

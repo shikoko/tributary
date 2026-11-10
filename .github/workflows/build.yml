@@ -1,10 +1,13 @@
 name: Build
 
 # The installers for macOS and Windows:
-# - on every merge into develop, to try (the run's Artifacts);
+# - on every merge into develop, to try (the run's Artifacts), as a build of the next
+#   version, like 0.3.0-dev.4;
 # - on every merge into main, as a release: signed for automatic updates, and attached to a
-#   draft GitHub release for the version in the files (npm run set-version);
+#   draft GitHub release of the next version;
 # - for any branch, by hand (Actions → Build → Run workflow), to try it before it's merged.
+# The next version comes from the labels of the pull requests merged since the last
+# release (.github/scripts/next-version.mjs).
 on:
   push:
     branches: [develop, main]
@@ -19,8 +22,37 @@ permissions:
   contents: read
 
 jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The whole history and its tags: the last release, and what's been merged since.
+          fetch-depth: 0
+
+      - name: Next version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          if [ "$RELEASE" = true ]; then
+            version=$(node .github/scripts/next-version.mjs)
+          else
+            version=$(node .github/scripts/next-version.mjs --dev)
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   build:
     name: ${{ matrix.name }}
+    needs: version
     runs-on: ${{ matrix.os }}
     # Releases (builds of main) get the signing key from the "release" environment, which
     # only main can use. Other builds use "test-build", which has no secrets, so they're
@@ -92,20 +124,19 @@ jobs:
           cp "src-tauri/target/${{ matrix.target }}/release/tributary-setup.exe" src-tauri/target/uninstall/tributary-uninstall.exe
           echo "UNINSTALLER=target/uninstall/tributary-uninstall.exe" >> "$GITHUB_ENV"
 
-      # The version is the one in the files (npm run set-version). With the signing key
-      # secret set, the installers are signed for automatic updates too.
+      # With the signing key secret set, the installers are signed for automatic updates too.
       - name: Build installers
         shell: bash
         env:
+          VERSION: ${{ needs.version.outputs.version }}
           # On a build server (CI=true) Tauri leaves out the disk image's window: the
           # background and where Tributary and Applications sit, which Finder sets up. Keep it.
           TAURI_BUNDLER_DMG_IGNORE_CI: "true"
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          node tools/version.mjs
           config=$(node -e '
-            const config = { bundle: {} };
+            const config = { version: process.env.VERSION, bundle: {} };
             if (process.env.TAURI_SIGNING_PRIVATE_KEY) config.bundle.createUpdaterArtifacts = true;
             if (process.env.TERMS_RTF) config.bundle.licenseFile = process.env.TERMS_RTF;
             if (process.env.UNINSTALLER) config.bundle.resources = { [process.env.UNINSTALLER]: "tributary-uninstall.exe" };
@@ -175,16 +206,12 @@ jobs:
   # installers attached. Publishing it is what offers the update to everyone.
   release:
     if: github.ref == 'refs/heads/main'
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
-
-      - name: Version
-        id: version
-        run: echo "tag=v$(node tools/version.mjs)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v8
         with:
@@ -204,11 +231,11 @@ jobs:
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
+          TAG: v${{ needs.version.outputs.version }}
         run: |
           existing=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq "[.[] | select(.tag_name == \"$TAG\") | {id, draft}]")
           if [ "$(jq '[.[] | select(.draft | not)] | length' <<<"$existing")" != 0 ]; then
-            echo "::error::$TAG has already been released: set a newer version (npm run set-version -- <version>), with its notes, in a pull request into develop, then into main."
+            echo "::error::$TAG has already been released."
             exit 1
           fi
           for id in $(jq -r '.[].id' <<<"$existing"); do
@@ -229,7 +256,7 @@ jobs:
       - name: Add the update manifest
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
+          TAG: v${{ needs.version.outputs.version }}
         run: |
           # The draft's notes and the names GitHub gave its files.
           gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" \
