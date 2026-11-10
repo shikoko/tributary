@@ -19,7 +19,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/sponsors/shikoko"><img src="docs/images/sponsor.svg" alt="Sponsor Tributary on GitHub" height="44"></a>
+  Tributary is free, and made in spare time.<br>
+  If it saves you or your team some time, your support keeps the updates coming.<br><br>
+  <a href="https://github.com/sponsors/shikoko"><img src="docs/images/support.svg" alt="Support Tributary on GitHub Sponsors" height="44"></a>
 </p>
 
 ![Tributary showing the commit graph of a repository, with the details of a merge commit on the right](docs/images/overview.png)
@@ -202,10 +204,10 @@ npm run tauri dev
 
 ## Support Tributary
 
-Tributary is free, and made in spare time. If it saves you or your team some time, please consider sponsoring it: it keeps the updates coming. Bug reports and ideas help a lot too: see [CONTRIBUTING.md](CONTRIBUTING.md).
+Tributary is free, and made in spare time. If it saves you or your team some time, please consider supporting it on GitHub Sponsors: it keeps the updates coming. Bug reports and ideas help a lot too: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 <p>
-  <a href="https://github.com/sponsors/shikoko"><img src="docs/images/sponsor.svg" alt="Sponsor Tributary on GitHub" height="44"></a>
+  <a href="https://github.com/sponsors/shikoko"><img src="docs/images/support.svg" alt="Support Tributary on GitHub Sponsors" height="44"></a>
 </p>
 
 ## License
