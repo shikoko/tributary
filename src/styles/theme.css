@@ -42,6 +42,8 @@
   --on-bright: #0d0f13;
   --on-lane: #0d0f13;
   --on-lane-rgb: 13 15 19;
+  /* Text on the red of a failed check (a pull request's badge). */
+  --on-danger: #0d0f13;
   /* The ring around the selected commit, and search matches next to the scrollbar. */
   --graph-ring: #ffffff;
   /* The logo's merge and river (the app icon's, in each theme). */
@@ -177,6 +179,7 @@
   --knob: #ffffff;
   --on-lane: #ffffff;
   --on-lane-rgb: 255 255 255;
+  --on-danger: #ffffff;
   --graph-ring: #1b1f26;
   --logo-ink: #141a26;
   --logo-dot: #ffffff;

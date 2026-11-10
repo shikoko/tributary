@@ -163,7 +163,7 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
   );
 }
 
-/** "#12" (or "!12" for a GitLab merge request) with a dot for its checks; click to see it. */
+/** "#12" (or "!12" for a GitLab merge request), in its checks' colour; click to see it. */
 export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (pr: PullRequest) => void }) {
   return (
     <span
@@ -177,7 +177,6 @@ export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (pr:
         onOpen(pr);
       }}
     >
-      {pr.checks && <span className="pr-dot" />}
       {requestNumber(pr)}
     </span>
   );
