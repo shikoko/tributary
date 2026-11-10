@@ -123,10 +123,11 @@ A build without a version tag can run on any branch, to try the installers out. 
 
 To publish a release:
 
-1. Open a pull request from `develop` into `main`, and merge it with **Create a merge commit**.
-2. In **Actions → Build → Run workflow**, choose `main` under **Use workflow from**, and type a version tag such as `v0.2.0` in the **release** box. The app gets that version.
-3. The build waits for approval, because the signing key is in the protected `release` environment: open the run, choose **Review deployments**, tick **release** and approve.
-4. When it finishes, a draft GitHub release with the installers attached is waiting on the **Releases** page. Publish it, and Tributary offers the update to everyone running an older version.
+1. Write the release notes in `docs/release-notes/<tag>.md` (like `v0.2.0.md`), in a pull request into `develop` as usual. They become the release page's notes, and the update window shows them up to the `<!-- release page only -->` comment (put install steps and the like after it). Without a file, the release gets GitHub's list of merged pull requests instead.
+2. Open a pull request from `develop` into `main`, and merge it with **Create a merge commit**.
+3. In **Actions → Build → Run workflow**, choose `main` under **Use workflow from**, and type a version tag such as `v0.2.0` in the **release** box. The app gets that version.
+4. The build waits for approval, because the signing key is in the protected `release` environment: open the run, choose **Review deployments**, tick **release** and approve.
+5. When it finishes, a draft GitHub release with the installers attached is waiting on the **Releases** page. Publish it, and Tributary offers the update to everyone running an older version.
 
 Tributary finds new versions by reading `latest.json` from the latest release (`plugins.updater.endpoints` in `src-tauri/tauri.conf.json`), and installs them only if they're signed with the key whose public half is `plugins.updater.pubkey` there. A fork that publishes its own releases needs to change both.
 
