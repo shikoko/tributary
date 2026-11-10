@@ -1,0 +1,157 @@
+name: Checks
+
+# Every pull request into develop or main is checked, and can only be merged once the
+# checks pass (a ruleset makes them required). Pull requests from forks run without any
+# secrets, and nothing here needs one.
+on:
+  pull_request:
+    branches: [develop, main]
+
+concurrency:
+  group: checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # The app's TypeScript: types, lint and unit tests, and the version being the same in
+  # every file that has it.
+  app:
+    name: App
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - name: Version
+        run: node tools/version.mjs
+      - name: Types
+        run: npx tsc --noEmit -p .
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+
+  # The Rust side on each system people run Tributary on: git, paths and line endings
+  # behave differently on each.
+  rust:
+    name: Rust (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+          - name: macOS
+            os: macos-latest
+          - name: Windows
+            os: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Linux libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      # The app and the setup are built with their pages in them.
+      - name: Pages
+        run: |
+          npm ci
+          npx vite build
+          npm run setup:build
+
+      - name: Formatting
+        if: runner.os == 'Linux'
+        run: cargo fmt --all --manifest-path src-tauri/Cargo.toml --check
+
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets --locked -- -D warnings
+
+      - name: Tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --workspace --locked
+
+  # The preview (the app's pages over a stand-in for the desktop side) with demo
+  # repositories, clicked through in Chromium.
+  smoke:
+    name: Smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Linux libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Playwright
+        run: |
+          npm ci
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+
+      - name: Build the preview
+        run: npm run preview:build
+
+      - name: Smoke test
+        run: npm run preview:smoke
+
+  # A pull request into main makes a release when it's merged: it needs a version that
+  # hasn't been released yet, and the notes for it.
+  release:
+    name: Ready to release
+    if: github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: A new version, with its notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node tools/version.mjs)
+          tag="v$version"
+          if [ ! -f "docs/release-notes/$tag.md" ]; then
+            echo "::error::There are no release notes for $tag: write them in docs/release-notes/$tag.md."
+            exit 1
+          fi
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null || true)
+          if [ -n "$latest" ]; then
+            node tools/version.mjs --after "$latest"
+          fi
+          echo "Merging this releases $tag."

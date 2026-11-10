@@ -1,6 +1,6 @@
 [package]
 name = "tributary-setup"
-version = "0.1.0"
+version = "0.2.0"
 description = "Tributary's setup for Windows: a window in the app's style around Tauri's installer"
 authors = ["shikoko"]
 license = "MIT"

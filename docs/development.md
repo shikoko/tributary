@@ -110,7 +110,7 @@ npm run e2e
 
 That builds the app first; `npm run e2e -- --no-build` tests the one already built. When a step fails, a screenshot of the window goes into `tools/e2e/output/`.
 
-The tests don't run on GitHub Actions, so run them before you build.
+These desktop tests don't run on GitHub Actions, so run them before you build.
 
 ## Branches
 
@@ -121,22 +121,31 @@ Merge every pull request with **Create a merge commit**, never squash or rebase.
 
 Before merging a pull request into `develop`, rebase its branch onto the latest `develop` and push it (with `--force-with-lease`). The branch then starts from the tip of `develop`, and the history shows each change as a short loop that joins straight back in. Pull requests from `develop` into `main` aren't rebased.
 
+Every pull request into `develop` or `main` runs the **Checks** workflow (`.github/workflows/checks.yml`): types, lint and unit tests; Rust formatting, clippy and tests on Linux, macOS and Windows; and the smoke test. A pull request into `main` also checks that it's ready to release (see below). A ruleset on `develop` and `main` makes the checks required, so a pull request merges only once they pass.
+
 ## Release
 
-The installers are built by GitHub Actions, only when you start a build: open the **Actions** tab, choose **Build**, then **Run workflow**. When it finishes, download the installers from the **Artifacts** section of the run:
+The **Build** workflow (`.github/workflows/build.yml`) makes the installers:
 
 - **macOS:** `.dmg` with a universal app (Apple Silicon and Intel)
 - **Windows:** `-setup.exe`, Tributary's own setup, which the automatic updates run too
 
-A build without a version tag can run on any branch, to try the installers out. It isn't signed for updates, so it installs by hand but isn't offered as an update.
+It runs on every merge into `develop`, so the latest is always there to try: open the run in the **Actions** tab and download them from its **Artifacts**. To try a branch before it's merged, start a build by hand: **Actions → Build → Run workflow**, and choose the branch. These builds aren't signed for updates, so they install by hand but aren't offered as an update.
 
-To publish a release:
+The version is in several files (the app's and the setup's `Cargo.toml` and `tauri.conf.json`, `package.json` and the lock files). Set it in all of them at once:
 
-1. Write the release notes in `docs/release-notes/<tag>.md` (like `v0.2.0.md`), in a pull request into `develop` as usual. They become the release page's notes, and the update window shows them up to the `<!-- release page only -->` comment (put install steps and the like after it). Without a file, the release gets GitHub's list of merged pull requests instead.
-2. Open a pull request from `develop` into `main`, and merge it with **Create a merge commit**.
-3. In **Actions → Build → Run workflow**, choose `main` under **Use workflow from**, and type a version tag such as `v0.2.0` in the **release** box. The app gets that version.
-4. The build waits for approval, because the signing key is in the protected `release` environment: open the run, choose **Review deployments**, tick **release** and approve.
-5. When it finishes, a draft GitHub release with the installers attached is waiting on the **Releases** page. Publish it, and Tributary offers the update to everyone running an older version.
+```bash
+npm run set-version -- 0.3.0
+```
+
+A merge into `main` makes a release. To make one:
+
+1. In a pull request into `develop` as usual, set the new version and write its notes in `docs/release-notes/v<version>.md` (like `v0.2.0.md`). They become the release page's notes, and the update window shows them up to the `<!-- release page only -->` comment (put install steps and the like after it).
+2. Open a pull request from `develop` into `main`. Its checks include **Ready to release**: the version is newer than the latest release, and its notes are there. Merge it with **Create a merge commit**.
+3. The merge starts the Build workflow on `main`, which signs the installers with the key in the protected `release` environment (if the environment asks for approval, open the run, choose **Review deployments**, tick **release** and approve).
+4. When it finishes, a draft GitHub release for the version, with the installers attached, is waiting on the **Releases** page. Publish it, and Tributary offers the update to everyone running an older version.
+
+If a release build fails, **Re-run failed jobs** on its run, or start **Build** by hand on `main`: a draft of the same version is replaced, and a version that's already been published is never built again.
 
 Tributary finds new versions by reading `latest.json` from the latest release (`plugins.updater.endpoints` in `src-tauri/tauri.conf.json`), and installs them only if they're signed with the key whose public half is `plugins.updater.pubkey` there. A fork that publishes its own releases needs to change both.
 
