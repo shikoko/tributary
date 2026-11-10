@@ -353,7 +353,6 @@ export default function App() {
       reveal: () => repoPath && revealItemInDir(repoPath).catch((e) => repo.setError({ message: String(e) })),
       openIn: (app) => repoPath && openInApp(app.id, repoPath).catch((e) => repo.setError({ message: String(e) })),
       diagnostics: () => overlays.show("diagnostics"),
-      whatsNew: () => overlays.show("whatsNew"),
       tours: () => overlays.show("tours"),
       notices: () => overlays.show("licences"),
       about: () => overlays.show("about"),

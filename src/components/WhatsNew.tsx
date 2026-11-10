@@ -64,7 +64,7 @@ function useItemColors() {
 const title = (releases: Release[]) => (releases.length === 1 ? `What's new in Tributary ${releases[0].version}` : "What's new in Tributary");
 
 /**
- * What changed, after an update (or from Help → What's New): one thing at a time, large,
+ * What changed, after an update (or from What's New in About Tributary): one thing at a time, large,
  * with the list of them beside it.
  */
 export function WhatsNewDialog({ releases, onClose }: { releases: Release[]; onClose: () => void }) {
