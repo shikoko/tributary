@@ -23,8 +23,13 @@ function signed(suffix) {
 }
 
 const platforms = {};
+// Windows: Tributary's setup, which updates the copy that runs it (just for you, or for
+// everyone on the PC).
 const windows = signed("-setup.exe");
-if (windows) platforms["windows-x86_64"] = windows;
+if (windows) {
+  platforms["windows-x86_64"] = windows;
+  platforms["windows-x86_64-nsis"] = windows;
+}
 // One universal app for both kinds of Mac.
 const mac = signed(".app.tar.gz");
 if (mac) {

@@ -14,5 +14,10 @@
         "shadow": true
       }
     ]
+  },
+  "bundle": {
+    "targets": [
+      "nsis"
+    ]
   }
 }

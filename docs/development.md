@@ -59,6 +59,13 @@ npm run tauri build
 
 The installers end up in `src-tauri/target/release/bundle/`.
 
+On Windows, the release build also wraps the NSIS installers in Tributary's own setup (`src-tauri/setup/`): a small window in the app's style, with the terms of use (`TERMS.txt`), just for you or for everyone, and the folder, that runs the right installer silently. The automatic updates run it too. It carries two installers, named when it's built: `TRIBUTARY_INSTALLER` (just for you) and `TRIBUTARY_INSTALLER_ALL` (for everyone, `installMode: "perMachine"`). To work on its window, build the page and run it (it opens, but has nothing to install without them):
+
+```bash
+npm run setup:build
+cargo run --manifest-path src-tauri/Cargo.toml -p tributary-setup
+```
+
 ## Test
 
 ```bash
@@ -119,7 +126,7 @@ Before merging a pull request into `develop`, rebase its branch onto the latest 
 The installers are built by GitHub Actions, only when you start a build: open the **Actions** tab, choose **Build**, then **Run workflow**. When it finishes, download the installers from the **Artifacts** section of the run:
 
 - **macOS:** `.dmg` with a universal app (Apple Silicon and Intel)
-- **Windows:** `.msi` and `-setup.exe` installers (64-bit)
+- **Windows:** `-setup.exe`, Tributary's own setup, which the automatic updates run too
 
 A build without a version tag can run on any branch, to try the installers out. It isn't signed for updates, so it installs by hand but isn't offered as an update.
 

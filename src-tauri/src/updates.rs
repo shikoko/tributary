@@ -68,11 +68,17 @@ fn found<R: Runtime>(app: &AppHandle<R>) -> std::sync::MutexGuard<'_, Found> {
 /// Look for a newer version. Remembers it for [`download`]; one already downloaded stays
 /// ready if it's still the newest.
 pub async fn check<R: Runtime>(app: &AppHandle<R>) -> Result<Option<UpdateInfo>, Error> {
-    let updater = app
-        .updater_builder()
-        .timeout(Duration::from_secs(30))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let mut builder = app.updater_builder().timeout(Duration::from_secs(30));
+    // On Windows the update is Tributary's setup, which updates the copy in this folder
+    // (just for you, or for everyone on the PC).
+    if cfg!(windows)
+        && let Some(folder) = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(|folder| folder.display().to_string()))
+    {
+        builder = builder.installer_arg(format!("\"/INSTALLED={folder}\""));
+    }
+    let updater = builder.build().map_err(|e| e.to_string())?;
     let update = match updater.check().await {
         Ok(update) => update,
         // No release with a latest.json yet (one built without the signing key has none).
