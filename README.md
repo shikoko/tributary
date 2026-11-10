@@ -15,7 +15,8 @@
   <a href="#highlights"><b>Highlights</b></a> ·
   <a href="#everything-it-does"><b>Everything it does</b></a> ·
   <a href="docs/features.md"><b>Feature guide</b></a> ·
-  <a href="docs/development.md"><b>Build from source</b></a>
+  <a href="docs/development.md"><b>Build from source</b></a> ·
+  <a href="https://github.com/sponsors/shikoko"><b>♥ Sponsor</b></a>
 </p>
 
 ![Tributary showing the commit graph of a repository, with the details of a merge commit on the right](docs/images/overview.png)
@@ -196,9 +197,15 @@ npm run tauri dev
 
 [docs/development.md](docs/development.md) covers trying the interface in a browser, the tests, building installers, releasing, and how the code is laid out.
 
+## Support Tributary
+
+Tributary is free, and made in spare time. If it saves you or your team some time, you can [sponsor its development on GitHub](https://github.com/sponsors/shikoko). Bug reports and ideas help just as much: see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 [MIT](LICENSE).
+
+**No warranty.** Tributary is provided as is, without any warranty, as the licence says. It takes care with your work: changes go through your own git, branches are backed up before they're rewritten or deleted, and most things can be undone. But any program can have bugs, so keep your work pushed to a remote, and keep backups of anything you can't afford to lose. If commits do go missing, **Repository → Recover Commits** (or `git reflog`) can usually bring them back.
 
 The interface uses [Google Sans](https://fonts.google.com/specimen/Google+Sans) and [JetBrains Mono](https://www.jetbrains.com/lp/mono/), both under the [SIL Open Font License 1.1](https://openfontlicense.org). 3D models are shown with [three.js](https://threejs.org) (MIT), and code is coloured with [highlight.js](https://highlightjs.org) (BSD-3-Clause). [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt) has the licences of everything Tributary is made with.
 
