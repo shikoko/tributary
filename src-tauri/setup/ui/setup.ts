@@ -109,8 +109,16 @@ function footer(): string {
   const folder = `<code title="${escape(state.folder)}">${escape(state.folder)}</code>`;
   if (state.notice) return `<div class="where warning">${WARNING}<span>${escape(state.notice)}</span></div>`;
   if (state.info?.installed) return `<div class="where">Installed in ${folder}</div>`;
+  if (state.check.problem === "admin") {
+    // Even an administrator's setup runs without administrator rights: Program Files and the
+    // like are for installing for everyone, which the .msi does.
+    return `<div class="where-lines">
+      <div class="where warning">${WARNING}<span>Needs administrator rights:</span>${folder}<button class="link" id="change">Choose another…</button></div>
+      <div class="where note">This setup installs just for you. To install for everyone on this PC, use Tributary's .msi.</div>
+    </div>`;
+  }
   if (!state.check.ok) {
-    const why = state.check.problem === "admin" ? "Needs an administrator:" : escape(state.check.problem ?? "Can't install in");
+    const why = escape(state.check.problem ?? "Can't install in");
     return `<div class="where warning">${WARNING}<span>${why}</span>${folder}<button class="link" id="change">Choose another…</button></div>`;
   }
   return `<div class="where">Installs in ${folder}<button class="link" id="change">Change…</button></div>`;

@@ -23,9 +23,16 @@ function signed(suffix) {
 }
 
 const platforms = {};
-// Tauri's installer, which updates run silently (-setup.exe is Tributary's own setup around it).
-const windows = signed("-update.exe");
-if (windows) platforms["windows-x86_64"] = windows;
+// Each Windows install is updated the way it was installed (the updater looks for its own
+// kind first): one from the .msi (for everyone on the PC) with the .msi, one from the setup
+// (just for you) with the NSIS installer the setup carries, -update.exe.
+const nsis = signed("-update.exe");
+if (nsis) {
+  platforms["windows-x86_64-nsis"] = nsis;
+  platforms["windows-x86_64"] = nsis;
+}
+const msi = signed(".msi");
+if (msi) platforms["windows-x86_64-msi"] = msi;
 // One universal app for both kinds of Mac.
 const mac = signed(".app.tar.gz");
 if (mac) {
