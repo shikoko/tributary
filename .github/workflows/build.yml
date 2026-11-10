@@ -97,6 +97,9 @@ jobs:
         env:
           RELEASE: ${{ inputs.release }}
           BRANCH: ${{ github.ref }}
+          # On a build server (CI=true) Tauri leaves out the disk image's window: the
+          # background and where Tributary and Applications sit, which Finder sets up. Keep it.
+          TAURI_BUNDLER_DMG_IGNORE_CI: "true"
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
@@ -122,6 +125,23 @@ jobs:
           ')
           echo "$config" > "$RUNNER_TEMP/tauri-config.json"
           npm run tauri build -- --target ${{ matrix.target }} --config "$config"
+
+      # The disk image opens on a window showing Tributary and Applications over the
+      # background, telling people to drag one onto the other: Finder keeps that window's
+      # settings in a .DS_Store, which isn't there when that part was skipped.
+      - name: Check the disk image's window
+        if: matrix.name == 'macOS'
+        shell: bash
+        run: |
+          dmg=$(ls src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg)
+          volume=$(hdiutil attach -nobrowse -readonly "$dmg" | grep -o '/Volumes/.*$')
+          ls -la "$volume" "$volume/.background" || true
+          if [ -f "$volume/.DS_Store" ] && [ -d "$volume/.background" ]; then ok=1; else ok=0; fi
+          hdiutil detach "$volume" -quiet || hdiutil detach "$volume" -force -quiet
+          if [ "$ok" = 0 ]; then
+            echo "::error::The disk image has no window settings: it would open as a plain Finder window."
+            exit 1
+          fi
 
       # On Windows, what people download is Tributary's own setup: a window in the app's
       # style that carries two installers for the app (just for you, and for everyone on the
