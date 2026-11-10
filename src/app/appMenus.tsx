@@ -66,6 +66,9 @@ export interface MenuBarContext {
     notices: () => void;
     whatsNew: () => void;
     tours: () => void;
+    /** The About window, which also checks for updates. */
+    about: () => void;
+    checkForUpdates: () => void;
   };
 }
 
@@ -95,6 +98,17 @@ export function helpCommandsFor(ctx: MenuBarContext): AppCommand[] {
   ];
 }
 
+/** Check for Updates and About: at the end of Help, or in the app menu on macOS. */
+export function aboutCommandsFor(ctx: MenuBarContext): AppCommand[] {
+  return [
+    { id: "check-updates", label: "Check for Updates…", icon: <DownloadIcon />, run: ctx.do.checkForUpdates },
+    { id: "about", label: "About Tributary", icon: <InfoIcon />, run: ctx.do.about },
+  ];
+}
+
+/** On macOS these are in the app menu instead. */
+const IN_APP_MENU = new Set(["check-updates", "about"]);
+
 /** File, View, Repository and Help, with every command and its shortcut. */
 export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
   const { snapshot, preferences } = ctx;
@@ -105,6 +119,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
   const fileCommands = startCommands(ctx);
   const settings = settingsCommand(ctx);
   const helpCommands = helpCommandsFor(ctx);
+  const aboutCommands = aboutCommandsFor(ctx);
   const zoomCommands: AppCommand[] = [
     { id: "zoom-in", label: "Zoom In", keys: "CmdOrCtrl+=", run: () => run.zoom(1) },
     { id: "zoom-out", label: "Zoom Out", keys: "CmdOrCtrl+-", run: () => run.zoom(-1) },
@@ -123,7 +138,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
       return [
         { label: "File", entries: [...fileCommands, ...(isMac ? [] : ["-" as const, settings])] },
         { label: "View", entries: [...settingCommands, "-", ...zoomCommands] },
-        { label: "Help", entries: helpCommands },
+        { label: "Help", entries: [...helpCommands, "-", ...aboutCommands] },
       ];
     }
     const hasRemotes = snapshot.remotes.length > 0 && !snapshot.bare;
@@ -269,10 +284,17 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           settingCommands[2],
         ],
       },
-      { label: "Help", entries: [...helpCommands, "-", settingCommands[3]] },
+      { label: "Help", entries: [...helpCommands, "-", settingCommands[3], "-", ...aboutCommands] },
     ];
   };
   return menus();
+}
+
+/** The entries without those that go in the app menu, and without the separators left at the end. */
+function withoutAppMenuCommands(entries: MenuEntry[]): MenuEntry[] {
+  const kept = entries.filter((entry) => entry === "-" || isSubmenu(entry) || !IN_APP_MENU.has(entry.id));
+  while (kept[kept.length - 1] === "-") kept.pop();
+  return kept;
 }
 
 /** Menu entries as macOS menu items, submenus included (and left out when empty). */
@@ -299,9 +321,9 @@ function nativeItems(entries: MenuEntry[]): NativeMenu["items"] {
 /** The menus as macOS shows them: the app menu first, Edit after File and Window before Help. */
 export function nativeMenusFor(menus: AppMenuDefinition[]): NativeMenu[] {
   return [
-    { label: "Tributary", items: [{ system: "About" }, { system: "Separator" }, { id: "settings", label: "Settings…", accelerator: "CmdOrCtrl+," }, { system: "Separator" }, { system: "Services" }, { system: "Separator" }, { system: "Hide" }, { system: "HideOthers" }, { system: "ShowAll" }, { system: "Separator" }, { system: "Quit" }] },
+    { label: "Tributary", items: [{ id: "about", label: "About Tributary" }, { id: "check-updates", label: "Check for Updates…" }, { system: "Separator" }, { id: "settings", label: "Settings…", accelerator: "CmdOrCtrl+," }, { system: "Separator" }, { system: "Services" }, { system: "Separator" }, { system: "Hide" }, { system: "HideOthers" }, { system: "ShowAll" }, { system: "Separator" }, { system: "Quit" }] },
     ...menus.flatMap((m, index): NativeMenu[] => {
-      const menu = { label: m.label, items: nativeItems(m.entries) };
+      const menu = { label: m.label, items: nativeItems(withoutAppMenuCommands(m.entries)) };
       if (index === 0) {
         return [menu, { label: "Edit", items: [{ system: "Undo" }, { system: "Redo" }, { system: "Separator" }, { system: "Cut" }, { system: "Copy" }, { system: "Paste" }, { system: "SelectAll" }] }];
       }

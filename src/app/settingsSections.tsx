@@ -1,12 +1,11 @@
 import type { ColumnOptions } from "../components/CommitList";
 import { appearanceRows } from "../components/AppearanceRows";
-import { ColumnsIcon, ContrastIcon, DiffIcon, DownloadIcon, FetchIcon, GearIcon, HistoryIcon, LockIcon, PullIcon, UserIcon } from "../components/Icons";
+import { ColumnsIcon, ContrastIcon, DiffIcon, FetchIcon, GearIcon, HistoryIcon, LockIcon, PullIcon, UserIcon } from "../components/Icons";
 import { describeRun, nextRun, type ScheduleDays } from "../lib/schedule";
 import type { SettingRow, SettingsSection } from "../components/SettingsDialog";
 import type { GitHubStatus, GitLabStatus } from "../api";
 import { GITLAB_COM, type Forge } from "./useAccounts";
 import type { Theme } from "../lib/appearance";
-import type { Updates } from "../lib/updates";
 import { FETCH_MINUTES, HISTORY_MINUTES, SCHEDULE_TIMES, ZOOM_LEVELS } from "./constants";
 import type { NewCommitNotices, Preferences, ReleaseLocks, SubmoduleUpdates } from "./usePreferences";
 
@@ -15,10 +14,6 @@ export const DIFF_SECTION = "Diff and merge";
 
 interface Options {
   preferences: Preferences;
-  /** The version running, once known. */
-  version: string | null;
-  updates: Updates;
-  onInstallUpdate: () => void;
   /** Get the latest of every open repository now, as the schedule does. */
   onGetLatestNow: () => void;
   /** Who's signed in to GitHub and GitLab. */
@@ -41,8 +36,8 @@ interface Options {
 }
 
 /** Everything in the Settings window: the app's own settings (each repository has its own window). */
-export function settingsSections({ preferences, version, updates, onInstallUpdate, onGetLatestNow, accounts, diffTools, apps, transfer, theme }: Options): SettingsSection[] {
-  const { reopenTabs, setReopenTabs, autoUpdate, setAutoUpdate, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
+export function settingsSections({ preferences, onGetLatestNow, accounts, diffTools, apps, transfer, theme }: Options): SettingsSection[] {
+  const { reopenTabs, setReopenTabs, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
   const { daySeparators, setDaySeparators, previews, setPreviews, profilePictures, setProfilePictures } = preferences;
@@ -91,28 +86,6 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
           set: (value) => setSubmoduleUpdates(value as SubmoduleUpdates),
         },
         transfer,
-        {
-          kind: "toggle",
-          label: "Check for updates automatically",
-          hint: "New versions come from Tributary's GitHub releases.",
-          value: autoUpdate,
-          set: setAutoUpdate,
-        },
-        {
-          kind: "custom",
-          label: version ? `Version ${version}` : "Version",
-          hint: updates.status ?? undefined,
-          content: updates.available ? (
-            <button className="outline-button" onClick={onInstallUpdate}>
-              <DownloadIcon size={14} />
-              <span className="button-label">Install {updates.available.version}</span>
-            </button>
-          ) : (
-            <button className="outline-button" onClick={updates.check} disabled={updates.checking}>
-              <span className="button-label">{updates.checking ? "Checking…" : "Check now"}</span>
-            </button>
-          ),
-        },
       ],
     },
     {

@@ -325,7 +325,7 @@ try {
       }
     }
     try {
-      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+      await page.keyboard.press("F5");
       await row("Fix the note counter in the sidebar").click({ button: "right" });
       await page.locator(".menu-item", { hasText: "Find what broke since this commit (bisect)…" }).click();
       const dialog = page.locator(".dialog", { hasText: "Find the commit that broke it" });
@@ -347,7 +347,7 @@ try {
       await dismissToast();
     } finally {
       git("stash", "pop", "-q", "--index");
-      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+      await page.keyboard.press("F5");
     }
   });
 
@@ -377,7 +377,7 @@ try {
       // It stops with the conflict, as it should.
     }
     expect(git(["ls-files", "-u"]).includes("src/store.ts"), "no conflict to resolve");
-    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await page.keyboard.press("F5");
     await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
     await page.locator(".details .conflicts .file", { hasText: "store.ts" }).click();
     const card = page.locator(".conflict-card").first();
@@ -401,7 +401,7 @@ try {
     writeFileSync(store, before);
     if (staged.length) git(["add", "--", ...staged]);
     git(["branch", "-q", "-D", "smoke/version"]);
-    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await page.keyboard.press("F5");
     await page.locator(".operation-bar").waitFor({ state: "detached", timeout: 10_000 });
   });
 
@@ -722,7 +722,7 @@ try {
     git("branch", "smoke/lights", git("log", "-1", "--format=%H", "--grep=Seat guests by the fire", "--all"));
     git("push", "-q", "origin", "smoke/lights");
     await page.evaluate(() => Object.assign(window.__PREVIEW__, { newRequest: { commits: [{ summary: "Warmer lights in the tavern", body: "Candles flicker now." }] } }));
-    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await page.keyboard.press("F5");
     await page.locator(".ref-pill", { hasText: "smoke/lights" }).first().click({ button: "right" });
     await page.locator(".menu-item", { hasText: "Create pull request…" }).click();
     const dialog = page.locator(".request-dialog");
@@ -742,7 +742,7 @@ try {
     git("branch", "-D", "smoke/lights");
     git("push", "-q", "origin", "--delete", "smoke/lights");
     await page.evaluate((list) => Object.assign(window.__PREVIEW__, { pullRequests: list }), STUDIO_PULL_REQUESTS);
-    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await page.keyboard.press("F5");
     await dismissToast();
   });
 
@@ -915,7 +915,7 @@ try {
       await dialog.waitFor({ state: "detached", timeout: 5000 });
       await dismissToast();
       git("commit", "-q", "--allow-empty", "-m", "Signed in the smoke test");
-      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+      await page.keyboard.press("F5");
       await row("Signed in the smoke test").click();
       const mark = page.locator(".details .signature-mark.good", { hasText: "Verified" });
       await mark.waitFor({ timeout: 10_000 });
@@ -930,7 +930,7 @@ try {
       for (const key of ["commit.gpgsign", "gpg.format", "user.signingkey", "gpg.program"]) spawnSync("git", ["-C", demos.notebook, "config", "--local", "--unset", key]);
       spawnSync("gpgconf", ["--kill", "gpg-agent"], { env: { ...process.env, GNUPGHOME: home } });
       rmSync(home, { recursive: true, force: true });
-      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+      await page.keyboard.press("F5");
     }
   });
 
@@ -967,6 +967,23 @@ try {
     const shown = await text.innerText();
     expect(shown.includes("Tributary") && shown.includes("Git:"), `diagnostics "${shown.slice(0, 80)}"`);
     await page.locator(".dialog").getByRole("button", { name: "Close", exact: true }).click();
+  });
+
+  await step("checks for updates in Help → About Tributary", async () => {
+    await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "About Tributary" }).click();
+    const about = page.locator(".about-window");
+    // Opening it checks; the preview has no newer version.
+    await about.locator(".about-status.current", { hasText: "You're up to date" }).waitFor({ timeout: 10_000 });
+    const auto = about.getByRole("switch", { name: "Check for updates automatically" });
+    const before = await auto.getAttribute("aria-checked");
+    await auto.click();
+    expect((await auto.getAttribute("aria-checked")) !== before, "the automatic check didn't change");
+    await auto.click();
+    await about.getByRole("button", { name: "Check again" }).click();
+    await about.locator(".about-status.current").waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await about.waitFor({ state: "detached", timeout: 5000 });
   });
 
   await step("keeps a local history snapshot and puts a file back from it", async () => {
