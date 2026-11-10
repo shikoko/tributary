@@ -226,8 +226,15 @@
   background: var(--graph-ring);
 }
 
-.commit-row.dimmed .graph-node {
-  opacity: 0.2;
+/* A faded commit stays in front of its lines: a veil of the list's background over the
+   picture, rather than letting the lines show through it. */
+.commit-row.dimmed .graph-node::after {
+  content: "";
+  position: absolute;
+  inset: -0.5px;
+  border-radius: 50%;
+  background: var(--bg);
+  opacity: 0.8;
 }
 
 /* Fetch / Pull / Push */

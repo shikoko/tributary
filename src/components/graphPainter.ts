@@ -13,7 +13,7 @@ export interface GraphMetrics {
 export interface PaintOptions extends GraphMetrics {
   headId: string | null;
   selectedId: string | null;
-  /** While a branch is highlighted: the commits in its history. Everything else fades. */
+  /** While searching or a branch is highlighted: the commits that stay bright. Everything else fades. */
   focusIds: Set<string> | null;
   /** Colours behind the graph, used to outline nodes. */
   background: string;
@@ -172,7 +172,7 @@ export function paintGraph(
     const row = slots[slot];
     if (typeof row !== "number") continue;
     const commit = commits[row];
-    ctx.globalAlpha = focus && !focus.has(commit.id) ? FADED : 1;
+    const faded = focus !== null && !focus.has(commit.id);
     const cx = x(commit.graph.column);
     const cy = (slot - first) * rowHeight + rowHeight / 2;
     const color = laneColor(commit.graph.column, options.lanes);
@@ -185,6 +185,16 @@ export function paintGraph(
     const head = commit.id === options.headId;
     // The checked-out commit's dot is a little bigger, with a light centre.
     const radius = (merge ? MERGE_RADIUS : NODE_RADIUS) + (head && commit.kind === "commit" ? 1.5 : 0);
+
+    // A faded node still hides the lines behind it: clear its spot first, then draw it faint.
+    ctx.globalAlpha = 1;
+    if (faded) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + (selected ? 2.5 : 1), 0, Math.PI * 2);
+      ctx.fillStyle = background;
+      ctx.fill();
+      ctx.globalAlpha = FADED;
+    }
 
     if (selected) {
       // A ring right around the selected commit, with no gap.
