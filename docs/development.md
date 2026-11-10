@@ -59,7 +59,7 @@ npm run tauri build
 
 The installers end up in `src-tauri/target/release/bundle/`.
 
-On Windows, the release build also wraps the NSIS installers in Tributary's own setup (`src-tauri/setup/`): a small window in the app's style, with the terms of use (`TERMS.txt`), just for you or for everyone, and the folder, that runs the right installer silently. The automatic updates run it too. It carries two installers, named when it's built: `TRIBUTARY_INSTALLER` (just for you) and `TRIBUTARY_INSTALLER_ALL` (for everyone, `installMode: "perMachine"`). To work on its window, build the page and run it (it opens, but has nothing to install without them):
+On Windows, the release build also wraps the NSIS installers in Tributary's own setup (`src-tauri/setup/`): a small window in the app's style, with the terms of use (`TERMS.txt`), just for you or for everyone, and the folder, that runs the right installer silently. The automatic updates run it too. It carries two installers, named when it's built: `TRIBUTARY_INSTALLER` (just for you) and `TRIBUTARY_INSTALLER_ALL` (for everyone, `installMode: "perMachine"`). Built without them, it's the uninstall window: the release build installs it with the app as `tributary-uninstall.exe`, and `src-tauri/windows/hooks.nsh` points the uninstall entry to it (it runs `uninstall.exe` silently; `QuietUninstallString` stays `uninstall.exe /S`). To work on its window, build the page and run it (it opens, but has nothing to install without them):
 
 ```bash
 npm run setup:build
