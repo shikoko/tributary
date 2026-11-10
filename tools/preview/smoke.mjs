@@ -1111,6 +1111,28 @@ try {
     await card.waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("exports the settings to a git repository, and imports them back", async () => {
+    const remote = join(folder, "settings.git");
+    execFileSync("git", ["init", "--quiet", "--bare", remote]);
+    await page.keyboard.press("Control+,");
+    const settings = page.locator(".settings-window");
+    await settings.locator(".settings-nav").getByText("Export and import").click();
+    await settings.getByRole("button", { name: "Export to a repository…" }).click();
+    const dialog = page.locator(".settings-repository-window");
+    await dialog.getByLabel("Repository").fill(remote);
+    await dialog.getByRole("button", { name: "Export", exact: true }).click();
+    await page.locator(".toast", { hasText: "Exported your settings to the repository" }).waitFor({ timeout: 20_000 });
+    const exported = JSON.parse(execFileSync("git", ["--git-dir", remote, "show", "HEAD:tributary-settings.json"], { encoding: "utf8" }));
+    expect(exported.app === "Tributary" && Object.keys(exported.settings).length > 3, "the settings weren't committed");
+    await settings.getByRole("button", { name: "Import from a repository…" }).click();
+    expect((await dialog.getByLabel("Repository").inputValue()) === remote, "the link wasn't remembered");
+    const reloaded = page.waitForEvent("load", { timeout: 15_000 });
+    await dialog.getByRole("button", { name: "Import", exact: true }).click();
+    await page.locator(".toast", { hasText: "Imported" }).waitFor({ timeout: 20_000 });
+    // Tributary starts again with them.
+    await reloaded;
+  });
+
   await step("had no errors on the page", async () => {
     expect(errors.length === 0, errors.join("; "));
   });

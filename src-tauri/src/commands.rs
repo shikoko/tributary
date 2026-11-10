@@ -355,6 +355,18 @@ pub async fn read_settings_file(file: String) -> Result<String> {
     .await
 }
 
+/// Export the settings (their JSON) to a git repository of your own: committed and pushed.
+#[tauri::command]
+pub async fn export_settings_to_repository(url: String, contents: String) -> Result<String> {
+    blocking(move || crate::settings_repo::export(&url, &contents, &[])).await
+}
+
+/// The settings exported to a git repository, as JSON.
+#[tauri::command]
+pub async fn import_settings_from_repository(url: String) -> Result<String> {
+    blocking(move || crate::settings_repo::import(&url)).await
+}
+
 /// Change an open pull (or merge) request: ready or a draft, more reviewers, auto-merge.
 #[tauri::command]
 pub async fn change_request(

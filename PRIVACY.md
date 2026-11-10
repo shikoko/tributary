@@ -20,7 +20,7 @@ Links such as **Open on GitHub** open your web browser; Tributary doesn't fetch 
 
 ## What it keeps on your computer
 
-- **Settings**, in the app's own storage. **Settings → Export and import** exports them to a file you choose.
+- **Settings**, in the app's own storage. **Settings → Export and import** exports them to a file you choose, or commits them to a git repository you choose (pushed with your own git, like any push).
 - **The activity log** of the git commands it ran, with their output, only in memory while the app runs. Passwords and tokens in addresses are left out.
 - **Profile pictures**, if turned on, for a week, named by a hash of each address.
 - **Local history:** snapshots of your uncommitted work, inside the repository (under `refs/tributary/snapshots/`), for as long as Settings → Local history says. They're never pushed.

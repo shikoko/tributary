@@ -720,3 +720,13 @@ export function saveSettingsFile(file: string, text: string): Promise<void> {
 export function readSettingsFile(file: string): Promise<string> {
   return invoke<string>("read_settings_file", { file });
 }
+
+/** Export settings (JSON text) to a git repository of your own: committed and pushed with your git. */
+export function exportSettingsToRepository(url: string, contents: string): Promise<string> {
+  return invoke<string>("export_settings_to_repository", { url, contents });
+}
+
+/** The settings exported to a git repository, as JSON text. */
+export function importSettingsFromRepository(url: string): Promise<string> {
+  return invoke<string>("import_settings_from_repository", { url });
+}

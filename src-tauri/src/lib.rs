@@ -21,6 +21,7 @@ pub mod locks;
 pub mod repo;
 pub mod requests;
 pub mod reviews;
+pub mod settings_repo;
 pub mod textures;
 pub mod unreal;
 pub mod updates;
@@ -89,6 +90,8 @@ pub fn run() {
             commands::rerun_failed_checks,
             commands::save_settings_file,
             commands::read_settings_file,
+            commands::export_settings_to_repository,
+            commands::import_settings_from_repository,
             commands::publish_release,
             commands::range_diff,
             commands::patch_text,

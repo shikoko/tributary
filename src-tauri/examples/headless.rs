@@ -358,6 +358,15 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             tributary_lib::avatars::forget_missing();
             Ok(Value::Null)
         }
+        "export_settings_to_repository" => {
+            let url: String = arg(args, "url")?;
+            let contents: String = arg(args, "contents")?;
+            to_json(tributary_lib::settings_repo::export(&url, &contents, &[])?)
+        }
+        "import_settings_from_repository" => {
+            let url: String = arg(args, "url")?;
+            to_json(tributary_lib::settings_repo::import(&url)?)
+        }
         "avatars" => {
             let emails: Vec<String> = arg(args, "emails")?;
             to_json(tauri::async_runtime::block_on(
