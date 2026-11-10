@@ -52,11 +52,15 @@ export function useTours({ preferences, facts, busy, openSidebar }: Options) {
     return () => window.removeEventListener(START_TOUR, onStart);
   }, [start]);
 
-  // Someone new: Getting started, as their first repository opens.
+  // Someone new: Getting started, as their first repository opens. It stops waiting only once
+  // it starts (forgetting it first would run this again and cancel the start), and if the
+  // app gets busy meanwhile it starts when that's done.
   useEffect(() => {
     if (!toursFirst || toursOff || busy || active) return;
-    setToursFirst(false);
-    const timer = window.setTimeout(() => start(simpleMode ? "simple" : "start"), 1200);
+    const timer = window.setTimeout(() => {
+      setToursFirst(false);
+      start(simpleMode ? "simple" : "start");
+    }, 1200);
     return () => window.clearTimeout(timer);
   }, [toursFirst, toursOff, busy, active, simpleMode, start, setToursFirst]);
 
