@@ -18,9 +18,15 @@ export interface RefLabel {
   upstream?: string;
   /** For an annotated tag: the id of the tag object (the label sits on its commit). */
   target?: string;
-  /** For a local branch with an upstream: commits it has that the upstream doesn't, and the other way round (git's count, over the whole history). */
+  /**
+   * For a local branch with an upstream: how far it's ahead of the upstream, and behind it,
+   * along each one's own line (first parents), so a merged pull request counts once.
+   */
   ahead?: number;
   behind?: number;
+  /** The same as git counts it: every commit, those a merge brought in too. */
+  aheadCommits?: number;
+  behindCommits?: number;
 }
 
 /** The full name of a branch, remote branch or tag, like "refs/heads/main". */

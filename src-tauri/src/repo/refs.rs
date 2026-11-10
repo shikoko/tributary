@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::{LazyLock, Mutex};
 
 use gix::ObjectId;
 use gix::bstr::ByteSlice;
@@ -44,12 +45,17 @@ pub struct RefLabel {
     /// For an annotated tag: the id of the tag object itself (`kind` points at its commit).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
-    /// For a local branch with an upstream: how many commits it has that the upstream
-    /// doesn't, and the other way round, over the whole history (git's own count).
+    /// For a local branch with an upstream: how far it is ahead of the upstream, and behind
+    /// it, along each one's own line (first parents): a merged pull request counts once.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ahead: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub behind: Option<u32>,
+    /// The same as git counts it (`git status`): every commit, those a merge brought in too.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ahead_commits: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub behind_commits: Option<u32>,
 }
 
 impl RefLabel {
@@ -131,32 +137,131 @@ pub(super) fn collect_refs(
             target,
             ahead: None,
             behind: None,
+            ahead_commits: None,
+            behind_commits: None,
         });
     }
     out
 }
 
-/// Each local branch's distance from the branch it tracks: (ahead, behind), from
-/// `git for-each-ref`'s `upstream:track`. Branches without an upstream (or whose upstream is
-/// gone) aren't listed.
-pub(crate) fn upstream_counts(workdir: &Path) -> HashMap<String, (u32, u32)> {
+/// How far a local branch is from the branch it tracks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) struct Distance {
+    /// Along each branch's own line (first parents only): a merge counts once, however many
+    /// commits it brought in.
+    pub ahead: u32,
+    pub behind: u32,
+    /// Every commit, as git counts them.
+    pub ahead_commits: u32,
+    pub behind_commits: u32,
+}
+
+/// Two branches' tips, and how many commits each has that the other doesn't.
+type Tips = (String, String);
+
+/// First-parent distances already worked out, by the two tips' ids: they only change when
+/// one of the branches moves.
+static FIRST_PARENT: LazyLock<Mutex<HashMap<Tips, (u32, u32)>>> = LazyLock::new(Default::default);
+
+/// Each local branch's distance from the branch it tracks. Branches without an upstream (or
+/// whose upstream is gone) aren't listed.
+pub(crate) fn upstream_counts(workdir: &Path) -> HashMap<String, Distance> {
     let Ok(git) = Git::find(workdir.to_owned()) else {
         return HashMap::new();
     };
-    let Ok(output) = git.in_background().run(&[
+    let git = git.in_background();
+    let Ok(output) = git.run(&[
         "for-each-ref",
-        "--format=%(refname:short)%00%(upstream:short)%00%(upstream:track,nobracket)",
+        "--format=%(refname:short)%00%(objectname)%00%(upstream)%00%(upstream:track,nobracket)",
         "refs/heads",
     ]) else {
         return HashMap::new();
     };
-    output.lines().filter_map(parse_track).collect()
+    let branches: Vec<Tracking> = output.lines().filter_map(parse_track).collect();
+    // Where the upstreams point: only needed for branches that aren't level with theirs.
+    let tips: HashMap<String, String> = if branches
+        .iter()
+        .any(|branch| branch.ahead + branch.behind > 0)
+    {
+        git.run(&[
+            "for-each-ref",
+            "--format=%(refname)%00%(objectname)",
+            "refs/remotes",
+            "refs/heads",
+        ])
+        .map(|out| {
+            out.lines()
+                .filter_map(|line| line.split_once('\0'))
+                .map(|(name, id)| (name.to_owned(), id.to_owned()))
+                .collect()
+        })
+        .unwrap_or_default()
+    } else {
+        HashMap::new()
+    };
+    branches
+        .into_iter()
+        .map(|branch| {
+            let (ahead, behind) = if branch.ahead + branch.behind == 0 {
+                (0, 0)
+            } else {
+                tips.get(&branch.upstream)
+                    .and_then(|tip| first_parent_distance(&git, &branch.id, tip))
+                    .unwrap_or((branch.ahead, branch.behind))
+            };
+            let distance = Distance {
+                ahead,
+                behind,
+                ahead_commits: branch.ahead,
+                behind_commits: branch.behind,
+            };
+            (branch.name, distance)
+        })
+        .collect()
 }
 
-/// "main\0origin/main\0ahead 1, behind 2" → ("main", (1, 2)).
-fn parse_track(line: &str) -> Option<(String, (u32, u32))> {
+/// How many commits `local` and `upstream` each have that the other doesn't, following
+/// first parents only (from the cache when it's known).
+fn first_parent_distance(git: &Git, local: &str, upstream: &str) -> Option<(u32, u32)> {
+    let key = (local.to_owned(), upstream.to_owned());
+    if let Some(&known) = FIRST_PARENT.lock().ok()?.get(&key) {
+        return Some(known);
+    }
+    let output = git
+        .run(&[
+            "rev-list",
+            "--count",
+            "--left-right",
+            "--first-parent",
+            &format!("{local}...{upstream}"),
+        ])
+        .ok()?;
+    let (ahead, behind) = output.trim().split_once('\t')?;
+    let found = (ahead.parse().ok()?, behind.parse().ok()?);
+    let mut known = FIRST_PARENT.lock().ok()?;
+    if known.len() > 2000 {
+        known.clear();
+    }
+    known.insert(key, found);
+    Some(found)
+}
+
+/// A line of `for-each-ref`: a branch, where it is, what it tracks and git's counts.
+#[derive(Debug, PartialEq, Eq)]
+struct Tracking {
+    name: String,
+    id: String,
+    /// Like `refs/remotes/origin/main`.
+    upstream: String,
+    ahead: u32,
+    behind: u32,
+}
+
+/// "main\0<id>\0refs/remotes/origin/main\0ahead 1, behind 2" → main, 1 ahead, 2 behind.
+fn parse_track(line: &str) -> Option<Tracking> {
     let mut parts = line.split('\0');
     let name = parts.next()?;
+    let id = parts.next()?;
     let upstream = parts.next()?;
     let track = parts.next().unwrap_or("");
     if upstream.is_empty() || track.contains("gone") {
@@ -169,7 +274,13 @@ fn parse_track(line: &str) -> Option<(String, (u32, u32))> {
             .find_map(|part| part.strip_prefix(word)?.trim().parse::<u32>().ok())
             .unwrap_or(0)
     };
-    Some((name.to_owned(), (count("ahead"), count("behind"))))
+    Some(Tracking {
+        name: name.to_owned(),
+        id: id.to_owned(),
+        upstream: upstream.to_owned(),
+        ahead: count("ahead"),
+        behind: count("behind"),
+    })
 }
 
 /// Branches that live on, and are never offered for pruning.
@@ -263,19 +374,25 @@ mod track_tests {
 
     #[test]
     fn reads_ahead_and_behind() {
+        let read = |line: &str| parse_track(line).map(|t| (t.name, t.upstream, t.ahead, t.behind));
         assert_eq!(
-            parse_track("main\0origin/main\0ahead 1, behind 2"),
-            Some(("main".into(), (1, 2)))
+            read("main\0abc\0refs/remotes/origin/main\0ahead 1, behind 2"),
+            Some(("main".into(), "refs/remotes/origin/main".into(), 1, 2))
         );
         assert_eq!(
-            parse_track("feature\0origin/feature\0behind 12"),
-            Some(("feature".into(), (0, 12)))
+            read("feature\0abc\0refs/remotes/origin/feature\0behind 12"),
+            Some((
+                "feature".into(),
+                "refs/remotes/origin/feature".into(),
+                0,
+                12
+            ))
         );
         assert_eq!(
-            parse_track("level\0origin/level\0"),
-            Some(("level".into(), (0, 0)))
+            read("level\0abc\0refs/remotes/origin/level\0"),
+            Some(("level".into(), "refs/remotes/origin/level".into(), 0, 0))
         );
-        assert_eq!(parse_track("old\0origin/old\0gone"), None);
-        assert_eq!(parse_track("local\0\0"), None);
+        assert_eq!(read("old\0abc\0refs/remotes/origin/old\0gone"), None);
+        assert_eq!(read("local\0abc\0\0"), None);
     }
 }

@@ -1,5 +1,6 @@
 import { useContext, type MouseEvent, type ReactNode } from "react";
 import { fullRefName, type Stacked, type Visibility } from "../../api";
+import { describeSync, type BranchSync } from "../../lib/branchSync";
 import { pressLabel } from "../../lib/drag";
 import { PullRequestsContext } from "../../lib/pullRequests";
 import type { RefEntry } from "../../lib/refs";
@@ -27,7 +28,7 @@ interface Props {
   selected: boolean;
   visibility: Visibility;
   /** Commits to push and to pull, for a branch with an upstream. */
-  counts?: { ahead: number; behind: number };
+  counts?: BranchSync;
   /** For a branch built on another unmerged branch: which, and whether that was rewritten since. */
   stack?: Stacked;
   isProtected: boolean;
@@ -91,7 +92,7 @@ export function RefItem({ entry, label, icon, depth = 0, selected, visibility, c
         )}
         {pr && <PullRequestBadge pr={pr} onOpen={pullRequests!.open} />}
         {counts && (counts.ahead > 0 || counts.behind > 0) && (
-          <span className="sidebar-counts" title={`${counts.ahead} to push, ${counts.behind} to pull (${entry.upstream ?? "upstream"})`}>
+          <span className="sidebar-counts" title={describeSync({ ...counts, upstream: entry.upstream ?? counts.upstream }) ?? undefined}>
             {counts.ahead > 0 && <span>↑{counts.ahead}</span>}
             {counts.behind > 0 && <span>↓{counts.behind}</span>}
           </span>

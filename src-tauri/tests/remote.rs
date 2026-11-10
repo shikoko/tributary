@@ -601,6 +601,52 @@ fn counts_ahead_and_behind_over_the_whole_history() {
         .find(|label| label.name == "main")
         .expect("main is loaded");
     assert_eq!((main.ahead, main.behind), (Some(1), Some(5)));
+    assert_eq!(
+        (main.ahead_commits, main.behind_commits),
+        (Some(1), Some(5))
+    );
+}
+
+#[test]
+fn counts_a_merged_branch_once() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("merged-remote.git");
+    let mut alice = TempRepo::new("merged-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "start");
+    alice.git(&["push", "-q", "-u", "origin", "main"]);
+    // Bob merges a pull request's branch with a merge commit: two commits on main.
+    let mut bob = TempRepo::clone_of("merged-bob", &remote);
+    bob.git(&["checkout", "-q", "-b", "feature"]);
+    bob.commit("b.txt", "the feature");
+    bob.git(&["checkout", "-q", "main"]);
+    bob.git(&[
+        "merge",
+        "-q",
+        "--no-ff",
+        "feature",
+        "-m",
+        "Merge the feature",
+    ]);
+    bob.git(&["push", "-q", "origin", "main"]);
+    alice.git(&["fetch", "-q", "origin"]);
+
+    let snapshot = tributary_lib::repo::load(alice.path(), 50, false).unwrap();
+    let main = snapshot
+        .commits
+        .iter()
+        .flat_map(|commit| &commit.refs)
+        .find(|label| label.name == "main")
+        .expect("main is loaded");
+    // One step along main, which brings in two commits.
+    assert_eq!((main.ahead, main.behind), (Some(0), Some(1)));
+    assert_eq!(
+        (main.ahead_commits, main.behind_commits),
+        (Some(0), Some(2))
+    );
+    // The start screen counts the same way.
+    let summary = tributary_lib::repo::summary(alice.path());
+    assert_eq!((summary.ahead, summary.behind), (0, 1));
 }
 
 #[test]

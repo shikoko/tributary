@@ -6,15 +6,17 @@ import { ancestors, countMissing } from "../lib/graph";
 /**
  * How far branches are ahead of and behind their upstreams: the checked-out one (for the
  * toolbar and status bar) and every local branch (for the sidebar and the graph's labels).
- * git counts them over the whole history (on each branch's label); among the loaded
- * commits is the fallback, when it didn't.
+ * Counted over the whole history along each branch's own line, so a merged pull request
+ * counts once (on each branch's label, with git's count of every commit too); among the
+ * loaded commits is the fallback, when they weren't counted.
  */
 export function useBranchCounts(snapshot: RepoSnapshot | null, byId: Map<string, CommitRow>) {
   const headHistory = useMemo(() => ancestors(snapshot?.headCommit, byId), [snapshot, byId]);
-  const { ahead, behind } = useMemo(() => {
+  const { ahead, behind, aheadCommits, behindCommits } = useMemo((): Omit<BranchSync, "upstream"> => {
     if (!snapshot?.upstream?.commit || !snapshot.headCommit) return { ahead: 0, behind: 0 };
     const label = snapshot.commits.find((commit) => commit.id === snapshot.headCommit)?.refs.find((ref) => ref.kind === "branch" && ref.current);
-    if (label?.ahead !== undefined && label.behind !== undefined) return { ahead: label.ahead, behind: label.behind };
+    if (label?.ahead !== undefined && label.behind !== undefined)
+      return { ahead: label.ahead, behind: label.behind, aheadCommits: label.aheadCommits, behindCommits: label.behindCommits };
     const remote = ancestors(snapshot.upstream.commit, byId);
     return { ahead: countMissing(headHistory, remote), behind: countMissing(remote, headHistory) };
   }, [snapshot, byId, headHistory]);
@@ -28,7 +30,14 @@ export function useBranchCounts(snapshot: RepoSnapshot | null, byId: Map<string,
       for (const ref of commit.refs) {
         if (ref.kind === "remote") remoteTips.set(ref.name, commit.id);
         if (ref.kind === "branch" && ref.upstream) {
-          if (ref.ahead !== undefined && ref.behind !== undefined) result.set(ref.name, { ahead: ref.ahead, behind: ref.behind, upstream: ref.upstream });
+          if (ref.ahead !== undefined && ref.behind !== undefined)
+            result.set(ref.name, {
+              ahead: ref.ahead,
+              behind: ref.behind,
+              aheadCommits: ref.aheadCommits,
+              behindCommits: ref.behindCommits,
+              upstream: ref.upstream,
+            });
           else branches.push({ name: ref.name, id: commit.id, upstream: ref.upstream });
         }
       }
@@ -53,6 +62,6 @@ export function useBranchCounts(snapshot: RepoSnapshot | null, byId: Map<string,
     [snapshot],
   );
 
-  return { headHistory, ahead, behind, aheadBehind, localBranches };
+  return { headHistory, ahead, behind, aheadCommits, behindCommits, aheadBehind, localBranches };
 }
 export type BranchCounts = ReturnType<typeof useBranchCounts>;
