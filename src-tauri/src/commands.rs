@@ -806,6 +806,26 @@ pub async fn install_update(app: AppHandle) -> Result<()> {
     updates::install(&app).await
 }
 
+/// Open the licences of the software Tributary is made with (THIRD_PARTY_NOTICES.txt,
+/// installed beside the app) in the system's text viewer.
+#[tauri::command]
+pub fn open_notices(app: AppHandle) -> Result<()> {
+    use tauri::Manager;
+    use tauri::path::BaseDirectory;
+    use tauri_plugin_opener::OpenerExt;
+
+    let path = app
+        .path()
+        .resolve("THIRD_PARTY_NOTICES.txt", BaseDirectory::Resource)
+        .map_err(|e| e.to_string())?;
+    if !path.is_file() {
+        return Err("This copy of Tributary was installed without its list of licences: it's THIRD_PARTY_NOTICES.txt in Tributary's source code.".into());
+    }
+    app.opener()
+        .open_path(path.to_string_lossy(), None::<&str>)
+        .map_err(|e| format!("Couldn't open the list of licences ({e})").into())
+}
+
 /// Versions, the platform, and how the repository at `path` (if any) is set up, for
 /// reporting a problem.
 #[tauri::command]

@@ -36,8 +36,11 @@
     "active": true,
     "targets": "all",
     "category": "DeveloperTool",
-    "shortDescription": "Git history graph viewer",
-    "longDescription": "A fast, cross-platform viewer for the commit graph of a git repository.",
+    "shortDescription": "A fast, friendly git client",
+    "longDescription": "A fast, friendly git client: a commit graph that's easy to read, Undo for almost everything, pull requests in the app, and first-class Git LFS, locks and art diffs.",
+    "resources": {
+      "../THIRD_PARTY_NOTICES.txt": "THIRD_PARTY_NOTICES.txt"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

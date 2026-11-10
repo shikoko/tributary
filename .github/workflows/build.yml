@@ -65,6 +65,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The licences of everything the app is made with, installed beside it.
+      - name: Third-party notices
+        run: node tools/notices.mjs
+
       # A release's version comes from its tag (v0.2.0 → 0.2.0). With the signing key
       # secret set, the installers are signed for automatic updates too.
       - name: Build installers

@@ -144,6 +144,14 @@ gh secret set TAURI_SIGNING_PRIVATE_KEY --env release < ~/.tauri/tributary.key
 
 and put the public key in `tauri.conf.json`. Apps signed with the old key can't install updates signed with a new one, so they need to be reinstalled by hand once.
 
+### Third-party notices
+
+`THIRD_PARTY_NOTICES.txt` lists the licence of every Rust crate and npm package that goes into the app, and is installed with it (Help → Third-Party Licences opens it). The Build workflow makes it afresh before building; to update the copy in the repository after changing dependencies:
+
+```bash
+npm run notices
+```
+
 ## Project layout
 
 | Path | What it does |

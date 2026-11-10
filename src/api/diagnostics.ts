@@ -25,3 +25,8 @@ export interface Diagnostics {
 export function diagnostics(path: string | null): Promise<Diagnostics> {
   return invoke<Diagnostics>("diagnostics", { path });
 }
+
+/** Opens the licences of the software Tributary is made with, in the system's text viewer. */
+export function openNotices(): Promise<void> {
+  return invoke<void>("open_notices");
+}

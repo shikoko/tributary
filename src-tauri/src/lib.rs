@@ -137,6 +137,7 @@ pub fn run() {
             commands::commits_between,
             commands::check_for_update,
             commands::install_update,
+            commands::open_notices,
             commands::cancel_action,
             commands::activity_log
         ])

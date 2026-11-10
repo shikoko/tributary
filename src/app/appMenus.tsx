@@ -1,7 +1,7 @@
 import { open as openFile } from "@tauri-apps/plugin-dialog";
 import type { Action, CommitRow, InstalledApp, RepoSnapshot } from "../api";
 import { WORKTREE_ID } from "../api";
-import { BranchIcon, BroomIcon, CheckIcon, CloneIcon, CloseIcon, CodeIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, FetchIcon, FileHistoryIcon, FolderIcon, GearIcon, HistoryIcon, IgnoreIcon, InfoIcon, KeyboardIcon, LockIcon, NewRepoIcon, PlusIcon, PullIcon, PullRequestIcon, PushIcon, RecoverIcon, RefreshIcon, SearchIcon, ShelfIcon, SparkleIcon, StashIcon, TagIcon, TerminalIcon } from "../components/Icons";
+import { BranchIcon, BroomIcon, CheckIcon, CloneIcon, CloseIcon, CodeIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, FetchIcon, FileHistoryIcon, FolderIcon, GearIcon, HistoryIcon, IgnoreIcon, InfoIcon, KeyboardIcon, LockIcon, NewRepoIcon, NotesIcon, PlusIcon, PullIcon, PullRequestIcon, PushIcon, RecoverIcon, RefreshIcon, SearchIcon, ShelfIcon, SparkleIcon, StashIcon, TagIcon, TerminalIcon } from "../components/Icons";
 import type { NativeMenu } from "../lib/nativeMenu";
 import { isMac } from "../lib/platform";
 import { newPullRequestUrl, openInBrowser, siteName, webRemote } from "../lib/weblinks";
@@ -62,6 +62,8 @@ export interface MenuBarContext {
     /** Open the repository in an editor or terminal. */
     openIn: (app: InstalledApp) => void;
     diagnostics: () => void;
+    /** Opens the licences of the software Tributary is made with. */
+    notices: () => void;
     whatsNew: () => void;
     tours: () => void;
   };
@@ -81,7 +83,7 @@ export function startCommands(ctx: MenuBarContext): AppCommand[] {
   ];
 }
 
-/** The command palette, the list of keyboard shortcuts, and diagnostics for bug reports. */
+/** The command palette, the list of keyboard shortcuts, diagnostics for bug reports, and the licences. */
 export function helpCommandsFor(ctx: MenuBarContext): AppCommand[] {
   return [
     { id: "palette", label: "Command Palette", icon: <SearchIcon />, keys: "CmdOrCtrl+K", run: ctx.do.palette },
@@ -89,6 +91,7 @@ export function helpCommandsFor(ctx: MenuBarContext): AppCommand[] {
     { id: "whats-new", label: "What's New", icon: <SparkleIcon />, run: ctx.do.whatsNew },
     { id: "tours", label: "Tours…", icon: <InfoIcon />, run: ctx.do.tours },
     { id: "diagnostics", label: "Copy Diagnostics…", icon: <CopyIcon />, run: ctx.do.diagnostics },
+    { id: "notices", label: "Third-Party Licences", icon: <NotesIcon />, run: ctx.do.notices },
   ];
 }
 
