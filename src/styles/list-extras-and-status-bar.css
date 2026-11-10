@@ -80,28 +80,55 @@
   margin-left: auto;
 }
 
+/* Hide or show a branch: there, but folded to nothing, until the pointer is on its row
+   (or it's hidden or shown alone). It unfolds, so a badge beside it slides over to make
+   room instead of jumping. */
 .sidebar-eye {
-  display: none;
+  display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 20px;
+  width: 0;
   height: 20px;
   margin-left: auto;
+  padding: 0;
+  overflow: hidden;
   border: none;
   border-radius: 4px;
   background: transparent;
   color: var(--text-muted);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    width 0.16s ease,
+    margin 0.16s ease,
+    opacity 0.16s ease;
 }
 
+/* After a badge or the ahead/behind counts, which already take the free space. */
+.sidebar-item .pr-badge + .sidebar-eye,
 .sidebar-counts + .sidebar-eye {
-  margin-left: 2px;
+  margin-left: 0;
 }
 
 .sidebar-item:hover .sidebar-eye,
+.sidebar-item:focus-within .sidebar-eye,
 .sidebar-eye.off,
 .sidebar-eye.solo {
-  display: flex;
+  width: 20px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar-item:hover .pr-badge + .sidebar-eye,
+.sidebar-item:focus-within .pr-badge + .sidebar-eye,
+.pr-badge + .sidebar-eye.off,
+.pr-badge + .sidebar-eye.solo,
+.sidebar-item:hover .sidebar-counts + .sidebar-eye,
+.sidebar-item:focus-within .sidebar-counts + .sidebar-eye,
+.sidebar-counts + .sidebar-eye.off,
+.sidebar-counts + .sidebar-eye.solo {
+  margin-left: 4px;
 }
 
 .sidebar-eye:hover {
