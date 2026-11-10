@@ -383,6 +383,13 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             let path: Option<PathBuf> = optional(args, "path")?;
             to_json(diagnostics::diagnostics(path.as_deref()))
         }
+        "third_party_notices" => {
+            let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+            let notices = std::fs::read_to_string(root.join("THIRD_PARTY_NOTICES.txt"))
+                .map_err(|e| Error::Message(e.to_string()))?;
+            let license = std::fs::read_to_string(root.join("LICENSE")).ok();
+            Ok(serde_json::json!({ "notices": notices, "license": license }))
+        }
         "cancel_action" => to_json(git::cancel()),
         "activity_log" => to_json(git::activity()),
         other => Err(Error::Message(format!(

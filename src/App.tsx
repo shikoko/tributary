@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { forgetAvatars, openInApp, openNotices, WORKTREE_ID, type Action, type PullRequest } from "./api";
+import { forgetAvatars, openInApp, WORKTREE_ID, type Action, type PullRequest } from "./api";
 import { useOpenApps } from "./lib/apps";
 import { useLfsLocks } from "./lib/locks";
 import { isPatchFile } from "./lib/patches";
@@ -349,7 +349,7 @@ export default function App() {
       diagnostics: () => overlays.show("diagnostics"),
       whatsNew: () => overlays.show("whatsNew"),
       tours: () => overlays.show("tours"),
-      notices: () => void openNotices().catch((e) => repo.setError({ message: String(e) })),
+      notices: () => overlays.show("licences"),
     },
   };
   const menus = appMenus(menuBarContext);

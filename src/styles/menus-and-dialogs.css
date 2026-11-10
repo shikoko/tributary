@@ -112,6 +112,7 @@
 }
 
 .dialog {
+  position: relative;
   width: min(480px, 100%);
   padding: 20px 22px;
   border: 1px solid var(--border-strong);
@@ -123,6 +124,13 @@
 .dialog h2 {
   margin: 0 0 10px;
   font-size: 16px;
+}
+
+/* The close button in the corner (Dialog's `closable`). */
+.dialog-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
 }
 
 .dialog p {

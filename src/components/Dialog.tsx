@@ -1,4 +1,5 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { CloseIcon } from "./Icons";
 
 interface Props {
   title: string;
@@ -14,6 +15,8 @@ interface Props {
   wide?: boolean;
   /** For a dialog laid out its own way. */
   className?: string;
+  /** A close button (×) in the corner, for a window that's read rather than filled in. */
+  closable?: boolean;
   onCancel: () => void;
 }
 
@@ -39,7 +42,7 @@ function keepFocusInside(event: KeyboardEvent<HTMLDivElement>) {
  * A modal dialog. Esc or a click outside cancels it. The keyboard stays inside it while
  * it's open, and goes back to where it was when it closes.
  */
-export function Dialog({ title, children, buttons, error, errorAction, busy, wide, className, onCancel }: Props) {
+export function Dialog({ title, children, buttons, error, errorAction, busy, wide, className, closable, onCancel }: Props) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -89,6 +92,11 @@ export function Dialog({ title, children, buttons, error, errorAction, busy, wid
         }}
       >
         <h2>{title}</h2>
+        {closable && (
+          <button className="icon-button dialog-close" onClick={onCancel} disabled={busy} aria-label="Close" title="Close (Esc)">
+            <CloseIcon size={14} />
+          </button>
+        )}
         {children}
         {error && (
           <div className="error-banner">
