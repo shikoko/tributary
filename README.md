@@ -15,7 +15,8 @@
   <a href="#highlights"><b>Highlights</b></a> ·
   <a href="#everything-it-does"><b>Everything it does</b></a> ·
   <a href="docs/features.md"><b>Feature guide</b></a> ·
-  <a href="docs/development.md"><b>Build from source</b></a>
+  <a href="docs/development.md"><b>Build from source</b></a> ·
+  <a href="https://github.com/sponsors/shikoko"><b>♥ Sponsor</b></a>
 </p>
 
 ![Tributary showing the commit graph of a repository, with the details of a merge commit on the right](docs/images/overview.png)
@@ -195,6 +196,10 @@ npm run tauri dev
 ```
 
 [docs/development.md](docs/development.md) covers trying the interface in a browser, the tests, building installers, releasing, and how the code is laid out.
+
+## Support Tributary
+
+Tributary is free, and made in spare time. If it saves you or your team some time, you can [sponsor its development on GitHub](https://github.com/sponsors/shikoko). Bug reports and ideas help just as much: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

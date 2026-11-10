@@ -36,6 +36,7 @@
     "active": true,
     "targets": "all",
     "category": "DeveloperTool",
+    "copyright": "Copyright © 2026 Bogdan Roatis",
     "shortDescription": "A fast, friendly git client",
     "longDescription": "A fast, friendly git client: a commit graph that's easy to read, Undo for almost everything, pull requests in the app, and first-class Git LFS, locks and art diffs.",
     "resources": {
