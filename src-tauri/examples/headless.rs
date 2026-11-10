@@ -354,6 +354,10 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             tributary_lib::avatars::forget();
             Ok(Value::Null)
         }
+        "forget_missing_avatars" => {
+            tributary_lib::avatars::forget_missing();
+            Ok(Value::Null)
+        }
         "avatars" => {
             let emails: Vec<String> = arg(args, "emails")?;
             to_json(tauri::async_runtime::block_on(

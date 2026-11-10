@@ -128,6 +128,7 @@ pub fn run() {
             commands::tracker_sign_out,
             commands::avatars,
             commands::forget_avatars,
+            commands::forget_missing_avatars,
             commands::git_install,
             commands::look_for_git,
             commands::install_command_line_tools,

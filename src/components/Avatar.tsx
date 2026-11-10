@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { avatarUrl, knownAvatar } from "../lib/avatars";
+import { AVATARS_CHANGED, avatarUrl, knownAvatar } from "../lib/avatars";
 import { avatarColor } from "../lib/colors";
 import { initials } from "../lib/format";
 
@@ -16,6 +16,13 @@ export function Avatar({ name, email, size = 20, color }: { name: string; email:
   const known = repo && email ? knownAvatar(repo, email) : null;
   const [picture, setPicture] = useState<{ email: string; url: string | null } | null>(null);
   const [waited, setWaited] = useState(false);
+  // Bumped when the authors without a picture are asked about again (after signing in).
+  const [round, setRound] = useState(0);
+  useEffect(() => {
+    const again = () => setRound((now) => now + 1);
+    window.addEventListener(AVATARS_CHANGED, again);
+    return () => window.removeEventListener(AVATARS_CHANGED, again);
+  }, []);
 
   useEffect(() => {
     if (!repo || !email || known !== undefined) return;
@@ -26,7 +33,7 @@ export function Avatar({ name, email, size = 20, color }: { name: string; email:
       live = false;
       clearTimeout(timer);
     };
-  }, [repo, email, known]);
+  }, [repo, email, known, round]);
 
   const url = known !== undefined ? known : picture?.email === email ? picture.url : undefined;
   if (repo && url) {

@@ -616,6 +616,12 @@ pub fn forget_avatars() {
     crate::avatars::forget();
 }
 
+/// Ask again about the authors found to have no picture (after signing in).
+#[tauri::command]
+pub fn forget_missing_avatars() {
+    crate::avatars::forget_missing();
+}
+
 /// Profile pictures of these authors, as `data:` URLs (null for those without one).
 #[tauri::command]
 pub async fn avatars(

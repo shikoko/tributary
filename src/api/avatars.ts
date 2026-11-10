@@ -10,3 +10,8 @@ export function avatars(path: string, emails: string[]): Promise<Record<string, 
 export function forgetAvatars(): Promise<void> {
   return invoke<void>("forget_avatars");
 }
+
+/** Ask again about the authors found to have no picture (after signing in). */
+export function forgetMissingAvatars(): Promise<void> {
+  return invoke<void>("forget_missing_avatars");
+}
