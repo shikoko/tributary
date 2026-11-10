@@ -1,6 +1,7 @@
 //! Tributary: a git history graph viewer. The Rust side reads repositories with gix and
 //! changes them with the user's own git; the frontend calls it through [`commands`].
 
+pub mod accounts;
 pub mod actions;
 mod app_icon;
 pub mod apps;
@@ -131,6 +132,12 @@ pub fn run() {
             commands::github_sign_in,
             commands::github_sign_in_with_browser,
             commands::github_sign_out,
+            commands::github_repositories,
+            commands::gitlab_status,
+            commands::gitlab_sign_in,
+            commands::gitlab_sign_in_with_browser,
+            commands::gitlab_sign_out,
+            commands::gitlab_repositories,
             commands::reflog,
             commands::worktrees,
             commands::remote_state,

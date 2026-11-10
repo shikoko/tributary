@@ -8,7 +8,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::actions::{self, Action, Outcome};
 use crate::error::{Error, Result};
-use crate::{diagnostics, git, github, locks, repo, updates};
+use crate::{accounts, diagnostics, git, github, locks, repo, updates};
 
 /// How many commits to load when the frontend doesn't ask for a specific amount.
 const DEFAULT_LIMIT: usize = 10_000;
@@ -767,6 +767,42 @@ pub async fn github_sign_in_with_browser() -> Result<github::account::Account> {
 #[tauri::command]
 pub async fn github_sign_out() -> Result<()> {
     blocking(github::account::sign_out).await
+}
+
+/// Your repositories on GitHub, to clone one from a list (none when you aren't signed in).
+#[tauri::command]
+pub async fn github_repositories() -> Result<Vec<accounts::AccountRepo>> {
+    accounts::github_repositories().await
+}
+
+/// Who's signed in to a GitLab server (going by the token git keeps), and how one can sign in.
+#[tauri::command]
+pub async fn gitlab_status(host: String) -> Result<accounts::GitLabStatus> {
+    accounts::gitlab_status(&host).await
+}
+
+/// Sign in to a GitLab server with a personal access token, kept by git's credential helper.
+#[tauri::command]
+pub async fn gitlab_sign_in(host: String, token: String) -> Result<accounts::GitLabAccount> {
+    accounts::gitlab_sign_in(&host, &token).await
+}
+
+/// Sign in to a GitLab server in the browser, with Git Credential Manager.
+#[tauri::command]
+pub async fn gitlab_sign_in_with_browser(host: String) -> Result<accounts::GitLabAccount> {
+    accounts::gitlab_sign_in_with_browser(&host).await
+}
+
+/// Forget the token git keeps for a GitLab server.
+#[tauri::command]
+pub async fn gitlab_sign_out(host: String) -> Result<()> {
+    blocking(move || accounts::gitlab_sign_out(&host)).await
+}
+
+/// Your projects on a GitLab server, to clone one from a list (none when you aren't signed in).
+#[tauri::command]
+pub async fn gitlab_repositories(host: String) -> Result<Vec<accounts::AccountRepo>> {
+    accounts::gitlab_repositories(&host).await
 }
 
 /// The repository's working trees: the main one and the linked ones.

@@ -3,7 +3,8 @@ import { appearanceRows } from "../components/AppearanceRows";
 import { ColumnsIcon, ContrastIcon, DiffIcon, DownloadIcon, FetchIcon, GearIcon, HistoryIcon, LockIcon, PullIcon, UserIcon } from "../components/Icons";
 import { describeRun, nextRun, type ScheduleDays } from "../lib/schedule";
 import type { SettingRow, SettingsSection } from "../components/SettingsDialog";
-import type { GitHubStatus } from "../api";
+import type { GitHubStatus, GitLabStatus } from "../api";
+import { GITLAB_COM, type Forge } from "./useAccounts";
 import type { Theme } from "../lib/appearance";
 import type { Updates } from "../lib/updates";
 import { FETCH_MINUTES, HISTORY_MINUTES, SCHEDULE_TIMES, ZOOM_LEVELS } from "./constants";
@@ -20,12 +21,14 @@ interface Options {
   onInstallUpdate: () => void;
   /** Get the latest of every open repository now, as the schedule does. */
   onGetLatestNow: () => void;
-  /** Who's signed in to GitHub. */
-  github: {
-    status: GitHubStatus | null;
-    error: string | null;
-    onSignIn: () => void;
-    onSignOut: () => void;
+  /** Who's signed in to GitHub and GitLab. */
+  accounts: {
+    github: GitHubStatus | null;
+    githubError: string | null;
+    gitlab: GitLabStatus | null;
+    gitlabError: string | null;
+    onSignIn: (forge: Forge) => void;
+    onSignOut: (forge: Forge) => void;
   };
   /** Which diff and merge tools git opens. */
   diffTools: SettingRow[];
@@ -38,7 +41,7 @@ interface Options {
 }
 
 /** Everything in the Settings window: the app's own settings (each repository has its own window). */
-export function settingsSections({ preferences, version, updates, onInstallUpdate, onGetLatestNow, github, diffTools, apps, transfer, theme }: Options): SettingsSection[] {
+export function settingsSections({ preferences, version, updates, onInstallUpdate, onGetLatestNow, accounts, diffTools, apps, transfer, theme }: Options): SettingsSection[] {
   const { reopenTabs, setReopenTabs, autoUpdate, setAutoUpdate, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
@@ -114,34 +117,30 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
       title: "Accounts",
       icon: <UserIcon size={15} />,
       rows: [
-        {
-          kind: "custom",
-          label: "GitHub",
-          hint: github.error
-            ? `Couldn't check: ${github.error}`
-            : !github.status
-              ? "Checking…"
-              : github.status.account
-                ? `Signed in as ${github.status.account.login}${github.status.account.name ? ` (${github.status.account.name})` : ""}. Pull requests of private repositories show too.`
-                : github.status.tokenRejected
-                  ? "The token git keeps for GitHub doesn't work any more. Sign in again."
-                  : "Sign in to see pull requests of private repositories, and to push without being asked.",
-          content: github.status?.account ? (
-            <button className="outline-button" onClick={github.onSignOut}>
-              <span className="button-label">Sign out</span>
-            </button>
-          ) : (
-            <button className="outline-button" onClick={github.onSignIn} disabled={!github.status && !github.error}>
-              <span className="button-label">Sign in…</span>
-            </button>
-          ),
-        },
-        {
-          kind: "custom",
-          label: "GitLab",
-          hint: "Merge requests show on their branches. For private projects, Tributary uses the token git keeps for your GitLab server (a personal access token that can read the API).",
-          content: null,
-        },
+        accountRow({
+          forge: "github",
+          name: "GitHub",
+          error: accounts.githubError,
+          known: accounts.github !== null,
+          who: accounts.github?.account ? `${accounts.github.account.login}${accounts.github.account.name ? ` (${accounts.github.account.name})` : ""}` : null,
+          rejected: Boolean(accounts.github?.tokenRejected),
+          signedIn: "Pull requests of private repositories show too, and Clone lists your repositories.",
+          signedOut: "Sign in to see pull requests of private repositories, pick from your repositories when cloning, and push without being asked.",
+          onSignIn: accounts.onSignIn,
+          onSignOut: accounts.onSignOut,
+        }),
+        accountRow({
+          forge: "gitlab",
+          name: accounts.gitlab && accounts.gitlab.host !== GITLAB_COM ? `GitLab (${accounts.gitlab.host})` : "GitLab",
+          error: accounts.gitlabError,
+          known: accounts.gitlab !== null,
+          who: accounts.gitlab?.account ? `${accounts.gitlab.account.username}${accounts.gitlab.account.name ? ` (${accounts.gitlab.account.name})` : ""}` : null,
+          rejected: Boolean(accounts.gitlab?.tokenRejected),
+          signedIn: "Merge requests of private projects show too, and Clone lists your projects.",
+          signedOut: "Sign in to gitlab.com or your company's GitLab to see merge requests of private projects, pick from your projects when cloning, and push without being asked.",
+          onSignIn: accounts.onSignIn,
+          onSignOut: accounts.onSignOut,
+        }),
       ],
     },
     {
@@ -377,4 +376,57 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
     },
   ];
   return sections;
+}
+
+/** An account's row: who's signed in (or why not), and a button to sign in or out. */
+function accountRow({
+  forge,
+  name,
+  error,
+  known,
+  who,
+  rejected,
+  signedIn,
+  signedOut,
+  onSignIn,
+  onSignOut,
+}: {
+  forge: Forge;
+  name: string;
+  error: string | null;
+  known: boolean;
+  who: string | null;
+  rejected: boolean;
+  signedIn: string;
+  signedOut: string;
+  onSignIn: (forge: Forge) => void;
+  onSignOut: (forge: Forge) => void;
+}): SettingRow {
+  return {
+    kind: "custom",
+    label: name,
+    hint: error
+      ? `Couldn't check: ${error}`
+      : !known
+        ? "Checking…"
+        : who
+          ? `Signed in as ${who}. ${signedIn} Signing out makes git forget the token too.`
+          : rejected
+            ? `The token git keeps for ${name} doesn't work any more. Sign in again.`
+            : signedOut,
+    content: who ? (
+      <span className="settings-buttons">
+        <button className="outline-button" onClick={() => onSignIn(forge)}>
+          <span className="button-label">Switch account…</span>
+        </button>
+        <button className="outline-button" onClick={() => onSignOut(forge)}>
+          <span className="button-label">Sign out</span>
+        </button>
+      </span>
+    ) : (
+      <button className="outline-button" onClick={() => onSignIn(forge)} disabled={!known && !error}>
+        <span className="button-label">{rejected ? "Sign in again…" : "Sign in…"}</span>
+      </button>
+    ),
+  };
 }
