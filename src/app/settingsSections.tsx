@@ -1,6 +1,6 @@
 import type { ColumnOptions } from "../components/CommitList";
 import { appearanceRows } from "../components/AppearanceRows";
-import { ClockIcon, ColumnsIcon, ContrastIcon, DiffIcon, FetchIcon, GearIcon, HistoryIcon, LockIcon, TransferIcon, UserIcon } from "../components/Icons";
+import { BranchIcon, ClockIcon, ColumnsIcon, ContrastIcon, DiffIcon, FetchIcon, GearIcon, HistoryIcon, LockIcon, TransferIcon, UserIcon } from "../components/Icons";
 import { describeRun, nextRun, type ScheduleDays } from "../lib/schedule";
 import type { SettingRow, SettingsSection } from "../components/SettingsDialog";
 import type { GitHubStatus, GitLabStatus } from "../api";
@@ -45,6 +45,14 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
   const { historyMinutes, setHistoryMinutes, historyMaxMB, setHistoryMaxMB, historyDays, setHistoryDays } = preferences;
   const { scheduleDays, setScheduleDays, scheduleTime, setScheduleTime, scheduleRun } = preferences;
   const next = nextRun(scheduleDays, scheduleTime, new Date());
+  const looks = appearanceRows(preferences.appearance, preferences.setAppearance, theme);
+  const zoomRow: SettingRow = {
+    kind: "select",
+    label: "Zoom",
+    value: String(zoom),
+    options: ZOOM_LEVELS.map((level) => ({ value: String(level), label: `${Math.round(level * 100)}%` })),
+    set: (value) => setZoom(Number(value)),
+  };
   const sections: SettingsSection[] = [
     {
       title: "General",
@@ -90,7 +98,13 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
     {
       title: "Appearance",
       icon: <ContrastIcon size={15} />,
-      rows: appearanceRows(preferences.appearance, preferences.setAppearance, theme),
+      rows: [...looks.look, zoomRow, looks.reset],
+    },
+    {
+      title: "Graph",
+      icon: <BranchIcon size={15} />,
+      parent: "Appearance",
+      rows: looks.graph,
     },
     {
       title: "Commit list",
@@ -153,13 +167,6 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
           ],
           set: (value) => setColumnOptions({ ...columnOptions, dateKind: value as ColumnOptions["dateKind"] }),
           disabled: !columnOptions.date,
-        },
-        {
-          kind: "select",
-          label: "Zoom",
-          value: String(zoom),
-          options: ZOOM_LEVELS.map((level) => ({ value: String(level), label: `${Math.round(level * 100)}%` })),
-          set: (value) => setZoom(Number(value)),
         },
       ],
     },

@@ -1,14 +1,14 @@
 /* Settings */
 
 .settings-window {
-  width: min(820px, 100%);
+  width: min(960px, 100%);
 }
 
 /* The sections on the left, the chosen one's settings on the right, at a fixed size so
    switching sections doesn't make the window jump. */
 .settings {
   display: flex;
-  height: min(520px, 66vh);
+  height: min(640px, 76vh);
   margin: 4px -22px 0;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
@@ -17,20 +17,21 @@
 .settings-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  width: 210px;
+  gap: 4px;
+  width: 236px;
   flex: none;
-  padding: 10px;
+  padding: 16px 12px;
   overflow-y: auto;
   border-right: 1px solid var(--border);
   background: var(--sunken);
 }
 
 .settings-tab {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 12px;
+  padding: 9px 12px;
   border: none;
   border-radius: 6px;
   background: transparent;
@@ -75,7 +76,7 @@
 .settings-panel {
   flex: 1;
   min-width: 0;
-  padding: 16px 22px;
+  padding: 24px 34px 28px;
   overflow-y: auto;
   /* Another section eases in rather than swapping at once. */
   animation: lift-in 0.16s ease-out;
@@ -85,9 +86,9 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin: 0 0 6px;
+  margin: 0 0 12px;
   color: var(--text);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
 }
 
@@ -104,9 +105,9 @@
 .settings-row {
   display: flex;
   align-items: center;
-  gap: 16px;
-  min-height: 44px;
-  padding: 7px 0;
+  gap: 28px;
+  min-height: 60px;
+  padding: 14px 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -117,7 +118,7 @@
 .settings-label {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
   flex: 1;
 }
@@ -125,7 +126,7 @@
 .settings-hint {
   color: var(--text-muted);
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .settings-control {
@@ -639,9 +640,47 @@
   user-select: text;
 }
 
-/* A section that's part of the one above it: indented, its icon smaller and quieter. */
+/* A section that's part of the one above it: indented, its icon smaller and quieter, and
+   joined to that one by a line from under its icon. */
 .settings-tab.sub {
-  padding-left: 30px;
+  padding-left: 38px;
+}
+
+.settings-tab.sub::before,
+.settings-tab.sub::after {
+  content: "";
+  position: absolute;
+  left: 19px;
+  border-color: var(--border-strong);
+  pointer-events: none;
+}
+
+.settings-tab.sub::before {
+  top: -4px;
+  bottom: 0;
+  border-left: 1px solid var(--border-strong);
+}
+
+.settings-tab.sub.first::before {
+  top: -12px;
+}
+
+.settings-tab.sub::after {
+  top: 50%;
+  width: 11px;
+  border-top: 1px solid var(--border-strong);
+}
+
+/* The last one turns the corner instead of going on down. */
+.settings-tab.sub.last::before {
+  bottom: 50%;
+  width: 11px;
+  border-bottom: 1px solid var(--border-strong);
+  border-bottom-left-radius: 6px;
+}
+
+.settings-tab.sub.last::after {
+  display: none;
 }
 
 .settings-tab.sub .settings-tab-icon {
@@ -652,11 +691,29 @@
 /* Sets the last sections apart (Export and import). */
 .settings-nav-line {
   height: 1px;
-  margin: 10px 8px;
+  margin: 12px 8px;
   background: var(--border);
 }
 
+/* "Appearance ›" before a section inside it: goes to Appearance. */
 .settings-panel-parent {
+  padding: 0;
+  border: none;
+  background: none;
   color: var(--text-muted);
+  font: inherit;
   font-weight: 500;
+  cursor: pointer;
+}
+
+.settings-panel-parent:hover {
+  color: var(--accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.settings-panel-crumb {
+  margin-left: -2px;
+  color: var(--text-muted);
+  font-weight: 400;
 }

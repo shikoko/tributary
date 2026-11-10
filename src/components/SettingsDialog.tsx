@@ -60,8 +60,12 @@ export function SettingsDialog({
     >
       <div className="settings">
         <nav className="settings-nav" role="tablist" aria-orientation="vertical" aria-label="Settings sections">
-          {sections.map((candidate) => {
+          {sections.map((candidate, index) => {
             const selected = candidate === section;
+            // A section inside another: lines join it to that one (the last one ends them).
+            const sub = candidate.parent
+              ? ` sub${sections[index - 1]?.parent !== candidate.parent ? " first" : ""}${sections[index + 1]?.parent !== candidate.parent ? " last" : ""}`
+              : "";
             return [
               candidate.separated && <div key={`${candidate.title}-line`} className="settings-nav-line" role="presentation" />,
               <button
@@ -71,7 +75,7 @@ export function SettingsDialog({
                 aria-selected={selected}
                 aria-controls="settings-panel"
                 tabIndex={selected ? 0 : -1}
-                className={`settings-tab${selected ? " selected" : ""}${candidate.parent ? " sub" : ""}`}
+                className={`settings-tab${selected ? " selected" : ""}${sub}`}
                 onClick={() => setChosen(candidate.title)}
                 onKeyDown={(event) => {
                   // ↑ ↓ Home End move between the sections, showing each.
@@ -95,7 +99,16 @@ export function SettingsDialog({
         {section && (
           <section key={section.title} className="settings-panel" id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${section.title}`}>
             <h3>
-              {section.parent && <span className="settings-panel-parent">{section.parent} › </span>}
+              {section.parent && (
+                <>
+                  <button className="settings-panel-parent" onClick={() => setChosen(section.parent!)}>
+                    {section.parent}
+                  </button>
+                  <span className="settings-panel-crumb" aria-hidden>
+                    ›
+                  </span>
+                </>
+              )}
               {section.title}
               {section.subtitle && <span className="settings-panel-subtitle">{section.subtitle}</span>}
             </h3>

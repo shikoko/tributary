@@ -1,5 +1,5 @@
 /**
- * Profile pictures, only when switched on (Settings, Commit list). The app looks them up
+ * Profile pictures, while they're switched on (Settings, Appearance › Commit list; on at first). The app looks them up
  * (GitHub or GitLab for repositories there, then Gravatar) and hands them over as data:
  * URLs. The avatars on screen at the same moment are asked for together.
  */

@@ -352,11 +352,11 @@ const shots = {
     return page;
   },
 
-  /** The light theme, with the appearance settings. */
+  /** The light theme, with the graph's settings (inside Appearance). */
   async appearance() {
     const page = await open(demos.studio, { theme: "light" });
     await page.keyboard.press("Control+Comma");
-    await page.getByRole("tab", { name: "Appearance" }).click();
+    await page.getByRole("tab", { name: "Graph" }).click();
     await settle(page);
     return page;
   },

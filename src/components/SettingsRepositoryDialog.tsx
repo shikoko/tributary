@@ -95,7 +95,12 @@ export function SettingsRepositoryDialog({ mode, contents, onImported, onDone, o
           />
         </label>
       </form>
-      {exporting && <p className="hint">Use a private repository: the settings name your repositories' folders.</p>}
+      {exporting && (
+        <p className="hint">
+          Keep the repository private. Your settings include where your repositories are on this computer (their folders), and anyone who can
+          see the repository could read that.
+        </p>
+      )}
     </Dialog>
   );
 }
