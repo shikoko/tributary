@@ -67,7 +67,6 @@ export interface MenuBarContext {
     tours: () => void;
     /** The About window, which also checks for updates. */
     about: () => void;
-    checkForUpdates: () => void;
   };
 }
 
@@ -96,16 +95,13 @@ export function helpCommandsFor(ctx: MenuBarContext): AppCommand[] {
   ];
 }
 
-/** Check for Updates and About: at the end of Help, or in the app menu on macOS. */
+/** About Tributary, which shows the version and checks for updates: at the end of Help, or in the app menu on macOS. */
 export function aboutCommandsFor(ctx: MenuBarContext): AppCommand[] {
-  return [
-    { id: "check-updates", label: "Check for Updates…", icon: <DownloadIcon />, run: ctx.do.checkForUpdates },
-    { id: "about", label: "About Tributary", icon: <InfoIcon />, run: ctx.do.about },
-  ];
+  return [{ id: "about", label: "About Tributary", icon: <InfoIcon />, keywords: "check for updates version", run: ctx.do.about }];
 }
 
 /** On macOS these are in the app menu instead. */
-const IN_APP_MENU = new Set(["check-updates", "about"]);
+const IN_APP_MENU = new Set(["about"]);
 
 /** File, View, Repository and Help, with every command and its shortcut. */
 export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
@@ -319,7 +315,7 @@ function nativeItems(entries: MenuEntry[]): NativeMenu["items"] {
 /** The menus as macOS shows them: the app menu first, Edit after File and Window before Help. */
 export function nativeMenusFor(menus: AppMenuDefinition[]): NativeMenu[] {
   return [
-    { label: "Tributary", items: [{ id: "about", label: "About Tributary" }, { id: "check-updates", label: "Check for Updates…" }, { system: "Separator" }, { id: "settings", label: "Settings…", accelerator: "CmdOrCtrl+," }, { system: "Separator" }, { system: "Services" }, { system: "Separator" }, { system: "Hide" }, { system: "HideOthers" }, { system: "ShowAll" }, { system: "Separator" }, { system: "Quit" }] },
+    { label: "Tributary", items: [{ id: "about", label: "About Tributary" }, { system: "Separator" }, { id: "settings", label: "Settings…", accelerator: "CmdOrCtrl+," }, { system: "Separator" }, { system: "Services" }, { system: "Separator" }, { system: "Hide" }, { system: "HideOthers" }, { system: "ShowAll" }, { system: "Separator" }, { system: "Quit" }] },
     ...menus.flatMap((m, index): NativeMenu[] => {
       const menu = { label: m.label, items: nativeItems(withoutAppMenuCommands(m.entries)) };
       if (index === 0) {

@@ -13,6 +13,8 @@ export interface AppCommand {
   /** For on/off settings. */
   checked?: boolean;
   danger?: boolean;
+  /** Other words the command palette finds it by. */
+  keywords?: string;
   run: () => void;
 }
 

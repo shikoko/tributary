@@ -356,10 +356,6 @@ export default function App() {
       tours: () => overlays.show("tours"),
       notices: () => overlays.show("licences"),
       about: () => overlays.show("about"),
-      checkForUpdates: () => {
-        overlays.show("about");
-        void updates.check();
-      },
     },
   };
   const menus = appMenus(menuBarContext);
@@ -410,6 +406,7 @@ export default function App() {
       : [...startCommands(menuBarContext), settingsCommand(menuBarContext), ...helpCommandsFor(menuBarContext), ...aboutCommandsFor(menuBarContext)].map((c) => ({
           id: c.id,
           label: c.label,
+          keywords: c.keywords,
           icon: c.icon,
           shortcut: c.keys && shortcutLabel(c.keys),
           run: c.run,
