@@ -7,7 +7,7 @@ mod common;
 
 use std::process::Command;
 
-use common::{TempRepo, run};
+use common::{TempRepo, run, with_identity};
 use tributary_lib::actions::{Action, SigningMode, signing_settings};
 use tributary_lib::repo::{self, SignatureStatus};
 
@@ -71,6 +71,8 @@ fn signs_commits_with_gpg_and_checks_them() {
 
 fn check_signing(gpg: &str) {
     let mut repo = TempRepo::new("signing");
+    // The app's own commits need a name to commit under.
+    with_identity(&repo);
     repo.git(&["config", "gpg.program", gpg]);
     let plain = repo.commit("a.txt", "plain");
     assert!(
