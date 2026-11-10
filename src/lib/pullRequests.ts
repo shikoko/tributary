@@ -97,6 +97,35 @@ export function checkTime(check: RequestCheck, now: number): string | null {
   return formatElapsed(end - start);
 }
 
+/** One clock for a request's checks: where each one's bar starts and ends on it, from 0 to 1. */
+export interface CheckTimeline {
+  /** A bar for each check, in order, or null for one that hasn't started (or has no times). */
+  bars: ({ from: number; to: number } | null)[];
+  /** When the first one started and the last one ended (or now, if one is running), in ms. */
+  first: number;
+  last: number;
+}
+
+/** Lays the checks out on one clock, or null when none of them has times to show. */
+export function checkTimeline(checks: RequestCheck[], now: number): CheckTimeline | null {
+  const spans = checks.map((check) => {
+    const start = check.startedAt ? Date.parse(check.startedAt) : NaN;
+    const end = check.finishedAt ? Date.parse(check.finishedAt) : check.state === "pending" ? now : NaN;
+    // A clock a little behind the site's could put a running check's start after now.
+    return Number.isNaN(start) || Number.isNaN(end) ? null : { start, end: Math.max(end, start) };
+  });
+  const known = spans.filter((span) => span !== null);
+  if (known.length === 0) return null;
+  const first = Math.min(...known.map((span) => span.start));
+  const last = Math.max(...known.map((span) => span.end));
+  const length = Math.max(last - first, 1);
+  return {
+    bars: spans.map((span) => span && { from: (span.start - first) / length, to: (span.end - first) / length }),
+    first,
+    last,
+  };
+}
+
 /** Whether any of these checks is running, so its time keeps growing. */
 export const anyRunning = (checks: RequestCheck[]) => checks.some((check) => check.state === "pending" && check.startedAt && !check.finishedAt);
 

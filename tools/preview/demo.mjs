@@ -909,7 +909,10 @@ export const STUDIO_PULL_REQUEST_DETAILS = {
     checks: [
       { name: "Audio loudness", state: "failure", url: "https://github.com/example/feast/actions/runs/7", detail: "door_creak.wav peaks at -0.4 dB", ...ran(300, 262) },
       { name: "Build (Windows)", state: "pending", url: "https://github.com/example/feast/actions/runs/8", detail: null, ...ran(252) },
+      { name: "Build (Linux)", state: "pending", url: "https://github.com/example/feast/actions/runs/10", detail: "Queued", startedAt: null, finishedAt: null },
       { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/9", detail: null, ...ran(300, 103) },
+      { name: "Asset sizes", state: "success", url: "https://github.com/example/feast/actions/runs/11", detail: null, ...ran(300, 281) },
+      { name: "Lint", state: "success", url: "https://github.com/example/feast/actions/runs/12", detail: null, ...ran(298, 262) },
     ],
     forge: "github",
     baseSha: null,

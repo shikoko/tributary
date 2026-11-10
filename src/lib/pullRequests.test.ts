@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RequestCheck, RequestDetails } from "../api";
-import { anyRunning, checkTime, describeCheckProgress, describeMergeable, describeReviews, suggestRequest, formatElapsed, summarizeChecks, titleFromBranch } from "./pullRequests";
+import { anyRunning, checkTime, checkTimeline, describeCheckProgress, describeMergeable, describeReviews, suggestRequest, formatElapsed, summarizeChecks, titleFromBranch } from "./pullRequests";
 
 describe("suggestRequest", () => {
   it("uses a single commit's message", () => {
@@ -123,5 +123,40 @@ describe("check times", () => {
     expect(checkTime(check("failure", start, null), Date.now())).toBeNull();
     expect(anyRunning([check("success", start, "2026-11-10T10:02:13Z"), check("pending", null, null)])).toBe(false);
     expect(anyRunning([check("pending", start, null)])).toBe(true);
+  });
+});
+
+describe("checkTimeline", () => {
+  const check = (state: RequestCheck["state"], startedAt: string | null, finishedAt: string | null): RequestCheck => ({
+    name: "Build",
+    state,
+    url: null,
+    detail: null,
+    startedAt,
+    finishedAt,
+  });
+
+  it("puts every check on one clock, from the first start to the last end or now", () => {
+    const now = Date.parse("2026-11-10T10:10:00Z");
+    const timeline = checkTimeline(
+      [
+        check("success", "2026-11-10T10:00:00Z", "2026-11-10T10:05:00Z"),
+        check("pending", "2026-11-10T10:05:00Z", null),
+        check("pending", null, null),
+      ],
+      now,
+    );
+    expect(timeline?.first).toBe(Date.parse("2026-11-10T10:00:00Z"));
+    expect(timeline?.last).toBe(now);
+    expect(timeline?.bars).toEqual([{ from: 0, to: 0.5 }, { from: 0.5, to: 1 }, null]);
+  });
+
+  it("has nothing to show when no check has times", () => {
+    expect(checkTimeline([check("success", null, null)], Date.now())).toBeNull();
+  });
+
+  it("keeps a bar when the clock here is behind the site's", () => {
+    const timeline = checkTimeline([check("pending", "2026-11-10T10:00:05Z", null)], Date.parse("2026-11-10T10:00:00Z"));
+    expect(timeline?.bars).toEqual([{ from: 0, to: 0 }]);
   });
 });
