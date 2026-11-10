@@ -23,7 +23,8 @@ function signed(suffix) {
 }
 
 const platforms = {};
-const windows = signed("-setup.exe");
+// Tauri's installer, which updates run silently (-setup.exe is Tributary's own setup around it).
+const windows = signed("-update.exe");
 if (windows) platforms["windows-x86_64"] = windows;
 // One universal app for both kinds of Mac.
 const mac = signed(".app.tar.gz");

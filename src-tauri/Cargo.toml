@@ -76,3 +76,7 @@ unsafe_code = "deny"
 # App code reports errors instead of panicking; tests may unwrap.
 unwrap_used = "warn"
 expect_used = "warn"
+
+# The app, and its setup for Windows (setup/), which shares its dependencies and build folder.
+[workspace]
+members = [".", "setup"]

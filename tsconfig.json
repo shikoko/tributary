@@ -20,6 +20,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  "include": ["src", "src-tauri/setup/ui"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

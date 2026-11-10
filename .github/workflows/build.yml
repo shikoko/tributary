@@ -69,6 +69,16 @@ jobs:
       - name: Third-party notices
         run: node tools/notices.mjs
 
+      # The terms of use, on the licence pages of the Windows installers (as rich text,
+      # which the .msi needs). The setup below shows them in its own window.
+      - name: Terms of use
+        if: matrix.name == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p src-tauri/target
+          node tools/terms-rtf.mjs src-tauri/target/TERMS.rtf
+          echo "TERMS_RTF=$GITHUB_WORKSPACE/src-tauri/target/TERMS.rtf" >> "$GITHUB_ENV"
+
       # A release's version comes from its tag (v0.2.0 → 0.2.0). With the signing key
       # secret set, the installers are signed for automatic updates too.
       - name: Build installers
@@ -93,10 +103,32 @@ jobs:
               }
               config.version = version;
             }
-            if (process.env.TAURI_SIGNING_PRIVATE_KEY) config.bundle = { createUpdaterArtifacts: true };
+            config.bundle = {};
+            if (process.env.TAURI_SIGNING_PRIVATE_KEY) config.bundle.createUpdaterArtifacts = true;
+            if (process.env.TERMS_RTF) config.bundle.licenseFile = process.env.TERMS_RTF;
             console.log(JSON.stringify(config));
           ')
           npm run tauri build -- --target ${{ matrix.target }} --config "$config"
+
+      # On Windows, what people download is Tributary's own setup: a window in the app's
+      # style that carries the installer just built and runs it silently. That installer
+      # stays in the release as -update.exe, for the automatic updates (latest.json).
+      - name: Build the setup
+        if: matrix.name == 'Windows'
+        shell: bash
+        run: |
+          bundle=src-tauri/target/${{ matrix.target }}/release/bundle/nsis
+          installer=$(ls "$bundle"/*-setup.exe)
+          name=$(basename "$installer")
+          version=$(sed -E 's/^Tributary_([^_]+)_.*$/\1/' <<<"$name")
+          npm run setup:build
+          TRIBUTARY_INSTALLER="$(cygpath -w "$PWD/$installer")" TRIBUTARY_VERSION="$version" TAURI_CONFIG="{\"version\":\"$version\"}" \
+            cargo build --release --manifest-path src-tauri/Cargo.toml -p tributary-setup --features custom-protocol --target ${{ matrix.target }}
+          update="$bundle/${name%-setup.exe}-update.exe"
+          mv "$installer" "$update"
+          if [ -f "$installer.sig" ]; then mv "$installer.sig" "$update.sig"; fi
+          cp "src-tauri/target/${{ matrix.target }}/release/tributary-setup.exe" "$bundle/$name"
+          ls -l "$bundle"
 
       - uses: actions/upload-artifact@v7
         with:

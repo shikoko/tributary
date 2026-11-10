@@ -172,7 +172,7 @@ One line each here; the [feature guide](docs/features.md) has the details.
 Get the latest version from the [releases page](https://github.com/shikoko/tributary/releases):
 
 - **macOS:** the `.dmg`, one app for Apple Silicon and Intel.
-- **Windows:** the `-setup.exe` or `.msi` (64-bit).
+- **Windows:** the `-setup.exe` (64-bit): one window, one button, and it installs just for you, with no administrator needed. The `.msi` is there for IT departments.
 
 Tributary updates itself after that. It needs [git](https://git-scm.com) installed (and [Git LFS](https://git-lfs.com) for repositories that use it).
 
