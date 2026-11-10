@@ -19,7 +19,7 @@
 // says, whatever HOME is).
 
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -202,9 +202,13 @@ try {
   await step("commits, and undoes it from Your actions", async () => {
     writeFileSync(join(demos.studio, "notes.txt"), "Opening hours: noon till late\n");
     await app.click(".commit-row .summary.wip");
+    // The studio's own uncommitted changes include two big files outside Git LFS: once the
+    // app has found them, committing them asks first.
+    await app.waitFor(".file-warning.large", { text: "Git LFS" });
     await app.click("button", "Stage all");
     await app.type('input[aria-label="Commit summary"]', "Write down the opening hours");
     await app.click(".commit-box .primary-small-button");
+    await app.click(".commit-warning button", "Commit anyway");
     await app.waitFor(".commit-row", { text: "Write down the opening hours" });
     await app.click(".status-bar button", "Activity");
     await app.click('.activity-panel [role="tab"]', "Your actions");
@@ -218,8 +222,18 @@ try {
   });
 
   await step("fetches from its remote", async () => {
+    // The app fetches by itself too, a few seconds after a repository opens, so the status
+    // bar says "Fetched" already: this fetch has to leave its own mark (every fetch writes
+    // FETCH_HEAD, which is what the status bar tells the time of).
+    const fetchHead = join(demos.studio, ".git", "FETCH_HEAD");
+    const written = () => (existsSync(fetchHead) ? statSync(fetchHead).mtimeMs : 0);
+    const before = written();
     await app.click(".tool-button", "Fetch");
     await app.waitFor(".status-bar", { text: "Fetched", timeout: 30_000 });
+    for (const until = Date.now() + 30_000; written() <= before; ) {
+      if (Date.now() > until) throw new Error("Fetch didn't fetch (FETCH_HEAD wasn't written)");
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
   });
 
   await step("checks the project's setup", async () => {
