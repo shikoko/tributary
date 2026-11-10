@@ -1,4 +1,5 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { animate } from "../lib/motion";
 import { CloseIcon } from "./Icons";
 
 interface Props {
@@ -44,6 +45,21 @@ function keepFocusInside(event: KeyboardEvent<HTMLDivElement>) {
  */
 export function Dialog({ title, children, buttons, error, errorAction, busy, wide, className, closable, onCancel }: Props) {
   const box = useRef<HTMLDivElement>(null);
+  // Closing, the dimmed background fades away instead of vanishing.
+  useLayoutEffect(() => {
+    const backdrop = box.current?.parentElement;
+    if (!backdrop) return;
+    return () => {
+      const style = getComputedStyle(backdrop);
+      const scrim = document.createElement("div");
+      scrim.setAttribute("aria-hidden", "true");
+      scrim.style.cssText = `position: fixed; inset: 0; z-index: ${style.zIndex}; background: ${style.backgroundColor}; pointer-events: none;`;
+      document.body.appendChild(scrim);
+      const fade = animate(scrim, [{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: "ease-out", fill: "forwards" });
+      if (fade) fade.finished.then(() => scrim.remove(), () => scrim.remove());
+      else scrim.remove();
+    };
+  }, []);
   useEffect(() => {
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     // Unless a field asked for the focus (autoFocus), the dialog itself takes it.
