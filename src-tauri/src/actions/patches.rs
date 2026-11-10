@@ -6,7 +6,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use super::support::{count, file_name};
+use super::support::count;
 use crate::error::{Error, Result};
 use crate::git::Git;
 
@@ -207,8 +207,18 @@ pub(super) fn save_patch(path: &Path, ids: Vec<String>, file: String) -> Result<
     Ok(format!(
         "Saved {} as {}",
         count(commits.max(1), "commit"),
-        file_name(&file)
+        name_of(target)
     ))
+}
+
+/// A patch file's own name, without its folders. It's a path on this computer, like
+/// `C:\Users\maya\Desktop\fix.patch`, not one in the repository: on Windows its folders
+/// are split by backslashes.
+fn name_of(file: &Path) -> String {
+    file.file_name().map_or_else(
+        || file.display().to_string(),
+        |name| name.to_string_lossy().into_owned(),
+    )
 }
 
 /// Apply the patch in `file`: as commits (`git am`, keeping each one's author and message),
@@ -219,7 +229,7 @@ pub(super) fn apply_patch(git: &Git, file: String, as_commits: bool) -> Result<S
     if !path.is_file() {
         return Err(format!("There's no {file}.").into());
     }
-    let name = file_name(&file).to_owned();
+    let name = name_of(path);
     if as_commits {
         let text = read_patch(path)?;
         let commits = commits_in(&text).len();

@@ -18,7 +18,8 @@ pub(super) fn count(n: usize, word: &str) -> String {
     format!("{grouped} {word}{}", if n == 1 { "" } else { "s" })
 }
 
-/// The name of a file, without its folders.
+/// The name of a file in the repository (a path as git gives it, split by `/`), without
+/// its folders. A path on this computer has its own `Path::file_name`.
 pub(super) fn file_name(path: &str) -> &str {
     path.trim_end_matches('/')
         .rsplit('/')
