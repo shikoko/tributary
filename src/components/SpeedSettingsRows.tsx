@@ -12,7 +12,7 @@ export function useSpeedRows(path: string, run: (action: Action) => Promise<bool
       .catch(() => setSettings(null));
   }, [path]);
   useEffect(load, [load]);
-  if (!settings) return [{ kind: "custom", label: "Loading…", content: null }];
+  if (!settings) return [{ kind: "loading", label: "Reading the settings" }];
 
   const apply = async (action: Action) => {
     setBusy(true);

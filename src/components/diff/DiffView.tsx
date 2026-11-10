@@ -14,6 +14,7 @@ import { FileKindIcon } from "../FileKindIcon";
 import { ConflictEditor } from "./ConflictEditor";
 import { DiffLines, type LinePicking } from "./DiffLines";
 import { DiffSubmodule } from "./DiffSubmodule";
+import { Loader } from "../Loader";
 
 interface Props {
   repoPath: string;
@@ -258,7 +259,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
             <span>{error}</span>
           </div>
         ) : !diff ? (
-          <div className="diff-message muted">Loading…</div>
+          <Loader size={88} title="Reading the changes" />
         ) : diff.submodule ? (
           <DiffSubmodule change={diff.submodule} />
         ) : diff.media && showMedia ? (

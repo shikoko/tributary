@@ -6,6 +6,7 @@ import { LineText } from "./diff/DiffLines";
 import { Avatar } from "./Avatar";
 import { FileKindIcon } from "./FileKindIcon";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, HistoryIcon } from "./Icons";
+import { Loader } from "./Loader";
 
 const ROW = 20;
 /** Rows drawn above and below the ones on screen. */
@@ -119,7 +120,7 @@ export function BlameView({ repoPath, path: startPath, at: startAt, onClose, onS
             <span>{error}</span>
           </div>
         ) : !blame ? (
-          <div className="diff-message muted">Loading…</div>
+          <Loader size={88} title="Finding who changed each line" />
         ) : blame.lines.length === 0 ? (
           <div className="diff-message muted">The file is empty.</div>
         ) : (

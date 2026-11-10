@@ -24,6 +24,7 @@ import {
   UserIcon,
   WarningIcon,
 } from "./Icons";
+import { Loader } from "./Loader";
 import { Markdown } from "./Markdown";
 import { AskForReview, useRequestChange } from "./RequestControls";
 import { ConversationList, MergeRequestDialog, ReviewBox } from "./RequestReview";
@@ -245,7 +246,7 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
             <span>{error}</span>
           </div>
         ) : !details ? (
-          <div className="diff-message muted">Loading…</div>
+          <Loader title={`Loading ${noun} ${requestNumber(request)}`} detail={request.title} size={96} />
         ) : (
           <div className="request-content">
             <div className="request-meta">
@@ -429,7 +430,7 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
               ) : conversationError ? (
                 <p className="muted request-empty">Couldn't read the comments: {conversationError}</p>
               ) : (
-                <p className="muted request-empty">Loading…</p>
+                <Loader size={48} title="Reading the conversation" />
               )}
             </section>
             {error && <p className="request-stale">Couldn't refresh it: {error}</p>}

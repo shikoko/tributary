@@ -18,6 +18,7 @@ import { ActorNames, useActorNames } from "../lib/actorNames";
 import { FILTER_FROM, filterFiles } from "../lib/fileFilter";
 import { highlightedFirst } from "../lib/diffTargets";
 import { reflowBody } from "../lib/message";
+import { Loader } from "./Loader";
 
 
 interface Props {
@@ -217,7 +218,7 @@ export function CommitDetailsPanel(props: Props) {
             {current.error ? (
               <div className="details-error">{current.error}</div>
             ) : !details ? (
-              <div className="details-loading">Loading…</div>
+              <Loader size={48} title="Reading the commit" />
             ) : details.files.length === 0 ? (
               <div className="muted">No file changes.</div>
             ) : (

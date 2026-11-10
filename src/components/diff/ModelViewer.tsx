@@ -11,6 +11,7 @@ import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import type { FileDiff, Media } from "../../api";
 import { useThemeColors } from "../../app/useAppearance";
 import { dataUrlBytes, missingSide } from "../../lib/media";
+import { Loader } from "../Loader";
 
 /** What's in a model, to compare. */
 export interface ModelFacts {
@@ -243,7 +244,11 @@ export default function ModelViewer({ diff, media }: { diff: FileDiff; media: Me
             ) : (
               <div className="diff-model-frame">
                 <canvas ref={canvases[side]} className="diff-model-canvas" aria-label={`${diff.path}, ${side}, in 3D`} />
-                {!model && <span className="diff-model-loading">Loading…</span>}
+                {!model && (
+                  <span className="diff-model-loading">
+                    <Loader inline size={22} title="Loading the model…" />
+                  </span>
+                )}
                 {model && noWebGL && <span className="diff-model-loading">This computer can't show 3D here (no WebGL). The numbers below still compare them.</span>}
               </div>
             )}

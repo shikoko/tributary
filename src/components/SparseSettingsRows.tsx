@@ -30,7 +30,7 @@ export function useSparseRows(path: string, run: (action: Action) => Promise<boo
       .catch(() => setSettings(null));
   }, [path]);
   useEffect(load, [load]);
-  if (!settings) return [{ kind: "custom", label: "Loading…", content: null }];
+  if (!settings) return [{ kind: "loading", label: "Reading the settings" }];
 
   const apply = async (folders: string[]) => {
     setBusy(true);

@@ -432,10 +432,6 @@
   padding: 6px 8px;
 }
 
-.details-loading {
-  color: var(--text-muted);
-}
-
 .details-error {
   color: var(--danger-text);
   overflow-wrap: anywhere;
