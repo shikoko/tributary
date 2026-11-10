@@ -114,6 +114,7 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
   return (
     <span
       className={`ref-pill ${pill.kind}${pill.current ? " current" : ""}`}
+      data-tour={pill.current && draggable ? "current-branch" : undefined}
       style={style}
       title={
         describePill(pill) +

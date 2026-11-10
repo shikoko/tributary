@@ -2,6 +2,7 @@ import type { Tab } from "../components/TabBar";
 import { DEFAULT_COLUMNS, type ColumnOptions, type ColumnWidths } from "../components/CommitList";
 import type { Appearance } from "../lib/appearance";
 import type { ScheduleDays, ScheduledRun } from "../lib/schedule";
+import type { TourId } from "../lib/tours";
 import { useStoredState } from "../lib/settings";
 import { APPEARANCE_KEY } from "./useAppearance";
 
@@ -39,6 +40,11 @@ export function usePreferences() {
   /** After pushing: ask to release the locks on the pushed files, release them, or keep them. */
   const [releaseLocks, setReleaseLocks] = useStoredState<ReleaseLocks>("locks.release", "ask");
   const [submoduleUpdates, setSubmoduleUpdates] = useStoredState<SubmoduleUpdates>("submodules.update", "ask");
+  /** Guided tours: never offered (Help → Tours still has them), offered or taken already, finished, and Getting started waiting for someone new's first repository. */
+  const [toursOff, setToursOff] = useStoredState("tours.off", false);
+  const [toursSeen, setToursSeen] = useStoredState<TourId[]>("tours.seen", []);
+  const [toursDone, setToursDone] = useStoredState<TourId[]>("tours.done", []);
+  const [toursFirst, setToursFirst] = useStoredState("tours.first", false);
   /** Simple mode: Get latest, your changes and Submit, and the team, without the graph. */
   const [simpleMode, setSimpleMode] = useStoredState("view.simple", false);
   /** Local history: a snapshot of uncommitted work this often (minutes, 0 for never), of files up to so big (MB), kept so many days. */
@@ -62,6 +68,7 @@ export function usePreferences() {
     autoUpdate, setAutoUpdate, largeFileMB, setLargeFileMB, autoLock, setAutoLock, releaseLocks, setReleaseLocks,
     submoduleUpdates, setSubmoduleUpdates, appearance, setAppearance,
     simpleMode, setSimpleMode,
+    toursOff, setToursOff, toursSeen, setToursSeen, toursDone, setToursDone, toursFirst, setToursFirst,
     historyMinutes, setHistoryMinutes, historyMaxMB, setHistoryMaxMB, historyDays, setHistoryDays,
     scheduleDays, setScheduleDays, scheduleTime, setScheduleTime, scheduleLast, setScheduleLast, scheduleRun, setScheduleRun,
   };

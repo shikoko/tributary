@@ -108,7 +108,7 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
 
   return (
     <div className="simple-view">
-      <header className="simple-header">
+      <header className="simple-header" data-tour="simple-header">
         <label className="simple-branch" title="The branch you're working on">
           <BranchIcon size={15} />
           <select
@@ -145,7 +145,7 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
       </header>
 
       <div className="simple-columns">
-        <section className="simple-card simple-changes">
+        <section className="simple-card simple-changes" data-tour="simple-changes">
           <div className="simple-card-head">
             <h2>My changes</h2>
             <span className="simple-count">{files.length > 0 ? plural(files.length, "file") : ""}</span>
@@ -252,7 +252,7 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
         </section>
 
         <div className="simple-side">
-          <section className="simple-card simple-latest">
+          <section className="simple-card simple-latest" data-tour="simple-latest">
             <div className="simple-card-head">
               <h2>Get latest</h2>
               <button className="link-button" onClick={() => void act({ kind: "fetch" }, "fetch")} disabled={busy || !snapshot.upstream}>
@@ -274,7 +274,7 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
             </button>
           </section>
 
-          <section className="simple-card">
+          <section className="simple-card" data-tour="simple-team">
             <div className="simple-card-head">
               <h2>The team</h2>
             </div>

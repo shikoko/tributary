@@ -1,5 +1,7 @@
 import { useContext, useEffect, useState } from "react";
-import { WelcomeTour, WhatsNewDialog } from "../components/WhatsNew";
+import { WhatsNewDialog } from "../components/WhatsNew";
+import { ToursDialog } from "../components/ToursDialog";
+import { startTour } from "./useTours";
 import { forMenu, onStart, type Release } from "../lib/whatsNew";
 import { loadRecent } from "../lib/recent";
 import { useStoredState } from "../lib/settings";
@@ -72,7 +74,8 @@ export function AppOverlays(props: Props) {
     if (!version || version === seen || !/^\d/.test(version)) return;
     const start = onStart(version, seen, loadRecent().length > 0);
     setSeen(version);
-    if (start.show === "tour") show("welcome");
+    // Someone new: Getting started, once their first repository is open.
+    if (start.show === "tour") preferences.setToursFirst(true);
     if (start.show === "news") {
       setNews(start.releases);
       show("whatsNew");
@@ -97,7 +100,19 @@ export function AppOverlays(props: Props) {
           }}
         />
       )}
-      {open.welcome && <WelcomeTour onClose={() => hide("welcome")} />}
+      {open.tours && (
+        <ToursDialog
+          done={preferences.toursDone}
+          offered={!preferences.toursOff}
+          setOffered={(offered) => preferences.setToursOff(!offered)}
+          canStart={Boolean(props.repoPath)}
+          onStart={(id) => {
+            hide("tours");
+            startTour(id);
+          }}
+          onClose={() => hide("tours")}
+        />
+      )}
       {open.settings && (
         <SettingsDialog
           initial={props.settingsSection}

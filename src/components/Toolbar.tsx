@@ -116,7 +116,7 @@ export function Toolbar(props: Props) {
           <SidebarIcon />
         </button>
         {snapshot.headBranch ? (
-          <span className="head-chip" title="Checked out branch">
+          <span className="head-chip" title="Checked out branch" data-tour="head">
             <BranchIcon size={14} />
             <span className="head-chip-name">{snapshot.headBranch}</span>
           </span>
@@ -224,6 +224,7 @@ export function Toolbar(props: Props) {
       <div className="toolbar-actions">
         <button
           className="tool-button"
+          data-tour="remote"
           onClick={() => props.onRemote("fetch")}
           disabled={fetchDisabled}
           title={
@@ -235,7 +236,7 @@ export function Toolbar(props: Props) {
           <FetchIcon className={running === "fetch" ? "pulse" : undefined} />
           <span className="label">Fetch</span>
         </button>
-        <button className="tool-button" onClick={() => props.onRemote("pull")} disabled={pullDisabled} title={pullTitle}>
+        <button className="tool-button" data-tour="remote" onClick={() => props.onRemote("pull")} disabled={pullDisabled} title={pullTitle}>
           <PullIcon className={running === "pull" ? "pulse" : undefined} />
           <span className="label">Pull</span>
           {behind > 0 && (
@@ -244,7 +245,7 @@ export function Toolbar(props: Props) {
             </span>
           )}
         </button>
-        <div className="split-button">
+        <div className="split-button" data-tour="remote">
           <button className="tool-button" onClick={() => props.onRemote("push")} disabled={pushDisabled} title={pushTitle}>
             <PushIcon className={running === "push" ? "pulse" : undefined} />
             <span className="label">Push</span>
@@ -273,6 +274,7 @@ export function Toolbar(props: Props) {
           onClick={props.onToggleTeam}
           title={`Team activity: who's been working on what (${isMac ? "⇧⌘T" : "Ctrl+Shift+T"})`}
           aria-label="Team activity"
+          data-tour="team"
           aria-pressed={props.teamOpen}
         >
           <TeamIcon />

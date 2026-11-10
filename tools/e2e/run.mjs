@@ -108,10 +108,8 @@ async function step(name, run) {
 
 console.log("Testing the desktop app:");
 try {
-  await step("starts, and greets someone new with the tour", async () => {
+  await step("starts", async () => {
     await app.waitFor(".tab-bar");
-    await app.waitFor(".welcome-tour", { text: "Welcome to Tributary" });
-    await app.click(".welcome-tour button", "Skip");
   });
 
   await step("may use every window and plugin call it makes (its permissions)", async () => {
@@ -146,6 +144,14 @@ try {
       [demos.studio],
     );
     await app.waitFor(".commit-row", { text: "Add a tavern chair", timeout: 30_000 });
+  });
+
+  await step("walks someone new through Getting started, and lets them skip it", async () => {
+    await app.waitFor(".tour-card", { text: "The graph", timeout: 10_000 });
+    await app.click(".tour-card button", "Next");
+    await app.waitFor(".tour-card", { text: "2 of" });
+    await app.click(".tour-card button", "Skip tour");
+    await app.waitFor(".commit-row", { text: "Add a tavern chair" });
   });
 
   await step("commits, and undoes it from Your actions", async () => {

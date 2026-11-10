@@ -63,7 +63,7 @@ export interface MenuBarContext {
     openIn: (app: InstalledApp) => void;
     diagnostics: () => void;
     whatsNew: () => void;
-    welcome: () => void;
+    tours: () => void;
   };
 }
 
@@ -87,7 +87,7 @@ export function helpCommandsFor(ctx: MenuBarContext): AppCommand[] {
     { id: "palette", label: "Command Palette", icon: <SearchIcon />, keys: "CmdOrCtrl+K", run: ctx.do.palette },
     { id: "shortcuts", label: "Keyboard Shortcuts", icon: <KeyboardIcon />, run: ctx.do.shortcuts },
     { id: "whats-new", label: "What's New", icon: <SparkleIcon />, run: ctx.do.whatsNew },
-    { id: "welcome", label: "Welcome Tour", icon: <InfoIcon />, run: ctx.do.welcome },
+    { id: "tours", label: "Tours…", icon: <InfoIcon />, run: ctx.do.tours },
     { id: "diagnostics", label: "Copy Diagnostics…", icon: <CopyIcon />, run: ctx.do.diagnostics },
   ];
 }

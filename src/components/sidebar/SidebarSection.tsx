@@ -27,7 +27,7 @@ export function SidebarSection({ id, title, count, filtering, folding, action, c
   if (count === 0 && filtering) return null;
   const open = folding.isOpen(id);
   return (
-    <section className="sidebar-section">
+    <section className="sidebar-section" data-tour={`section-${id}`}>
       <div className="sidebar-heading-row">
         <button className="sidebar-heading" onClick={() => folding.toggle(id)} aria-expanded={open}>
           <ChevronDownIcon size={12} className={open ? undefined : "collapsed"} />

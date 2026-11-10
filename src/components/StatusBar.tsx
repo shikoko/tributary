@@ -91,6 +91,7 @@ export function StatusBar(props: Props) {
       {props.elsewhere && (
         <button
           className={`status-item status-button elsewhere${props.elsewhere.assets ? " assets" : ""}`}
+          data-tour="elsewhere"
           onClick={(event) => props.onElsewhere(event.currentTarget)}
           title="Files you're changing that someone also changed recently on another branch: click to see the branches"
           aria-haspopup="dialog"
@@ -116,6 +117,7 @@ export function StatusBar(props: Props) {
       {props.pulse && props.pulse.people > 0 && (
         <button
           className={`status-item status-button${props.teamOpen ? " active" : ""}`}
+          data-tour="pulse"
           onClick={props.onToggleTeam}
           title={`${plural(props.pulse.commits, "commit")} on any branch in the last 7 days: show team activity`}
         >
@@ -129,6 +131,7 @@ export function StatusBar(props: Props) {
       </span>
       <button
         className={`status-item status-button${activityOpen ? " active" : ""}`}
+        data-tour="activity"
         onClick={props.onToggleActivity}
         title="Show the git commands Tributary ran"
       >

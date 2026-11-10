@@ -146,7 +146,7 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
   };
 
   return (
-    <div className="commit-box">
+    <div className="commit-box" data-tour="commit-box">
       {messageTools}
       <div className="summary-field">
         {issueKey && !draft.amend && !draft.summary.toUpperCase().includes(issueKey) && (

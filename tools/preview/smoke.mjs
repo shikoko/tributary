@@ -46,6 +46,8 @@ await page.addInitScript((pick) => {
   localStorage.setItem("tributary.fetch.auto", "false");
   // Not someone new: no welcome tour, no What's new.
   localStorage.setItem("tributary.whatsNew.seen", JSON.stringify("999.0.0"));
+  // No tour offers in the way (Help → Tours is tested on its own).
+  localStorage.setItem("tributary.tours.off", "true");
 }, demos.notebook);
 
 let failed = 0;
@@ -980,6 +982,18 @@ try {
     await page.locator(".simple-view").getByRole("heading", { name: "My changes" }).waitFor({ timeout: 10_000 });
     await page.getByRole("button", { name: "Full view" }).click();
     await page.locator(".commit-row").first().waitFor({ timeout: 10_000 });
+  });
+
+  await step("takes a tour from Help → Tours", async () => {
+    await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Tours" }).click();
+    await page.locator(".tours-dialog li", { hasText: "Getting started" }).getByRole("button").click();
+    const card = page.locator(".tour-card");
+    await card.getByRole("heading", { name: "The graph" }).waitFor({ timeout: 5000 });
+    await page.keyboard.press("ArrowRight");
+    await card.locator("h3").filter({ hasNotText: "The graph" }).waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await card.waitFor({ state: "detached", timeout: 5000 });
   });
 
   await step("had no errors on the page", async () => {

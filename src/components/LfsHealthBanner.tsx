@@ -35,7 +35,7 @@ export function describeLfsHealth(health: LfsHealth): { text: string; fix: "inst
 export function LfsHealthBanner({ health, busy, onDownload, onSetUp, onGetLfs, onDismiss }: Props) {
   const { text, fix } = describeLfsHealth(health);
   return (
-    <div className="notice-banner" role="status">
+    <div className="notice-banner" role="status" data-tour="lfs-bar">
       <WarningIcon size={14} />
       <span>{text}</span>
       {fix === "install" && (

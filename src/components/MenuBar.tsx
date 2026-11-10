@@ -19,6 +19,7 @@ export function MenuBar({ menus, onOpen }: Props) {
         <button
           key={menu.label}
           className="menu-bar-item"
+          data-tour={`menu-${menu.label.toLowerCase()}`}
           onMouseDown={(event) => {
             if (event.button !== 0) return;
             event.preventDefault();

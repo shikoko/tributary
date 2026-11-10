@@ -348,7 +348,7 @@ export default function App() {
       openIn: (app) => repoPath && openInApp(app.id, repoPath).catch((e) => repo.setError({ message: String(e) })),
       diagnostics: () => overlays.show("diagnostics"),
       whatsNew: () => overlays.show("whatsNew"),
-      welcome: () => overlays.show("welcome"),
+      tours: () => overlays.show("tours"),
     },
   };
   const menus = appMenus(menuBarContext);

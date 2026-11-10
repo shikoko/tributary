@@ -82,6 +82,7 @@ export const ListRow = memo(function ListRow(props: RowProps) {
     <div
       id={`commit-${commit.id}`}
       className={`commit-row${selected ? " selected" : ""}${primary ? " primary" : ""}${dimmed ? " dimmed" : ""}`}
+      data-tour={commit.kind === "worktree" ? "changes" : undefined}
       style={{
         top,
         height,

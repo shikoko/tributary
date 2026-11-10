@@ -1,0 +1,362 @@
+/* Guided tours: the window dimmed but for what's being explained, a card beside it, and
+   offers in the corner. --tour-color is the tour's own graph colour. */
+.tour {
+  --tour-dim: rgb(0 0 0 / 0.58);
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+}
+
+.tour-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--tour-dim);
+}
+
+.tour-hole {
+  position: absolute;
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 2px var(--tour-color),
+    0 0 0 7px var(--tour-soft),
+    0 0 0 9999px var(--tour-dim);
+  transition:
+    left 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    top 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+
+.tour-card {
+  position: absolute;
+  width: 330px;
+  padding: 16px 18px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--bg-panel);
+  box-shadow: 0 18px 50px var(--shadow-strong);
+  animation: tour-card-in 220ms ease-out;
+}
+
+/* Pointing at what it explains. */
+.tour-card[data-side="right"]::before,
+.tour-card[data-side="left"]::before,
+.tour-card[data-side="below"]::before,
+.tour-card[data-side="above"]::before {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-panel);
+  content: "";
+}
+
+.tour-card[data-side="right"]::before {
+  top: calc(var(--arrow, 50%) - 7px);
+  left: -7px;
+  border-top: none;
+  border-right: none;
+  transform: rotate(45deg);
+}
+
+.tour-card[data-side="left"]::before {
+  top: calc(var(--arrow, 50%) - 7px);
+  right: -7px;
+  border-bottom: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+.tour-card[data-side="below"]::before {
+  top: -7px;
+  left: calc(50% - 6px);
+  border-right: none;
+  border-bottom: none;
+  transform: rotate(45deg);
+}
+
+.tour-card[data-side="above"]::before {
+  bottom: -7px;
+  left: calc(50% - 6px);
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+.tour-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tour-color);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tour-card h3 {
+  margin: 8px 0 6px;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.tour-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.tour-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.tour-buttons .spacer {
+  flex: 1;
+}
+
+.link-button.tour-skip {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.link-button.tour-never {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  text-align: left;
+}
+
+.tour-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.tour-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  transition: width 200ms;
+}
+
+.tour-dots span.past {
+  background: var(--tour-glow);
+}
+
+.tour-dots span.on {
+  width: 16px;
+  border-radius: 3px;
+  background: var(--tour-color);
+}
+
+/* Glow: a lighter dim, a breathing ring, a glassy card with a progress bar. */
+.tour-look-glow {
+  --tour-dim: rgb(0 0 0 / 0.36);
+}
+
+.tour-look-glow .tour-hole {
+  box-shadow:
+    0 0 0 2px var(--tour-color),
+    0 0 28px 6px var(--tour-glow),
+    0 0 0 9999px var(--tour-dim);
+  animation: tour-breathe 2.4s ease-in-out infinite;
+}
+
+.tour-look-glow .tour-card {
+  border-color: var(--tour-soft);
+  background:
+    linear-gradient(155deg, var(--tour-soft), transparent 55%),
+    rgb(var(--bg-rgb) / 0.88);
+  backdrop-filter: blur(14px);
+}
+
+.tour-look-glow .tour-card::before {
+  background: rgb(var(--bg-rgb) / 0.92);
+}
+
+.tour-progress {
+  height: 3px;
+  margin: -4px 0 12px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.tour-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--tour-color), var(--tour-next));
+  transition: width 300ms ease-out;
+}
+
+/* Card: a header in the tour's colour, with its picture. */
+.tour-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -16px -18px 4px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 14px 14px 0 0;
+  background:
+    radial-gradient(90% 160% at 0% 0%, var(--tour-soft), transparent 70%),
+    var(--bg-raised);
+}
+
+.tour-tile,
+.tour-offer-tile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, var(--tour-color), var(--tour-next, var(--tour-color)));
+  box-shadow: 0 6px 18px var(--tour-glow, transparent);
+  color: var(--on-lane);
+}
+
+.tour-card-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tour-step-count {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* The offer in the corner. */
+.tour-offer {
+  position: fixed;
+  right: 18px;
+  bottom: 42px;
+  z-index: 70;
+  display: flex;
+  gap: 12px;
+  width: 370px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background:
+    radial-gradient(80% 120% at 0% 0%, var(--tour-soft), transparent 70%),
+    var(--bg-panel);
+  box-shadow: 0 16px 44px var(--shadow-strong);
+  animation: tour-card-in 260ms ease-out;
+}
+
+.tour-offer .tour-offer-tile {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--tour-soft);
+  box-shadow: none;
+  color: var(--tour-color);
+}
+
+.tour-offer-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tour-offer-text strong {
+  font-size: 13.5px;
+}
+
+.tour-offer-text > span {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.tour-offer-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.tour-offer-buttons button {
+  white-space: nowrap;
+}
+
+.tour-offer-buttons .link-button {
+  flex-basis: 100%;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  text-align: left;
+}
+
+/* Help → Tours. */
+.tours-list {
+  display: flex;
+  flex-direction: column;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.tours-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tours-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tours-text strong {
+  font-size: 13.5px;
+}
+
+.tours-text span {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.tours-done {
+  color: var(--added);
+}
+
+.tours-offered {
+  font-size: 12.5px;
+}
+
+@keyframes tour-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+@keyframes tour-breathe {
+  50% {
+    box-shadow:
+      0 0 0 2px var(--tour-color),
+      0 0 40px 12px var(--tour-glow),
+      0 0 0 9999px var(--tour-dim);
+  }
+}

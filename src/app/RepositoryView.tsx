@@ -9,6 +9,8 @@ import type { RefEntry } from "../lib/refs";
 import { checkoutFor, commitMenu, dropMenu, pillForEntry, pillMenu, selectionMenu, type OpenDialog } from "../menus";
 import { ActivityPanel } from "../components/ActivityPanel";
 import { SimpleView } from "../components/SimpleView";
+import { TourOffer, TourOverlay } from "../components/TourOverlay";
+import { useTours } from "./useTours";
 import { CommitList } from "../components/CommitList";
 import { ElsewherePanel } from "../components/ElsewherePanel";
 import { RepoSettingsDialog } from "../components/RepoSettingsDialog";
@@ -116,6 +118,19 @@ export function RepositoryView(props: Props) {
   const { sidebarOpen, setSidebarOpen, sidebarWidth, setSidebarWidth, detailsWidth, setDetailsWidth, activityOpen, setActivityOpen } = preferences;
   const canChange = !snapshot.bare && running === null;
   const run = (action: Action) => act(action);
+  // Guided tours: Getting started for someone new, others offered as you reach their features.
+  const people = useMemo(() => new Set(snapshot.commits.slice(0, 200).map((commit) => commit.authorEmail)).size, [snapshot.commits]);
+  const tours = useTours({
+    preferences,
+    facts: {
+      simple: preferences.simpleMode,
+      people,
+      usesLfs: Boolean(props.checks?.usesLfs || (lfs.locks?.locks.length ?? 0) > 0),
+      actions: props.history.entries.length,
+    },
+    busy: Boolean(props.dialog) || running !== null || props.teamOpen || props.request !== null,
+    openSidebar: () => setSidebarOpen(true),
+  });
   /** Sizes when a panel resize started. */
   const resizeStart = useRef({ sidebar: 0, details: 0 });
   // The repository's issue tracker: the one chosen in its settings, or its remote's issues.
@@ -403,7 +418,7 @@ export function RepositoryView(props: Props) {
               <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
             </>
           )}
-          <div className="center-pane">
+          <div className="center-pane" data-tour="graph">
             <CommitList
               key={snapshot.path}
               snapshot={snapshot}
@@ -536,6 +551,10 @@ export function RepositoryView(props: Props) {
           onShowCommit={(id) => (byId.has(id) ? select(id) : notLoaded())}
           onShowBranch={showBranch}
         />
+      )}
+      {tours.active && <TourOverlay tour={tours.active} onClose={tours.finish} onNever={tours.never} />}
+      {tours.offer && !tours.active && (
+        <TourOffer tour={tours.offer} onStart={() => tours.start(tours.offer!.id)} onLater={tours.dismissOffer} onNever={tours.never} />
       )}
       <RepositoryDialogs
         notify={(text) => props.notify({ text })}

@@ -59,6 +59,13 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
           value: preferences.simpleMode,
           set: preferences.setSimpleMode,
         },
+        {
+          kind: "toggle",
+          label: "Offer tours",
+          hint: "A short guided tour when you first come across something, like locks or Simple mode. Help → Tours has them all, any time.",
+          value: !preferences.toursOff,
+          set: (offered) => preferences.setToursOff(!offered),
+        },
         { kind: "toggle", label: "Reopen tabs on launch", value: reopenTabs, set: setReopenTabs },
         ...apps,
         {
