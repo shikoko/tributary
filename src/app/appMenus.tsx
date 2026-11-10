@@ -91,7 +91,7 @@ export function helpCommandsFor(ctx: MenuBarContext): AppCommand[] {
     { id: "whats-new", label: "What's New", icon: <SparkleIcon />, run: ctx.do.whatsNew },
     { id: "tours", label: "Tours…", icon: <InfoIcon />, run: ctx.do.tours },
     { id: "diagnostics", label: "Copy Diagnostics…", icon: <CopyIcon />, run: ctx.do.diagnostics },
-    { id: "notices", label: "Third-Party Licences", icon: <NotesIcon />, run: ctx.do.notices },
+    { id: "notices", label: "Third-Party Licences…", icon: <NotesIcon />, run: ctx.do.notices },
   ];
 }
 

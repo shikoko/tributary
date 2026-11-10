@@ -12,6 +12,7 @@ import { CloneDialog } from "../components/CloneDialog";
 import { CommandPalette, type Command } from "../components/CommandPalette";
 import { ContextMenu } from "../components/ContextMenu";
 import { DiagnosticsDialog } from "../components/DiagnosticsDialog";
+import { LicencesDialog } from "../components/LicencesDialog";
 import { GitHubSignInDialog } from "../components/GitHubSignInDialog";
 import { FolderIcon } from "../components/Icons";
 import { SettingsDialog } from "../components/SettingsDialog";
@@ -166,6 +167,7 @@ export function AppOverlays(props: Props) {
           onClose={() => hide("diagnostics")}
         />
       )}
+      {open.licences && <LicencesDialog onClose={() => hide("licences")} />}
       {open.update && updates.available && <UpdateDialog update={updates.available} onClose={() => hide("update")} />}
       {menu.menu && (
         <ContextMenu x={menu.menu.x} y={menu.menu.y} items={menu.menu.items} onSideways={menu.menu.onSideways} onClose={menu.close} />

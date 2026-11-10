@@ -48,7 +48,8 @@
       }
     },
     "resources": {
-      "../THIRD_PARTY_NOTICES.txt": "THIRD_PARTY_NOTICES.txt"
+      "../THIRD_PARTY_NOTICES.txt": "THIRD_PARTY_NOTICES.txt",
+      "../LICENSE": "LICENSE"
     },
     "icon": [
       "icons/32x32.png",

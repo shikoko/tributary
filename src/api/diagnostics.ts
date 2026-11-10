@@ -26,7 +26,13 @@ export function diagnostics(path: string | null): Promise<Diagnostics> {
   return invoke<Diagnostics>("diagnostics", { path });
 }
 
-/** Opens the licences of the software Tributary is made with, in the system's text viewer. */
-export function openNotices(): Promise<void> {
-  return invoke<void>("open_notices");
+/** The licences of the software Tributary is made with, and Tributary's own. */
+export interface ThirdPartyNotices {
+  /** THIRD_PARTY_NOTICES.txt, as tools/notices.mjs writes it (see lib/notices.ts). */
+  notices: string;
+  license: string | null;
+}
+
+export function thirdPartyNotices(): Promise<ThirdPartyNotices> {
+  return invoke<ThirdPartyNotices>("third_party_notices");
 }
