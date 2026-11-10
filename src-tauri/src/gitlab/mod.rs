@@ -155,6 +155,24 @@ async fn get(
     request.send().await
 }
 
+/// A GET from GitLab's API, asked again with the ETag of the answer kept for it (one that
+/// hasn't changed costs nothing).
+async fn get_kept(
+    client: &reqwest::Client,
+    url: &str,
+    token: Option<&str>,
+    bearer: bool,
+) -> reqwest::Result<crate::conditional::Answer> {
+    let request = client.get(url);
+    let request = match token {
+        Some(token) if bearer => request.bearer_auth(token),
+        Some(token) => request.header("PRIVATE-TOKEN", token),
+        None => request,
+    };
+    let who = token.map(|token| format!("{bearer}{token}"));
+    crate::conditional::send(&crate::conditional::key(url, who.as_deref()), request).await
+}
+
 /// The way to send git's token that GitLab accepts: as a personal access token, or as an
 /// OAuth token (which Git Credential Manager keeps). None when it accepts neither.
 async fn auth_mode(
@@ -262,32 +280,30 @@ pub async fn merge_requests(path: &Path) -> Result<Vec<PullRequest>, Error> {
     // The kind of token git keeps isn't known: try it as a personal access token, then as
     // an OAuth token, then go without (a public project still answers).
     let mut auth: Option<(&str, bool)> = None;
-    let mut response = None;
+    let mut found = None;
     let tries: Vec<Option<(&str, bool)>> = match token.as_deref() {
         Some(token) => vec![Some((token, false)), Some((token, true)), None],
         None => vec![None],
     };
     for attempt in tries {
         let (token, bearer) = attempt.map_or((None, false), |(t, b)| (Some(t), b));
-        let answer = get(&client, &list, token, bearer)
+        let answer = get_kept(&client, &list, token, bearer)
             .await
             .map_err(|e| format!("Couldn't reach GitLab ({e})"))?;
-        if answer.status().is_success() {
+        if answer.status.is_success() {
             auth = attempt;
-            response = Some(answer);
+            found = Some(answer);
             break;
         }
-        if answer.status() != reqwest::StatusCode::UNAUTHORIZED {
+        if answer.status != reqwest::StatusCode::UNAUTHORIZED {
             // No access (a private project without a token), or rate limited: no badges.
             return Ok(Vec::new());
         }
     }
-    let Some(response) = response else {
+    let Some(found) = found else {
         return Ok(Vec::new());
     };
-    let raw: Vec<RawMergeRequest> = response
-        .json()
-        .await
+    let raw: Vec<RawMergeRequest> = serde_json::from_str(&found.body)
         .map_err(|e| format!("Couldn't read the merge requests ({e})"))?;
 
     let mut result = Vec::new();
@@ -295,10 +311,11 @@ pub async fn merge_requests(path: &Path) -> Result<Vec<PullRequest>, Error> {
         // Pipelines take a request each: only with a token, and only for the first ones.
         if let Some((token, bearer)) = auth.filter(|_| index < MAX_CHECKED) {
             let url = format!("{}/merge_requests/{iid}/pipelines?per_page=1", project.api);
-            if let Ok(answer) = get(&client, &url, Some(token), bearer).await
-                && answer.status().is_success()
+            if let Ok(answer) = get_kept(&client, &url, Some(token), bearer).await
+                && answer.status.is_success()
             {
-                let pipelines: Vec<RawPipeline> = answer.json().await.unwrap_or_default();
+                let pipelines: Vec<RawPipeline> =
+                    serde_json::from_str(&answer.body).unwrap_or_default();
                 pull.checks = pipelines.first().and_then(|p| pipeline_state(&p.status));
             }
         }

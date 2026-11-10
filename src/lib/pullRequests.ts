@@ -1,8 +1,12 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pullRequests, type CommitMessage, type PullRequest, type RequestCheck, type RequestDetails, type RequestReview } from "../api";
 
-/** Don't ask GitHub more often than this, unless asked to. */
-const MIN_INTERVAL = 60_000;
+/** Asked for again this often while a repository is open: cheap, since the app asks with
+ * each answer's ETag, and an unchanged one costs nothing against GitHub's hourly limit. */
+const POLL = 60_000;
+/** Don't ask more often than this, unless asked to (a little under POLL, so a timer that
+ * fires a moment early still asks). */
+const MIN_INTERVAL = 50_000;
 
 /** Finds the pull request for a branch label. */
 export interface PullRequestLookup {
@@ -146,7 +150,7 @@ export function describeChecks(pr: PullRequest): string {
 
 /**
  * The open pull requests of the repository's GitHub remote (or merge requests of its GitLab one), kept per repository and asked
- * for again when `refresh` is called (after fetching or coming back to the window).
+ * for again every minute, and when `refresh` is called (after fetching or coming back to the window).
  */
 export function usePullRequests(path: string | null, enabled: boolean) {
   const cache = useRef(new Map<string, { list: PullRequest[]; at: number }>());
@@ -172,7 +176,10 @@ export function usePullRequests(path: string | null, enabled: boolean) {
 
   useEffect(() => {
     setList(path && enabled ? (cache.current.get(path)?.list ?? []) : []);
-    if (path && enabled) refresh();
+    if (!path || !enabled) return;
+    refresh();
+    const timer = window.setInterval(() => refresh(), POLL);
+    return () => window.clearInterval(timer);
   }, [path, enabled, refresh]);
 
   return useMemo(() => ({ list, refresh }), [list, refresh]);

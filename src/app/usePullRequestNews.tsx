@@ -24,7 +24,7 @@ interface Options {
 /**
  * News of your pull requests (those you opened, or from your local branches): reviews and
  * comments by others, checks that finished or failed, and being merged or closed. Looked
- * for each time the list of pull requests is asked for again (after a fetch, or coming
+ * for each time the list of pull requests is asked for again (every minute, after a fetch, or coming
  * back to the window); the first look at one only remembers where it stands.
  */
 export function usePullRequestNews(options: Options) {

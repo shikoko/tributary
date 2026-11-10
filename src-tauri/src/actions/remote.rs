@@ -17,7 +17,13 @@ pub(super) fn fetch(
     background: bool,
     on_progress: &dyn Fn(Progress),
 ) -> Result<String> {
-    if repo.remote_names().is_empty() {
+    // Its remotes, by name: "origin", or "origin and upstream" (this repository's only).
+    let remotes: Vec<String> = repo
+        .remote_names()
+        .iter()
+        .map(|name| name.to_string())
+        .collect();
+    if remotes.is_empty() {
         return Err("This repository has no remotes to fetch from.".into());
     }
     if background {
@@ -30,7 +36,7 @@ pub(super) fn fetch(
     } else {
         git.run_progress(&["fetch", "--all", "--prune", "--progress"], on_progress)?;
     }
-    Ok("Fetched from all remotes".into())
+    Ok(format!("Fetched from {}", in_words(&remotes)))
 }
 
 /// Pull into the checked-out branch.
@@ -288,9 +294,30 @@ pub(super) fn default_remote(repo: &gix::Repository) -> Result<String, Error> {
     Ok(remote)
 }
 
+/// Names in words: "origin", "origin and upstream", "origin, upstream and mirror".
+fn in_words(names: &[String]) -> String {
+    match names {
+        [] => String::new(),
+        [one] => one.clone(),
+        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::parse_counts;
+    use super::{in_words, parse_counts};
+
+    #[test]
+    fn names_the_remotes_in_words() {
+        let names =
+            |list: &[&str]| in_words(&list.iter().map(|name| name.to_string()).collect::<Vec<_>>());
+        assert_eq!(names(&["origin"]), "origin");
+        assert_eq!(names(&["origin", "upstream"]), "origin and upstream");
+        assert_eq!(
+            names(&["origin", "upstream", "mirror"]),
+            "origin, upstream and mirror"
+        );
+    }
 
     #[test]
     fn reads_ahead_and_behind() {
