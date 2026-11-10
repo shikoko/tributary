@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { forgetAvatars, openInApp, openNotices, WORKTREE_ID, type Action, type PullRequest } from "./api";
+import { forgetAvatars, openInApp, WORKTREE_ID, type Action, type PullRequest } from "./api";
 import { useOpenApps } from "./lib/apps";
 import { useLfsLocks } from "./lib/locks";
 import { isPatchFile } from "./lib/patches";
@@ -23,6 +23,8 @@ import { chooseFilesToLock } from "./app/lockPicker";
 import { paletteCommands } from "./app/paletteCommands";
 import { RepositoryView } from "./app/RepositoryView";
 import { StartView } from "./app/StartView";
+import { useAccounts } from "./app/useAccounts";
+import { useViewFade } from "./app/useViewFade";
 import { useActions } from "./app/useActions";
 import { useBackgroundFetch } from "./app/useBackgroundFetch";
 import { useLocalHistory } from "./app/useLocalHistory";
@@ -182,6 +184,8 @@ export default function App() {
     picturesWereOn.current = picturesOn;
   }, [picturesOn]);
   // A big repository without git's speed-ups: offered once.
+  // Who's signed in: for the start screen's chips, the clone dialog's list and Settings.
+  const accounts = useAccounts(!snapshot || overlays.open.settings || dialog?.kind === "clone", setToast);
   useSpeedOffer(snapshot, setToast, () => setDialog({ kind: "repoSettings", section: "Speed" }));
   usePullRequestNews({
     repoPath,
@@ -349,7 +353,7 @@ export default function App() {
       diagnostics: () => overlays.show("diagnostics"),
       whatsNew: () => overlays.show("whatsNew"),
       tours: () => overlays.show("tours"),
-      notices: () => void openNotices().catch((e) => repo.setError({ message: String(e) })),
+      notices: () => overlays.show("licences"),
     },
   };
   const menus = appMenus(menuBarContext);
@@ -406,6 +410,7 @@ export default function App() {
         })));
 
   const showTabBar = Boolean(snapshot) || tabs.length > 0 || menuBar.element !== undefined;
+  useViewFade(snapshot ? `repository:${snapshot.path}` : "start");
   return (
     <ThemeContext.Provider value={theme}>
     <BranchSyncContext.Provider value={counts.aheadBehind}>
@@ -487,7 +492,13 @@ export default function App() {
               }}
             />
           ) : (
-            <StartView repo={repo} tabBar={showTabBar} onClone={() => setDialog({ kind: "clone" })} />
+            <StartView
+              repo={repo}
+              tabBar={showTabBar}
+              onClone={() => setDialog({ kind: "clone" })}
+              accounts={accounts}
+              onSignIn={(forge) => overlays.show(forge === "github" ? "signIn" : "gitlabSignIn")}
+            />
           )}
           <AppOverlays
             overlays={overlays}
@@ -506,6 +517,7 @@ export default function App() {
               repo.load(path, "open");
             }}
             onSignedIn={() => prs.refresh(true)}
+            accounts={accounts}
             toast={toast}
             notify={setToast}
             hideToast={hideToast}

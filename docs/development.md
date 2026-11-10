@@ -110,7 +110,9 @@ The tests don't run on GitHub Actions, so run them before you build.
 - **`develop`** is where work comes together. Make a branch from it for each change, and open pull requests into it.
 - **`main`** is what's been released. It only changes through a pull request from `develop`, when a release is made.
 
-Merge a release's pull request with **Create a merge commit**, not squash or rebase: those copy the commits, so `develop` and `main` would drift apart and the next release's pull request would show old changes again.
+Merge every pull request with **Create a merge commit**, never squash or rebase. Those copy the commits instead: a branch merged that way looks unmerged in the graph, and between `develop` and `main` the two would drift apart, so the next release's pull request would show old changes again.
+
+Before merging a pull request into `develop`, rebase its branch onto the latest `develop` and push it (with `--force-with-lease`). The branch then starts from the tip of `develop`, and the history shows each change as a short loop that joins straight back in. Pull requests from `develop` into `main` aren't rebased.
 
 ## Release
 
@@ -123,10 +125,11 @@ A build without a version tag can run on any branch, to try the installers out. 
 
 To publish a release:
 
-1. Open a pull request from `develop` into `main`, and merge it with **Create a merge commit**.
-2. In **Actions → Build → Run workflow**, choose `main` under **Use workflow from**, and type a version tag such as `v0.2.0` in the **release** box. The app gets that version.
-3. The build waits for approval, because the signing key is in the protected `release` environment: open the run, choose **Review deployments**, tick **release** and approve.
-4. When it finishes, a draft GitHub release with the installers attached is waiting on the **Releases** page. Publish it, and Tributary offers the update to everyone running an older version.
+1. Write the release notes in `docs/release-notes/<tag>.md` (like `v0.2.0.md`), in a pull request into `develop` as usual. They become the release page's notes, and the update window shows them up to the `<!-- release page only -->` comment (put install steps and the like after it). Without a file, the release gets GitHub's list of merged pull requests instead.
+2. Open a pull request from `develop` into `main`, and merge it with **Create a merge commit**.
+3. In **Actions → Build → Run workflow**, choose `main` under **Use workflow from**, and type a version tag such as `v0.2.0` in the **release** box. The app gets that version.
+4. The build waits for approval, because the signing key is in the protected `release` environment: open the run, choose **Review deployments**, tick **release** and approve.
+5. When it finishes, a draft GitHub release with the installers attached is waiting on the **Releases** page. Publish it, and Tributary offers the update to everyone running an older version.
 
 Tributary finds new versions by reading `latest.json` from the latest release (`plugins.updater.endpoints` in `src-tauri/tauri.conf.json`), and installs them only if they're signed with the key whose public half is `plugins.updater.pubkey` there. A fork that publishes its own releases needs to change both.
 

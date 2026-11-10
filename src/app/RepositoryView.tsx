@@ -347,6 +347,8 @@ export function RepositoryView(props: Props) {
           running={running === "fetch" || running === "pull" || running === "push" ? running : null}
           ahead={counts.ahead}
           behind={counts.behind}
+          aheadCommits={counts.aheadCommits}
+          behindCommits={counts.behindCommits}
           search={search.position}
           searchInput={search.input}
           onSearch={search.search}

@@ -55,6 +55,7 @@ export function columnMenuItems(
       onSelect: () => setOptions({ ...options, dateKind: "committed" }),
     },
     { label: "Day separators", separated: true, checked: daySeparators, onSelect: () => setDaySeparators(!daySeparators) },
+    { label: "Checks on commits (CI)", checked: options.checks !== false, onSelect: () => setOptions({ ...options, checks: options.checks === false }) },
   ];
 }
 

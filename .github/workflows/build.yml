@@ -143,11 +143,14 @@ jobs:
             echo "Replacing the earlier draft of $TAG"
             gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
           done
+          # The notes written for this version, or else GitHub's list of what was merged.
+          notes=(--generate-notes)
+          if [ -f "docs/release-notes/$TAG.md" ]; then notes=(--notes-file "docs/release-notes/$TAG.md"); fi
           gh release create "$TAG" installers/* \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --draft \
-            --generate-notes \
+            "${notes[@]}" \
             --title "Tributary $TAG"
 
       # latest.json tells Tributary about the new version once the draft is published.
@@ -160,7 +163,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" \
             --jq "[.[] | select(.tag_name == \"$TAG\")][0] | {body, assets: [.assets[] | {name}]}" \
             > release.json
-          node .github/scripts/latest-json.mjs "$GITHUB_REPOSITORY" "$TAG" release.json installers latest.json
+          node .github/scripts/latest-json.mjs "$GITHUB_REPOSITORY" "$TAG" release.json installers latest.json "docs/release-notes/$TAG.md"
           if [ -f latest.json ]; then
             gh release upload "$TAG" latest.json --repo "$GITHUB_REPOSITORY"
           fi

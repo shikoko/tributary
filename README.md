@@ -1,11 +1,8 @@
 <p align="center">
-  <img src="src-tauri/icons/128x128@2x.png" width="96" alt="Tributary's icon: a commit graph on a tile">
+  <img src="docs/images/hero.png" alt="Tributary: a fast, friendly git client for macOS and Windows, with first-class Git LFS, locks and art diffs. Beside it, the app showing a repository's commit graph.">
 </p>
 
-<h1 align="center">Tributary</h1>
-
 <p align="center">
-  <b>A fast, friendly git client for macOS and Windows.</b><br>
   A commit graph that's a pleasure to read, Undo for almost everything, and pull requests in the app,<br>
   with first-class big files too: Git LFS, locks, and art you can actually see in a diff.
 </p>
@@ -23,8 +20,6 @@
   Your support means a lot, and helps keep it going.<br><br>
   <a href="https://github.com/sponsors/shikoko"><img src="docs/images/support.svg" alt="Support Tributary on GitHub Sponsors" height="44"></a>
 </p>
-
-![Tributary showing the commit graph of a repository, with the details of a merge commit on the right](docs/images/overview.png)
 
 ## Why Tributary
 
@@ -183,8 +178,11 @@ Tributary updates itself after that. It needs [git](https://git-scm.com) install
 
 The installers aren't code-signed yet, so the first launch needs one extra step:
 
-- **macOS:** if it says the app "is damaged" or "can't be opened", move it to Applications and run `xattr -cr /Applications/Tributary.app` once.
+- **macOS, "Tributary Not Opened":** click **Done**, then open **System Settings → Privacy & Security**, scroll down to **Security** and click **Open Anyway** next to Tributary. Open it again and choose **Open Anyway**. On macOS 14 and earlier, you can instead Control-click the app in Applications and choose **Open**.
+- **macOS, "is damaged" (or it still won't open):** move it to Applications and run `xattr -cr /Applications/Tributary.app` once in Terminal.
 - **Windows:** if SmartScreen warns you, choose **More info → Run anyway**.
+
+It's only needed once: the updates Tributary installs itself open straight away.
 
 **Linux** is experimental: Tributary builds and runs there from source (see below), but there are no Linux installers or automatic updates yet, and it isn't tested on every release. Reports and fixes are welcome.
 
@@ -214,7 +212,7 @@ Tributary is made by one person in their spare time, and stays free, with no ads
 
 [MIT](LICENSE).
 
-**No warranty.** Tributary is provided as is, without any warranty, as the licence says. It takes care with your work: changes go through your own git, branches are backed up before they're rewritten or deleted, and most things can be undone. But any program can have bugs, so keep your work pushed to a remote, and keep backups of anything you can't afford to lose. If commits do go missing, **Repository → Recover Commits** (or `git reflog`) can usually bring them back.
+**No warranty.** Tributary is provided as is, without any warranty, as the licence says. It takes care with your work: changes go through your own git, branches are backed up before they're rewritten or deleted, and most things can be undone. But any program can have bugs, so keep your work pushed to a remote, and keep backups of anything you can't afford to lose. If commits do go missing, **Repository → History → Recover Commits** (or `git reflog`) can usually bring them back.
 
 The interface uses [Google Sans](https://fonts.google.com/specimen/Google+Sans) and [JetBrains Mono](https://www.jetbrains.com/lp/mono/), both under the [SIL Open Font License 1.1](https://openfontlicense.org). 3D models are shown with [three.js](https://threejs.org) (MIT), and code is coloured with [highlight.js](https://highlightjs.org) (BSD-3-Clause). [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt) has the licences of everything Tributary is made with.
 

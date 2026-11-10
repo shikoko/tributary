@@ -32,6 +32,7 @@
 }
 
 .menu-item:hover:not(:disabled),
+.menu-item.open,
 .menu-item:focus-visible {
   background: var(--bg-active);
 }
@@ -39,6 +40,14 @@
 .menu-item:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* A submenu's arrow, on the right. */
+.menu-chevron {
+  display: inline-flex;
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--text-muted);
 }
 
 .menu-item.danger {
@@ -112,6 +121,7 @@
 }
 
 .dialog {
+  position: relative;
   width: min(480px, 100%);
   padding: 20px 22px;
   border: 1px solid var(--border-strong);
@@ -123,6 +133,13 @@
 .dialog h2 {
   margin: 0 0 10px;
   font-size: 16px;
+}
+
+/* The close button in the corner (Dialog's `closable`). */
+.dialog-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
 }
 
 .dialog p {
@@ -520,78 +537,252 @@ body.resizing * {
 
 /* What makes the repository big. */
 
-.repo-size {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: min(64vh, 620px);
-  overflow-y: auto;
+.dialog.big-window {
+  width: min(760px, 100%);
 }
 
-.repo-size h3 {
-  margin: 6px 0 2px;
-  font-size: 12px;
+.big {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: min(66vh, 660px);
+  margin: 0 -4px;
+  padding: 0 4px 2px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+/* It scrolls instead of squeezing what's in it. */
+.big > * {
+  flex-shrink: 0;
+}
+
+.big h3 {
+  margin: 0;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
-.repo-size ul {
+.big ul {
   display: flex;
   flex-direction: column;
-  gap: 3px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.repo-size li {
+.big-intro {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.big-intro strong {
+  color: var(--text);
+}
+
+.big-swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.big-card {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 10px;
   min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+/* The kinds of file, by colour. */
+.big .big-legend {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.big-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
+  color: var(--text-secondary);
 }
 
-.repo-size-groups {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 6px 24px;
-}
-
-.repo-size-name {
-  flex: 1;
-  min-width: 0;
+/* The map: folders as blocks as big as what they take, their biggest files inside. */
+.big-map {
+  position: relative;
+  border-radius: 10px;
   overflow: hidden;
+}
+
+.big-map-folder {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--bg-panel);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.big-map-folder.small {
+  background: var(--bg-raised);
+}
+
+.big-map-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 20px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.big-map-inside {
+  position: absolute;
+  inset: 0 2px 2px;
+}
+
+.big-map-tile {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.3;
+  transition: filter 0.12s;
+}
+
+.big-map-tile.labelled {
+  padding: 5px 7px;
+}
+
+.big-map-tile:hover {
+  filter: brightness(1.12);
+}
+
+.big-map-tile.rest,
+.big-swatch.rest {
+  background: var(--bg-raised) repeating-linear-gradient(135deg, transparent 0 6px, rgb(var(--overlay-rgb) / 0.05) 6px 12px);
+  color: var(--text-muted);
+}
+
+.big-swatch.rest {
+  background-size: 6px 6px;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+/* Every folder with what it takes, the small ones the map can't show too. */
+.big .big-folders {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.big-folders li {
+  display: flex;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--bg-raised);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.big-folders li > span:last-child {
+  color: var(--text-muted);
+}
+
+.big-map-name {
+  overflow: hidden;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.repo-size-groups .repo-size-name {
-  flex: 0 0 38%;
+.big-map-amount {
+  opacity: 0.8;
 }
 
-.repo-size-bar {
-  flex: 1;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--bg-raised);
-  overflow: hidden;
+/* Move into Git LFS. */
+.big-lfs header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
 
-.repo-size-bar > span {
-  display: block;
-  height: 100%;
-  border-radius: 3px;
-  background: var(--accent);
+.big-lfs header .muted {
+  font-size: 12px;
 }
 
-.repo-size-amount {
-  flex: none;
-  min-width: 64px;
+.big-lfs .dialog-note-line {
+  margin: 0;
+}
+
+.big-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.big-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
   color: var(--text-secondary);
-  text-align: right;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.big-chip:hover {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.big-chip.on {
+  border-color: var(--accent);
+  background: rgb(var(--accent-rgb) / 0.12);
+  color: var(--text);
+}
+
+.big-chip-amount {
+  color: var(--text-muted);
+}
+
+.big-tip {
+  position: fixed;
+  z-index: 50;
+  max-width: 300px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  box-shadow: 0 6px 18px var(--shadow);
+  color: var(--text);
+  font-size: 12px;
+  pointer-events: none;
+  overflow-wrap: anywhere;
 }
 
 .repo-size-tag {
@@ -608,24 +799,176 @@ body.resizing * {
   color: var(--info-text);
 }
 
-.repo-size-kinds {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
+/* Why a file is ignored: an introduction in three steps, then the rule that leaves it out. */
+/* Roomy: the explanation, the steps and the buttons each get space of their own. */
+.dialog.ignore-window {
+  width: min(640px, 100%);
+  padding: 26px 28px 24px;
 }
 
-.repo-size-kinds .checkbox {
+.ignore-window h2 {
+  margin-bottom: 14px;
+  font-size: 18px;
+}
+
+.dialog .ignore-lead {
+  margin: 0 0 26px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.ignore-lead strong {
+  color: var(--text);
+}
+
+.ignore-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ignore-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.ignore-steps strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.ignore-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Blue, pink and green, as in the logo; tints that suit either theme. */
+.ignore-steps li:nth-child(1) .ignore-step-number {
+  background: rgb(var(--accent-rgb) / 0.18);
+  color: var(--accent-text);
+}
+
+.ignore-steps li:nth-child(2) .ignore-step-number {
+  background: rgb(var(--pink-rgb) / 0.18);
+  color: rgb(var(--pink-rgb));
+}
+
+.ignore-steps li:nth-child(3) .ignore-step-number {
+  background: rgb(var(--success-rgb) / 0.18);
+  color: var(--success-text);
+}
+
+.ignore-skip {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.ignore-window .dialog-buttons {
+  margin-top: 30px;
+}
+
+.ignore-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.dialog .ignore-file {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
 }
 
-.ignore-rule {
+.ignore-file svg {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.ignore-rule-card {
   margin: 0;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--bg-panel);
-  font-size: 13px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.ignore-rule-card figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.ignore-rule-line {
+  color: var(--text-muted);
+}
+
+.ignore-rule-card pre {
+  display: flex;
+  margin: 0;
+  padding: 16px 14px 16px 0;
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ignore-gutter {
+  flex: none;
+  min-width: 34px;
+  padding-right: 12px;
+  color: var(--text-faint);
+  text-align: right;
+  user-select: none;
+}
+
+.dialog .ignore-note {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.ignore-clear {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid rgb(var(--success-rgb) / 0.35);
+  border-radius: 10px;
+  background: rgb(var(--success-rgb) / 0.08);
+  line-height: 1.5;
+}
+
+.ignore-clear svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--success);
 }
 
 /* What's new, after an update. */

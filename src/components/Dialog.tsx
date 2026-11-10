@@ -1,4 +1,6 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { animate } from "../lib/motion";
+import { CloseIcon } from "./Icons";
 
 interface Props {
   title: string;
@@ -14,6 +16,8 @@ interface Props {
   wide?: boolean;
   /** For a dialog laid out its own way. */
   className?: string;
+  /** A close button (×) in the corner, for a window that's read rather than filled in. */
+  closable?: boolean;
   onCancel: () => void;
 }
 
@@ -39,8 +43,23 @@ function keepFocusInside(event: KeyboardEvent<HTMLDivElement>) {
  * A modal dialog. Esc or a click outside cancels it. The keyboard stays inside it while
  * it's open, and goes back to where it was when it closes.
  */
-export function Dialog({ title, children, buttons, error, errorAction, busy, wide, className, onCancel }: Props) {
+export function Dialog({ title, children, buttons, error, errorAction, busy, wide, className, closable, onCancel }: Props) {
   const box = useRef<HTMLDivElement>(null);
+  // Closing, the dimmed background fades away instead of vanishing.
+  useLayoutEffect(() => {
+    const backdrop = box.current?.parentElement;
+    if (!backdrop) return;
+    return () => {
+      const style = getComputedStyle(backdrop);
+      const scrim = document.createElement("div");
+      scrim.setAttribute("aria-hidden", "true");
+      scrim.style.cssText = `position: fixed; inset: 0; z-index: ${style.zIndex}; background: ${style.backgroundColor}; pointer-events: none;`;
+      document.body.appendChild(scrim);
+      const fade = animate(scrim, [{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: "ease-out", fill: "forwards" });
+      if (fade) fade.finished.then(() => scrim.remove(), () => scrim.remove());
+      else scrim.remove();
+    };
+  }, []);
   useEffect(() => {
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     // Unless a field asked for the focus (autoFocus), the dialog itself takes it.
@@ -89,6 +108,11 @@ export function Dialog({ title, children, buttons, error, errorAction, busy, wid
         }}
       >
         <h2>{title}</h2>
+        {closable && (
+          <button className="icon-button dialog-close" onClick={onCancel} disabled={busy} aria-label="Close" title="Close (Esc)">
+            <CloseIcon size={14} />
+          </button>
+        )}
         {children}
         {error && (
           <div className="error-banner">

@@ -28,6 +28,74 @@ function boxOf(name: string | null): DOMRect | null {
 }
 
 const PAD = 6;
+/** The highlight's corner radius, and how long it takes to move to the next stop. */
+const RADIUS = 10;
+const MOVE_MS = 280;
+
+interface Rect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * `rect`, easing to each new place over MOVE_MS (or at once, with reduced motion), so the
+ * dimming and the highlight move together.
+ */
+function useEasedRect(rect: Rect | null): Rect | null {
+  const [shown, setShown] = useState<Rect | null>(rect);
+  const from = useRef<Rect | null>(rect);
+  const [left, top, width, height] = rect ? [rect.left, rect.top, rect.width, rect.height] : [NaN, NaN, NaN, NaN];
+  useEffect(() => {
+    const to = Number.isNaN(left) ? null : { left, top, width, height };
+    const start = from.current;
+    if (!to || !start || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      from.current = to;
+      setShown(to);
+      return;
+    }
+    const began = performance.now();
+    let frame = 0;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - began) / MOVE_MS);
+      const k = 1 - (1 - t) ** 3;
+      const mix = (a: number, b: number) => a + (b - a) * k;
+      const next = { left: mix(start.left, to.left), top: mix(start.top, to.top), width: mix(start.width, to.width), height: mix(start.height, to.height) };
+      from.current = next;
+      setShown(next);
+      if (t < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [left, top, width, height]);
+  return shown;
+}
+
+/**
+ * The window dimmed but for `hole`: a shape the size of the window with the hole cut out.
+ * (A huge box-shadow around the hole looks the same, but WebKit on macOS paints all of it,
+ * tens of thousands of pixels across, and gives up, leaving the window dark.)
+ */
+function Dimming({ hole }: { hole: Rect | null }) {
+  const [view, setView] = useState({ width: window.innerWidth, height: window.innerHeight });
+  useEffect(() => {
+    const onResize = () => setView({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  let d = `M0 0H${view.width}V${view.height}H0Z`;
+  if (hole) {
+    const { left: x, top: y, width: w, height: h } = hole;
+    const r = Math.min(RADIUS, w / 2, h / 2);
+    d += `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
+  }
+  return (
+    <svg className="tour-dim" width={view.width} height={view.height} aria-hidden="true">
+      <path d={d} fillRule="evenodd" />
+    </svg>
+  );
+}
 const GAP = 16;
 
 /** Where the card goes: beside the box if there's room, else below or above; in the middle without one. */
@@ -115,12 +183,13 @@ export function TourOverlay({ tour, onClose, onNever }: Props) {
     "--tour-soft": withAlpha(color, 0.18),
     "--tour-glow": withAlpha(color, 0.45),
   } as CSSProperties;
-  const hole = box ? { left: box.left - PAD, top: box.top - PAD, width: box.width + PAD * 2, height: box.height + PAD * 2 } : null;
+  const hole = useEasedRect(box ? { left: box.left - PAD, top: box.top - PAD, width: box.width + PAD * 2, height: box.height + PAD * 2 } : null);
   const arrow = box && spot && (spot.side === "right" || spot.side === "left") ? Math.max(18, Math.min(box.top + box.height / 2 - spot.top, (card.current?.offsetHeight ?? 200) - 18)) : null;
 
   return (
     <div className="tour" style={style} role="dialog" aria-modal="true" aria-label={`${tour.title}: ${stop.title}`}>
-      {hole ? <div className="tour-hole" style={hole} /> : <div className="tour-backdrop" />}
+      <Dimming hole={hole} />
+      {hole && <div className="tour-hole" style={hole} />}
       <div
         ref={card}
         className="tour-card"

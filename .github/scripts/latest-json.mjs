@@ -1,15 +1,18 @@
 // Writes latest.json, which Tributary reads to find and verify new versions.
 //
-//   node latest-json.mjs <repository> <tag> <assets.json> <folder with the .sig files> <out file>
+//   node latest-json.mjs <repository> <tag> <assets.json> <folder with the .sig files> <out file> [notes file]
 //
 // assets.json is { body, assets: [{ name }] }, from GitHub's API. Files are linked by their
 // public download address under the release's tag, which works once the draft is published.
+// The notes the update window shows come from the notes file when there is one (up to its
+// "release page only" comment), or else from the release's own notes.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const [repository, tag, assetsFile, folder, out] = process.argv.slice(2);
+const [repository, tag, assetsFile, folder, out, notesFile] = process.argv.slice(2);
 const version = tag.replace(/^v/, "");
 const { assets, body } = JSON.parse(readFileSync(assetsFile, "utf8"));
+const notes = notesFile && existsSync(notesFile) ? readFileSync(notesFile, "utf8").split(/<!--\s*release page only/)[0].trim() : (body ?? "");
 
 /** The asset whose name ends with `suffix`, with its signature, or null. */
 function signed(suffix) {
@@ -32,5 +35,5 @@ if (Object.keys(platforms).length === 0) {
   console.log("No signed installers (is the TAURI_SIGNING_PRIVATE_KEY secret set?): no latest.json.");
   process.exit(0);
 }
-writeFileSync(out, JSON.stringify({ version, notes: body ?? "", pub_date: new Date().toISOString(), platforms }, null, 2));
+writeFileSync(out, JSON.stringify({ version, notes, pub_date: new Date().toISOString(), platforms }, null, 2));
 console.log(`latest.json for ${version}: ${Object.keys(platforms).join(", ")}`);

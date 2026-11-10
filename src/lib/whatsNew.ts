@@ -63,7 +63,7 @@ export const RELEASES: Release[] = [
       {
         icon: "setup",
         title: "Project setup check",
-        text: "Repository → Check Project Setup looks over an Unreal or Unity project's ignores, Git LFS, lockable files, line endings and long paths, with a fix for each.",
+        text: "Repository → Tools → Check Project Setup looks over an Unreal or Unity project's ignores, Git LFS, lockable files, line endings and long paths, with a fix for each.",
       },
       { icon: "open", title: "Open it anywhere", text: "The toolbar's Open button opens the repository on GitHub or GitLab, in Finder or Explorer, or in your editor or terminal." },
     ],

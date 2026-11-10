@@ -122,12 +122,12 @@ export const TOURS: Tour[] = [
       {
         target: "menu-repository",
         title: "Check the project's setup",
-        text: "Repository → Check Project Setup looks over how an Unreal or Unity project is set up for git (what's ignored, what Git LFS stores, what's lockable) with a fix for each problem.",
+        text: "Repository → Tools → Check Project Setup looks over how an Unreal or Unity project is set up for git (what's ignored, what Git LFS stores, what's lockable) with a fix for each problem.",
       },
       {
         target: "menu-repository",
         title: "What makes it big",
-        text: "Repository → What Makes It Big shows the biggest files in all of the history, and can move them into Git LFS.",
+        text: "Repository → Tools → What Makes It Big shows the biggest files in all of the history, and can move them into Git LFS.",
       },
       {
         target: null,
@@ -159,7 +159,7 @@ export const TOURS: Tour[] = [
       {
         target: "menu-repository",
         title: "Branches are backed up",
-        text: "Branches Tributary deletes, rewrites or force-pushes are kept for 30 days: Repository → Restore Branch puts them back, and Recover Commits finds lost ones.",
+        text: "Branches Tributary deletes, rewrites or force-pushes are kept for 30 days: Repository → Branches → Restore Branch puts them back, and History → Recover Commits finds lost ones.",
       },
     ],
   },

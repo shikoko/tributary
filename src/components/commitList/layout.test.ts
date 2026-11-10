@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_COLUMNS, fitColumns } from "./layout";
+import { ciOffset, DEFAULT_COLUMNS, fitColumns } from "./layout";
 
 const fit = (width: number, lanes: number, extra: Partial<Parameters<typeof fitColumns>[0]> = {}) =>
   fitColumns({
@@ -59,5 +59,21 @@ describe("fitting the graph's lanes", () => {
 
   it("leaves a branch column width chosen by dragging as it is", () => {
     expect(fit(500, 6, { columnWidths: { refs: 200, graph: null } }).refsWidth).toBe(200);
+  });
+});
+
+describe("ciOffset", () => {
+  it("puts a CI dot half outside a node's edge", () => {
+    // A 25px node (a 21px picture in a 2px ring): its centre 13.5px out along the diagonal.
+    expect(ciOffset({ avatar: true, dense: false, head: false, merge: false })).toBe(9.5);
+    // A plain dot: 7.5px out.
+    expect(ciOffset({ avatar: false, dense: false, head: false, merge: false })).toBe(5.5);
+  });
+
+  it("follows the node's size", () => {
+    // The checked-out commit's ring is thicker; compact rows and merges are smaller.
+    expect(ciOffset({ avatar: true, dense: false, head: true, merge: false })).toBe(10.5);
+    expect(ciOffset({ avatar: true, dense: true, head: false, merge: false })).toBe(7);
+    expect(ciOffset({ avatar: false, dense: false, head: false, merge: true })).toBe(3.5);
   });
 });

@@ -11,7 +11,10 @@ Tributary has no analytics, no crash reporting and no account of its own. It doe
 | **Pull requests and CI** | GitHub's or GitLab's API, for repositories hosted there | When a repository on GitHub or GitLab is open, to show pull requests, reviews and checks | The repository's name and branch names, with the token git keeps for that site, if it has one |
 | **Issues** | GitHub, GitLab, Jira or Linear | Only for the tracker you set up for a repository | The issue keys mentioned in commit messages and branch names, with the key you signed in with |
 | **Profile pictures** | GitHub, your GitLab server and Gravatar | Only if you turn on **Profile pictures**, which are off at first | For GitHub, the repository's name, to match its recent commits' authors to accounts; for GitLab, authors' email addresses; for Gravatar, a SHA-256 hash of each address, never the address itself |
-| **GitHub sign-in** | `api.github.com` | When you sign in to GitHub in Settings | The token you enter, to check whose it is |
+| **GitHub sign-in** | `api.github.com` | When you sign in to GitHub, and when the start screen, Settings or the clone dialog shows who's signed in | The token git keeps for GitHub (or the one you enter), to check whose it is |
+| **GitLab sign-in** | The GitLab server you sign in to (gitlab.com, or your company's) | When you sign in to GitLab, and when the start screen, Settings or the clone dialog shows who's signed in | The token git keeps for that server (or the one you enter), to check whose it is |
+| **Your account's picture** | GitHub's picture server, or your GitLab server (which may send it on from Gravatar) | When the start screen, Settings or the clone dialog shows who's signed in | Only the request for the picture of the account you're signed in as; it's fetched once per session |
+| **Your repositories to clone** | `api.github.com`, and your GitLab server | When the clone dialog opens while you're signed in | The token git keeps for each, to list your repositories |
 
 Links such as **Open on GitHub** open your web browser; Tributary doesn't fetch the page itself.
 

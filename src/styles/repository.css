@@ -197,14 +197,19 @@
   overflow: hidden;
 }
 
+/* A commit's node: its author's picture in a ring of its lane's colour. The ring is a shadow
+   of the picture itself, not a box around it: two boxes can be rounded to different pixels
+   and leave the picture off-centre in its ring, a shadow can't. */
 .graph-node {
+  --ring: var(--lane);
+  --ring-width: 2px;
   position: absolute;
   top: 50%;
   z-index: 1;
   display: flex;
-  padding: 2px;
   border-radius: 50%;
-  background: var(--lane);
+  background: var(--ring);
+  box-shadow: 0 0 0 var(--ring-width) var(--ring);
   transform: translate(-50%, -50%);
 }
 
@@ -213,47 +218,77 @@
 }
 
 .commit-list.dense .graph-node {
-  padding: 1.5px;
+  --ring-width: 1.5px;
 }
 
 /* The checked-out commit: a thicker ring, glowing a little. */
 .graph-node.head {
-  padding: 3px;
-  box-shadow: 0 0 9px -1px var(--lane);
+  --ring-width: 3px;
+  box-shadow:
+    0 0 0 var(--ring-width) var(--ring),
+    0 0 9px 2px var(--lane);
 }
 
 .graph-node.selected {
-  background: var(--graph-ring);
+  --ring: var(--graph-ring);
 }
 
-/* A faded commit: its picture faint on the list's background, in a muted ring of its lane's
-   colour. The backing keeps the lines behind it rather than showing through. */
+/* A faded commit: its picture faint on the list's background (which keeps the lines behind
+   it from showing through), in a muted ring of its lane's colour. */
 .commit-row.dimmed .graph-node {
-  background: color-mix(in srgb, var(--lane) 35%, var(--bg));
-}
-
-.commit-row.dimmed .graph-node.selected {
-  background: var(--graph-ring);
-}
-
-.commit-row.dimmed .graph-node::before {
-  content: "";
-  position: absolute;
-  inset: 2px;
-  z-index: -1;
-  border-radius: 50%;
+  --ring: color-mix(in srgb, var(--lane) 35%, var(--bg));
   background: var(--bg);
 }
 
-.commit-list.dense .commit-row.dimmed .graph-node::before {
-  inset: 1.5px;
-}
-
-.commit-row.dimmed .graph-node.head::before {
-  inset: 3px;
+.commit-row.dimmed .graph-node.selected {
+  --ring: var(--graph-ring);
 }
 
 .commit-row.dimmed .graph-node .avatar {
+  opacity: 0.35;
+}
+
+/* A commit's CI, half outside its node's lower right: passed, failed or running. A ring in
+   the row's colour cuts it out of the node. */
+.graph-ci {
+  --ci-ring: var(--bg);
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--ci-ring);
+  transform: translate(calc(-50% + var(--ci-offset)), calc(-50% + var(--ci-offset)));
+}
+
+.commit-list.dense .graph-ci {
+  width: 6px;
+  height: 6px;
+}
+
+.commit-row:hover .graph-ci {
+  --ci-ring: var(--bg-hover);
+}
+
+.commit-row.selected .graph-ci {
+  --ci-ring: var(--bg-selected);
+}
+
+.graph-ci.success {
+  background: var(--success);
+}
+
+.graph-ci.failure {
+  background: var(--danger);
+}
+
+.graph-ci.pending {
+  background: var(--warning);
+  animation: request-pending 1.4s ease-in-out infinite;
+}
+
+.commit-row.dimmed .graph-ci {
   opacity: 0.35;
 }
 

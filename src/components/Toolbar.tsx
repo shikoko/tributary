@@ -1,6 +1,7 @@
 import { useRef, type RefObject } from "react";
 import type { SearchMode } from "../app/useSearch";
 import type { RepoSnapshot } from "../api";
+import { describeCount } from "../lib/branchSync";
 import { plural, shortId } from "../lib/format";
 import { isMac, modKey } from "../lib/platform";
 import {
@@ -51,9 +52,12 @@ interface Props {
   refreshing: boolean;
   /** The remote action that is running, if any. */
   running: RemoteAction | null;
-  /** Commits the checked-out branch has that its upstream doesn't, and the other way round. */
+  /** How far the checked-out branch is ahead of its upstream, and behind it (a merge counts once). */
   ahead: number;
   behind: number;
+  /** The same in commits, those merges brought in too, when they were counted. */
+  aheadCommits?: number;
+  behindCommits?: number;
   search: SearchState;
   searchInput: RefObject<HTMLInputElement | null>;
   onSearch: (query: string) => void;
@@ -94,13 +98,13 @@ export function Toolbar(props: Props) {
     ? "Check out a branch to pull"
     : !snapshot.upstream
       ? `${snapshot.headBranch} has no upstream branch yet. Push it first.`
-      : `Pull ${snapshot.upstream.name} into ${snapshot.headBranch}`;
+      : `Pull ${snapshot.upstream.name} into ${snapshot.headBranch}${behind > 0 ? `: ${describeCount(behind, props.behindCommits)}` : ""}`;
   const pushTitle = !onBranch
     ? "Check out a branch to push"
     : !hasRemotes
       ? "This repository has no remotes"
       : snapshot.upstream
-        ? `Push ${snapshot.headBranch} to ${snapshot.upstream.name}`
+        ? `Push ${snapshot.headBranch} to ${snapshot.upstream.name}${ahead > 0 ? `: ${describeCount(ahead, props.aheadCommits)}` : ""}`
         : `Push ${snapshot.headBranch} and set its upstream`;
 
   return (

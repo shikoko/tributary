@@ -13,6 +13,15 @@ export function laneWidthFor(avatars: boolean, dense: boolean): number {
 export function nodeAvatarSize(dense: boolean): number {
   return dense ? 15 : 21;
 }
+
+/**
+ * Where a commit's CI dot sits, from the centre of its node: on the lower right, half
+ * outside the node's edge, whether that's an author's picture or a plain dot.
+ */
+export function ciOffset({ avatar, dense, head, merge }: { avatar: boolean; dense: boolean; head: boolean; merge: boolean }): number {
+  const radius = avatar ? (nodeAvatarSize(dense) + 2 * (head ? 3 : dense ? 1.5 : 2)) / 2 : merge ? 4 : head ? 8 : 6.5;
+  return Math.round(((radius + 1) / Math.SQRT2) * 2) / 2;
+}
 export const GRAPH_PADDING = 10;
 /** Default width of the branch and tag column, left of the graph. */
 const REFS_WIDTH = 180;
@@ -48,6 +57,8 @@ export interface ColumnOptions {
   dateFormat: "relative" | "exact";
   /** The date the commit was first written, or the date it was last committed (rebased, amended, …). */
   dateKind: "authored" | "committed";
+  /** A dot on each commit's node for its CI (missing in settings saved before it: on). */
+  checks?: boolean;
 }
 
 export const DEFAULT_COLUMNS: ColumnOptions = {
@@ -56,6 +67,7 @@ export const DEFAULT_COLUMNS: ColumnOptions = {
   sha: true,
   dateFormat: "relative",
   dateKind: "authored",
+  checks: true,
 };
 
 /** The optional columns that fit. */

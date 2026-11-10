@@ -18,7 +18,7 @@ import { Avatar } from "../Avatar";
 import { ChangeCounts } from "../ChangeCounts";
 import { laneX, type GraphMetrics } from "../graphPainter";
 import { RefPills } from "../RefPills";
-import { nodeAvatarSize, REFS_PADDING, type ColumnOptions, type VisibleColumns } from "./layout";
+import { ciOffset, nodeAvatarSize, REFS_PADDING, type ColumnOptions, type VisibleColumns } from "./layout";
 
 /** What a row does when it's clicked, hovered, … (the list's latest, read at the time). */
 export interface RowHandlers {
@@ -146,6 +146,14 @@ export const ListRow = memo(function ListRow(props: RowProps) {
             <Avatar name={commit.authorName} email={commit.authorEmail} size={nodeAvatarSize(dense)} />
           </span>
         )}
+        {ci && options.checks !== false && commit.kind === "commit" && (
+          <span
+            className={`graph-ci ${ci}`}
+            style={{ left: lane, ["--ci-offset" as string]: `${ciOffset({ avatar: authorNode, dense, head, merge: commit.parents.length > 1 })}px` }}
+            title={describeCiState(ci)}
+            aria-label={describeCiState(ci)}
+          />
+        )}
       </div>
       {commit.kind === "worktree" ? (
         <>
@@ -171,7 +179,6 @@ export const ListRow = memo(function ListRow(props: RowProps) {
             >
               {commit.summary || "(no message)"}
             </span>
-            {ci && <span className={`ci-dot ${ci}`} title={describeCiState(ci)} aria-label={describeCiState(ci)} />}
           </div>
           {visible.author && (
             <div className="cell author" title={`${commit.authorName} <${commit.authorEmail}>`}>

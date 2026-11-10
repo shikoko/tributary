@@ -7,26 +7,30 @@
   z-index: 80;
 }
 
-.tour-backdrop {
+/* The window dimmed but for the hole (TourOverlay's Dimming). */
+.tour-dim {
   position: absolute;
   inset: 0;
-  background: var(--tour-dim);
+  fill: var(--tour-dim);
+  pointer-events: none;
 }
 
+/* The highlight: a ring in the tour's colour, with a glow that breathes. Only its opacity is
+   animated, which is cheap; the shadows stay small. */
 .tour-hole {
   position: absolute;
   border-radius: 10px;
-  box-shadow:
-    0 0 0 2px var(--tour-color),
-    0 0 28px 6px var(--tour-glow),
-    0 0 0 9999px var(--tour-dim);
-  animation: tour-breathe 2.4s ease-in-out infinite;
-  transition:
-    left 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    top 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    width 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    height 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 0 0 2px var(--tour-color);
   pointer-events: none;
+}
+
+.tour-hole::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 34px 9px var(--tour-glow);
+  content: "";
+  animation: tour-breathe 2.4s ease-in-out infinite;
 }
 
 .tour-card {
@@ -38,6 +42,7 @@
   background:
     linear-gradient(155deg, var(--tour-soft), transparent 55%),
     rgb(var(--bg-rgb) / 0.9);
+  -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   box-shadow: 0 18px 50px var(--shadow-strong);
   animation: tour-card-in 220ms ease-out;
@@ -283,10 +288,11 @@
 }
 
 @keyframes tour-breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
   50% {
-    box-shadow:
-      0 0 0 2px var(--tour-color),
-      0 0 40px 12px var(--tour-glow),
-      0 0 0 9999px var(--tour-dim);
+    opacity: 1;
   }
 }

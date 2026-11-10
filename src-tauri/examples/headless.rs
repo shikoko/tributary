@@ -22,7 +22,7 @@ use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use tributary_lib::actions::{self, Action};
 use tributary_lib::error::{Error, Result};
-use tributary_lib::{diagnostics, git, github, locks, repo};
+use tributary_lib::{accounts, diagnostics, git, github, locks, repo};
 
 /// How many commits to load when a request doesn't say.
 const DEFAULT_LIMIT: usize = 10_000;
@@ -368,6 +368,32 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             )?)
         }
         "github_sign_out" => to_json(github::account::sign_out()?),
+        "github_repositories" => to_json(tauri::async_runtime::block_on(
+            accounts::github_repositories(),
+        )?),
+        "gitlab_status" => {
+            let host: String = arg(args, "host")?;
+            to_json(tauri::async_runtime::block_on(accounts::gitlab_status(
+                &host,
+            ))?)
+        }
+        "gitlab_sign_in" => {
+            let host: String = arg(args, "host")?;
+            let token: String = arg(args, "token")?;
+            to_json(tauri::async_runtime::block_on(accounts::gitlab_sign_in(
+                &host, &token,
+            ))?)
+        }
+        "gitlab_sign_out" => {
+            let host: String = arg(args, "host")?;
+            to_json(accounts::gitlab_sign_out(&host)?)
+        }
+        "gitlab_repositories" => {
+            let host: String = arg(args, "host")?;
+            to_json(tauri::async_runtime::block_on(
+                accounts::gitlab_repositories(&host),
+            )?)
+        }
         "reflog" => {
             let limit = optional(args, "limit")?.unwrap_or(300);
             to_json(repo::reflog(&path()?, limit)?)
@@ -382,6 +408,13 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "diagnostics" => {
             let path: Option<PathBuf> = optional(args, "path")?;
             to_json(diagnostics::diagnostics(path.as_deref()))
+        }
+        "third_party_notices" => {
+            let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+            let notices = std::fs::read_to_string(root.join("THIRD_PARTY_NOTICES.txt"))
+                .map_err(|e| Error::Message(e.to_string()))?;
+            let license = std::fs::read_to_string(root.join("LICENSE")).ok();
+            Ok(serde_json::json!({ "notices": notices, "license": license }))
         }
         "cancel_action" => to_json(git::cancel()),
         "activity_log" => to_json(git::activity()),

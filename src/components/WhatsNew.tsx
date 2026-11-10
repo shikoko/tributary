@@ -90,6 +90,7 @@ export function WhatsNewDialog({ releases, onClose }: { releases: Release[]; onC
       title={title(releases)}
       wide
       onCancel={onClose}
+      closable
       className="whats-new-dialog"
       buttons={
         <>

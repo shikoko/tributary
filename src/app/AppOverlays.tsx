@@ -6,13 +6,14 @@ import { forMenu, onStart, type Release } from "../lib/whatsNew";
 import { loadRecent } from "../lib/recent";
 import { useStoredState } from "../lib/settings";
 import { getVersion } from "@tauri-apps/api/app";
-import { signOutOfGitHub } from "../api";
 import type { Updates } from "../lib/updates";
 import { CloneDialog } from "../components/CloneDialog";
 import { CommandPalette, type Command } from "../components/CommandPalette";
 import { ContextMenu } from "../components/ContextMenu";
 import { DiagnosticsDialog } from "../components/DiagnosticsDialog";
+import { LicencesDialog } from "../components/LicencesDialog";
 import { GitHubSignInDialog } from "../components/GitHubSignInDialog";
+import { GitLabSignInDialog } from "../components/GitLabSignInDialog";
 import { FolderIcon } from "../components/Icons";
 import { SettingsDialog } from "../components/SettingsDialog";
 import { ShortcutsDialog } from "../components/ShortcutsDialog";
@@ -22,7 +23,7 @@ import { useAppRows } from "../components/AppRows";
 import { settingsTransferRow } from "../components/SettingsTransferRow";
 import { useDiffToolRows } from "../components/DiffToolRows";
 import { settingsSections } from "./settingsSections";
-import { useGitHubStatus } from "./useGitHub";
+import { GITLAB_COM, type Accounts } from "./useAccounts";
 import type { ContextMenuState } from "./useMenus";
 import type { Overlays } from "./useOverlays";
 import type { Preferences } from "./usePreferences";
@@ -44,8 +45,10 @@ interface Props {
   cloning: boolean;
   onCloneCancel: () => void;
   onCloned: (path: string) => void;
-  /** Signed in to GitHub (pull requests can be asked for again). */
+  /** Signed in to GitHub or GitLab (pull requests can be asked for again). */
   onSignedIn: () => void;
+  /** Who's signed in to GitHub and GitLab. */
+  accounts: Accounts;
   toast: ToastMessage | null;
   notify: (toast: ToastMessage) => void;
   hideToast: () => void;
@@ -58,7 +61,8 @@ export function AppOverlays(props: Props) {
   const { overlays, menu, preferences, updates, notify } = props;
   const { theme } = useContext(ThemeContext);
   const { open, hide, show } = overlays;
-  const github = useGitHubStatus(open.settings);
+  const { accounts } = props;
+  const { github, gitlab } = accounts;
   const appRows = useAppRows();
   const diffTools = useDiffToolRows({ open: open.settings, repoPath: props.repoPath, notify: (text) => notify({ text }) });
   const [version, setVersion] = useState<string | null>(null);
@@ -88,7 +92,14 @@ export function AppOverlays(props: Props) {
 
   return (
     <>
-      {props.cloning && <CloneDialog onCancel={props.onCloneCancel} onDone={props.onCloned} />}
+      {props.cloning && (
+        <CloneDialog
+          onCancel={props.onCloneCancel}
+          onDone={props.onCloned}
+          accounts={accounts}
+          onSignIn={(forge) => show(forge === "github" ? "signIn" : "gitlabSignIn")}
+        />
+      )}
       {open.palette && <CommandPalette commands={props.commands()} onClose={() => hide("palette")} />}
       {open.shortcuts && <ShortcutsDialog onClose={() => hide("shortcuts")} />}
       {open.whatsNew && shownNews.length > 0 && (
@@ -129,15 +140,13 @@ export function AppOverlays(props: Props) {
               hide("settings");
               void props.onGetLatestNow();
             },
-            github: {
-              status: github.status,
-              error: github.error,
-              onSignIn: () => show("signIn"),
-              onSignOut: () =>
-                signOutOfGitHub()
-                  .then(() => notify({ text: "Signed out of GitHub" }))
-                  .catch((e) => notify({ text: `Couldn't sign out: ${e}` }))
-                  .finally(github.recheck),
+            accounts: {
+              github: github.status,
+              githubError: github.error,
+              gitlab: gitlab.status,
+              gitlabError: gitlab.error,
+              onSignIn: (forge) => show(forge === "github" ? "signIn" : "gitlabSignIn"),
+              onSignOut: accounts.signOut,
             },
           })}
           onClose={() => hide("settings")}
@@ -150,7 +159,21 @@ export function AppOverlays(props: Props) {
           onDone={(account) => {
             hide("signIn");
             notify({ text: `Signed in to GitHub as ${account.login}` });
-            github.recheck();
+            accounts.recheck();
+            props.onSignedIn();
+          }}
+        />
+      )}
+      {open.gitlabSignIn && (
+        <GitLabSignInDialog
+          host={gitlab.host}
+          status={gitlab.status}
+          onCancel={() => hide("gitlabSignIn")}
+          onDone={(account, host) => {
+            hide("gitlabSignIn");
+            notify({ text: `Signed in to ${host === GITLAB_COM ? "GitLab" : host} as ${account.username}` });
+            gitlab.setHost(host);
+            accounts.recheck();
             props.onSignedIn();
           }}
         />
@@ -166,6 +189,7 @@ export function AppOverlays(props: Props) {
           onClose={() => hide("diagnostics")}
         />
       )}
+      {open.licences && <LicencesDialog onClose={() => hide("licences")} />}
       {open.update && updates.available && <UpdateDialog update={updates.available} onClose={() => hide("update")} />}
       {menu.menu && (
         <ContextMenu x={menu.menu.x} y={menu.menu.y} items={menu.menu.items} onSideways={menu.menu.onSideways} onClose={menu.close} />

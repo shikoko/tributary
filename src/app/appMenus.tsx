@@ -6,7 +6,7 @@ import type { NativeMenu } from "../lib/nativeMenu";
 import { isMac } from "../lib/platform";
 import { newPullRequestUrl, openInBrowser, siteName, webRemote } from "../lib/weblinks";
 import { splitRemoteBranch, type OpenDialog } from "../menus";
-import type { AppCommand, MenuEntry } from "./appCommand";
+import { isSubmenu, type AppCommand, type MenuEntry } from "./appCommand";
 import type { Running } from "./constants";
 import type { Preferences } from "./usePreferences";
 
@@ -91,7 +91,7 @@ export function helpCommandsFor(ctx: MenuBarContext): AppCommand[] {
     { id: "whats-new", label: "What's New", icon: <SparkleIcon />, run: ctx.do.whatsNew },
     { id: "tours", label: "Tours…", icon: <InfoIcon />, run: ctx.do.tours },
     { id: "diagnostics", label: "Copy Diagnostics…", icon: <CopyIcon />, run: ctx.do.diagnostics },
-    { id: "notices", label: "Third-Party Licences", icon: <NotesIcon />, run: ctx.do.notices },
+    { id: "notices", label: "Third-Party Licences…", icon: <NotesIcon />, run: ctx.do.notices },
   ];
 }
 
@@ -182,59 +182,88 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           { id: "shelves", label: "Shelves…", icon: <ShelfIcon />, run: () => run.dialog({ kind: "shelves" }) },
           { id: "local-history", label: "Local History…", icon: <HistoryIcon />, run: () => run.dialog({ kind: "localHistory" }) },
           "-",
-          { id: "new-branch", label: "New Branch…", icon: <BranchIcon />, enabled: Boolean(head) && canChange, run: () => head && run.dialog({ kind: "newBranch", target: head }) },
-          { id: "new-tag", label: "New Tag…", icon: <TagIcon />, enabled: Boolean(head) && canChange, run: () => head && run.dialog({ kind: "tag", target: head }) },
-          { id: "prune", label: "Prune Branches…", icon: <BroomIcon />, enabled: canChange, run: () => run.dialog({ kind: "prune" }) },
-          { id: "restore", label: "Restore Branch…", icon: <HistoryIcon />, enabled: canChange, run: () => run.dialog({ kind: "restore" }) },
-          { id: "new-worktree", label: "New Worktree…", icon: <FolderIcon />, enabled: Boolean(head) && canChange, run: () => head && run.dialog({ kind: "newWorktree", start: head }) },
-          "-",
-          { id: "file-history", label: "File History…", icon: <FileHistoryIcon />, run: () => run.history(false) },
-          { id: "folder-history", label: "Folder History…", icon: <FolderIcon />, run: () => run.history(true) },
-          ...(ctx.usesLocks ? [{ id: "lock-files", label: "Lock Files…", icon: <LockIcon />, enabled: canChange, run: run.lockFiles }] : []),
-          ...(ctx.usesLocks || ctx.usesLfs
-            ? [{ id: "prune-lfs", label: "Clean Up Git LFS Files…", icon: <BroomIcon />, enabled: canChange, run: () => run.dialog({ kind: "pruneLfs" }) }]
-            : []),
-          ...(ctx.lfsPointers > 0
-            ? [{ id: "download-lfs", label: "Download Git LFS Files", icon: <DownloadIcon />, enabled: canChange, run: () => run.act({ kind: "downloadLfsFiles" }, "download") }]
-            : []),
-          { id: "recover", label: "Recover Commits…", icon: <RecoverIcon />, run: () => run.dialog({ kind: "recover" }) },
-          { id: "project-setup", label: "Check Project Setup…", icon: <CheckIcon />, run: () => run.dialog({ kind: "projectSetup" }) },
-          { id: "repo-size", label: "What Makes It Big…", icon: <BroomIcon />, run: () => run.dialog({ kind: "repoSize" }) },
           {
-            id: "ignore-reason",
-            label: "Why Is a File Ignored…",
-            icon: <IgnoreIcon />,
-            run: async () => {
-              const file = await openFile({ multiple: false, directory: false, title: "Which file is left out?", defaultPath: snapshot.path });
-              if (typeof file === "string") run.dialog({ kind: "ignoreReason", file });
-            },
+            id: "branches-menu",
+            label: "Branches",
+            icon: <BranchIcon />,
+            entries: [
+              { id: "new-branch", label: "New Branch…", icon: <BranchIcon />, enabled: Boolean(head) && canChange, run: () => head && run.dialog({ kind: "newBranch", target: head }) },
+              { id: "new-tag", label: "New Tag…", icon: <TagIcon />, enabled: Boolean(head) && canChange, run: () => head && run.dialog({ kind: "tag", target: head }) },
+              { id: "new-worktree", label: "New Worktree…", icon: <FolderIcon />, enabled: Boolean(head) && canChange, run: () => head && run.dialog({ kind: "newWorktree", start: head }) },
+              ...(prUrl
+                ? [{ id: "pull-request", label: remote?.host === "gitlab" ? "Create Merge Request…" : "Create Pull Request…", icon: <PullRequestIcon />, run: () => run.dialog({ kind: "createPullRequest", branch: prBranch!, local: snapshot.headBranch, url: prUrl }) }]
+                : []),
+              "-",
+              { id: "prune", label: "Prune Branches…", icon: <BroomIcon />, enabled: canChange, run: () => run.dialog({ kind: "prune" }) },
+              { id: "restore", label: "Restore Branch…", icon: <HistoryIcon />, enabled: canChange, run: () => run.dialog({ kind: "restore" }) },
+            ],
           },
           {
-            id: "apply-patch",
-            label: "Apply Patch…",
-            icon: <DownloadIcon />,
-            enabled: canChange,
-            run: async () => {
-              const file = await openFile({ multiple: false, directory: false, title: "Apply a patch", filters: [{ name: "Patch", extensions: ["patch", "diff", "mbox", "eml"] }] });
-              if (typeof file === "string") run.dialog({ kind: "applyPatch", file });
-            },
+            id: "history-menu",
+            label: "History",
+            icon: <FileHistoryIcon />,
+            entries: [
+              { id: "file-history", label: "File History…", icon: <FileHistoryIcon />, run: () => run.history(false) },
+              { id: "folder-history", label: "Folder History…", icon: <FolderIcon />, run: () => run.history(true) },
+              "-",
+              { id: "recover", label: "Recover Commits…", icon: <RecoverIcon />, run: () => run.dialog({ kind: "recover" }) },
+              {
+                id: "apply-patch",
+                label: "Apply Patch…",
+                icon: <DownloadIcon />,
+                enabled: canChange,
+                run: async () => {
+                  const file = await openFile({ multiple: false, directory: false, title: "Apply a patch", filters: [{ name: "Patch", extensions: ["patch", "diff", "mbox", "eml"] }] });
+                  if (typeof file === "string") run.dialog({ kind: "applyPatch", file });
+                },
+              },
+            ],
+          },
+          {
+            id: "lfs-menu",
+            label: "Git LFS",
+            icon: <LockIcon />,
+            entries: [
+              ...(ctx.usesLocks ? [{ id: "lock-files", label: "Lock Files…", icon: <LockIcon />, enabled: canChange, run: run.lockFiles }] : []),
+              ...(ctx.lfsPointers > 0
+                ? [{ id: "download-lfs", label: "Download Git LFS Files", icon: <DownloadIcon />, enabled: canChange, run: () => run.act({ kind: "downloadLfsFiles" }, "download") }]
+                : []),
+              ...(ctx.usesLocks || ctx.usesLfs
+                ? [{ id: "prune-lfs", label: "Clean Up Git LFS Files…", icon: <BroomIcon />, enabled: canChange, run: () => run.dialog({ kind: "pruneLfs" }) }]
+                : []),
+            ],
+          },
+          {
+            id: "tools-menu",
+            label: "Tools",
+            icon: <SearchIcon />,
+            entries: [
+              { id: "project-setup", label: "Check Project Setup…", icon: <CheckIcon />, run: () => run.dialog({ kind: "projectSetup" }) },
+              { id: "repo-size", label: "What Makes It Big…", icon: <BroomIcon />, run: () => run.dialog({ kind: "repoSize" }) },
+              {
+                id: "ignore-reason",
+                label: "Why Is a File Ignored…",
+                icon: <IgnoreIcon />,
+                run: () => run.dialog({ kind: "ignoreReason", file: null }),
+              },
+            ],
           },
           "-",
-          ...(remote
-            ? [
-                { id: "open-web", label: `Open on ${siteName(remote)}`, icon: <ExternalLinkIcon />, run: () => openInBrowser(remote.url) },
-                ...(prUrl
-                  ? [{ id: "pull-request", label: remote.host === "gitlab" ? "Create Merge Request…" : "Create Pull Request…", icon: <PullRequestIcon />, run: () => run.dialog({ kind: "createPullRequest", branch: prBranch!, local: snapshot.headBranch, url: prUrl }) }]
-                  : []),
-              ]
-            : []),
-          { id: "reveal", label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, run: run.reveal },
-          ...(ctx.openApps.editor
-            ? [{ id: "open-editor", label: `Open in ${ctx.openApps.editor.name}`, icon: <CodeIcon />, run: () => ctx.openApps.editor && run.openIn(ctx.openApps.editor) }]
-            : []),
-          ...(ctx.openApps.terminal
-            ? [{ id: "open-terminal", label: `Open in ${ctx.openApps.terminal.name}`, icon: <TerminalIcon />, run: () => ctx.openApps.terminal && run.openIn(ctx.openApps.terminal) }]
-            : []),
+          {
+            id: "open-menu",
+            label: "Open",
+            icon: <ExternalLinkIcon />,
+            entries: [
+              ...(remote ? [{ id: "open-web", label: `Open on ${siteName(remote)}`, icon: <ExternalLinkIcon />, run: () => openInBrowser(remote.url) }] : []),
+              { id: "reveal", label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, run: run.reveal },
+              ...(ctx.openApps.editor
+                ? [{ id: "open-editor", label: `Open in ${ctx.openApps.editor.name}`, icon: <CodeIcon />, run: () => ctx.openApps.editor && run.openIn(ctx.openApps.editor) }]
+                : []),
+              ...(ctx.openApps.terminal
+                ? [{ id: "open-terminal", label: `Open in ${ctx.openApps.terminal.name}`, icon: <TerminalIcon />, run: () => ctx.openApps.terminal && run.openIn(ctx.openApps.terminal) }]
+                : []),
+            ],
+          },
           { id: "repo-settings", label: "Repository Settings…", icon: <GearIcon />, run: () => run.dialog({ kind: "repoSettings" }) },
           "-",
           settingCommands[2],
@@ -246,22 +275,33 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
   return menus();
 }
 
+/** Menu entries as macOS menu items, submenus included (and left out when empty). */
+function nativeItems(entries: MenuEntry[]): NativeMenu["items"] {
+  const items: NativeMenu["items"] = [];
+  let separated = false;
+  for (const entry of entries) {
+    if (entry === "-") {
+      separated = items.length > 0;
+      continue;
+    }
+    if (isSubmenu(entry)) {
+      const inside = nativeItems(entry.entries);
+      if (inside.length === 0) continue;
+      items.push({ submenu: entry.label, items: inside, separated });
+    } else {
+      items.push({ id: entry.id, label: entry.label, accelerator: entry.keys, enabled: entry.enabled ?? true, checked: entry.checked, separated });
+    }
+    separated = false;
+  }
+  return items;
+}
+
 /** The menus as macOS shows them: the app menu first, Edit after File and Window before Help. */
 export function nativeMenusFor(menus: AppMenuDefinition[]): NativeMenu[] {
   return [
     { label: "Tributary", items: [{ system: "About" }, { system: "Separator" }, { id: "settings", label: "Settings…", accelerator: "CmdOrCtrl+," }, { system: "Separator" }, { system: "Services" }, { system: "Separator" }, { system: "Hide" }, { system: "HideOthers" }, { system: "ShowAll" }, { system: "Separator" }, { system: "Quit" }] },
     ...menus.flatMap((m, index): NativeMenu[] => {
-      const items: NativeMenu["items"] = [];
-      let separated = false;
-      for (const entry of m.entries) {
-        if (entry === "-") {
-          separated = items.length > 0;
-          continue;
-        }
-        items.push({ id: entry.id, label: entry.label, accelerator: entry.keys, enabled: entry.enabled ?? true, checked: entry.checked, separated });
-        separated = false;
-      }
-      const menu = { label: m.label, items };
+      const menu = { label: m.label, items: nativeItems(m.entries) };
       if (index === 0) {
         return [menu, { label: "Edit", items: [{ system: "Undo" }, { system: "Redo" }, { system: "Separator" }, { system: "Cut" }, { system: "Copy" }, { system: "Paste" }, { system: "SelectAll" }] }];
       }

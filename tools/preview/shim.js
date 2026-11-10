@@ -84,6 +84,16 @@
       }, 400),
     );
 
+  /** The same for GitLab. */
+  const fakeGitLabSignIn = (token) =>
+    new Promise((resolve, reject) =>
+      setTimeout(() => {
+        if (token === "bad") return reject("GitLab didn't accept that token. Check that it was copied whole and hasn't expired.");
+        preview.gitlab.account = { username: "maya.chen", name: "Maya Chen" };
+        resolve(preview.gitlab.account);
+      }, 400),
+    );
+
   /** Pull requests, when they're faked: their details, and opening new ones. */
   const faking = () => preview.pullRequests !== undefined;
   const fakeDetails = ({ number }) => {
@@ -259,6 +269,15 @@
     github_sign_in: (args) => (preview.github ? fakeSignIn(args.token) : server("github_sign_in", args)),
     github_sign_in_with_browser: () => (preview.github ? fakeSignIn("browser") : server("github_sign_in_with_browser", {})),
     github_sign_out: () => (preview.github ? ((preview.github.account = null), null) : server("github_sign_out", {})),
+    github_repositories: () => (preview.github ? (preview.github.account ? structuredClone(preview.github.repos ?? []) : []) : server("github_repositories", {})),
+    gitlab_status: (args) =>
+      preview.gitlab
+        ? { host: args.host, account: preview.gitlab.account ?? null, tokenRejected: false, canKeepToken: true, browserSignIn: Boolean(preview.gitlab.browserSignIn) }
+        : server("gitlab_status", args),
+    gitlab_sign_in: (args) => (preview.gitlab ? fakeGitLabSignIn(args.token) : server("gitlab_sign_in", args)),
+    gitlab_sign_in_with_browser: (args) => (preview.gitlab ? fakeGitLabSignIn("browser") : server("gitlab_sign_in_with_browser", args)),
+    gitlab_sign_out: (args) => (preview.gitlab ? ((preview.gitlab.account = null), null) : server("gitlab_sign_out", args)),
+    gitlab_repositories: (args) => (preview.gitlab ? (preview.gitlab.account ? structuredClone(preview.gitlab.repos ?? []) : []) : server("gitlab_repositories", args)),
   };
 
   window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };

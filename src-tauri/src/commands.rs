@@ -8,7 +8,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::actions::{self, Action, Outcome};
 use crate::error::{Error, Result};
-use crate::{diagnostics, git, github, locks, repo, updates};
+use crate::{accounts, diagnostics, git, github, locks, repo, updates};
 
 /// How many commits to load when the frontend doesn't ask for a specific amount.
 const DEFAULT_LIMIT: usize = 10_000;
@@ -769,6 +769,42 @@ pub async fn github_sign_out() -> Result<()> {
     blocking(github::account::sign_out).await
 }
 
+/// Your repositories on GitHub, to clone one from a list (none when you aren't signed in).
+#[tauri::command]
+pub async fn github_repositories() -> Result<Vec<accounts::AccountRepo>> {
+    accounts::github_repositories().await
+}
+
+/// Who's signed in to a GitLab server (going by the token git keeps), and how one can sign in.
+#[tauri::command]
+pub async fn gitlab_status(host: String) -> Result<accounts::GitLabStatus> {
+    accounts::gitlab_status(&host).await
+}
+
+/// Sign in to a GitLab server with a personal access token, kept by git's credential helper.
+#[tauri::command]
+pub async fn gitlab_sign_in(host: String, token: String) -> Result<accounts::GitLabAccount> {
+    accounts::gitlab_sign_in(&host, &token).await
+}
+
+/// Sign in to a GitLab server in the browser, with Git Credential Manager.
+#[tauri::command]
+pub async fn gitlab_sign_in_with_browser(host: String) -> Result<accounts::GitLabAccount> {
+    accounts::gitlab_sign_in_with_browser(&host).await
+}
+
+/// Forget the token git keeps for a GitLab server.
+#[tauri::command]
+pub async fn gitlab_sign_out(host: String) -> Result<()> {
+    blocking(move || accounts::gitlab_sign_out(&host)).await
+}
+
+/// Your projects on a GitLab server, to clone one from a list (none when you aren't signed in).
+#[tauri::command]
+pub async fn gitlab_repositories(host: String) -> Result<Vec<accounts::AccountRepo>> {
+    accounts::gitlab_repositories(&host).await
+}
+
 /// The repository's working trees: the main one and the linked ones.
 #[tauri::command]
 pub async fn worktrees(path: String) -> Result<Vec<repo::Worktree>> {
@@ -806,24 +842,34 @@ pub async fn install_update(app: AppHandle) -> Result<()> {
     updates::install(&app).await
 }
 
-/// Open the licences of the software Tributary is made with (THIRD_PARTY_NOTICES.txt,
-/// installed beside the app) in the system's text viewer.
+/// The licences of the software Tributary is made with (THIRD_PARTY_NOTICES.txt) and
+/// Tributary's own (LICENSE), both installed beside the app.
 #[tauri::command]
-pub fn open_notices(app: AppHandle) -> Result<()> {
+pub fn third_party_notices(app: AppHandle) -> Result<Notices> {
     use tauri::Manager;
     use tauri::path::BaseDirectory;
-    use tauri_plugin_opener::OpenerExt;
 
-    let path = app
-        .path()
-        .resolve("THIRD_PARTY_NOTICES.txt", BaseDirectory::Resource)
-        .map_err(|e| e.to_string())?;
-    if !path.is_file() {
-        return Err("This copy of Tributary was installed without its list of licences: it's THIRD_PARTY_NOTICES.txt in Tributary's source code.".into());
-    }
-    app.opener()
-        .open_path(path.to_string_lossy(), None::<&str>)
-        .map_err(|e| format!("Couldn't open the list of licences ({e})").into())
+    let read = |name: &str| {
+        app.path()
+            .resolve(name, BaseDirectory::Resource)
+            .ok()
+            .and_then(|path| std::fs::read_to_string(path).ok())
+    };
+    let notices = read("THIRD_PARTY_NOTICES.txt").ok_or(
+        "This copy of Tributary was installed without its list of licences: it's THIRD_PARTY_NOTICES.txt in Tributary's source code.",
+    )?;
+    Ok(Notices {
+        notices,
+        license: read("LICENSE"),
+    })
+}
+
+/// What `third_party_notices` gives back.
+#[derive(serde::Serialize)]
+pub struct Notices {
+    pub notices: String,
+    /// Tributary's own licence, when it's installed too.
+    pub license: Option<String>,
 }
 
 /// Versions, the platform, and how the repository at `path` (if any) is set up, for
