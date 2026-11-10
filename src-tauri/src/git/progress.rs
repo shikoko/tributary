@@ -194,6 +194,7 @@ impl Git {
         use std::sync::mpsc::{RecvTimeoutError, channel};
         use std::time::Duration;
 
+        self.wait_for_index();
         let _working = super::Working::start();
         let (started, took) = (SystemTime::now(), Instant::now());
         on_progress(Progress {

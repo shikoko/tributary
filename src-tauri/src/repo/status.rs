@@ -1,6 +1,5 @@
 //! Uncommitted changes, like `git status`.
 
-use std::collections::HashSet;
 use std::path::Path;
 
 use gix::bstr::ByteSlice;
@@ -211,22 +210,17 @@ fn moved_submodules(repo: &gix::Repository, index: &gix::index::State) -> Vec<St
 /// a copy) have to be read again on every status, which takes seconds for big assets.
 /// `git status` stores their new timestamps in the index, like it does on the command
 /// line, so that only happens once. It runs in the background, and only takes the
-/// index's lock if nobody else holds it.
+/// index's lock if nobody else holds it; git commands someone asks for meanwhile wait for
+/// it, instead of finding the index locked.
 pub(super) fn refresh_index(repo: &gix::Repository) {
-    static REFRESHING: std::sync::LazyLock<std::sync::Mutex<HashSet<std::path::PathBuf>>> =
-        std::sync::LazyLock::new(Default::default);
     let Some(workdir) = repo.workdir().map(Path::to_owned) else {
         return;
     };
-    if !REFRESHING
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .insert(workdir.clone())
-    {
+    let Some(refreshing) = crate::git::refreshing_index(&workdir) else {
         return;
-    }
+    };
     std::thread::spawn(move || {
-        if let Ok(git) = crate::git::Git::find(workdir.clone()).map(|git| git.in_background()) {
+        if let Ok(git) = crate::git::Git::find(workdir).map(|git| git.in_background()) {
             let _ = git.run(&[
                 "status",
                 "--porcelain",
@@ -234,9 +228,6 @@ pub(super) fn refresh_index(repo: &gix::Repository) {
                 "--ignore-submodules",
             ]);
         }
-        REFRESHING
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .remove(&workdir);
+        drop(refreshing);
     });
 }

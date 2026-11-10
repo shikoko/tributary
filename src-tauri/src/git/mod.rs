@@ -7,11 +7,13 @@ pub mod install;
 pub mod lfs_progress;
 mod progress;
 
+use std::collections::HashSet;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::{Instant, SystemTime};
+use std::sync::{Condvar, LazyLock, Mutex};
+use std::time::{Duration, Instant, SystemTime};
 
 use self::activity::record;
 use crate::error::{Error, Result};
@@ -71,6 +73,7 @@ impl Git {
     /// `git merge-tree`, where 1 means "it conflicts"): the code and what it printed.
     /// Only failing to run git at all is an error.
     pub(crate) fn run_status(&self, args: &[&str]) -> Result<(Option<i32>, String)> {
+        self.wait_for_index();
         let _working = Working::start();
         let (started, took) = (SystemTime::now(), Instant::now());
         let output = command(&self.executable)
@@ -94,6 +97,7 @@ impl Git {
         args: &[&str],
         env: &[(&str, &str)],
     ) -> Result<String, Error> {
+        self.wait_for_index();
         let _working = Working::start();
         let (started, took) = (SystemTime::now(), Instant::now());
         let output = command(&self.executable)
@@ -276,6 +280,67 @@ pub(super) fn error_message(
     activity::without_credentials(&message)
 }
 
+/// The working trees whose index is being refreshed in the background (see
+/// `repo::status`), and a way to wait until that's done.
+static REFRESHING: LazyLock<(Mutex<HashSet<PathBuf>>, Condvar)> = LazyLock::new(Default::default);
+
+/// The same folder however it's written (a symlinked temporary folder, say).
+fn same_folder(path: &Path) -> PathBuf {
+    path.canonicalize().unwrap_or_else(|_| path.to_owned())
+}
+
+/// While this lives, a working tree's index is being refreshed in the background.
+pub(crate) struct RefreshingIndex(PathBuf);
+
+/// Mark `workdir`'s index as being refreshed in the background, so the git commands
+/// someone asked for there wait for it instead of failing on the index's lock. None when
+/// a refresh is under way there already.
+pub(crate) fn refreshing_index(workdir: &Path) -> Option<RefreshingIndex> {
+    let folder = same_folder(workdir);
+    let mut refreshing = REFRESHING.0.lock().unwrap_or_else(|e| e.into_inner());
+    refreshing
+        .insert(folder.clone())
+        .then_some(RefreshingIndex(folder))
+}
+
+impl Drop for RefreshingIndex {
+    fn drop(&mut self) {
+        let (refreshing, done) = &*REFRESHING;
+        refreshing
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&self.0);
+        done.notify_all();
+    }
+}
+
+impl Git {
+    /// Before a command someone asked for: wait (ten seconds at most) for a background
+    /// refresh of this working tree's index, which holds the index's lock while it writes.
+    fn wait_for_index(&self) {
+        if self.background {
+            return;
+        }
+        let (refreshing, done) = &*REFRESHING;
+        let mut refreshing = refreshing.lock().unwrap_or_else(|e| e.into_inner());
+        if refreshing.is_empty() {
+            return;
+        }
+        let folder = same_folder(&self.workdir);
+        let until = Instant::now() + Duration::from_secs(10);
+        while refreshing.contains(&folder) {
+            let left = until.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                return;
+            }
+            refreshing = done
+                .wait_timeout(refreshing, left)
+                .unwrap_or_else(|e| e.into_inner())
+                .0;
+        }
+    }
+}
+
 /// How many git commands are running, so an update can wait until none are.
 static WORKING: AtomicUsize = AtomicUsize::new(0);
 
@@ -311,4 +376,47 @@ pub(crate) fn command(executable: &Path) -> Command {
         command.creation_flags(CREATE_NO_WINDOW);
     }
     command
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn waits_for_a_background_refresh_of_the_index() {
+        let folder = std::env::temp_dir().join(format!("tributary-refresh-{}", std::process::id()));
+        std::fs::create_dir_all(&folder).unwrap();
+        let refreshing = refreshing_index(&folder).unwrap();
+        assert!(
+            refreshing_index(&folder).is_none(),
+            "two refreshes of one index at once"
+        );
+
+        // A command someone asked for waits until the refresh is done.
+        let git = Git {
+            executable: PathBuf::from("git"),
+            workdir: folder.clone(),
+            background: false,
+        };
+        let started = Instant::now();
+        let release = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(300));
+            drop(refreshing);
+        });
+        git.wait_for_index();
+        assert!(started.elapsed() >= Duration::from_millis(250));
+        release.join().unwrap();
+
+        // Background work doesn't wait, and neither does another repository.
+        let _refreshing = refreshing_index(&folder).unwrap();
+        let started = Instant::now();
+        git.in_background().wait_for_index();
+        Git {
+            workdir: folder.join("elsewhere"),
+            ..git.clone()
+        }
+        .wait_for_index();
+        assert!(started.elapsed() < Duration::from_millis(200));
+        let _ = std::fs::remove_dir_all(&folder);
+    }
 }
