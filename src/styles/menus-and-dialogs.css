@@ -799,12 +799,165 @@ body.resizing * {
   color: var(--info-text);
 }
 
-.ignore-rule {
+/* Why a file is ignored: an introduction in three steps, then the rule that leaves it out. */
+.dialog.ignore-window {
+  width: min(600px, 100%);
+}
+
+.ignore-lead {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.ignore-lead strong {
+  color: var(--text);
+}
+
+.ignore-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
   margin: 0;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--bg-panel);
+  padding: 0;
+  list-style: none;
+}
+
+.ignore-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.ignore-steps strong {
+  color: var(--text);
   font-size: 13px;
+}
+
+.ignore-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Blue, pink and green, as in the logo; tints that suit either theme. */
+.ignore-steps li:nth-child(1) .ignore-step-number {
+  background: rgb(var(--accent-rgb) / 0.18);
+  color: var(--accent-text);
+}
+
+.ignore-steps li:nth-child(2) .ignore-step-number {
+  background: rgb(var(--pink-rgb) / 0.18);
+  color: rgb(var(--pink-rgb));
+}
+
+.ignore-steps li:nth-child(3) .ignore-step-number {
+  background: rgb(var(--success-rgb) / 0.18);
+  color: var(--success-text);
+}
+
+.ignore-skip {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.ignore-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ignore-file {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.ignore-file svg {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.ignore-rule-card {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.ignore-rule-card figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.ignore-rule-line {
+  color: var(--text-muted);
+}
+
+.ignore-rule-card pre {
+  display: flex;
+  margin: 0;
+  padding: 12px 12px 12px 0;
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ignore-gutter {
+  flex: none;
+  min-width: 34px;
+  padding-right: 12px;
+  color: var(--text-faint);
+  text-align: right;
+  user-select: none;
+}
+
+.ignore-note {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.ignore-clear {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgb(var(--success-rgb) / 0.35);
+  border-radius: 10px;
+  background: rgb(var(--success-rgb) / 0.08);
+  line-height: 1.5;
+}
+
+.ignore-clear svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--success);
 }
 
 /* What's new, after an update. */

@@ -44,7 +44,8 @@ export type OpenDialog =
   /** Open a pull request for `branch` (its name on the remote); `url` opens it on the site instead. */
   | { kind: "createPullRequest"; branch: string; local: string | null; url: string | null }
   /** Why a file (absolute, or relative to the repository) is ignored. */
-  | { kind: "ignoreReason"; file: string }
+  /** Why a file is ignored: the file, or null to choose one (after an introduction). */
+  | { kind: "ignoreReason"; file: string | null }
   /** What makes the repository big, and moving big files into Git LFS. */
   | { kind: "repoSize" }
   | { kind: "projectSetup" }

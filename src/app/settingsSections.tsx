@@ -69,6 +69,13 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
           value: !preferences.toursOff,
           set: (offered) => preferences.setToursOff(!offered),
         },
+        {
+          kind: "toggle",
+          label: "Introduce Why Is a File Ignored…",
+          hint: "What it does, before you choose a file (Repository → Tools).",
+          value: !preferences.skipIgnoreIntro,
+          set: (shown) => preferences.setSkipIgnoreIntro(!shown),
+        },
         { kind: "toggle", label: "Reopen tabs on launch", value: reopenTabs, set: setReopenTabs },
         ...apps,
         {
