@@ -77,6 +77,8 @@
   min-width: 0;
   padding: 16px 22px;
   overflow-y: auto;
+  /* Another section eases in rather than swapping at once. */
+  animation: lift-in 0.16s ease-out;
 }
 
 .settings-panel h3 {

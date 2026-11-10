@@ -94,6 +94,11 @@
   cursor: default;
 }
 
+/* A closed tab on its way out: only there to shrink away. */
+.tab.tab-ghost {
+  pointer-events: none;
+}
+
 .tab:hover {
   background: var(--chrome-hover);
   color: var(--text-secondary);

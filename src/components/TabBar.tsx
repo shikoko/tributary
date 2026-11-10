@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 import { CloseIcon, Logo, PlusIcon } from "./Icons";
 import { stepFocus } from "../lib/inputMode";
+import { growIn, shrinkAway } from "../lib/motion";
 import { isWindows, modKey } from "../lib/platform";
 import { WindowControls } from "./WindowControls";
 
@@ -52,17 +53,66 @@ function ProgressRing({ percent }: { percent: number | null }) {
 }
 
 /**
+ * New tabs grow into place and closed ones shrink away (a copy where they were, however
+ * they were closed). Nothing moves when the tabs first show, and a repository opened from
+ * the start screen's tab takes that tab's place without either moving.
+ */
+function useTabMotion(row: RefObject<HTMLDivElement | null>, tabs: Tab[], startTab: boolean) {
+  const last = useRef<{ paths: string[]; nodes: Map<string, HTMLElement>; start: HTMLElement | null } | null>(null);
+  useLayoutEffect(() => {
+    const element = row.current;
+    if (!element) return;
+    const nodes = new Map<string, HTMLElement>();
+    element.querySelectorAll<HTMLElement>(":scope > .tab[data-path]").forEach((node) => nodes.set(node.dataset.path!, node));
+    // (Never a copy on its way out.)
+    const start = element.querySelector<HTMLElement>(":scope > .start-tab:not(.tab-ghost)");
+    const before = last.current;
+    const paths = tabs.map((tab) => tab.path);
+    last.current = { paths, nodes, start };
+    if (!before) return;
+
+    const added = paths.filter((path) => !before.paths.includes(path));
+    const replaced = before.start !== null && start === null && added.length > 0;
+    if (!replaced) for (const path of added) growIn(nodes.get(path)!);
+    if (start && !before.start) growIn(start);
+
+    const leave = (old: HTMLElement, next: Element | null) => {
+      const ghost = old.cloneNode(true) as HTMLElement;
+      for (const name of ["role", "data-path", "tabindex", "aria-selected", "title"]) ghost.removeAttribute(name);
+      ghost.setAttribute("aria-hidden", "true");
+      ghost.classList.add("tab-ghost");
+      element.insertBefore(ghost, next);
+      const animation = shrinkAway(ghost);
+      if (animation) animation.finished.then(() => ghost.remove(), () => ghost.remove());
+      else ghost.remove();
+    };
+    const after = (index: number) =>
+      before.paths
+        .slice(index + 1)
+        .map((path) => nodes.get(path))
+        .find(Boolean) ?? element.querySelector(":scope > .start-tab:not(.tab-ghost), :scope > .tab-new");
+    before.paths.forEach((path, index) => {
+      const old = before.nodes.get(path);
+      if (!paths.includes(path) && old) leave(old, after(index));
+    });
+    if (before.start && !start && !replaced) leave(before.start, element.querySelector(":scope > .tab-new"));
+  }, [row, tabs, startTab]);
+}
+
+/**
  * One tab per open repository. It's also the title bar: the empty space drags the window,
  * and on Windows the minimize, maximize and close buttons are at its right.
  */
 export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseStart, onNew, menuBar, extra, news, onContextMenu, busy }: Props) {
+  const row = useRef<HTMLDivElement>(null);
+  useTabMotion(row, tabs, startTab);
   return (
     <div className={`tab-bar${isWindows ? " with-window-controls" : ""}`} data-tauri-drag-region>
       <span className="tab-logo" data-tauri-drag-region>
         <Logo size={20} />
       </span>
       {menuBar}
-      <div className="tabs" role="tablist">
+      <div ref={row} className="tabs" role="tablist">
         {tabs.map((tab, index) => (
           <div
             key={tab.path}

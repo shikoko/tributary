@@ -88,7 +88,7 @@ export function SettingsDialog({
           })}
         </nav>
         {section && (
-          <section className="settings-panel" id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${section.title}`}>
+          <section key={section.title} className="settings-panel" id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${section.title}`}>
             <h3>
               {section.title}
               {section.subtitle && <span className="settings-panel-subtitle">{section.subtitle}</span>}

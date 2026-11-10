@@ -24,6 +24,7 @@ import { paletteCommands } from "./app/paletteCommands";
 import { RepositoryView } from "./app/RepositoryView";
 import { StartView } from "./app/StartView";
 import { useAccounts } from "./app/useAccounts";
+import { useViewFade } from "./app/useViewFade";
 import { useActions } from "./app/useActions";
 import { useBackgroundFetch } from "./app/useBackgroundFetch";
 import { useLocalHistory } from "./app/useLocalHistory";
@@ -409,6 +410,7 @@ export default function App() {
         })));
 
   const showTabBar = Boolean(snapshot) || tabs.length > 0 || menuBar.element !== undefined;
+  useViewFade(snapshot ? `repository:${snapshot.path}` : "start");
   return (
     <ThemeContext.Provider value={theme}>
     <BranchSyncContext.Provider value={counts.aheadBehind}>
