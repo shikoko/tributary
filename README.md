@@ -20,7 +20,7 @@
 
 <p align="center">
   Tributary is free and open source, with no ads and no tracking, made by one person in their spare time.<br>
-  If it's made git a little easier for you, your support pays for the time behind every new feature and fix.<br><br>
+  If it's made git a little easier for you, your support means a lot.<br><br>
   <a href="https://github.com/sponsors/shikoko"><img src="docs/images/support.svg" alt="Support Tributary on GitHub Sponsors" height="44"></a>
 </p>
 
