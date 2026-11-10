@@ -13,10 +13,13 @@
 //   Windows: msedgedriver.exe matching your Edge's version, on the PATH
 //
 // The app runs with its own temporary home folder and git settings: your real settings,
-// repositories and Tributary's own data aren't touched.
+// repositories and Tributary's own data aren't touched. It's built with an identifier of its
+// own, so it keeps its data apart from your Tributary's even where the home folder doesn't
+// decide that (on Windows, the app's folders and its web view's storage are where Windows
+// says, whatever HOME is).
 
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -50,25 +53,68 @@ if (missing) {
   process.exit(1);
 }
 
-// The app, built with its pages inside it (as a release has them).
-const binary = join(root, "src-tauri", "target", "debug", windows ? "tributary.exe" : "tributary");
+// The app, built with its pages inside it (as a release has them), with an identifier of its
+// own, in a target folder of its own (so a `tauri dev` build, which has the real identifier,
+// is never the one tested).
+const IDENTIFIER = "io.github.shikoko.tributary.e2e";
+const target = join(root, "src-tauri", "target", "e2e");
+const binary = join(target, "debug", windows ? "tributary.exe" : "tributary");
 if (!process.argv.includes("--no-build")) {
   console.log("Building the app…");
   execFileSync("npm", ["run", "build"], { cwd: root, stdio: "inherit", shell: windows });
-  execFileSync("cargo", ["build", "--manifest-path", "src-tauri/Cargo.toml", "--features", "tauri/custom-protocol"], { cwd: root, stdio: "inherit" });
+  execFileSync("cargo", ["build", "--manifest-path", "src-tauri/Cargo.toml", "--features", "tauri/custom-protocol", "--target-dir", target], {
+    cwd: root,
+    stdio: "inherit",
+    env: { ...process.env, TAURI_CONFIG: JSON.stringify({ identifier: IDENTIFIER }) },
+  });
 }
 if (!existsSync(binary)) {
   console.error(`The app isn't built (${binary}): run without --no-build.`);
   process.exit(1);
 }
+if (!readFileSync(binary).includes(IDENTIFIER)) {
+  console.error(`${binary} wasn't built for these tests (it would use your own Tributary's data): run without --no-build.`);
+  process.exit(1);
+}
+
+// Where Windows keeps the app's data and its web view's storage (a first start each time).
+// Elsewhere they're in the temporary home folder.
+function forgetAppData() {
+  if (!windows) return;
+  for (const folder of [process.env.APPDATA, process.env.LOCALAPPDATA]) {
+    // The web view's helper processes can hold its files for a moment after the app quits.
+    if (folder) rmSync(join(folder, IDENTIFIER), { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+  }
+}
+forgetAppData();
 
 // A home of its own, demo repositories, and git settings that aren't yours.
 const sandbox = mkdtempSync(join(tmpdir(), "tributary-e2e-"));
+// However the run ends (a failure while setting up too): tauri-driver stops, and the
+// temporary home, the demos and the app's own data go.
+let driver = null;
+process.on("exit", () => {
+  driver?.kill();
+  rmSync(sandbox, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+  try {
+    forgetAppData();
+  } catch {
+    // Cleared again at the next start.
+  }
+});
 const { buildDemos, demoEnv } = await import("../preview/demo.mjs");
 const demos = buildDemos(join(sandbox, "Projects"));
+// No credential helper either: git's system settings can name one (Git for Windows sets
+// its Credential Manager), and the app asks it for a GitHub token when a repository has a
+// GitHub remote, as the studio demo does.
+const demo = demoEnv(demos);
+const settings = Number(demo.GIT_CONFIG_COUNT ?? 0);
 const env = {
   ...process.env,
-  ...demoEnv(demos),
+  ...demo,
+  GIT_CONFIG_COUNT: String(settings + 1),
+  [`GIT_CONFIG_KEY_${settings}`]: "credential.helper",
+  [`GIT_CONFIG_VALUE_${settings}`]: "",
   HOME: join(sandbox, "home"),
   XDG_DATA_HOME: join(sandbox, "home", ".local", "share"),
   XDG_CONFIG_HOME: join(sandbox, "home", ".config"),
@@ -78,14 +124,13 @@ mkdirSync(env.HOME, { recursive: true });
 // tauri-driver, on a screen of its own when there isn't one.
 const port = 4444;
 const [command, args] = !windows && !process.env.DISPLAY ? ["xvfb-run", ["-a", "tauri-driver", "--port", String(port)]] : ["tauri-driver", ["--port", String(port)]];
-const driver = spawn(command, args, { env, stdio: ["ignore", "inherit", "inherit"] });
+driver = spawn(command, args, { env, stdio: ["ignore", "inherit", "inherit"] });
 const server = `http://127.0.0.1:${port}`;
 for (let tries = 0; ; tries++) {
   const up = await fetch(`${server}/status`).then((response) => response.ok, () => false);
   if (up) break;
   if (tries > 50) {
     console.error("tauri-driver didn't start");
-    driver.kill();
     process.exit(1);
   }
   await new Promise((resolve) => setTimeout(resolve, 200));
@@ -185,8 +230,6 @@ try {
   });
 } finally {
   await app.quit();
-  driver.kill();
-  rmSync(sandbox, { recursive: true, force: true });
 }
 
 console.log(failures === 0 ? "All good" : `${failures} failed (screenshots in tools/e2e/output)`);
