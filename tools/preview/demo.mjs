@@ -425,10 +425,19 @@ function blend(back) {
   ]);
 }
 
+/**
+ * What git runs with outside `repository`: none of your own git setup either. (Git for
+ * Windows' own settings turn on core.autocrlf, say: a clone made with it has CRLF line
+ * endings that `repository`'s git, without it, then takes for changes.)
+ */
+function gitEnv(configFile) {
+  return { ...process.env, GIT_CONFIG_GLOBAL: configFile, GIT_CONFIG_NOSYSTEM: "1" };
+}
+
 function setUp(folder, configFile) {
   rmSync(folder, { recursive: true, force: true });
   mkdirSync(folder, { recursive: true });
-  execFileSync("git", ["init", "-q", "--initial-branch=main", folder], { env: { ...process.env, GIT_CONFIG_GLOBAL: configFile } });
+  execFileSync("git", ["init", "-q", "--initial-branch=main", folder], { env: gitEnv(configFile) });
   execFileSync("git", ["-C", folder, "config", "user.name", PEOPLE.maya[0]]);
   execFileSync("git", ["-C", folder, "config", "user.email", PEOPLE.maya[1]]);
   execFileSync("git", ["-C", folder, "config", "commit.gpgsign", "false"]);
@@ -439,7 +448,7 @@ function remote(root, name, configFile) {
   const bare = join(root, "remotes", `${name}.git`);
   rmSync(bare, { recursive: true, force: true });
   mkdirSync(dirname(bare), { recursive: true });
-  execFileSync("git", ["init", "-q", "--bare", "--initial-branch=main", bare], { env: { ...process.env, GIT_CONFIG_GLOBAL: configFile } });
+  execFileSync("git", ["init", "-q", "--bare", "--initial-branch=main", bare], { env: gitEnv(configFile) });
   return bare;
 }
 
@@ -629,7 +638,7 @@ export function buildNotebook(root, configFile) {
   run(["branch", "-q", "--set-upstream-to=origin/feature/export", "feature/export"]);
   const teammate = join(root, "remotes", "notebook-teammate");
   rmSync(teammate, { recursive: true, force: true });
-  execFileSync("git", ["clone", "-q", origin, teammate], { env: { ...process.env, GIT_CONFIG_GLOBAL: configFile } });
+  execFileSync("git", ["clone", "-q", origin, teammate], { env: gitEnv(configFile) });
   const priya = repository(teammate, { configFile, start: now() - 3600 });
   priya.run(["commit", "-q", "--allow-empty", "-m", "Tidy up the settings screen"], { who: "priya" });
   priya.run(["push", "-q", "origin", "main", "HEAD:refs/heads/feature/onboarding"]);
