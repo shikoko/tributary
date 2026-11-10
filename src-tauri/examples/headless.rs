@@ -360,6 +360,9 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
                 tributary_lib::avatars::avatars(&path()?, emails),
             )?)
         }
+        "git_install" => to_json(git::install::installed()),
+        "look_for_git" => to_json(git::install::look_again()),
+        "install_command_line_tools" => to_json(git::install::install_command_line_tools()?),
         "github_status" => to_json(tauri::async_runtime::block_on(github::account::status())?),
         "github_sign_in" => {
             let token: String = arg(args, "token")?;

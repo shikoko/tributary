@@ -2,6 +2,7 @@ import { forgetRepo, pinRepo } from "../lib/recent";
 import { isMac } from "../lib/platform";
 import { Welcome } from "../components/Welcome";
 import type { Accounts, Forge } from "./useAccounts";
+import type { GitInstallState } from "./useGitInstall";
 import type { Repository } from "./useRepository";
 import { useRecentSummaries } from "./useRecentSummaries";
 
@@ -12,10 +13,11 @@ interface Props {
   onClone: () => void;
   accounts: Accounts;
   onSignIn: (forge: Forge) => void;
+  git: GitInstallState;
 }
 
 /** The start screen: open, clone or create a repository, or pick a recent one. */
-export function StartView({ repo, tabBar, onClone, accounts, onSignIn }: Props) {
+export function StartView({ repo, tabBar, onClone, accounts, onSignIn, git }: Props) {
   const { recent, setRecent, busy, error } = repo;
   const summaries = useRecentSummaries(recent, true);
   return (
@@ -34,6 +36,7 @@ export function StartView({ repo, tabBar, onClone, accounts, onSignIn }: Props) 
         onPin={(path, pinned) => setRecent(pinRepo(path, pinned))}
         accounts={accounts}
         onSignIn={onSignIn}
+        git={git}
       />
     </>
   );

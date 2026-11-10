@@ -3,6 +3,7 @@
 
 mod activity;
 mod credentials;
+pub mod install;
 pub mod lfs_progress;
 mod progress;
 
@@ -48,24 +49,10 @@ impl Git {
         }
     }
 
-    /// The user's git, to run in `workdir`. Apps started from the macOS Finder don't get
-    /// the shell's `PATH`, so common install locations are tried as well.
+    /// The user's git, to run in `workdir`: the one found before (see [`install`], which
+    /// knows where to look, and never runs Apple's placeholder git).
     pub(crate) fn find(workdir: PathBuf) -> Result<Self, Error> {
-        let candidates = [
-            "git",
-            "/opt/homebrew/bin/git",
-            "/usr/local/bin/git",
-            "/usr/bin/git",
-        ];
-        let executable = candidates
-            .iter()
-            .map(PathBuf::from)
-            .find(|candidate| {
-                command(candidate)
-                    .arg("--version")
-                    .output()
-                    .is_ok_and(|output| output.status.success())
-            })
+        let executable = install::executable()
             .ok_or("This needs git, which wasn't found. Install it from https://git-scm.com and try again.")?;
         Ok(Git {
             executable,
