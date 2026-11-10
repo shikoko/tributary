@@ -194,6 +194,8 @@ struct RawCheckRun {
     conclusion: Option<String>,
     html_url: Option<String>,
     details_url: Option<String>,
+    started_at: Option<String>,
+    completed_at: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -208,6 +210,8 @@ struct RawStatus {
     state: String,
     target_url: Option<String>,
     description: Option<String>,
+    created_at: Option<String>,
+    updated_at: Option<String>,
 }
 
 /// Each reviewer's latest say: an approval or a request for changes counts over comments,
@@ -248,6 +252,11 @@ fn reviews(raw: Vec<RawReview>, requested: Vec<String>) -> Vec<Review> {
 }
 
 fn run_check(run: RawCheckRun) -> Check {
+    // Waiting for a runner: it hasn't started, whatever its started_at says.
+    let queued = matches!(
+        run.status.as_str(),
+        "queued" | "waiting" | "pending" | "requested"
+    );
     let state = if run.status != "completed" {
         Some(CheckState::Pending)
     } else {
@@ -263,21 +272,28 @@ fn run_check(run: RawCheckRun) -> Check {
         name: run.name,
         state,
         url: run.html_url.or(run.details_url),
-        detail: None,
+        detail: queued.then(|| "Queued".to_string()),
+        started_at: run.started_at.filter(|_| !queued),
+        finished_at: run.completed_at,
     }
 }
 
 fn status_check(status: RawStatus) -> Check {
+    let state = match status.state.as_str() {
+        "success" => Some(CheckState::Success),
+        "pending" => Some(CheckState::Pending),
+        "failure" | "error" => Some(CheckState::Failure),
+        _ => None,
+    };
+    // A status is set when it starts and changed when it ends.
+    let finished = state != Some(CheckState::Pending);
     Check {
         name: status.context,
-        state: match status.state.as_str() {
-            "success" => Some(CheckState::Success),
-            "pending" => Some(CheckState::Pending),
-            "failure" | "error" => Some(CheckState::Failure),
-            _ => None,
-        },
+        state,
         url: status.target_url.filter(|url| !url.is_empty()),
         detail: status.description.filter(|text| !text.is_empty()),
+        started_at: status.created_at,
+        finished_at: status.updated_at.filter(|_| finished),
     }
 }
 
@@ -456,9 +472,12 @@ mod tests {
     fn reads_checks_and_statuses() {
         let runs: RawCheckRuns = serde_json::from_str(
             r#"{"check_runs": [
-              {"name": "build", "status": "completed", "conclusion": "success", "html_url": "https://github.com/a/b/runs/1"},
-              {"name": "test", "status": "in_progress", "conclusion": null, "html_url": null, "details_url": "https://ci.example.com/2"},
-              {"name": "deploy", "status": "completed", "conclusion": "skipped"}
+              {"name": "build", "status": "completed", "conclusion": "success", "html_url": "https://github.com/a/b/runs/1",
+               "started_at": "2026-11-10T10:00:00Z", "completed_at": "2026-11-10T10:02:13Z"},
+              {"name": "test", "status": "in_progress", "conclusion": null, "html_url": null, "details_url": "https://ci.example.com/2",
+               "started_at": "2026-11-10T10:00:05Z", "completed_at": null},
+              {"name": "deploy", "status": "completed", "conclusion": "skipped"},
+              {"name": "package", "status": "queued", "conclusion": null, "started_at": "2026-11-10T10:00:00Z"}
             ]}"#,
         )
         .unwrap();
@@ -467,12 +486,29 @@ mod tests {
         assert_eq!(checks[1].state, Some(CheckState::Pending));
         assert_eq!(checks[1].url.as_deref(), Some("https://ci.example.com/2"));
         assert_eq!(checks[2].state, None);
+        // How long they took, or have been running.
+        assert_eq!(
+            checks[0].finished_at.as_deref(),
+            Some("2026-11-10T10:02:13Z")
+        );
+        assert_eq!(
+            checks[1].started_at.as_deref(),
+            Some("2026-11-10T10:00:05Z")
+        );
+        assert_eq!(checks[1].finished_at, None);
+        // Waiting for a runner: queued, not running yet.
+        assert_eq!(checks[3].state, Some(CheckState::Pending));
+        assert_eq!(checks[3].detail.as_deref(), Some("Queued"));
+        assert_eq!(checks[3].started_at, None);
         let status = status_check(RawStatus {
             context: "ci/jenkins".into(),
             state: "error".into(),
             target_url: Some(String::new()),
             description: Some("Build broke".into()),
+            created_at: Some("2026-11-10T10:00:00Z".into()),
+            updated_at: Some("2026-11-10T10:04:00Z".into()),
         });
+        assert_eq!(status.finished_at.as_deref(), Some("2026-11-10T10:04:00Z"));
         assert_eq!(status.state, Some(CheckState::Failure));
         assert_eq!(status.url, None);
         assert_eq!(status.detail.as_deref(), Some("Build broke"));

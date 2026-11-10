@@ -112,6 +112,10 @@ pub struct Check {
     pub url: Option<String>,
     /// A line about it, like the stage of a GitLab job.
     pub detail: Option<String>,
+    /// When it started running (RFC 3339), if it has.
+    pub started_at: Option<String>,
+    /// When it finished (RFC 3339), if it has.
+    pub finished_at: Option<String>,
 }
 
 /// One pull (or merge) request in full.
@@ -595,6 +599,8 @@ mod tests {
             state,
             url: None,
             detail: None,
+            started_at: None,
+            finished_at: None,
         };
         let mut checks = vec![
             check("lint", Some(CheckState::Success)),

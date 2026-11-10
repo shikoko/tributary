@@ -77,6 +77,29 @@ export function summarizeChecks(checks: RequestCheck[]): string {
     .join(", ");
 }
 
+/** A length of time, short: "45s", "4m 12s", "1h 3m". */
+export function formatElapsed(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
+/**
+ * How long a check has been running (at `now`), or how long it took once it's done. Null
+ * when it hasn't started, like one still queued, or the site didn't say.
+ */
+export function checkTime(check: RequestCheck, now: number): string | null {
+  const start = check.startedAt ? Date.parse(check.startedAt) : NaN;
+  const end = check.finishedAt ? Date.parse(check.finishedAt) : check.state === "pending" ? now : NaN;
+  if (Number.isNaN(start) || Number.isNaN(end)) return null;
+  return formatElapsed(end - start);
+}
+
+/** Whether any of these checks is running, so its time keeps growing. */
+export const anyRunning = (checks: RequestCheck[]) => checks.some((check) => check.state === "pending" && check.startedAt && !check.finishedAt);
+
 /** A list of names in words: "maya", "maya and theo", "maya, theo and sam". */
 function names(list: string[]): string {
   return list.length <= 2 ? list.join(" and ") : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;

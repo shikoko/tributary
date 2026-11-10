@@ -174,6 +174,8 @@ pub(super) struct RawJob {
     #[serde(default)]
     allow_failure: bool,
     web_url: Option<String>,
+    started_at: Option<String>,
+    finished_at: Option<String>,
 }
 
 /// Whether GitLab would merge it now, from its `detailed_merge_status`.
@@ -207,6 +209,8 @@ pub(super) fn job_check(job: RawJob) -> Check {
         state,
         url: job.web_url,
         detail: job.stage,
+        started_at: job.started_at,
+        finished_at: job.finished_at,
     }
 }
 
@@ -410,12 +414,18 @@ mod tests {
             status: status.into(),
             allow_failure,
             web_url: None,
+            started_at: Some("2026-11-10T10:00:00Z".into()),
+            finished_at: None,
         };
         assert_eq!(
             job_check(job("failed", false)).state,
             Some(CheckState::Failure)
         );
         assert_eq!(job_check(job("failed", true)).state, None);
+        assert_eq!(
+            job_check(job("running", false)).started_at.as_deref(),
+            Some("2026-11-10T10:00:00Z")
+        );
         assert_eq!(
             job_check(job("running", false)).state,
             Some(CheckState::Pending)

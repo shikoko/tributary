@@ -429,6 +429,30 @@ button.request-ref:hover {
   color: var(--danger-text);
 }
 
+/* How long a check has been running, or took. Figures of one width, so a ticking time
+   doesn't wobble the words beside it. */
+.request-check-time {
+  flex: none;
+  min-width: 6.5ch;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* In a commit's list: on the right, beside Details. */
+.request-check-name + .request-check-time {
+  margin-left: auto;
+}
+
+.request-check-time + .request-check-link {
+  margin-left: 0;
+}
+
 .request-skipped {
   margin: -6px 0 0;
   color: var(--text-faint);
