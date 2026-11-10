@@ -23,6 +23,8 @@ export const MAX_REFS_WIDTH = 400;
 export const REFS_PADDING = 8;
 export const MIN_GRAPH_WIDTH = 72;
 const MAX_GRAPH_WIDTH = 320;
+/** The share of a wide list that many lanes can take, when that's more than MAX_GRAPH_WIDTH. */
+const MAX_GRAPH_SHARE = 0.4;
 /** How wide the graph column can be dragged. */
 export const MAX_DRAGGED_GRAPH_WIDTH = 800;
 /** Rows rendered above and below the visible area, so fast scrolling doesn't flash. */
@@ -104,12 +106,12 @@ const SQUEEZED_MESSAGE_WIDTH = 120;
 const READABLE_REFS_WIDTH = 110;
 
 /**
- * The columns' widths in a list `width` wide. The graph is as wide as `lanes` need (unless
- * a width was chosen by dragging). When that doesn't fit, the commit message gives way
- * first (down to 120 px), then a little of the branch and tag column (when its width
- * wasn't chosen), then, in a narrow list, the dates (the labels getting their room back),
- * then the rest of the branch and tag column: the lanes are cut off only when even that
- * isn't enough.
+ * The columns' widths in a list `width` wide. The graph is as wide as `lanes` need. A width
+ * chosen by dragging is the least it gets: it still widens when the lanes need more. When
+ * that doesn't fit, the commit message gives way first (down to 120 px), then a little of
+ * the branch and tag column (when its width wasn't chosen), then, in a narrow list, the
+ * dates (the labels getting their room back), then the rest of the branch and tag column:
+ * the lanes are cut off only when even that isn't enough.
  */
 export function fitColumns(input: {
   width: number;
@@ -126,8 +128,13 @@ export function fitColumns(input: {
   let dateWidth = show.date ? (show.dateFormat === "exact" ? (narrow ? 132 : 164) : 116) : 0;
   const shaWidth = show.sha && !narrow ? 80 : 0;
   const sizes = () => ({ refsWidth, authorWidth, dateWidth, shaWidth });
-  if (columnWidths.graph !== null) return { ...sizes(), graphWidth: columnWidths.graph };
-  const wanted = Math.min(MAX_GRAPH_WIDTH, Math.max(MIN_GRAPH_WIDTH, GRAPH_PADDING * 2 + lanes * laneWidth));
+  const needed = GRAPH_PADDING * 2 + lanes * laneWidth;
+  const chosen = columnWidths.graph;
+  // Wide enough already: nothing else gives way.
+  if (chosen !== null && chosen >= needed) return { ...sizes(), graphWidth: chosen };
+  // Many lanes can take up to 40% of a wide list (at least 320 px), leaving the rest to the messages.
+  const most = chosen !== null ? MAX_DRAGGED_GRAPH_WIDTH : Math.max(MAX_GRAPH_WIDTH, Math.round(width * MAX_GRAPH_SHARE));
+  const wanted = Math.min(most, Math.max(MIN_GRAPH_WIDTH, needed));
   // The room the graph has when the message keeps `message` px.
   const room = (message: number) => width - refsWidth - authorWidth - dateWidth - shaWidth - message;
   const short = () => wanted - room(SQUEEZED_MESSAGE_WIDTH);
@@ -145,7 +152,7 @@ export function fitColumns(input: {
     if (short() > 0 && autoRefs) refsWidth = Math.max(MIN_REFS_WIDTH, refsWidth - short());
   }
   // As wide as the lanes need, as far as the message can give way (it takes the rest).
-  const graphWidth = width > 0 ? Math.max(MIN_GRAPH_WIDTH, Math.min(wanted, room(SQUEEZED_MESSAGE_WIDTH))) : wanted;
+  const graphWidth = width > 0 ? Math.max(chosen ?? MIN_GRAPH_WIDTH, MIN_GRAPH_WIDTH, Math.min(wanted, room(SQUEEZED_MESSAGE_WIDTH))) : wanted;
   return { ...sizes(), graphWidth };
 }
 
