@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { setNativeMenu } from "../lib/nativeMenu";
 import { isMac } from "../lib/platform";
+import { commandsIn } from "./appCommand";
 import { nativeMenusFor, type AppMenuDefinition } from "./appMenus";
 
 /**
@@ -10,7 +11,7 @@ import { nativeMenusFor, type AppMenuDefinition } from "./appMenus";
 export function useNativeMenu(menus: AppMenuDefinition[], extra: Record<string, () => void>) {
   const runs = useRef(new Map<string, () => void>());
   runs.current = new Map([
-    ...menus.flatMap((m) => m.entries).flatMap((entry) => (entry === "-" ? [] : [[entry.id, entry.run] as const])),
+    ...menus.flatMap((m) => commandsIn(m.entries)).map((command) => [command.id, command.run] as const),
     ...Object.entries(extra),
   ]);
   const signature = isMac ? JSON.stringify(nativeMenusFor(menus)) : "";
