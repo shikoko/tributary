@@ -152,7 +152,15 @@ export function CommitList(props: Props) {
     [indexById, commits],
   );
 
-  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: props.focusIds, colors, curves, laneWidth, avatars });
+  // A search fades the other commits' lines and nodes too, as it does their rows, and so
+  // does a highlighted branch: with both, only the matches in its history stay bright.
+  const focusIds = props.focusIds;
+  const brightIds = useMemo(() => {
+    if (matchIds === null) return focusIds;
+    if (focusIds === null) return matchIds;
+    return new Set([...matchIds].filter((id) => focusIds.has(id)));
+  }, [matchIds, focusIds]);
+  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: brightIds, colors, curves, laneWidth, avatars });
   const marked = useMemo(() => selectedIds ?? new Set(selectedId ? [selectedId] : []), [selectedIds, selectedId]);
   useScrollMarkers(markerCanvas, { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId: headCommit, selectedIds: marked, colors });
 
@@ -242,7 +250,7 @@ export function CommitList(props: Props) {
         primary={commit.id === selectedId}
         authorNode={avatars && commit.kind === "commit" && commit.parents.length <= 1}
         head={commit.id === headCommit}
-        dimmed={(matchIds !== null && !matchIds.has(commit.id)) || (props.focusIds !== null && !props.focusIds.has(commit.id))}
+        dimmed={brightIds !== null && !brightIds.has(commit.id)}
         handlers={handlers}
       />,
     );

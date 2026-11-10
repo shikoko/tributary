@@ -116,20 +116,39 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          path: installers
+          path: artifacts
           merge-multiple: true
 
+      # The build jobs' files come in their bundle folders (dmg/, macos/, msi/, nsis/):
+      # gather them in one folder, as the release's files.
+      - name: Gather the installers
+        run: |
+          mkdir installers
+          find artifacts -type f -exec mv -t installers {} +
+          ls -l installers
+
+      # A draft left by an earlier try at this version is replaced (drafts aren't public and
+      # have no tag yet). A version that's already been published is left alone.
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.release }}
-        run: >
-          gh release create "$TAG" installers/*
-          --repo "$GITHUB_REPOSITORY"
-          --target "$GITHUB_SHA"
-          --draft
-          --generate-notes
-          --title "Tributary $TAG"
+        run: |
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq "[.[] | select(.tag_name == \"$TAG\") | {id, draft}]")
+          if [ "$(jq '[.[] | select(.draft | not)] | length' <<<"$existing")" != 0 ]; then
+            echo "::error::$TAG has already been released: use a new version tag."
+            exit 1
+          fi
+          for id in $(jq -r '.[].id' <<<"$existing"); do
+            echo "Replacing the earlier draft of $TAG"
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
+          done
+          gh release create "$TAG" installers/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --draft \
+            --generate-notes \
+            --title "Tributary $TAG"
 
       # latest.json tells Tributary about the new version once the draft is published.
       - name: Add the update manifest

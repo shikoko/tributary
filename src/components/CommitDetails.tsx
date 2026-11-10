@@ -165,7 +165,9 @@ export function CommitDetailsPanel(props: Props) {
 
           <dl className="meta">
             <dt>SHA</dt>
-            <dd className="mono selectable full-sha">{commit.id}</dd>
+            <dd>
+              <ShaButton sha={commit.id} />
+            </dd>
             {details?.signature && (
               <>
                 <dt>Signed</dt>
@@ -268,23 +270,35 @@ function PersonLine({ role, person, exact }: { role: string; person: Person; exa
   );
 }
 
-function CopyButton({ text, label }: { text: string; label: string }) {
+/** Copies `text`, and says so for a moment afterwards. */
+function useCopy(text: string): [boolean, () => void] {
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!copied) return;
     const timer = setTimeout(() => setCopied(false), 1200);
     return () => clearTimeout(timer);
   }, [copied]);
+  const copy = () => void copyText(text).then(() => setCopied(true));
+  return [copied, copy];
+}
 
-  const copy = async () => {
-    await copyText(text);
-    setCopied(true);
-  };
-
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, copy] = useCopy(text);
   return (
     <button className="copy-button" onClick={copy} title="Copy the full SHA">
       <span className="mono">{label}</span>
       {copied ? <CheckIcon size={13} /> : <CopyIcon size={13} />}
+    </button>
+  );
+}
+
+/** The full SHA: clicking it copies it. */
+function ShaButton({ sha }: { sha: string }) {
+  const [copied, copy] = useCopy(sha);
+  return (
+    <button className={`full-sha mono${copied ? " copied" : ""}`} onClick={copy} title={copied ? "Copied" : "Copy the full SHA"}>
+      <span>{sha}</span>
+      {copied ? <CheckIcon size={12} /> : <CopyIcon size={12} />}
     </button>
   );
 }
