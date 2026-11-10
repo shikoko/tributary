@@ -11,6 +11,11 @@
 //! Started with `/S`, it installs without a window (`/ALLUSERS` for everyone, from an
 //! administrator's prompt), for IT departments' tools. Without WebView2 (which only very old
 //! Windows 10 lacks), it runs the installer with its own pages.
+//!
+//! The same program, built without the installers, is Tributary's uninstall window: it's
+//! installed beside the app as `tributary-uninstall.exe`, and the uninstall entry points to
+//! it (see `windows/hooks.nsh`). It runs the installer's own `uninstall.exe` silently, and
+//! can remove your settings too.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -50,6 +55,8 @@ struct Launch {
     installed: Option<String>,
     /// What goes on to the installer as it came: `/UPDATE`, `/R`, `/ARGS …`, `/NS`, `/D=…`.
     pass_on: Vec<String>,
+    /// The uninstall window, for the Tributary in this folder (`/UNINSTALL=…`).
+    uninstall: Option<String>,
 }
 
 fn parse(args: impl IntoIterator<Item = String>) -> Launch {
@@ -73,6 +80,10 @@ fn parse(args: impl IntoIterator<Item = String>) -> Launch {
         }
         if upper.starts_with("/INSTALLED=") {
             launch.installed = Some(arg["/INSTALLED=".len()..].trim_matches('"').to_string());
+            continue;
+        }
+        if upper.starts_with("/UNINSTALL=") {
+            launch.uninstall = Some(arg["/UNINSTALL=".len()..].trim_matches('"').to_string());
             continue;
         }
         launch.pass_on.push(arg);
@@ -134,6 +145,8 @@ struct Info {
     installed: Option<Installed>,
     /// Started by the updater, with a window (Tributary is restarted for the update).
     update: bool,
+    /// The uninstall window.
+    uninstall: bool,
     /// How big the installer is, to pace the progress bar.
     size: usize,
 }
@@ -152,6 +165,8 @@ fn info(launch: State<Launch>) -> Info {
     let installs = platform::installs();
     let installed = if launch.update {
         target(&installs, launch.installed.as_deref())
+    } else if let Some(folder) = &launch.uninstall {
+        target(&installs, Some(folder))
     } else {
         installs.first().cloned()
     };
@@ -167,6 +182,7 @@ fn info(launch: State<Launch>) -> Info {
         },
         installed,
         update: launch.update,
+        uninstall: launch.uninstall.is_some(),
     }
 }
 
@@ -279,6 +295,26 @@ async fn update(app: AppHandle, launch: State<'_, Launch>) -> Result<(), String>
     Ok(())
 }
 
+/// Uninstall the Tributary this window is for, and its settings too with `remove_settings`.
+#[tauri::command]
+async fn uninstall(launch: State<'_, Launch>, remove_settings: bool) -> Result<(), String> {
+    let folder = launch
+        .uninstall
+        .clone()
+        .ok_or("This isn't the uninstall window.")?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let installed = target(&platform::installs(), Some(&folder));
+        let everyone = installed.as_ref().is_some_and(|install| install.everyone);
+        platform::uninstall(&folder, everyone)?;
+        if remove_settings {
+            platform::remove_settings();
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Start Tributary from `folder`, adding a desktop shortcut first if asked.
 #[tauri::command]
 fn open(folder: String, shortcut: bool) -> Result<(), String> {
@@ -321,7 +357,25 @@ fn without_window(launch: &Launch) -> i32 {
 }
 
 fn main() {
-    let launch = parse(std::env::args().skip(1));
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if platform::is_uninstaller() {
+        let from_temporary_copy = args
+            .iter()
+            .any(|arg| arg.to_ascii_uppercase().starts_with("/UNINSTALL="));
+        if !from_temporary_copy {
+            // Started with the uninstaller's own flags (Tauri's installer does, before
+            // reinstalling): hand over to it, without a window.
+            if !args.is_empty() {
+                std::process::exit(platform::run_uninstaller_as_asked(&args));
+            }
+            // Started from Tributary's folder: run from a copy elsewhere, so the folder
+            // (this program with it) can go.
+            platform::run_from_temporary_copy();
+            return;
+        }
+    }
+    let launch = parse(args);
+    let uninstalling = launch.uninstall.is_some();
     let windowless = launch.silent || (launch.update && !launch.restart);
     if windowless || !platform::can_show_window() {
         if windowless || launch.update {
@@ -340,11 +394,15 @@ fn main() {
             running,
             install,
             update,
+            uninstall,
             open,
             add_shortcut
         ])
         .setup(|app| {
-            let title = if app.state::<Launch>().update {
+            let launch = app.state::<Launch>();
+            let title = if launch.uninstall.is_some() {
+                "Uninstall Tributary"
+            } else if launch.update {
                 "Updating Tributary"
             } else {
                 "Install Tributary"
@@ -367,6 +425,10 @@ fn main() {
         .run(tauri::generate_context!());
     if let Err(error) = built {
         eprintln!("Tributary's setup couldn't start: {error}");
+    }
+    // The uninstall window ran from a temporary copy of itself: it goes too.
+    if uninstalling {
+        platform::delete_self_later();
     }
 }
 
@@ -567,6 +629,145 @@ mod platform {
             let _ = Command::new(installer).spawn();
         }
     }
+
+    /// Tributary's identifier: its settings and the window's data are in folders by this name.
+    const APP_ID: &str = "io.github.shikoko.tributary";
+
+    /// This is the uninstall window: installed beside Tributary as `tributary-uninstall.exe`.
+    pub fn is_uninstaller() -> bool {
+        std::env::current_exe()
+            .ok()
+            .and_then(|exe| {
+                exe.file_name()
+                    .map(|name| name.to_string_lossy().to_ascii_lowercase())
+            })
+            .is_some_and(|name| name.contains("uninstall"))
+    }
+
+    /// Run the uninstall window from a copy in the temporary folder, for Tributary's folder.
+    pub fn run_from_temporary_copy() {
+        let Ok(exe) = std::env::current_exe() else {
+            return;
+        };
+        let Some(folder) = exe.parent().map(|folder| folder.display().to_string()) else {
+            return;
+        };
+        let copy =
+            std::env::temp_dir().join(format!("tributary-uninstall-{}.exe", std::process::id()));
+        if std::fs::copy(&exe, &copy).is_ok() {
+            let _ = Command::new(&copy)
+                .arg(format!("/UNINSTALL={folder}"))
+                .spawn();
+        }
+    }
+
+    /// Started with the uninstaller's flags: run `uninstall.exe` beside this program with
+    /// them, and wait; its exit code.
+    pub fn run_uninstaller_as_asked(args: &[String]) -> i32 {
+        let Some(uninstaller) = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(|folder| folder.join("uninstall.exe")))
+        else {
+            return 2;
+        };
+        let mut command = Command::new(uninstaller);
+        for arg in args {
+            // NSIS reads `_?=` without quotes, even with spaces.
+            if arg.starts_with("_?=") {
+                command.raw_arg(arg);
+            } else {
+                command.arg(arg);
+            }
+        }
+        command
+            .status()
+            .ok()
+            .and_then(|status| status.code())
+            .unwrap_or(2)
+    }
+
+    /// Run Tributary's uninstaller silently (through Windows' administrator prompt, for an
+    /// install for everyone), and wait until it's done: it carries on from a copy of itself,
+    /// so its uninstall entry going is the sign.
+    pub fn uninstall(folder: &str, everyone: bool) -> Result<(), String> {
+        let uninstaller = Path::new(folder).join("uninstall.exe");
+        if !uninstaller.is_file() {
+            return Err("Tributary's uninstaller isn't in its folder any more.".into());
+        }
+        let code = if everyone {
+            elevated(&uninstaller, &["/S".to_string()])?
+        } else {
+            Command::new(&uninstaller)
+                .arg("/S")
+                .creation_flags(CREATE_NO_WINDOW)
+                .status()
+                .map_err(|e| format!("Couldn't start the uninstaller ({e})."))?
+                .code()
+                .unwrap_or(-1)
+        };
+        match code {
+            0 => {}
+            CANCELLED => {
+                return Err(
+                    "Windows didn't get an administrator's permission, so nothing was changed."
+                        .into(),
+                );
+            }
+            code => {
+                return Err(format!(
+                    "The uninstaller stopped with an error (code {code})."
+                ));
+            }
+        }
+        let gone = || {
+            !installs()
+                .iter()
+                .any(|install| super::same_folder(&install.folder, folder))
+        };
+        for _ in 0..600 {
+            if gone() {
+                return Ok(());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
+        Err("The uninstaller hasn't finished. Is Tributary still open?".into())
+    }
+
+    /// Your settings and the window's data (as the uninstaller's own "Delete the application
+    /// data" does), for the person running this.
+    pub fn remove_settings() {
+        for variable in ["APPDATA", "LOCALAPPDATA"] {
+            if let Some(base) = std::env::var_os(variable) {
+                let _ = std::fs::remove_dir_all(PathBuf::from(base).join(APP_ID));
+            }
+        }
+    }
+
+    /// Delete this program (a temporary copy) once it has closed.
+    pub fn delete_self_later() {
+        let Ok(exe) = std::env::current_exe() else {
+            return;
+        };
+        if !exe.starts_with(std::env::temp_dir()) {
+            return;
+        }
+        let _ = Command::new("cmd")
+            .args([
+                "/C",
+                "ping",
+                "-n",
+                "3",
+                "127.0.0.1",
+                ">NUL",
+                "&",
+                "del",
+                "/F",
+                "/Q",
+            ])
+            .arg(&exe)
+            .creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS)
+            .spawn();
+    }
 }
 
 /// Elsewhere there's nothing to install: enough to work on the window.
@@ -609,6 +810,24 @@ mod platform {
     }
 
     pub fn run_installer_with_its_pages() {}
+
+    pub fn is_uninstaller() -> bool {
+        false
+    }
+
+    pub fn run_from_temporary_copy() {}
+
+    pub fn run_uninstaller_as_asked(_args: &[String]) -> i32 {
+        2
+    }
+
+    pub fn uninstall(_folder: &str, _everyone: bool) -> Result<(), String> {
+        Err(ONLY_WINDOWS.into())
+    }
+
+    pub fn remove_settings() {}
+
+    pub fn delete_self_later() {}
 }
 
 #[cfg(test)]
@@ -645,6 +864,18 @@ mod tests {
             installer_args(&launch.pass_on),
             args("/S /NS /D=D:\\Tools\\Tributary")
         );
+    }
+
+    #[test]
+    fn reads_the_uninstall_window_s_folder() {
+        let launch = parse(args(
+            "/UNINSTALL=C:\\Users\\maya\\AppData\\Local\\Tributary",
+        ));
+        assert_eq!(
+            launch.uninstall.as_deref(),
+            Some("C:\\Users\\maya\\AppData\\Local\\Tributary")
+        );
+        assert!(launch.pass_on.is_empty() && !launch.update && !launch.silent);
     }
 
     #[test]

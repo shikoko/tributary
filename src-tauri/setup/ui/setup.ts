@@ -1,6 +1,7 @@
 // Tributary's setup window. Agree to the terms and Install (just for you, in the usual folder),
 // or Custom install: for whom, and where. Then progress, and Tributary is ready. Started by
-// the updater, it's the progress of the update. Drawn again from `state` whenever it changes.
+// the updater, it's the progress of the update; as the uninstall window, Uninstall (the
+// settings too, if asked). Drawn again from `state` whenever it changes.
 import "@fontsource-variable/google-sans";
 import "./setup.css";
 import { invoke } from "@tauri-apps/api/core";
@@ -20,6 +21,7 @@ interface Info {
   canInstallForEveryone: boolean;
   installed: Installed | null;
   update: boolean;
+  uninstall: boolean;
   size: number;
 }
 
@@ -28,7 +30,7 @@ interface FolderCheck {
   problem: string | null;
 }
 
-type Step = "loading" | "welcome" | "custom" | "installing" | "ready" | "failed";
+type Step = "loading" | "welcome" | "custom" | "installing" | "ready" | "failed" | "uninstall" | "uninstalled";
 
 const OK: FolderCheck = { ok: true, problem: null };
 
@@ -50,6 +52,8 @@ const state = {
   back: "welcome" as Step,
   percent: 0,
   shortcut: false,
+  /** Uninstalling: the settings go too. */
+  removeSettings: false,
 };
 
 const root = document.getElementById("setup") as HTMLElement;
@@ -109,6 +113,9 @@ function terms(): string {
 function heading(): { title: string; button: string; tag: string; doing: string; done: string } {
   const info = state.info;
   const installed = info?.installed;
+  if (info?.uninstall) {
+    return { title: "Uninstall Tributary", button: "Uninstall", tag: "", doing: "Uninstalling Tributary", done: "Tributary is uninstalled" };
+  }
   if (info?.update) {
     return { title: "Update Tributary", button: "Update", tag: "", doing: "Updating Tributary", done: "Tributary is up to date" };
   }
@@ -214,7 +221,11 @@ function custom(): string {
 function installing(): string {
   const { doing } = heading();
   const asks = state.everyone || state.info?.installed?.everyone;
-  const tag = asks ? "Windows asks for an administrator's permission first." : state.info?.update ? "Tributary opens again in a moment." : "This takes a few seconds.";
+  const tag = asks
+    ? "Windows asks for an administrator's permission first."
+    : state.info?.update
+      ? "Tributary opens again in a moment."
+      : "This takes a few seconds.";
   return `
     <div class="stack" data-tauri-drag-region>
       ${logo(88)}
@@ -245,12 +256,44 @@ function failed(): string {
   return `
     <div class="stack" data-tauri-drag-region>
       ${logo(88)}
-      <h1>${update ? "Tributary couldn't be updated" : "Tributary couldn't be installed"}</h1>
+      <h1>${state.info?.uninstall ? "Tributary couldn't be uninstalled" : update ? "Tributary couldn't be updated" : "Tributary couldn't be installed"}</h1>
       <p class="tag error">${escape(state.error ?? "Something went wrong.")}</p>
       <div class="act">
         <button class="primary" id="again">Try again</button>
         ${update ? `<button class="link" id="open-old">Open Tributary as it is</button>` : ""}
       </div>
+    </div>`;
+}
+
+function uninstallView(): string {
+  const installed = state.info?.installed;
+  const where = installed
+    ? `<div class="where">Installed ${installed.everyone ? "for everyone" : "just for you"} in ${code(installed.folder)}</div>`
+    : "";
+  const tag = installed?.version ? `Version ${escape(installed.version)}.` : "";
+  return `
+    <div class="stack" data-tauri-drag-region>
+      ${logo(88)}
+      <h1>Uninstall Tributary</h1>
+      <p class="tag">${tag} Your repositories stay as they are.</p>
+      <div class="act">
+        <button class="primary" id="uninstall">Uninstall</button>
+        <label class="check">
+          <input type="checkbox" id="remove-settings" ${state.removeSettings ? "checked" : ""} />
+          <span>Also remove your settings</span>
+        </label>
+      </div>
+    </div>
+    <footer>${state.notice ? warning() : where}</footer>`;
+}
+
+function uninstalled(): string {
+  return `
+    <div class="stack" data-tauri-drag-region>
+      ${logo(88)}
+      <h1>Tributary is uninstalled</h1>
+      <p class="tag">${state.removeSettings ? "Your settings went with it." : "Your settings are kept, for if you install it again."}</p>
+      <div class="act"><button class="primary" id="close-done">Close</button></div>
     </div>`;
 }
 
@@ -267,7 +310,7 @@ function sheet(): string {
     </section>`;
 }
 
-const STEPS: Record<Step, () => string> = { loading: () => "", welcome, custom, installing, ready, failed };
+const STEPS: Record<Step, () => string> = { loading: () => "", welcome, custom, installing, ready, failed, uninstall: uninstallView, uninstalled };
 
 function render() {
   const focused = document.activeElement?.id;
@@ -334,6 +377,17 @@ async function install() {
   );
 }
 
+async function uninstall() {
+  if (await invoke<boolean>("running").catch(() => false)) {
+    set({ notice: "Tributary is open: close it, then click Uninstall again." });
+    return;
+  }
+  await withProgress(
+    () => invoke("uninstall", { removeSettings: state.removeSettings }),
+    () => set({ step: "uninstalled" }),
+  );
+}
+
 /** Started by the updater: update, and the setup closes when it's done. */
 function update() {
   void withProgress(
@@ -397,11 +451,18 @@ root.addEventListener("click", (event) => {
     case "open":
       void finish(true);
       break;
+    case "uninstall":
+      void uninstall();
+      break;
+    case "close-done":
+      void appWindow.close();
+      break;
     case "open-old":
       void invoke("open", { folder: state.info?.installed?.folder ?? folder(), shortcut: false }).then(() => appWindow.close());
       break;
     case "again":
       if (state.info?.update) update();
+      else if (state.info?.uninstall) set({ step: "uninstall", error: null, notice: null });
       else set({ step: state.back, error: null, notice: null });
       break;
   }
@@ -411,6 +472,7 @@ root.addEventListener("change", (event) => {
   const input = event.target as HTMLInputElement;
   if (input.id === "agree") set({ agreed: input.checked });
   if (input.id === "shortcut") set({ shortcut: input.checked });
+  if (input.id === "remove-settings") set({ removeSettings: input.checked });
   if (input.name === "for") {
     set({ everyone: input.value === "everyone", notice: null });
     void checkFolder();
@@ -434,6 +496,10 @@ invoke<Info>("info")
     };
     if (info.update) {
       update();
+      return;
+    }
+    if (info.uninstall) {
+      set({ step: "uninstall" });
       return;
     }
     await checkFolder();

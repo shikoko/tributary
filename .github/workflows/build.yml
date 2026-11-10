@@ -78,6 +78,18 @@ jobs:
           node tools/terms-rtf.mjs src-tauri/target/TERMS.rtf
           echo "TERMS_RTF=$GITHUB_WORKSPACE/src-tauri/target/TERMS.rtf" >> "$GITHUB_ENV"
 
+      # Tributary's uninstall window: the setup, without installers in it, installed with the
+      # app (as a resource), which the uninstall entry points to (src-tauri/windows/hooks.nsh).
+      - name: Uninstall window
+        if: matrix.name == 'Windows'
+        shell: bash
+        run: |
+          npm run setup:build
+          cargo build --release --manifest-path src-tauri/Cargo.toml -p tributary-setup --features custom-protocol --target ${{ matrix.target }}
+          mkdir -p src-tauri/target/uninstall
+          cp "src-tauri/target/${{ matrix.target }}/release/tributary-setup.exe" src-tauri/target/uninstall/tributary-uninstall.exe
+          echo "UNINSTALLER=target/uninstall/tributary-uninstall.exe" >> "$GITHUB_ENV"
+
       # A release's version comes from its tag (v0.2.0 → 0.2.0). With the signing key
       # secret set, the installers are signed for automatic updates too.
       - name: Build installers
@@ -105,6 +117,7 @@ jobs:
             config.bundle = {};
             if (process.env.TAURI_SIGNING_PRIVATE_KEY) config.bundle.createUpdaterArtifacts = true;
             if (process.env.TERMS_RTF) config.bundle.licenseFile = process.env.TERMS_RTF;
+            if (process.env.UNINSTALLER) config.bundle.resources = { [process.env.UNINSTALLER]: "tributary-uninstall.exe" };
             console.log(JSON.stringify(config));
           ')
           echo "$config" > "$RUNNER_TEMP/tauri-config.json"
