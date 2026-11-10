@@ -14,6 +14,7 @@ import { noteMergedHere } from "../lib/requestNews";
 import { Avatar } from "./Avatar";
 import { Markdown } from "./Markdown";
 import { Dialog } from "./Dialog";
+import { MarkdownField } from "./MarkdownField";
 
 const METHODS: Record<MergeMethod, { label: string; hint: string }> = {
   merge: { label: "Merge", hint: "Its commits as they are, joined by a merge commit." },
@@ -154,12 +155,12 @@ export function ReviewBox({
   };
   return (
     <div className="review-box">
-      <textarea
-        className="text-input request-body"
+      <MarkdownField
+        className="request-body"
         rows={4}
         value={body}
         onChange={(event) => setBody(event.target.value)}
-        placeholder={yours ? "A note on your own changes (Markdown)" : "What you think of it (Markdown); optional to approve"}
+        placeholder={yours ? "A note on your own changes" : "What you think of it; optional to approve"}
         autoFocus
         aria-label="Your review"
       />
@@ -222,7 +223,7 @@ export function ConversationList({
                       repoPath={repoPath}
                       number={details.number}
                       thread={comment.thread}
-                      placeholder="Your reply (Markdown)"
+                      placeholder="Your reply"
                       onDone={(message) => {
                         setReplying(null);
                         onDone(message);
@@ -240,7 +241,7 @@ export function ConversationList({
         </ol>
       )}
       {conversation.you && (
-        <CommentBox repoPath={repoPath} number={details.number} thread={null} placeholder="Add a comment (Markdown)" onDone={onDone} />
+        <CommentBox repoPath={repoPath} number={details.number} thread={null} placeholder="Add a comment" onDone={onDone} />
       )}
     </>
   );
@@ -318,8 +319,8 @@ function CommentBox({
   };
   return (
     <div className="comment-box">
-      <textarea
-        className="text-input request-body"
+      <MarkdownField
+        className="request-body"
         rows={thread ? 2 : 3}
         value={body}
         onChange={(event) => setBody(event.target.value)}

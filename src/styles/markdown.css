@@ -175,3 +175,86 @@
   background: rgb(var(--overlay-rgb) / 0.08);
   font-weight: 600;
 }
+
+/* A box for writing Markdown, with Write and Preview tabs (components/MarkdownField). */
+.markdown-field {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.markdown-field:focus-within {
+  border-color: var(--accent);
+}
+
+.markdown-field-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  background: rgb(var(--overlay-rgb) / 0.05);
+}
+
+.markdown-field-tab {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 11px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.markdown-field-tab:hover {
+  color: var(--text);
+}
+
+.markdown-field-tab.on {
+  background: var(--bg-selected);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.markdown-field-hint {
+  margin-left: auto;
+  padding-right: 4px;
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+
+/* The text box itself: borderless inside the field, which has the border. */
+.markdown-field .markdown-field-input {
+  display: block;
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.markdown-field-preview {
+  min-height: 72px;
+  padding: 10px 12px;
+  overflow: auto;
+  outline: none;
+}
+
+.markdown-field-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
