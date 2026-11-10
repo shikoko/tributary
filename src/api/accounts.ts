@@ -19,6 +19,8 @@ export interface AccountRepo {
 export interface GitLabAccount {
   username: string;
   name?: string | null;
+  /** The account's picture, as a data: URL (when it could be fetched). */
+  picture?: string | null;
 }
 
 /** Who's signed in to a GitLab server, and how one can sign in. */

@@ -394,6 +394,22 @@ async fn first_picture(client: &reqwest::Client, candidates: &[String]) -> Optio
     (!failed).then_some(None)
 }
 
+/// The picture at `url` (an account's own, say), as a `data:` URL, kept for the session.
+/// None when there's no picture there or it couldn't be fetched (asked again next time).
+pub(crate) async fn picture_at(url: &str) -> Option<String> {
+    static KNOWN: LazyLock<Mutex<HashMap<String, Option<String>>>> =
+        LazyLock::new(Default::default);
+    if !url.starts_with("https://") {
+        return None;
+    }
+    if let Some(known) = KNOWN.lock().ok()?.get(url) {
+        return known.clone();
+    }
+    let found = download(&client().ok()?, url).await.ok()?;
+    KNOWN.lock().ok()?.insert(url.to_owned(), found.clone());
+    found
+}
+
 /// A picture as a `data:` URL; Ok(None) when there's none there, Err when it couldn't be asked.
 async fn download(client: &reqwest::Client, url: &str) -> std::result::Result<Option<String>, ()> {
     let response = client.get(url).send().await.map_err(|_| ())?;

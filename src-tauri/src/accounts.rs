@@ -116,6 +116,12 @@ pub struct GitLabAccount {
     pub username: String,
     #[serde(default)]
     pub name: Option<String>,
+    /// Where the server keeps the account's picture (maybe Gravatar).
+    #[serde(default, rename(deserialize = "avatar_url"), skip_serializing)]
+    pub avatar_url: Option<String>,
+    /// The account's picture, as a `data:` URL (for showing who's signed in).
+    #[serde(default, skip_deserializing)]
+    pub picture: Option<String>,
 }
 
 /// Who's signed in to a GitLab server, and how one can sign in.
@@ -220,12 +226,18 @@ pub async fn gitlab_status(host: &str) -> Result<GitLabStatus> {
     })
     .await
     .map_err(|e| e.to_string())??;
-    let account = match &stored {
+    let mut account = match &stored {
         Some(credential) => gitlab_user(&github::client()?, &host, &credential.password)
             .await?
             .map(|(account, _)| account),
         None => None,
     };
+    // The picture: what the account's chip shows.
+    if let Some(account) = account.as_mut()
+        && let Some(url) = &account.avatar_url
+    {
+        account.picture = crate::avatars::picture_at(url).await;
+    }
     Ok(GitLabStatus {
         token_rejected: stored.is_some() && account.is_none(),
         account,

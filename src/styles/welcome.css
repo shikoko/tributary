@@ -159,6 +159,17 @@
   flex: none;
 }
 
+/* Your own picture, when the site has one. */
+.account-picture {
+  flex: none;
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-active);
+}
+
 .account-chip.on {
   padding-left: 5px;
   border-style: solid;
