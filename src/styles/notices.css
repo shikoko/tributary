@@ -175,11 +175,13 @@
 
 /* Pull request badges on branch labels and in the sidebar */
 
+/* 14px tall, so it sits a whole number of pixels from a label's edges (3px in a 20px
+   label, 2px in a compact one) and isn't nudged up or down a pixel by rounding. */
 .pr-badge {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  height: 15px;
+  height: 14px;
   padding: 0 4px;
   border-radius: 4px;
   background: rgb(var(--overlay-rgb) / 0.1);
@@ -206,23 +208,29 @@
   opacity: 0.8;
 }
 
-.pr-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-muted);
-}
-
-.pr-badge.success .pr-dot {
+/* The whole badge in its checks' colour: green passed, red failed, amber running. */
+.pr-badge.success,
+.ref-pill.current .pr-badge.success {
   background: var(--success);
+  color: var(--on-bright);
 }
 
-.pr-badge.failure .pr-dot {
+.pr-badge.failure,
+.ref-pill.current .pr-badge.failure {
   background: var(--danger);
+  color: var(--on-danger);
 }
 
-.pr-badge.pending .pr-dot {
+.pr-badge.pending,
+.ref-pill.current .pr-badge.pending {
   background: var(--warning);
+  color: var(--on-bright);
+}
+
+.pr-badge.success:hover,
+.pr-badge.failure:hover,
+.pr-badge.pending:hover {
+  filter: brightness(1.1);
 }
 
 .sidebar-item .pr-badge {
