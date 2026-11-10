@@ -1,13 +1,14 @@
 // Writes latest.json, which Tributary reads to find and verify new versions.
 //
-//   node latest-json.mjs <version> <assets.json> <folder with the .sig files> <out file>
+//   node latest-json.mjs <repository> <tag> <assets.json> <folder with the .sig files> <out file>
 //
-// assets.json is { body, assets: [{ name, apiUrl }] }, from GitHub's API. Files are linked by
-// their API address, which also works for a private repository (with a token).
+// assets.json is { body, assets: [{ name }] }, from GitHub's API. Files are linked by their
+// public download address under the release's tag, which works once the draft is published.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const [version, assetsFile, folder, out] = process.argv.slice(2);
+const [repository, tag, assetsFile, folder, out] = process.argv.slice(2);
+const version = tag.replace(/^v/, "");
 const { assets, body } = JSON.parse(readFileSync(assetsFile, "utf8"));
 
 /** The asset whose name ends with `suffix`, with its signature, or null. */
@@ -15,7 +16,7 @@ function signed(suffix) {
   const asset = assets.find((a) => a.name.endsWith(suffix));
   const signature = asset && join(folder, `${asset.name}.sig`);
   if (!asset || !existsSync(signature)) return null;
-  return { url: asset.apiUrl, signature: readFileSync(signature, "utf8").trim() };
+  return { url: `https://github.com/${repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(asset.name)}`, signature: readFileSync(signature, "utf8").trim() };
 }
 
 const platforms = {};

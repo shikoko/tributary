@@ -5,9 +5,9 @@
 <h1 align="center">Tributary</h1>
 
 <p align="center">
-  <b>A git client for game teams.</b><br>
-  Big files, Git LFS and locks handled for you, art you can actually see in a diff,<br>
-  and a commit graph that's a pleasure to read. For macOS and Windows.
+  <b>A fast, friendly git client for macOS and Windows.</b><br>
+  A commit graph that's a pleasure to read, Undo for almost everything, and pull requests in the app,<br>
+  with first-class big files too: Git LFS, locks, and art you can actually see in a diff.
 </p>
 
 <p align="center">
@@ -22,9 +22,10 @@
 
 ## Why Tributary
 
-- **Made for projects full of assets.** Textures, models, sounds and Unreal or Unity files show as what they are, Git LFS downloads are fast and checked for disk space, and locks are part of the everyday flow.
-- **Easy for the whole team.** Simple mode gives artists and designers just what they need (Get latest, their changes, Submit), and short guided tours show everyone around.
+- **Clear and comfortable.** A colourful graph that's easy to follow, diffs coloured by syntax, a command palette for everything, and short guided tours to show you around.
 - **Hard to lose work.** Almost everything has Undo, your uncommitted changes are snapshotted every few minutes, and branches are backed up before they're rewritten or deleted.
+- **At home with big files.** Textures, models, sounds and Unreal or Unity files show as what they are, Git LFS downloads are fast and checked for disk space, and locks are part of the everyday flow.
+- **Easy for the whole team.** Simple mode gives anyone who doesn't live in git (artists, designers, writers) just what they need: Get latest, their changes, Submit.
 - **Built for big repositories.** History is read directly with [gitoxide](https://github.com/GitoxideLabs/gitoxide), only the rows on screen are drawn, and the changes git makes run through your own git, exactly as on the command line.
 
 ## Highlights
@@ -178,6 +179,8 @@ The installers aren't code-signed yet, so the first launch needs one extra step:
 
 - **macOS:** if it says the app "is damaged" or "can't be opened", move it to Applications and run `xattr -cr /Applications/Tributary.app` once.
 - **Windows:** if SmartScreen warns you, choose **More info → Run anyway**.
+
+**Linux** is experimental: Tributary builds and runs there from source (see below), but there are no Linux installers or automatic updates yet, and it isn't tested on every release. Reports and fixes are welcome.
 
 ## Build from source
 

@@ -7,6 +7,7 @@ Tributary is a [Tauri 2](https://tauri.app) app: a Rust backend reads the reposi
 - [Try it in a browser](#try-it-in-a-browser)
 - [Build installers for your platform](#build-installers-for-your-platform)
 - [Test](#test)
+- [Branches](#branches)
 - [Release](#release)
 - [Project layout](#project-layout)
 
@@ -16,6 +17,7 @@ Tributary is a [Tauri 2](https://tauri.app) app: a Rust backend reads the reposi
 - [Rust](https://rustup.rs) (stable)
 - **macOS:** Xcode Command Line Tools (`xcode-select --install`)
 - **Windows:** [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++". WebView2 comes with Windows 10 and 11.
+- **Linux** (experimental): WebKitGTK and the other packages listed for your distribution in Tauri's guide.
 
 The [Tauri prerequisites guide](https://tauri.app/start/prerequisites/) has more detail.
 
@@ -103,6 +105,13 @@ That builds the app first; `npm run e2e -- --no-build` tests the one already bui
 
 The tests don't run on GitHub Actions, so run them before you build.
 
+## Branches
+
+- **`develop`** is where work comes together. Make a branch from it for each change, and open pull requests into it.
+- **`main`** is what's been released. It only changes through a pull request from `develop`, when a release is made.
+
+Merge a release's pull request with **Create a merge commit**, not squash or rebase: those copy the commits, so `develop` and `main` would drift apart and the next release's pull request would show old changes again.
+
 ## Release
 
 The installers are built by GitHub Actions, only when you start a build: open the **Actions** tab, choose **Build**, then **Run workflow**. When it finishes, download the installers from the **Artifacts** section of the run:
@@ -110,15 +119,30 @@ The installers are built by GitHub Actions, only when you start a build: open th
 - **macOS:** `.dmg` with a universal app (Apple Silicon and Intel)
 - **Windows:** `.msi` and `-setup.exe` installers (64-bit)
 
-To publish a release, type a version tag such as `v0.2.0` in the **release** box before starting the build. The app gets that version, and a draft GitHub release with the installers attached is created when it finishes. Publish the draft, and Tributary offers the update to everyone running an older version.
+A build without a version tag can run on any branch, to try the installers out. It isn't signed for updates, so it installs by hand but isn't offered as an update.
 
-For updates, the installers are signed with a key kept in the repository's `TAURI_SIGNING_PRIVATE_KEY` secret (and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, if it has a password); the matching public key is `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. Without the secret, builds still work, but they can't be installed as updates. To make a new key pair:
+To publish a release:
+
+1. Open a pull request from `develop` into `main`, and merge it with **Create a merge commit**.
+2. In **Actions → Build → Run workflow**, choose `main` under **Use workflow from**, and type a version tag such as `v0.2.0` in the **release** box. The app gets that version.
+3. The build waits for approval, because the signing key is in the protected `release` environment: open the run, choose **Review deployments**, tick **release** and approve.
+4. When it finishes, a draft GitHub release with the installers attached is waiting on the **Releases** page. Publish it, and Tributary offers the update to everyone running an older version.
+
+Tributary finds new versions by reading `latest.json` from the latest release (`plugins.updater.endpoints` in `src-tauri/tauri.conf.json`), and installs them only if they're signed with the key whose public half is `plugins.updater.pubkey` there. A fork that publishes its own releases needs to change both.
+
+The private key lives in the `release` environment's secrets, as `TAURI_SIGNING_PRIVATE_KEY` (and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, if it has a password). Without them, builds still work, but they can't be installed as updates. To make a new key pair:
 
 ```bash
 npm run tauri signer generate -- -w ~/.tauri/tributary.key
 ```
 
-Then save the private key as the secret (`gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/tributary.key`) and put the public key in `tauri.conf.json`. Apps signed with the old key can't install updates signed with a new one, so they need to be reinstalled by hand once.
+Then save the private key in the environment:
+
+```bash
+gh secret set TAURI_SIGNING_PRIVATE_KEY --env release < ~/.tauri/tributary.key
+```
+
+and put the public key in `tauri.conf.json`. Apps signed with the old key can't install updates signed with a new one, so they need to be reinstalled by hand once.
 
 ## Project layout
 

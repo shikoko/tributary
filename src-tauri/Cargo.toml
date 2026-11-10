@@ -1,7 +1,7 @@
 [package]
 name = "tributary"
 version = "0.1.0"
-description = "A fast, cross-platform git history graph viewer"
+description = "A fast, friendly git client, with first-class Git LFS, locks and art diffs"
 authors = ["shikoko"]
 license = "MIT"
 repository = "https://github.com/shikoko/tributary"
@@ -26,7 +26,7 @@ tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
 # Installs new versions from the project's GitHub releases.
 tauri-plugin-updater = "2"
-# Asks GitHub which release is the latest (the same HTTP client the updater uses).
+# Talks to GitHub, GitLab, Jira and Linear (the same HTTP client the updater uses).
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 serde = { version = "1", features = ["derive"] }

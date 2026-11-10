@@ -301,7 +301,7 @@ The branch can be switched from the top, next to **Shelves** and **Local history
 ## Under the hood
 
 - **No git install needed to browse:** history is read directly with [gitoxide](https://github.com/GitoxideLabs/gitoxide). Actions that change the repository (cloning, committing, stashing, branches, tags, merge, rebase, cherry-pick, revert, fetch, pull, push, reset) run your installed git, so they behave exactly like the command line and use the credentials you already set up for it.
-- **Automatic updates:** Tributary checks its GitHub releases now and then, and an **Update** button appears in the tab bar when there's a new version. It shows what changed, then downloads, installs and restarts. Updates are signed, and installed only when the signature matches. (When the GitHub repository is private, it signs in with the GitHub account git already uses on your computer.)
+- **Automatic updates:** Tributary checks its GitHub releases now and then, and an **Update** button appears in the tab bar when there's a new version. It shows what changed, then downloads, installs and restarts. Updates are signed, and installed only when the signature matches.
 - **Reporting a problem:** **Copy Diagnostics…** in the Help menu shows Tributary's version, your system, which git and Git LFS it uses, how the open repository is set up and the last git commands that failed there, so you can read it before you copy it into a report. Passwords and tokens in remote addresses are left out.
 
 <sub>[↑ Contents](#contents)</sub>

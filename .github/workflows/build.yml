@@ -20,6 +20,10 @@ jobs:
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    # Releases get the signing key from the "release" environment, which only main can use
+    # and which waits for approval. Other builds use "test-build", which has no secrets, so
+    # they're unsigned (they install by hand, but not as updates).
+    environment: ${{ inputs.release != '' && 'release' || 'test-build' }}
     strategy:
       fail-fast: false
       matrix:
@@ -67,6 +71,7 @@ jobs:
         shell: bash
         env:
           RELEASE: ${{ inputs.release }}
+          BRANCH: ${{ github.ref }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
@@ -74,6 +79,10 @@ jobs:
             const config = {};
             const version = (process.env.RELEASE || "").replace(/^v/, "");
             if (version) {
+              if (process.env.BRANCH !== "refs/heads/main") {
+                console.error("Releases are built from main: choose main in \"Use workflow from\".");
+                process.exit(1);
+              }
               if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
                 console.error(`"${process.env.RELEASE}" is not a version like v0.2.0`);
                 process.exit(1);
@@ -124,11 +133,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.release }}
         run: |
-          # The draft, with each file's API address (which works for a private repository).
+          # The draft's notes and the names GitHub gave its files.
           gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" \
-            --jq "[.[] | select(.tag_name == \"$TAG\")][0] | {body, assets: [.assets[] | {name, apiUrl: .url}]}" \
+            --jq "[.[] | select(.tag_name == \"$TAG\")][0] | {body, assets: [.assets[] | {name}]}" \
             > release.json
-          node .github/scripts/latest-json.mjs "${TAG#v}" release.json installers latest.json
+          node .github/scripts/latest-json.mjs "$GITHUB_REPOSITORY" "$TAG" release.json installers latest.json
           if [ -f latest.json ]; then
             gh release upload "$TAG" latest.json --repo "$GITHUB_REPOSITORY"
           fi
