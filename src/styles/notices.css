@@ -196,6 +196,16 @@
   flex: none;
 }
 
+/* The number's box trimmed to its digits (the top of capitals down to the baseline), so
+   the badge centres the digits themselves. Otherwise it centres the font's whole line,
+   whose room above and below the digits differs between systems: on Windows the number
+   sat a pixel high. Systems without text-box-trim show it as before. */
+.pr-number {
+  display: block;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
+
 .pr-badge:hover {
   background: rgb(var(--overlay-rgb) / 0.18);
   color: var(--text);
