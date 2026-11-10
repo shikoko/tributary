@@ -439,10 +439,17 @@ fn flags_new_file_names_windows_and_macos_cannot_have() {
     std::fs::write(repo.path().join("readme.md"), "another").unwrap();
     std::fs::write(repo.path().join("aux.txt"), "aux").unwrap();
     std::fs::write(repo.path().join("Content/Maps/Fine.umap"), "fine").unwrap();
+    // Where capitals don't matter, Tavern.umap went into Content/Maps, and git lists it
+    // there, so name the file as it would be on Linux. (There, git lists the new folder.)
+    let tavern = if common::ignores_case(repo.path()) {
+        "Content/maps/Tavern.umap"
+    } else {
+        "Content/maps/"
+    };
 
     let changed: Vec<String> = [
         "README.md",
-        "Content/maps/",
+        tavern,
         "readme.md",
         "aux.txt",
         "Content/Maps/Fine.umap",

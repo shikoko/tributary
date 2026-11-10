@@ -188,6 +188,16 @@ pub fn outcome(repo: &TempRepo, action: Action) -> actions::Outcome {
     actions::run_with_progress(repo.path(), action, &|_| {}).unwrap()
 }
 
+/// Whether names that differ only in capitals are one file in `dir`, as on Windows and
+/// (usually) macOS: there, `Maps` and `maps` can't both be made.
+pub fn ignores_case(dir: &Path) -> bool {
+    let probe = dir.join("case-probe");
+    std::fs::write(&probe, "").unwrap();
+    let same = dir.join("CASE-PROBE").exists();
+    std::fs::remove_file(&probe).unwrap();
+    same
+}
+
 pub fn lfs_installed() -> bool {
     Command::new("git")
         .args(["lfs", "version"])

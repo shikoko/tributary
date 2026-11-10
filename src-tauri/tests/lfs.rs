@@ -822,6 +822,23 @@ fn checks_and_fixes_a_game_projects_setup() {
         std::fs::write(full, "x\n").unwrap();
     }
     repo.git(&["add", "."]);
+    if common::ignores_case(repo.path()) {
+        // Props and props are one folder here, so Stool.uasset went into Props. Commit it
+        // the way a teammate on Linux would have: this is what a clone here then looks like.
+        repo.git(&[
+            "rm",
+            "--cached",
+            "--quiet",
+            "Game/Content/Props/Stool.uasset",
+        ]);
+        let blob = repo.git(&["hash-object", "-w", "Game/Content/Props/Stool.uasset"]);
+        repo.git(&[
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            &format!("100644,{blob},Game/Content/props/Stool.uasset"),
+        ]);
+    }
     repo.git(&["commit", "--quiet", "-m", "Start the game"]);
 
     let setup = actions::project_setup(repo.path()).unwrap();
