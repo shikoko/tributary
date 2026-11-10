@@ -14,11 +14,13 @@ concurrency:
 permissions:
   contents: read
 
+# Linux jobs name their Ubuntu (not ubuntu-latest), so a new one is a change made on
+# purpose, with its own run of the checks, rather than one that happens by itself.
 jobs:
   # The app's TypeScript: types, lint and unit tests.
   app:
     name: App
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -45,7 +47,7 @@ jobs:
       matrix:
         include:
           - name: Linux
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - name: macOS
             os: macos-latest
           - name: Windows
@@ -96,7 +98,7 @@ jobs:
   # repositories, clicked through in Chromium.
   smoke:
     name: Smoke test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -133,7 +135,7 @@ jobs:
   release:
     name: Ready to release
     if: github.base_ref == 'main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       issues: read
