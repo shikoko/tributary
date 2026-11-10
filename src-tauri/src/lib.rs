@@ -9,6 +9,7 @@ pub mod avatars;
 pub mod ci;
 pub mod codeowners;
 mod commands;
+mod conditional;
 pub mod diagnostics;
 pub mod error;
 pub mod git;
