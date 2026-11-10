@@ -1,11 +1,8 @@
 <p align="center">
-  <img src="src-tauri/icons/128x128@2x.png" width="96" alt="Tributary's icon: a commit graph on a tile">
+  <img src="docs/images/hero.png" alt="Tributary: a fast, friendly git client for macOS and Windows, with first-class Git LFS, locks and art diffs. Beside it, the app showing a repository's commit graph.">
 </p>
 
-<h1 align="center">Tributary</h1>
-
 <p align="center">
-  <b>A fast, friendly git client for macOS and Windows.</b><br>
   A commit graph that's a pleasure to read, Undo for almost everything, and pull requests in the app,<br>
   with first-class big files too: Git LFS, locks, and art you can actually see in a diff.
 </p>
@@ -23,8 +20,6 @@
   Your support means a lot, and helps keep it going.<br><br>
   <a href="https://github.com/sponsors/shikoko"><img src="docs/images/support.svg" alt="Support Tributary on GitHub Sponsors" height="44"></a>
 </p>
-
-![Tributary showing the commit graph of a repository, with the details of a merge commit on the right](docs/images/overview.png)
 
 ## Why Tributary
 
