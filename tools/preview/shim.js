@@ -262,6 +262,10 @@
     commit_checks: () => preview.commitChecks || { checks: [], canRerun: false, site: "GitHub" },
     change_request: (args) => (faking() ? fakeChange(args) : server("change_request", args)),
     rerun_failed_checks: () => "Running the failed jobs again",
+    // A computer without git, or with an old one, when faked.
+    git_install: () => preview.gitInstall ?? server("git_install", {}),
+    look_for_git: () => preview.gitInstall ?? server("look_for_git", {}),
+    install_command_line_tools: () => ((preview.opened ??= []).push("xcode-select --install"), null),
     github_status: () =>
       preview.github
         ? { account: preview.github.account ?? null, tokenRejected: false, canKeepToken: true, browserSignIn: Boolean(preview.github.browserSignIn) }

@@ -1,11 +1,13 @@
 import { useState } from "react";
 import type { RepoSummary } from "../api";
 import type { Accounts, Forge } from "../app/useAccounts";
+import type { GitInstallState } from "../app/useGitInstall";
 import type { RecentRepo } from "../lib/recent";
 import { avatarColor } from "../lib/colors";
 import { plural, relativeTime } from "../lib/format";
 import { modKey } from "../lib/platform";
 import { AccountChips } from "./AccountChips";
+import { GitNeededCard, GitOldNote } from "./GitNeeded";
 import { BranchIcon, CloneIcon, CloseIcon, FolderIcon, Logo, NewRepoIcon, PinIcon, SearchIcon } from "./Icons";
 
 interface Props {
@@ -24,10 +26,12 @@ interface Props {
   /** Who's signed in to GitHub and GitLab, for the chips under the buttons. */
   accounts: Accounts;
   onSignIn: (forge: Forge) => void;
+  /** Where git is: when it isn't anywhere, that comes first. */
+  git: GitInstallState;
 }
 
 /** Shown when no repository is open: open, clone or create one, or pick a recent one. */
-export function Welcome({ recent, summaries, opening, error, onPick, onClone, onCreate, onOpen, onForget, onPin, accounts, onSignIn }: Props) {
+export function Welcome({ recent, summaries, opening, error, onPick, onClone, onCreate, onOpen, onForget, onPin, accounts, onSignIn, git }: Props) {
   const [filter, setFilter] = useState("");
   const needle = filter.trim().toLowerCase();
   const shown = recent.filter(
@@ -107,6 +111,7 @@ export function Welcome({ recent, summaries, opening, error, onPick, onClone, on
         <h1>Tributary</h1>
         <p className="tagline">See the history of a git repository as a graph.</p>
 
+        {git.missing && <GitNeededCard install={git} />}
         <div className="welcome-actions">
           <button className="primary-button" onClick={onPick} disabled={opening !== null}>
             <FolderIcon />
@@ -123,6 +128,7 @@ export function Welcome({ recent, summaries, opening, error, onPick, onClone, on
           </button>
         </div>
         <AccountChips accounts={accounts} onSignIn={onSignIn} />
+        {git.install?.old && <GitOldNote install={git} />}
         <p className="welcome-hint">You can also drop a folder onto this window.</p>
 
         {opening && <div className="welcome-status">Opening {opening}…</div>}

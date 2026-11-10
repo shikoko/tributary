@@ -745,6 +745,24 @@ pub async fn merge_request(
     crate::reviews::merge(&PathBuf::from(path), number, options).await
 }
 
+/// Where git is and which version, or what's in the way when it isn't there.
+#[tauri::command]
+pub async fn git_install() -> Result<git::install::GitInstall> {
+    blocking(|| Ok(git::install::installed())).await
+}
+
+/// Look for git again (after installing it, say).
+#[tauri::command]
+pub async fn look_for_git() -> Result<git::install::GitInstall> {
+    blocking(|| Ok(git::install::look_again())).await
+}
+
+/// Open Apple's installer for the Command Line Tools, which bring git (macOS).
+#[tauri::command]
+pub async fn install_command_line_tools() -> Result<()> {
+    blocking(git::install::install_command_line_tools).await
+}
+
 /// Who's signed in to GitHub (going by the token git keeps), and how one can sign in.
 #[tauri::command]
 pub async fn github_status() -> Result<github::account::GitHubStatus> {

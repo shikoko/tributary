@@ -25,6 +25,8 @@ import { RepositoryView } from "./app/RepositoryView";
 import { StartView } from "./app/StartView";
 import { useAccounts } from "./app/useAccounts";
 import { useViewFade } from "./app/useViewFade";
+import { useGitInstall } from "./app/useGitInstall";
+import { GitNeededBanner } from "./components/GitNeeded";
 import { useActions } from "./app/useActions";
 import { useBackgroundFetch } from "./app/useBackgroundFetch";
 import { useLocalHistory } from "./app/useLocalHistory";
@@ -411,6 +413,8 @@ export default function App() {
 
   const showTabBar = Boolean(snapshot) || tabs.length > 0 || menuBar.element !== undefined;
   useViewFade(snapshot ? `repository:${snapshot.path}` : "start");
+  // Where git is: without it, almost nothing works, so it's said up front.
+  const git = useGitInstall(repo.refresh);
   return (
     <ThemeContext.Provider value={theme}>
     <BranchSyncContext.Provider value={counts.aheadBehind}>
@@ -446,6 +450,7 @@ export default function App() {
               }
             />
           )}
+          {snapshot && git.missing && <GitNeededBanner install={git} />}
           {snapshot ? (
             <RepositoryView
               snapshot={snapshot}
@@ -498,6 +503,7 @@ export default function App() {
               onClone={() => setDialog({ kind: "clone" })}
               accounts={accounts}
               onSignIn={(forge) => overlays.show(forge === "github" ? "signIn" : "gitlabSignIn")}
+              git={git}
             />
           )}
           <AppOverlays
