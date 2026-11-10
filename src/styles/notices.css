@@ -186,6 +186,9 @@
   border-radius: 4px;
   background: rgb(var(--overlay-rgb) / 0.1);
   color: var(--text-secondary);
+  /* The labels' monospaced font, in the sidebar too: its digits sit in the middle of the
+     line, where the interface font's sit a pixel high. */
+  font-family: var(--mono);
   font-size: 10.5px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;

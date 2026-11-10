@@ -133,11 +133,14 @@
   white-space: nowrap;
 }
 
+/* A whole number of pixels tall (22px), so the rows under it stay on whole pixels too:
+   otherwise their text and badges round a pixel up or down. */
 .sidebar-group-name {
   padding: 4px 8px 2px 22px;
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 600;
+  line-height: 16px;
 }
 
 .sidebar-group ul .sidebar-item {
@@ -148,6 +151,7 @@
   padding: 2px 8px 4px 22px;
   color: var(--text-faint);
   font-size: 12px;
+  line-height: 16px;
 }
 
 /* Menus */
