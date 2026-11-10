@@ -5,6 +5,7 @@ import { startTour } from "./useTours";
 import { forMenu, onStart, type Release } from "../lib/whatsNew";
 import { loadRecent } from "../lib/recent";
 import { useStoredState } from "../lib/settings";
+import { askAgainForMissingAvatars } from "../lib/avatars";
 import { getVersion } from "@tauri-apps/api/app";
 import type { Updates } from "../lib/updates";
 import { CloneDialog } from "../components/CloneDialog";
@@ -158,6 +159,7 @@ export function AppOverlays(props: Props) {
             hide("signIn");
             notify({ text: `Signed in to GitHub as ${account.login}` });
             accounts.recheck();
+            void askAgainForMissingAvatars();
             props.onSignedIn();
           }}
         />
@@ -172,6 +174,7 @@ export function AppOverlays(props: Props) {
             notify({ text: `Signed in to ${host === GITLAB_COM ? "GitLab" : host} as ${account.username}` });
             gitlab.setHost(host);
             accounts.recheck();
+            void askAgainForMissingAvatars();
             props.onSignedIn();
           }}
         />

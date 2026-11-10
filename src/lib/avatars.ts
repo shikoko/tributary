@@ -3,7 +3,10 @@
  * (GitHub or GitLab for repositories there, then Gravatar) and hands them over as data:
  * URLs. The avatars on screen at the same moment are asked for together.
  */
-import { avatars } from "../api";
+import { avatars, forgetMissingAvatars } from "../api";
+
+/** Sent when the authors without a picture are to be asked about again. */
+export const AVATARS_CHANGED = "tributary:avatars";
 
 /** How long "no picture" stands before asking again (after being offline, say). */
 const RETRY_AFTER = 10 * 60_000;
@@ -56,4 +59,18 @@ export function avatarUrl(repo: string, email: string): Promise<string | null> {
     pictures.set(key, found);
   }
   return found;
+}
+
+/**
+ * Ask again about everyone found to have no picture, here and in the app (after signing in
+ * to GitHub or GitLab, which may now show them), and have the avatars on screen ask again.
+ */
+export async function askAgainForMissingAvatars() {
+  await forgetMissingAvatars().catch(() => {});
+  for (const [key, url] of resolved) {
+    if (url !== null) continue;
+    resolved.delete(key);
+    pictures.delete(key);
+  }
+  window.dispatchEvent(new Event(AVATARS_CHANGED));
 }
