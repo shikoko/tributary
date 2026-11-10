@@ -7,9 +7,9 @@ import { isLocalChangesError, NOT_ENOUGH_SPACE } from "../lib/errors";
 import { describeRun, dueRun, type ScheduleDays, type ScheduledResult, type ScheduledRun } from "../lib/schedule";
 import { FIRST_AUTO_FETCH_DELAY } from "./constants";
 
-/** Why a repository's pull didn't happen, in a sentence. */
+/** Why a repository wasn't brought up to date, in a sentence. */
 function whyNot(error: string): string {
-  if (isLocalChangesError(error)) return "Your uncommitted changes were in the way. Open it and pull (Stash changes and retry helps).";
+  if (isLocalChangesError(error)) return "Fetched, but your uncommitted changes were in the way of moving the branch forward. Pull when you're ready.";
   if (error.startsWith(NOT_ENOUGH_SPACE)) return error.split(". ")[0] + ".";
   return error.split("\n")[0];
 }
@@ -22,18 +22,19 @@ interface Options {
   last: string | null;
   setLast: (key: string) => void;
   setRun: (run: ScheduledRun) => void;
-  /** The open repository: pulled the usual way, with its progress (and its errors shown there). */
+  /** The open repository: done the usual way, with its progress (and its errors shown there). */
   activePath: string | null;
-  pullActive: () => Promise<boolean>;
+  fetchActive: () => Promise<boolean>;
   notify: (toast: ToastMessage) => void;
 }
 
 /**
- * Get latest on a schedule: at the set time, pull every open repository (its Git LFS files
- * too), one after another, then say how it went. Runs while Tributary is open and the
- * computer awake; returns a function to run it now.
+ * Fetch latest on a schedule: at the set time, fetch every open repository, one after
+ * another, and bring its branch up to date when that's a fast-forward (its Git LFS files
+ * too), never merging; then say how it went. Runs while Tributary is open and the computer
+ * awake; returns a function to run it now.
  */
-export function useScheduledPull(options: Options): () => Promise<void> {
+export function useScheduledFetch(options: Options): () => Promise<void> {
   const latest = useRef(options);
   latest.current = options;
   const running = useRef(false);
@@ -45,8 +46,8 @@ export function useScheduledPull(options: Options): () => Promise<void> {
     try {
       for (const tab of latest.current.tabs) {
         if (tab.path === latest.current.activePath) {
-          const ok = await latest.current.pullActive();
-          results.push({ name: tab.name, ok, message: ok ? "Pulled." : "Stopped: its tab says why." });
+          const ok = await latest.current.fetchActive();
+          results.push({ name: tab.name, ok, message: ok ? "Fetched." : "Stopped: its tab says why." });
           continue;
         }
         try {
@@ -55,7 +56,7 @@ export function useScheduledPull(options: Options): () => Promise<void> {
             results.push({ name: tab.name, ok: false, message: "Its branch isn't on a remote" });
             continue;
           }
-          results.push({ name: tab.name, ok: true, message: await runAction(tab.path, { kind: "pull" }) });
+          results.push({ name: tab.name, ok: true, message: await runAction(tab.path, { kind: "fetchLatest" }) });
         } catch (error) {
           results.push({ name: tab.name, ok: false, message: whyNot(String(error)) });
         }
@@ -78,7 +79,7 @@ export function useScheduledPull(options: Options): () => Promise<void> {
       latest.current.setLast(due);
       void runNow();
     };
-    // Not at once: the open repository loads first, to be pulled the usual way.
+    // Not at once: the open repository loads first, to be done the usual way.
     const first = window.setTimeout(check, FIRST_AUTO_FETCH_DELAY);
     const timer = window.setInterval(check, 30_000);
     return () => {

@@ -22,6 +22,10 @@ export interface SettingsSection {
   /** Shown under the title in the list, like the repository's name. */
   subtitle?: string;
   icon?: ReactNode;
+  /** Shown in the list under this section, indented: part of it (Commit list under Appearance). */
+  parent?: string;
+  /** A line above it in the list, setting it apart (Export and import, at the end). */
+  separated?: boolean;
   rows: SettingRow[];
 }
 
@@ -58,7 +62,8 @@ export function SettingsDialog({
         <nav className="settings-nav" role="tablist" aria-orientation="vertical" aria-label="Settings sections">
           {sections.map((candidate) => {
             const selected = candidate === section;
-            return (
+            return [
+              candidate.separated && <div key={`${candidate.title}-line`} className="settings-nav-line" role="presentation" />,
               <button
                 key={candidate.title}
                 role="tab"
@@ -66,7 +71,7 @@ export function SettingsDialog({
                 aria-selected={selected}
                 aria-controls="settings-panel"
                 tabIndex={selected ? 0 : -1}
-                className={`settings-tab${selected ? " selected" : ""}`}
+                className={`settings-tab${selected ? " selected" : ""}${candidate.parent ? " sub" : ""}`}
                 onClick={() => setChosen(candidate.title)}
                 onKeyDown={(event) => {
                   // ↑ ↓ Home End move between the sections, showing each.
@@ -83,13 +88,14 @@ export function SettingsDialog({
                   <span>{candidate.title}</span>
                   {candidate.subtitle && <span className="settings-tab-subtitle">{candidate.subtitle}</span>}
                 </span>
-              </button>
-            );
+              </button>,
+            ];
           })}
         </nav>
         {section && (
           <section key={section.title} className="settings-panel" id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${section.title}`}>
             <h3>
+              {section.parent && <span className="settings-panel-parent">{section.parent} › </span>}
               {section.title}
               {section.subtitle && <span className="settings-panel-subtitle">{section.subtitle}</span>}
             </h3>

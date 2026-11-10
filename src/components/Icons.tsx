@@ -586,6 +586,22 @@ export const DownloadIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A clock, for what happens at a set time (Fetch latest). */
+export const ClockIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="8" r="5.75" />
+    <path d="M8 4.75V8l2.25 1.5" />
+  </Icon>
+);
+
+/** Two arrows passing, for moving settings in and out (export and import). */
+export const TransferIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 5.5h9.5M10 3l2.5 2.5L10 8" />
+    <path d="M13 10.5H3.5M6 8l-2.5 2.5L6 13" />
+  </Icon>
+);
+
 /** The Windows title bar's buttons: thin lines on a 10×10 grid, like the system's own. */
 function WindowGlyph({ children }: { children: React.ReactNode }) {
   return (

@@ -1,6 +1,6 @@
 import type { ColumnOptions } from "../components/CommitList";
 import { appearanceRows } from "../components/AppearanceRows";
-import { ColumnsIcon, ContrastIcon, DiffIcon, FetchIcon, GearIcon, HistoryIcon, LockIcon, PullIcon, UserIcon } from "../components/Icons";
+import { ClockIcon, ColumnsIcon, ContrastIcon, DiffIcon, FetchIcon, GearIcon, HistoryIcon, LockIcon, TransferIcon, UserIcon } from "../components/Icons";
 import { describeRun, nextRun, type ScheduleDays } from "../lib/schedule";
 import type { SettingRow, SettingsSection } from "../components/SettingsDialog";
 import type { GitHubStatus, GitLabStatus } from "../api";
@@ -14,8 +14,8 @@ export const DIFF_SECTION = "Diff and merge";
 
 interface Options {
   preferences: Preferences;
-  /** Get the latest of every open repository now, as the schedule does. */
-  onGetLatestNow: () => void;
+  /** Fetch the latest of every open repository now, as the schedule does. */
+  onFetchLatestNow: () => void;
   /** Who's signed in to GitHub and GitLab. */
   accounts: {
     github: GitHubStatus | null;
@@ -29,14 +29,14 @@ interface Options {
   diffTools: SettingRow[];
   /** The editor and terminal "Open in …" uses. */
   apps: SettingRow[];
-  /** Saving the settings to a file, and reading them back. */
-  transfer: SettingRow;
+  /** Exporting the settings, and importing them back. */
+  transfer: SettingRow[];
   /** The theme in use (for "Same as the system", the system's). */
   theme: Theme;
 }
 
 /** Everything in the Settings window: the app's own settings (each repository has its own window). */
-export function settingsSections({ preferences, onGetLatestNow, accounts, diffTools, apps, transfer, theme }: Options): SettingsSection[] {
+export function settingsSections({ preferences, onFetchLatestNow, accounts, diffTools, apps, transfer, theme }: Options): SettingsSection[] {
   const { reopenTabs, setReopenTabs, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
@@ -85,13 +85,83 @@ export function settingsSections({ preferences, onGetLatestNow, accounts, diffTo
           ],
           set: (value) => setSubmoduleUpdates(value as SubmoduleUpdates),
         },
-        transfer,
       ],
     },
     {
       title: "Appearance",
       icon: <ContrastIcon size={15} />,
       rows: appearanceRows(preferences.appearance, preferences.setAppearance, theme),
+    },
+    {
+      title: "Commit list",
+      icon: <ColumnsIcon size={15} />,
+      parent: "Appearance",
+      rows: [
+        { kind: "toggle", label: "Compact rows", value: dense, set: setDense },
+        { kind: "toggle", label: "Day separators", value: daySeparators, set: setDaySeparators },
+        { kind: "toggle", label: "Previews on hover", hint: "A commit's details when you rest the pointer on it.", value: previews, set: setPreviews },
+        {
+          kind: "toggle",
+          label: "Profile pictures",
+          hint: "Looked up by email address: on GitHub or GitLab for repositories there, otherwise on Gravatar (which gets a hash of the address).",
+          value: profilePictures,
+          set: setProfilePictures,
+        },
+        {
+          kind: "toggle",
+          label: "Checks on commits",
+          hint: "A dot on each commit for its CI on GitHub or GitLab: green when the checks passed, red when they failed, amber while they run.",
+          value: columnOptions.checks !== false,
+          set: (on) => setColumnOptions({ ...columnOptions, checks: on }),
+        },
+        {
+          kind: "custom",
+          label: "Columns",
+          content: (
+            <span className="settings-checks">
+              {(["author", "date", "sha"] as const).map((column) => (
+                <label key={column} className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={columnOptions[column]}
+                    onChange={() => setColumnOptions({ ...columnOptions, [column]: !columnOptions[column] })}
+                  />
+                  {column === "sha" ? "SHA" : column[0].toUpperCase() + column.slice(1)}
+                </label>
+              ))}
+            </span>
+          ),
+        },
+        {
+          kind: "select",
+          label: "Dates",
+          value: columnOptions.dateFormat,
+          options: [
+            { value: "relative", label: "Relative (“3 hours ago”)" },
+            { value: "exact", label: "Exact dates and times" },
+          ],
+          set: (value) => setColumnOptions({ ...columnOptions, dateFormat: value as ColumnOptions["dateFormat"] }),
+          disabled: !columnOptions.date,
+        },
+        {
+          kind: "select",
+          label: "Which date",
+          value: columnOptions.dateKind,
+          options: [
+            { value: "authored", label: "When it was written" },
+            { value: "committed", label: "When it was committed" },
+          ],
+          set: (value) => setColumnOptions({ ...columnOptions, dateKind: value as ColumnOptions["dateKind"] }),
+          disabled: !columnOptions.date,
+        },
+        {
+          kind: "select",
+          label: "Zoom",
+          value: String(zoom),
+          options: ZOOM_LEVELS.map((level) => ({ value: String(level), label: `${Math.round(level * 100)}%` })),
+          set: (value) => setZoom(Number(value)),
+        },
+      ],
     },
     {
       title: "Accounts",
@@ -170,16 +240,17 @@ export function settingsSections({ preferences, onGetLatestNow, accounts, diffTo
       ],
     },
     {
-      title: "Get latest",
-      icon: <PullIcon size={15} />,
+      title: "Fetch latest",
+      icon: <ClockIcon size={15} />,
+      parent: "Fetching",
       rows: [
         {
           kind: "select",
-          label: "Get the latest of every open repository",
-          hint: "A pull of each open tab's repository, with its Git LFS files, so a big update is waiting when you start. Tributary has to be running and the computer awake; one that was asleep catches up within an hour of the time, or waits for the next day.",
+          label: "Fetch the latest of every open repository",
+          hint: "Fetches each open tab's repository and moves your branch forward when it can without merging (never past commits of your own, or changes it would overwrite), with its Git LFS files, so a big update is waiting when you start. Tributary has to be running and the computer awake; one that was asleep catches up within an hour of the time, or waits for the next day.",
           value: scheduleDays,
           options: [
-            { value: "off", label: "Only when I pull" },
+            { value: "off", label: "Only when I fetch" },
             { value: "weekdays", label: "On weekdays" },
             { value: "daily", label: "Every day" },
           ],
@@ -204,9 +275,9 @@ export function settingsSections({ preferences, onGetLatestNow, accounts, diffTo
                 .join("")}`
             : "Not yet.",
           content: (
-            <button className="outline-button" onClick={onGetLatestNow}>
-              <PullIcon size={14} />
-              <span className="button-label">Get latest now</span>
+            <button className="outline-button" onClick={onFetchLatestNow}>
+              <FetchIcon size={14} />
+              <span className="button-label">Fetch latest now</span>
             </button>
           ),
         },
@@ -284,75 +355,12 @@ export function settingsSections({ preferences, onGetLatestNow, accounts, diffTo
       icon: <DiffIcon size={15} />,
       rows: diffTools,
     },
+
     {
-      title: "Commit list",
-      icon: <ColumnsIcon size={15} />,
-      rows: [
-        { kind: "toggle", label: "Compact rows", value: dense, set: setDense },
-        { kind: "toggle", label: "Day separators", value: daySeparators, set: setDaySeparators },
-        { kind: "toggle", label: "Previews on hover", hint: "A commit's details when you rest the pointer on it.", value: previews, set: setPreviews },
-        {
-          kind: "toggle",
-          label: "Profile pictures",
-          hint: "Looked up by email address: on GitHub or GitLab for repositories there, otherwise on Gravatar (which gets a hash of the address).",
-          value: profilePictures,
-          set: setProfilePictures,
-        },
-        {
-          kind: "toggle",
-          label: "Checks on commits",
-          hint: "A dot on each commit for its CI on GitHub or GitLab: green when the checks passed, red when they failed, amber while they run.",
-          value: columnOptions.checks !== false,
-          set: (on) => setColumnOptions({ ...columnOptions, checks: on }),
-        },
-        {
-          kind: "custom",
-          label: "Columns",
-          content: (
-            <span className="settings-checks">
-              {(["author", "date", "sha"] as const).map((column) => (
-                <label key={column} className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={columnOptions[column]}
-                    onChange={() => setColumnOptions({ ...columnOptions, [column]: !columnOptions[column] })}
-                  />
-                  {column === "sha" ? "SHA" : column[0].toUpperCase() + column.slice(1)}
-                </label>
-              ))}
-            </span>
-          ),
-        },
-        {
-          kind: "select",
-          label: "Dates",
-          value: columnOptions.dateFormat,
-          options: [
-            { value: "relative", label: "Relative (“3 hours ago”)" },
-            { value: "exact", label: "Exact dates and times" },
-          ],
-          set: (value) => setColumnOptions({ ...columnOptions, dateFormat: value as ColumnOptions["dateFormat"] }),
-          disabled: !columnOptions.date,
-        },
-        {
-          kind: "select",
-          label: "Which date",
-          value: columnOptions.dateKind,
-          options: [
-            { value: "authored", label: "When it was written" },
-            { value: "committed", label: "When it was committed" },
-          ],
-          set: (value) => setColumnOptions({ ...columnOptions, dateKind: value as ColumnOptions["dateKind"] }),
-          disabled: !columnOptions.date,
-        },
-        {
-          kind: "select",
-          label: "Zoom",
-          value: String(zoom),
-          options: ZOOM_LEVELS.map((level) => ({ value: String(level), label: `${Math.round(level * 100)}%` })),
-          set: (value) => setZoom(Number(value)),
-        },
-      ],
+      title: "Export and import",
+      icon: <TransferIcon size={15} />,
+      separated: true,
+      rows: transfer,
     },
   ];
   return sections;

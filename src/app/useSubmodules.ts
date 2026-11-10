@@ -16,6 +16,7 @@ const SWITCHES = new Set<Action["kind"]>([
   "checkoutCommit",
   "createBranch",
   "pull",
+  "fetchLatest",
   "merge",
   "rebase",
 ]);

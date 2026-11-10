@@ -19,6 +19,8 @@ export type Action =
   | { kind: "createBranch"; name: string; id: string; checkout: boolean }
   | { kind: "fetch"; background?: boolean }
   | { kind: "pull" }
+  /** Fetch, and fast-forward the checked-out branch when nothing's in the way: never a merge. */
+  | { kind: "fetchLatest" }
   /** `noVerify`: without the repository's pre-push hook. */
   | { kind: "push"; force: boolean; noVerify?: boolean }
   /** Stash uncommitted changes, run `action`, then put the changes back. */

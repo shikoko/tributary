@@ -91,6 +91,62 @@ fn pushes_fetches_and_pulls() {
 }
 
 #[test]
+fn fetch_latest_only_fast_forwards() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("latest-remote.git");
+    let mut alice = TempRepo::new("latest-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "First");
+    let push = || Action::Push {
+        force: false,
+        no_verify: false,
+    };
+    run(&alice, push()).unwrap();
+    let mut bob = TempRepo::clone_of("latest-bob", &remote);
+    bob.git(&["config", "user.name", "Bob"]);
+    bob.git(&["config", "user.email", "bob@example.com"]);
+
+    // Nothing new: fetched, and nothing moves.
+    assert_eq!(
+        run(&bob, Action::FetchLatest).unwrap(),
+        "Fetched: main is up to date"
+    );
+
+    // Behind only: moved forward.
+    let second = alice.commit("b.txt", "Second");
+    run(&alice, push()).unwrap();
+    assert_eq!(
+        run(&bob, Action::FetchLatest).unwrap(),
+        "Brought main up to date"
+    );
+    assert_eq!(bob.git(&["rev-parse", "main"]), second);
+
+    // Both sides have commits: fetched, but main is left for a pull (never a merge).
+    let own = bob.commit("bob.txt", "From Bob");
+    let third = alice.commit("c.txt", "Third");
+    run(&alice, push()).unwrap();
+    assert!(
+        run(&bob, Action::FetchLatest)
+            .unwrap()
+            .contains("has commits of its own")
+    );
+    assert_eq!(bob.git(&["rev-parse", "main"]), own);
+    assert_eq!(bob.git(&["rev-parse", "origin/main"]), third);
+
+    // Behind, with a change of its own in the way: git refuses, and nothing changes.
+    bob.git(&["reset", "--quiet", "--hard", "origin/main"]);
+    alice.commit("c.txt", "Fourth");
+    run(&alice, push()).unwrap();
+    std::fs::write(bob.path().join("c.txt"), "Bob's unsaved work\n").unwrap();
+    assert!(run(&bob, Action::FetchLatest).is_err());
+    assert_eq!(bob.git(&["rev-parse", "main"]), third);
+    assert_eq!(
+        std::fs::read_to_string(bob.path().join("c.txt")).unwrap(),
+        "Bob's unsaved work\n"
+    );
+}
+
+#[test]
 fn force_push_replaces_the_remote_branch() {
     let _turn = remote_turn();
     let remote = TempRepo::bare("force-remote.git");
