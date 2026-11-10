@@ -19,8 +19,8 @@
 </p>
 
 <p align="center">
-  Tributary is free, and made in spare time.<br>
-  If it saves you or your team some time, your support keeps the updates coming.<br><br>
+  Tributary is free and open source, with no ads and no tracking, made by one person in their spare time.<br>
+  If it's made git a little easier for you, your support pays for the time behind every new feature and fix.<br><br>
   <a href="https://github.com/sponsors/shikoko"><img src="docs/images/support.svg" alt="Support Tributary on GitHub Sponsors" height="44"></a>
 </p>
 
@@ -204,7 +204,7 @@ npm run tauri dev
 
 ## Support Tributary
 
-Tributary is free, and made in spare time. If it saves you or your team some time, please consider supporting it on GitHub Sponsors: it keeps the updates coming. Bug reports and ideas help a lot too: see [CONTRIBUTING.md](CONTRIBUTING.md).
+Tributary is made by one person in their spare time, and stays free, with no ads and no tracking. If it's made git a little easier for you or your team, please consider supporting it on GitHub Sponsors: it pays for the time behind every new feature and fix. Bug reports and ideas help a lot too: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 <p>
   <a href="https://github.com/sponsors/shikoko"><img src="docs/images/support.svg" alt="Support Tributary on GitHub Sponsors" height="44"></a>
