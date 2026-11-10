@@ -297,10 +297,14 @@ pub(crate) struct RefreshingIndex(PathBuf);
 /// a refresh is under way there already.
 pub(crate) fn refreshing_index(workdir: &Path) -> Option<RefreshingIndex> {
     let folder = same_folder(workdir);
-    let mut refreshing = REFRESHING.0.lock().unwrap_or_else(|e| e.into_inner());
-    refreshing
-        .insert(folder.clone())
-        .then_some(RefreshingIndex(folder))
+    let inserted = REFRESHING
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(folder.clone());
+    // Made only when it's this refresh's to end: one made and dropped here would end the
+    // refresh under way (and, while the lock is held, never get it).
+    inserted.then(|| RefreshingIndex(folder))
 }
 
 impl Drop for RefreshingIndex {
