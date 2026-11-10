@@ -177,7 +177,7 @@ export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (pr:
         onOpen(pr);
       }}
     >
-      {requestNumber(pr)}
+      <span className="pr-number">{requestNumber(pr)}</span>
     </span>
   );
 }
