@@ -59,7 +59,9 @@
     return options.multiple ? answer.split(",").map((path) => path.trim()) : answer;
   };
 
-  const installUpdate = () =>
+  // Downloading an update: progress, then ready. Restarting waits while preview.gitBusy is
+  // set, as the app waits for git, and is stopped by stop_update_restart.
+  const downloadUpdate = () =>
     new Promise((resolve) => {
       const total = 18_000_000;
       let downloaded = 0;
@@ -68,10 +70,23 @@
         emit("update-progress", { downloaded, total });
         if (downloaded >= total) {
           clearInterval(timer);
-          preview.installed = true;
+          preview.downloaded = true;
           resolve(null);
         }
       }, 300);
+    });
+  const restartToUpdate = () =>
+    new Promise((resolve) => {
+      preview.stopRestart = false;
+      const timer = setInterval(() => {
+        if (preview.stopRestart) {
+          clearInterval(timer);
+          resolve(false);
+        } else if (!preview.gitBusy) {
+          clearInterval(timer);
+          preview.installed = true;
+        }
+      }, 100);
     });
 
   /** Any token but "bad" signs in, as a made-up user, after a moment. */
@@ -234,8 +249,13 @@
       document.documentElement.style.zoom = String(value);
       return null;
     },
-    check_for_update: () => preview.update,
-    install_update: installUpdate,
+    check_for_update: () => (preview.update ? { ...preview.update, ready: Boolean(preview.downloaded) } : null),
+    download_update: downloadUpdate,
+    restart_to_update: restartToUpdate,
+    stop_update_restart: () => {
+      preview.stopRestart = true;
+      return null;
+    },
     issues: (args) => (preview.issues ? preview.issues.all.filter((issue) => args.keys.includes(issue.key)) : server("issues", args)),
     my_issues: (args) => (preview.issues ? preview.issues.all.filter((issue) => preview.issues.mine.includes(issue.key)) : server("my_issues", args)),
     tracker_status: (args) => (preview.issues ? { signedIn: Boolean(preview.issues.user), user: preview.issues.user ?? null } : server("tracker_status", args)),

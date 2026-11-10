@@ -24,6 +24,7 @@ describe("moving settings", () => {
         "tributary.tabs.list": "[]",
         "tributary.place./Users/maya/feast": "{}",
         "tributary.recentRepositories": "[]",
+        "tributary.commitDrafts": '{"/Users/maya/feast":{"summary":"Fix the menu","description":"","amend":false}}',
         "tributary.pins:/Users/maya/feast": '["refs/heads/main"]',
         "other.thing": "1",
       }),

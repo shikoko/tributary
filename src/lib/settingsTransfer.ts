@@ -1,11 +1,11 @@
 // Moving Tributary's settings to another computer: everything kept in local storage,
-// except what only makes sense here (open tabs, places in lists, folders, notices
-// dismissed). Repository settings (pins, protected and hidden branches, the issue tracker)
+// except what only makes sense here (open tabs, places in lists, folders, commit messages
+// being written, notices dismissed). Repository settings (pins, protected and hidden branches, the issue tracker)
 // go along, and land on the repository with the same folder name there.
 
 const PREFIX = "tributary.";
 /** Kept here only. */
-const LOCAL_ONLY = [/^tabs\./, /^place\./, /^speed\.offered$/, /^clone\.parent$/, /^recentRepositories$/, /Dismissed$/];
+const LOCAL_ONLY = [/^tabs\./, /^place\./, /^speed\.offered$/, /^clone\.parent$/, /^recentRepositories$/, /^commitDrafts$/, /Dismissed$/];
 
 export interface SettingsFile {
   app: "Tributary";
