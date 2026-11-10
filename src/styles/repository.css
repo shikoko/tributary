@@ -257,6 +257,50 @@
   opacity: 0.35;
 }
 
+/* A commit's CI, on its node's lower right: passed, failed or running. The ring in the row's
+   colour keeps it apart from the picture under it. */
+.graph-ci {
+  --ci-ring: var(--bg);
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--ci-ring);
+  transform: translate(calc(-50% + var(--ci-offset)), calc(-50% + var(--ci-offset)));
+}
+
+.commit-list.dense .graph-ci {
+  width: 6px;
+  height: 6px;
+}
+
+.commit-row:hover .graph-ci {
+  --ci-ring: var(--bg-hover);
+}
+
+.commit-row.selected .graph-ci {
+  --ci-ring: var(--bg-selected);
+}
+
+.graph-ci.success {
+  background: var(--success);
+}
+
+.graph-ci.failure {
+  background: var(--danger);
+}
+
+.graph-ci.pending {
+  background: var(--warning);
+  animation: request-pending 1.4s ease-in-out infinite;
+}
+
+.commit-row.dimmed .graph-ci {
+  opacity: 0.35;
+}
+
 /* Fetch / Pull / Push */
 
 .tool-button .count {

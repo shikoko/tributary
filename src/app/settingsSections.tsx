@@ -320,6 +320,13 @@ export function settingsSections({ preferences, version, updates, onInstallUpdat
           set: setProfilePictures,
         },
         {
+          kind: "toggle",
+          label: "Checks on commits",
+          hint: "A dot on each commit for its CI on GitHub or GitLab: green when the checks passed, red when they failed, amber while they run.",
+          value: columnOptions.checks !== false,
+          set: (on) => setColumnOptions({ ...columnOptions, checks: on }),
+        },
+        {
           kind: "custom",
           label: "Columns",
           content: (
