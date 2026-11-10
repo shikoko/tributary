@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { stepFocus } from "../lib/inputMode";
 import { Dialog } from "./Dialog";
 import { CloseIcon } from "./Icons";
+import { Loader } from "./Loader";
 
 /** One setting: an on/off switch, a choice, or something of its own. */
 export type SettingRow =
@@ -15,7 +16,9 @@ export type SettingRow =
       set: (value: string) => void;
       disabled?: boolean;
     }
-  | { kind: "custom"; label: string; hint?: string; content: ReactNode };
+  | { kind: "custom"; label: string; hint?: string; content: ReactNode }
+  /** Still being read: the loader, in place of the settings. */
+  | { kind: "loading"; label: string };
 
 export interface SettingsSection {
   title: string;
@@ -125,6 +128,7 @@ export function SettingsDialog({
 
 /** One setting: its label and hint on the left, its control on the right. */
 function SettingRowView({ row }: { row: SettingRow }) {
+  if (row.kind === "loading") return <Loader size={56} title={row.label} />;
   return (
     <div className={`settings-row${"disabled" in row && row.disabled ? " disabled" : ""}`}>
       <div className="settings-label">

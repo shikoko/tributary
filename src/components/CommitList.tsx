@@ -11,6 +11,7 @@ import { DENSE_ROW_HEIGHT, FOOTER_HEIGHT, GRAPH_PADDING, laneWidthFor, ROW_HEIGH
 import { ListHeader } from "./commitList/ListHeader";
 import { DaySeparator, ListRow, type RowHandlers } from "./commitList/ListRow";
 import { CommitPreview } from "./CommitPreview";
+import { Loader } from "./Loader";
 
 export { DEFAULT_COLUMNS, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
 
@@ -312,7 +313,7 @@ export function CommitList(props: Props) {
                 <div className="list-footer" style={{ top: slots.length * rowHeight, height: FOOTER_HEIGHT }}>
                   <span>Showing the {commits.length.toLocaleString()} most recent commits.</span>
                   <button className="tool-button" onClick={onLoadMore} disabled={loadingMore}>
-                    {loadingMore ? "Loading…" : `Load ${PAGE_SIZE.toLocaleString()} more`}
+                    {loadingMore ? <Loader inline size={18} title="Loading…" /> : `Load ${PAGE_SIZE.toLocaleString()} more`}
                   </button>
                 </div>
               )}

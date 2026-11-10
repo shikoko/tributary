@@ -206,7 +206,7 @@ function useSigningRows(path: string, run: (action: Action) => Promise<boolean>)
       .catch(() => setSettings(null));
   }, [path]);
   useEffect(load, [load]);
-  if (!settings) return [{ kind: "custom", label: "Loading…", content: null }];
+  if (!settings) return [{ kind: "loading", label: "Reading the settings" }];
 
   const keys = settings.keys.filter((key) => key.format === draft.mode);
   const changed = draft.mode !== settings.mode || ((draft.mode === "gpg" || draft.mode === "ssh") && draft.key.trim() !== (settings.key ?? ""));

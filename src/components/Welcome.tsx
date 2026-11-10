@@ -9,6 +9,7 @@ import { modKey } from "../lib/platform";
 import { AccountChips } from "./AccountChips";
 import { GitNeededCard, GitOldNote } from "./GitNeeded";
 import { BranchIcon, CloneIcon, CloseIcon, FolderIcon, Logo, NewRepoIcon, PinIcon, SearchIcon } from "./Icons";
+import { Loader } from "./Loader";
 
 interface Props {
   recent: RecentRepo[];
@@ -104,6 +105,15 @@ export function Welcome({ recent, summaries, opening, error, onPick, onClone, on
     );
   };
 
+  if (opening) {
+    const name = recent.find((repo) => repo.path === opening)?.name ?? opening.split(/[\\/]/).filter(Boolean).pop() ?? opening;
+    return (
+      <div className="welcome">
+        <Loader title={`Opening ${name}`} detail={opening} />
+      </div>
+    );
+  }
+
   return (
     <div className="welcome">
       <div className="welcome-card">
@@ -131,7 +141,6 @@ export function Welcome({ recent, summaries, opening, error, onPick, onClone, on
         {git.install?.old && <GitOldNote install={git} />}
         <p className="welcome-hint">You can also drop a folder onto this window.</p>
 
-        {opening && <div className="welcome-status">Opening {opening}…</div>}
         {error && <div className="error-banner">{error}</div>}
 
         {recent.length > 0 && (

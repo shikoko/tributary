@@ -36,11 +36,6 @@
   font-size: 14px;
 }
 
-.welcome-status {
-  color: var(--text-muted);
-  overflow-wrap: anywhere;
-}
-
 .welcome-card .error-banner {
   width: 100%;
   text-align: left;

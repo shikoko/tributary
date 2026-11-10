@@ -3,6 +3,7 @@ import { createPullRequest, newRequestInfo, type NewRequestInfo, type PullReques
 import { plural } from "../lib/format";
 import { requestNoun, suggestRequest } from "../lib/pullRequests";
 import { Dialog } from "./Dialog";
+import { Loader } from "./Loader";
 
 interface Props {
   repoPath: string;
@@ -144,7 +145,7 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
       }
     >
       {!info ? (
-        <p className="muted">Loading…</p>
+        <Loader size={56} title="Reading its commits" />
       ) : (
         <form
           className="dialog-form"

@@ -4,6 +4,7 @@ import { plural, shortId } from "../lib/format";
 import { baseName } from "../lib/paths";
 import { Dialog } from "./Dialog";
 import { FileKindIcon } from "./FileKindIcon";
+import { Loader } from "./Loader";
 
 /**
  * Split a commit in two: choose the files that move into a new commit right after it, and
@@ -75,7 +76,7 @@ export function SplitCommitDialog({
       }
     >
       {!details ? (
-        !error && <p className="muted">Loading…</p>
+        !error && <Loader size={56} title="Reading the commit" />
       ) : files.length < 2 ? (
         <p>It changes only one file: there's nothing to split.</p>
       ) : (

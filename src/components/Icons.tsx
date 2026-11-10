@@ -486,6 +486,21 @@ export const RewriteIcon = (p: IconProps) => (
 );
 
 
+/** The logo's five branches: where each starts, and its colour (the graph's first five). */
+export const LOGO_LANES: [number, string][] = [
+  [200, "#1fb5ff"],
+  [356, "#ff4f9a"],
+  [512, "#ffad1f"],
+  [668, "#2fd38a"],
+  [824, "#8f6bff"],
+];
+/** A branch of the logo, from above its top edge down to the commit they merge into. */
+export const logoLane = (x: number) => `M${x} 20V320C${x} 520 512 510 512 690`;
+/** Outer branches first, the middle one last, so they overlap evenly where they meet. */
+export const LOGO_LANE_ORDER = [0, 4, 1, 3, 2];
+/** The river flowing on from the commit. */
+export const LOGO_RIVER = "M450 690L418 1060H606L574 690Z";
+
 /** The app icon's tile: a rounded square with continuous (Apple-style) corners. */
 const LOGO_TILE = "M924 512C924 922 922 924 512 924C102 924 100 922 100 512C100 102 102 100 512 100C922 100 924 102 924 512Z";
 
@@ -497,21 +512,12 @@ const LOGO_TILE = "M924 512C924 922 922 924 512 924C102 924 100 922 100 512C100 
  */
 export function Logo({ size = 32, tile = false }: { size?: number; tile?: boolean }) {
   const id = useId().replace(/:/g, "");
-  const lanes: [number, string][] = [
-    [200, "#1fb5ff"],
-    [356, "#ff4f9a"],
-    [512, "#ffad1f"],
-    [668, "#2fd38a"],
-    [824, "#8f6bff"],
-  ];
-  const lane = (x: number) => `M${x} 20V320C${x} 520 512 510 512 690`;
   const mark = (
     <>
-      <path d="M450 690L418 1060H606L574 690Z" style={{ fill: "var(--logo-ink)" }} />
+      <path d={LOGO_RIVER} style={{ fill: "var(--logo-ink)" }} />
       <g fill="none" strokeLinecap="round">
-        {/* Outer lanes first, the middle one last, so they overlap evenly where they meet. */}
-        {[0, 4, 1, 3, 2].map((i) => (
-          <path key={i} d={lane(lanes[i][0])} stroke={lanes[i][1]} strokeWidth={86} />
+        {LOGO_LANE_ORDER.map((i) => (
+          <path key={i} d={logoLane(LOGO_LANES[i][0])} stroke={LOGO_LANES[i][1]} strokeWidth={86} />
         ))}
       </g>
       <circle cx="512" cy="690" r="92" style={{ fill: "var(--logo-ink)" }} />
