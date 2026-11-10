@@ -239,6 +239,8 @@ try {
   await step("checks the project's setup", async () => {
     await app.execute(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));`);
     await app.click(".menu-bar-item", "Repository");
+    // It's in the Tools submenu, which opens on a click too.
+    await app.click(".menu-item", "Tools");
     await app.click(".menu-item", "Check Project Setup");
     await app.waitFor(".setup-item", { timeout: 20_000 });
   });

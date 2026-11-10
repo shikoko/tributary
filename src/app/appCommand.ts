@@ -16,8 +16,23 @@ export interface AppCommand {
   run: () => void;
 }
 
-/** A command, or a divider. */
-export type MenuEntry = AppCommand | "-";
+/** A submenu: its own entries, opened beside its row. */
+export interface AppSubmenu {
+  id: string;
+  label: string;
+  icon?: ReactNode;
+  entries: MenuEntry[];
+}
+
+/** A command, a submenu, or a divider. */
+export type MenuEntry = AppCommand | AppSubmenu | "-";
+
+export const isSubmenu = (entry: MenuEntry): entry is AppSubmenu => entry !== "-" && "entries" in entry;
+
+/** Every command in `entries`, those in submenus included, in order. */
+export function commandsIn(entries: MenuEntry[]): AppCommand[] {
+  return entries.flatMap((entry) => (entry === "-" ? [] : isSubmenu(entry) ? commandsIn(entry.entries) : [entry]));
+}
 
 /** "CmdOrCtrl+Shift+L" as it's written on this platform: "⇧⌘L" or "Ctrl+Shift+L". */
 export function shortcutLabel(keys: string): string {
@@ -39,6 +54,14 @@ export function menuItems(entries: MenuEntry[]): MenuItem[] {
   for (const entry of entries) {
     if (entry === "-") {
       separated = items.length > 0;
+      continue;
+    }
+    if (isSubmenu(entry)) {
+      const submenu = menuItems(entry.entries);
+      // An empty submenu (all its commands left out here) isn't shown.
+      if (submenu.length === 0) continue;
+      items.push({ label: entry.label, icon: entry.icon, separated, submenu, onSelect: () => {} });
+      separated = false;
       continue;
     }
     items.push({

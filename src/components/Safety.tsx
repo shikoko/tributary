@@ -62,7 +62,7 @@ export function LostCommitsNote({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lost]);
 
-  const restore = <p className="hint">Tributary keeps a backup for 30 days: Repository → Restore Branch… puts it back.</p>;
+  const restore = <p className="hint">Tributary keeps a backup for 30 days: Repository → Branches → Restore Branch… puts it back.</p>;
   if (lost === undefined) return <p className="hint">Checking what would be lost…</p>;
   if (lost === null) return restore;
   if (lost.count === 0) {

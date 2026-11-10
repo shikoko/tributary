@@ -165,7 +165,7 @@ export function CloneDialog({ onCancel, onDone }: Props) {
               <input type="checkbox" checked={skipLfs} onChange={(event) => setSkipLfs(event.target.checked)} />
               Download Git LFS files later
             </label>
-            <p className="hint checkbox-hint">They arrive as small pointer files. Download them all from the Repository menu, or as you check out branches.</p>
+            <p className="hint checkbox-hint">They arrive as small pointer files. Download them all from Repository → Git LFS, or as you check out branches.</p>
             <label className="field">
               <span>Only these folders</span>
               <input

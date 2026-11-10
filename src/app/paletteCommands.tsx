@@ -14,7 +14,7 @@ import {
   ViewIcon,
 } from "../components/Icons";
 import { splitRemoteBranch } from "../menus";
-import { shortcutLabel } from "./appCommand";
+import { commandsIn, shortcutLabel } from "./appCommand";
 import type { AppMenuDefinition } from "./appMenus";
 import type { Focus } from "./constants";
 import type { Preferences } from "./usePreferences";
@@ -53,8 +53,8 @@ export function paletteCommands(ctx: PaletteContext): Command[] {
     list.push(command);
   };
   for (const m of menus) {
-    for (const entry of m.entries) {
-      if (entry === "-" || entry.enabled === false) continue;
+    for (const entry of commandsIn(m.entries)) {
+      if (entry.enabled === false) continue;
       const label = entry.checked === undefined ? entry.label : `${entry.checked ? "Turn off" : "Turn on"}: ${entry.label}`;
       add({ id: entry.id, label, icon: entry.icon, group: m.label === "Repository" ? "Repository" : m.label === "View" ? "View" : undefined, shortcut: entry.keys && shortcutLabel(entry.keys), run: entry.run });
     }
