@@ -1,5 +1,5 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { pullRequests, type CommitMessage, type PullRequest, type RequestCheck, type RequestDetails } from "../api";
+import { pullRequests, type CommitMessage, type PullRequest, type RequestCheck, type RequestDetails, type RequestReview } from "../api";
 
 /** Don't ask GitHub more often than this, unless asked to. */
 const MIN_INTERVAL = 60_000;
@@ -71,6 +71,39 @@ export function summarizeChecks(checks: RequestCheck[]): string {
     .filter(([n]) => n > 0)
     .map(([n, what]) => `${n} ${what}`)
     .join(", ");
+}
+
+/** A list of names in words: "maya", "maya and theo", "maya, theo and sam". */
+function names(list: string[]): string {
+  return list.length <= 2 ? list.join(" and ") : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
+}
+
+/** Where a request's reviews stand, in words, like "Approved by maya · waiting for sam". */
+export function describeReviews(reviews: RequestReview[]): string | null {
+  const who = (state: RequestReview["state"]) => reviews.filter((review) => review.state === state).map((review) => review.author);
+  const parts = [
+    who("changesRequested").length > 0 && `${names(who("changesRequested"))} asked for changes`,
+    who("approved").length > 0 && `approved by ${names(who("approved"))}`,
+    who("commented").length > 0 && `${names(who("commented"))} commented`,
+    who("requested").length > 0 && `waiting for ${names(who("requested"))}`,
+  ].filter((part): part is string => Boolean(part));
+  if (parts.length === 0) return null;
+  const text = parts.join(" · ");
+  // A capital for "Approved by" and "Waiting for", but a username stays as it's written.
+  return /^(approved|waiting) /.test(text) ? text[0].toUpperCase() + text.slice(1) : text;
+}
+
+/** How far a request's checks have got, like "3 of 5 checks passed, 2 still running". Skipped ones don't count. */
+export function describeCheckProgress(checks: RequestCheck[], gitlab = false): string | null {
+  const counted = checks.filter((check) => check.state !== null);
+  if (counted.length === 0) return null;
+  const what = gitlab ? "jobs" : "checks";
+  const count = (state: RequestCheck["state"]) => counted.filter((check) => check.state === state).length;
+  const [failed, running, passed] = [count("failure"), count("pending"), count("success")];
+  const still = running > 0 ? `, ${running} still running` : "";
+  if (failed > 0) return `${failed} of ${counted.length} ${what} failed${still}`;
+  if (running > 0) return `${passed} of ${counted.length} ${what} passed${still}`;
+  return counted.length === 1 ? `The ${what.slice(0, -1)} passed` : `All ${counted.length} ${what} passed`;
 }
 
 /** Whether a request can be merged, in words, and how it looks: good, bad or waiting. */

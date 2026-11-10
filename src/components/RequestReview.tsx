@@ -12,6 +12,7 @@ import {
 import { relativeTime } from "../lib/format";
 import { noteMergedHere } from "../lib/requestNews";
 import { Avatar } from "./Avatar";
+import { Markdown } from "./Markdown";
 import { Dialog } from "./Dialog";
 
 const METHODS: Record<MergeMethod, { label: string; hint: string }> = {
@@ -20,11 +21,12 @@ const METHODS: Record<MergeMethod, { label: string; hint: string }> = {
   rebase: { label: "Rebase and merge", hint: "Its commits replayed on top, one by one, without a merge commit." },
 };
 
+/** A review's verdict, as a tag beside its author's name. */
 const VERDICTS: Record<NonNullable<RequestComment["review"]>, string> = {
-  approved: "approved",
-  changesRequested: "asked for changes",
-  commented: "reviewed",
-  requested: "was asked to review",
+  approved: "Approved",
+  changesRequested: "Asked for changes",
+  commented: "Reviewed",
+  requested: "Asked to review",
 };
 
 /** Merge a request on its site: how, the commit's message, and whether to delete its branch. */
@@ -190,11 +192,13 @@ export function ConversationList({
   repoPath,
   details,
   conversation,
+  openUrl,
   onDone,
 }: {
   repoPath: string;
   details: RequestDetails;
   conversation: RequestConversation;
+  openUrl: (url: string) => void;
   onDone: (message: string) => void;
 }) {
   const [replying, setReplying] = useState<string | null>(null);
@@ -210,7 +214,7 @@ export function ConversationList({
             const lastInThread = comment.thread !== null && (!next || next.thread !== comment.thread || !next.reply);
             return (
               <li key={comment.id} className={`request-comment${comment.reply ? " reply" : ""}${comment.review ? ` review ${comment.review}` : ""}`}>
-                <CommentBody comment={comment} />
+                <CommentBody comment={comment} openUrl={openUrl} />
                 {lastInThread &&
                   conversation.you &&
                   (replying === comment.thread ? (
@@ -242,21 +246,29 @@ export function ConversationList({
   );
 }
 
-function CommentBody({ comment }: { comment: RequestComment }) {
+function CommentBody({ comment, openUrl }: { comment: RequestComment; openUrl: (url: string) => void }) {
   const when = Date.parse(comment.created) / 1000;
   return (
     <div className="request-comment-body">
       <div className="request-comment-head">
-        <Avatar name={comment.author} email="" size={20} />
-        <strong>{comment.author}</strong>
-        {comment.review && <span className={`request-review ${comment.review}`}>{VERDICTS[comment.review]}</span>}
-        {comment.path && !comment.reply && (
-          <span className="request-comment-where mono" title={comment.path}>
-            {comment.path.split("/").pop()}
-            {comment.line !== null && `:${comment.line}`}
+        <span className="request-comment-avatar">
+          <Avatar name={comment.author} email="" size={comment.reply ? 22 : 28} />
+        </span>
+        <strong className="chip-text">{comment.author}</strong>
+        {comment.review && (
+          <span className={`request-review ${comment.review}`}>
+            <span className="chip-text">{VERDICTS[comment.review]}</span>
           </span>
         )}
-        {Number.isFinite(when) && <span className="request-comment-when">{relativeTime(when)}</span>}
+        {comment.path && !comment.reply && (
+          <span className="request-comment-where mono" title={comment.path}>
+            <span className="chip-text">
+              {comment.path.split("/").pop()}
+              {comment.line !== null && `:${comment.line}`}
+            </span>
+          </span>
+        )}
+        {Number.isFinite(when) && <span className="request-comment-when chip-text">{relativeTime(when)}</span>}
       </div>
       {comment.hunk && !comment.reply && (
         <pre className="request-hunk">
@@ -268,7 +280,7 @@ function CommentBody({ comment }: { comment: RequestComment }) {
           ))}
         </pre>
       )}
-      {comment.body.trim() && <div className="request-description">{comment.body.trim()}</div>}
+      {comment.body.trim() && <Markdown className="request-comment-text" text={comment.body.trim()} openUrl={openUrl} />}
     </div>
   );
 }
