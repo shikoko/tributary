@@ -507,10 +507,6 @@
   color: var(--text-secondary);
 }
 
-.commit-checks-head .ci-dot {
-  margin-left: 0;
-}
-
 .commit-checks-head .outline-button.small {
   height: 24px;
   margin-left: auto;
