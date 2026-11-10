@@ -1,11 +1,14 @@
 name: Labels
 
 # Each pull request into develop is labelled with its kind of change, which decides the next
-# version (.github/scripts/next-version.mjs): fix, feature or breaking.
+# version (.github/scripts/next-version.mjs): fix, feature or breaking. The check runs once
+# there's a label (and again on each push), not when the pull request is opened: a label is
+# usually added a moment later, and until then the check waits (and, being required, so does
+# the merge) instead of failing.
 on:
   pull_request:
     branches: [develop]
-    types: [opened, reopened, synchronize, labeled, unlabeled]
+    types: [reopened, synchronize, labeled, unlabeled]
 
 concurrency:
   group: labels-${{ github.event.pull_request.number }}
