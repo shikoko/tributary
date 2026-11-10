@@ -56,7 +56,7 @@ export function paletteCommands(ctx: PaletteContext): Command[] {
     for (const entry of commandsIn(m.entries)) {
       if (entry.enabled === false) continue;
       const label = entry.checked === undefined ? entry.label : `${entry.checked ? "Turn off" : "Turn on"}: ${entry.label}`;
-      add({ id: entry.id, label, icon: entry.icon, group: m.label === "Repository" ? "Repository" : m.label === "View" ? "View" : undefined, shortcut: entry.keys && shortcutLabel(entry.keys), run: entry.run });
+      add({ id: entry.id, label, icon: entry.icon, keywords: entry.keywords, group: m.label === "Repository" ? "Repository" : m.label === "View" ? "View" : undefined, shortcut: entry.keys && shortcutLabel(entry.keys), run: entry.run });
     }
   }
   for (const tab of tabs) {

@@ -992,8 +992,10 @@ try {
       window.__PREVIEW__.gitBusy = true;
     });
     await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
-    await page.locator(".menu-item", { hasText: "Check for Updates" }).click();
+    await page.locator(".menu-item", { hasText: "About Tributary" }).click();
     const about = page.locator(".about-window");
+    // It checked a moment ago (the step before), so it's checked again by hand.
+    await about.getByRole("button", { name: "Check again" }).click();
     // Found, downloaded in the background, then ready.
     await about.locator(".about-status", { hasText: "Tributary 9.9.0 is ready" }).waitFor({ timeout: 15_000 });
     await page.locator(".update-pill", { hasText: "Restart to update" }).waitFor({ timeout: 5000 });

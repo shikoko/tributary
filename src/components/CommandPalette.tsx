@@ -8,6 +8,8 @@ export interface Command {
   group?: string;
   icon?: ReactNode;
   shortcut?: string;
+  /** Other words it's found by. */
+  keywords?: string;
   run: () => void;
 }
 
@@ -28,7 +30,7 @@ export function CommandPalette({ commands, onClose }: { commands: Command[]; onC
   const results = useMemo(() => {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
     return commands
-      .map((command, order) => ({ command, order, score: score(`${command.label} ${command.group ?? ""}`, words) }))
+      .map((command, order) => ({ command, order, score: score(`${command.label} ${command.group ?? ""} ${command.keywords ?? ""}`, words) }))
       .filter((result) => result.score !== null)
       .sort((a, b) => a.score! - b.score! || a.order - b.order)
       .slice(0, 60)
