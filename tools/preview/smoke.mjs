@@ -194,6 +194,25 @@ try {
     await settings.locator(".settings-nav").getByText("Appearance").click();
     await settings.getByRole("radio", { name: /Your own/ }).click();
     expect((await settings.locator(".lane-editor-swatch").count()) >= 8, "your own colours didn't start from the vivid ones");
+    // Drag the first colour to the third's place, then move it back with the keyboard.
+    const colours = () => settings.locator(".lane-editor-swatch input").evaluateAll((inputs) => inputs.map((input) => input.value));
+    const before = await colours();
+    const swatches = settings.locator(".lane-editor-swatch");
+    const from = await swatches.nth(0).boundingBox();
+    const to = await swatches.nth(2).boundingBox();
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2, { steps: 3 });
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+    await page.mouse.up();
+    const dragged = await colours();
+    expect(dragged[2] === before[0] && dragged[0] === before[1] && dragged[1] === before[2], `dragging didn't move the colour (${dragged.slice(0, 3)})`);
+    await swatches.nth(2).locator("input").focus();
+    for (const _ of [1, 2]) {
+      await page.keyboard.press("Alt+ArrowLeft");
+      await page.waitForTimeout(100);
+    }
+    expect(JSON.stringify(await colours()) === JSON.stringify(before), "Alt+arrows didn't move it back");
     await settings.getByLabel("Accent colour, as a hex code").fill("#e8702a");
     const accent = () => page.evaluate(() => document.documentElement.style.getPropertyValue("--accent"));
     await page.waitForFunction(() => document.documentElement.style.getPropertyValue("--accent") === "#e8702a", null, { timeout: 5000 });

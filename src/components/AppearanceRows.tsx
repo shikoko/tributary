@@ -1,4 +1,5 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { moved } from "../lib/order";
 import {
   ACCENTS,
   DEFAULT_APPEARANCE,
@@ -159,18 +160,102 @@ function LanePicker({ value, custom, theme, onChange }: { value: LaneChoice; cus
   );
 }
 
-/** Your own lane colours: click one to change it, × to take it out, + to add one. */
+/**
+ * Your own lane colours: click one to change it, drag it (or Alt+← →) to move it, × to take
+ * it out, + to add one. The branches take them in this order.
+ */
 function LaneEditor({ colors, onChange }: { colors: string[]; onChange: (colors: string[]) => void }) {
+  const row = useRef<HTMLDivElement>(null);
+  const [lifted, setLifted] = useState<number | null>(null);
+  // A drag that moved a colour: the click ending it doesn't open the colour picker.
+  const dragged = useRef(false);
   const set = (index: number, color: string) => onChange(colors.map((each, i) => (i === index ? color : each)));
+
+  const startDrag = (index: number, event: ReactPointerEvent) => {
+    if (event.button !== 0) return;
+    const start = { x: event.clientX, y: event.clientY };
+    let order = colors;
+    let at = index;
+    let moving = false;
+    dragged.current = false;
+    const move = (e: PointerEvent) => {
+      if (!moving) {
+        // A few pixels first, so a click is still a click.
+        if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 5) return;
+        moving = true;
+        dragged.current = true;
+        setLifted(at);
+      }
+      // The new place: the swatch nearest the pointer (they wrap onto more rows).
+      const swatches = [...(row.current?.querySelectorAll(".lane-editor-swatch") ?? [])];
+      let target = at;
+      let nearest = Infinity;
+      swatches.forEach((swatch, i) => {
+        const rect = swatch.getBoundingClientRect();
+        const distance = Math.hypot(rect.left + rect.width / 2 - e.clientX, rect.top + rect.height / 2 - e.clientY);
+        if (distance < nearest) {
+          nearest = distance;
+          target = i;
+        }
+      });
+      if (target !== at) {
+        order = moved(order, at, target);
+        at = target;
+        setLifted(target);
+        onChange(order);
+      }
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      setLifted(null);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  // Alt+← → moves the colour with the focus, which stays on it.
+  const moveWithKeys = (index: number, event: KeyboardEvent) => {
+    const step = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : 0;
+    if (!event.altKey || step === 0) return;
+    event.preventDefault();
+    const to = index + step;
+    if (to < 0 || to >= colors.length) return;
+    onChange(moved(colors, index, to));
+    requestAnimationFrame(() => row.current?.querySelectorAll<HTMLInputElement>(".lane-editor-swatch input")[to]?.focus());
+  };
+
   return (
-    <div className="lane-editor">
+    <div className={`lane-editor${lifted !== null ? " dragging" : ""}`} ref={row}>
       {colors.map((color, index) => (
-        <span key={index} className="lane-editor-swatch">
-          <label style={{ background: color }} title={`Lane ${index + 1}: ${color}. Click to change it.`}>
-            <input type="color" value={color} aria-label={`Lane ${index + 1} colour`} onChange={(event) => set(index, event.target.value)} />
+        <span
+          key={index}
+          className={`lane-editor-swatch${lifted === index ? " lifted" : ""}`}
+          onPointerDown={(event) => startDrag(index, event)}
+          onClickCapture={(event) => {
+            if (!dragged.current) return;
+            dragged.current = false;
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+        >
+          <label style={{ background: color }} title={`Lane ${index + 1}: ${color}. Click to change it, drag to move it (or Alt+← →).`}>
+            <input
+              type="color"
+              value={color}
+              aria-label={`Lane ${index + 1} colour (Alt+arrow keys move it)`}
+              onChange={(event) => set(index, event.target.value)}
+              onKeyDown={(event) => moveWithKeys(index, event)}
+            />
           </label>
           {colors.length > 2 && (
-            <button className="lane-editor-remove" onClick={() => onChange(colors.filter((_, i) => i !== index))} aria-label={`Remove lane ${index + 1}'s colour`} title="Take it out">
+            <button
+              className="lane-editor-remove"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => onChange(colors.filter((_, i) => i !== index))}
+              aria-label={`Remove lane ${index + 1}'s colour`}
+              title="Take it out"
+            >
               ×
             </button>
           )}
@@ -234,7 +319,7 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
           {
             kind: "custom" as const,
             label: "Your graph colours",
-            hint: "Click a colour to change it. The branches take them in turn, in light and dark themes alike.",
+            hint: "Click a colour to change it, or drag it to another place. The branches take them in turn, in light and dark themes alike.",
             content: <LaneEditor colors={appearance.customLanes} onChange={(colors) => change({ customLanes: colors })} />,
           },
         ]
