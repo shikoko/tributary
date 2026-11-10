@@ -315,6 +315,17 @@
   text-box: trim-both cap alphabetic;
 }
 
+/* A chip's text (a branch name, a state), trimmed like a button's so it sits in the middle
+   of the chip, next to its icon. */
+.chip-text {
+  min-width: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-box: trim-both cap alphabetic;
+}
+
 .details-actions .outline-button,
 .details-actions .danger-outline-button {
   min-width: 0;

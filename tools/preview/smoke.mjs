@@ -709,9 +709,11 @@ try {
     const view = page.locator(".request-view");
     await view.locator(".request-merge", { hasText: "changes were asked for" }).waitFor({ timeout: 10_000 });
     await view.locator(".request-check.failure", { hasText: "Audio loudness" }).waitFor({ timeout: 5000 });
-    await view.locator(".request-reviews li", { hasText: "diego-ramos" }).locator(".request-review", { hasText: "Asked for changes" }).waitFor({ timeout: 5000 });
-    // The details button opens the check's page.
-    await view.locator(".request-check", { hasText: "Audio loudness" }).getByRole("button", { name: "Details" }).click();
+    await view.locator(".request-status-said", { hasText: "diego-ramos asked for changes" }).waitFor({ timeout: 5000 });
+    // The description and comments are Markdown, shown as such.
+    await view.locator(".request-comment-text").first().waitFor({ timeout: 5000 });
+    // A check's name opens its page.
+    await view.locator(".request-check", { hasText: "Audio loudness" }).getByRole("button").click();
     expect((await page.evaluate(() => window.__PREVIEW__.opened)).some((url) => url.endsWith("/actions/runs/7")), "the check's page didn't open");
     await page.keyboard.press("Escape");
     await view.waitFor({ state: "detached", timeout: 5000 });
@@ -725,10 +727,10 @@ try {
     await view.locator(".comment-box textarea").first().fill("Thanks!");
     await view.locator(".comment-box button", { hasText: "Reply" }).click();
     await view.locator(".request-comment.reply", { hasText: "Thanks!" }).waitFor({ timeout: 5000 });
-    await view.locator(".request-actions button", { hasText: "Review" }).click();
+    await view.locator(".request-toolbar").getByRole("button", { name: "Review", exact: true }).click();
     await view.locator(".review-box button", { hasText: "Approve" }).click();
     await page.locator(".toast", { hasText: "Approved #12" }).waitFor({ timeout: 5000 });
-    await view.locator(".request-actions button", { hasText: "Merge" }).click();
+    await view.locator(".request-status button", { hasText: "Merge…" }).click();
     await page.locator(".dialog button.primary-button", { hasText: "Squash and merge" }).click();
     await page.locator(".toast", { hasText: "Merged #12" }).waitFor({ timeout: 5000 });
     const merged = await page.evaluate(() => window.__PREVIEW__.merged);

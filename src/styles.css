@@ -23,6 +23,7 @@
 @import "./styles/team.css";
 @import "./styles/syntax.css";
 @import "./styles/pull-requests.css";
+@import "./styles/markdown.css";
 @import "./styles/signing-remotes-bisect.css";
 @import "./styles/simple.css";
 @import "./styles/tours.css";

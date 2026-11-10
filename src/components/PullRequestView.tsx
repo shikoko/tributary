@@ -1,11 +1,31 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { branchVersions, pullRequestDetails, requestConversation, type MergeCheck, type PullRequest, type RequestCheck, type RequestConversation, type RequestDetails, type RequestReview } from "../api";
+import { copyText } from "../lib/clipboard";
 import { plural, relativeTime } from "../lib/format";
 import { checkMerge, describeMergeCheck } from "../lib/mergeChecks";
-import { describeMergeable, requestNoun, requestNumber, summarizeChecks } from "../lib/pullRequests";
+import { describeCheckProgress, describeMergeable, describeReviews, requestNoun, requestNumber } from "../lib/pullRequests";
 import { Avatar } from "./Avatar";
-import { CloseIcon, CompareIcon, ExternalLinkIcon, MergeIcon, PullRequestIcon, RebaseIcon, RefreshIcon } from "./Icons";
-import { RequestControls } from "./RequestControls";
+import { ContextMenu, type MenuItem } from "./ContextMenu";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  CloseIcon,
+  CompareIcon,
+  CopyIcon,
+  ExternalLinkIcon,
+  EyeIcon,
+  MergeIcon,
+  PencilIcon,
+  PullRequestIcon,
+  RebaseIcon,
+  RefreshIcon,
+  UserIcon,
+  WarningIcon,
+} from "./Icons";
+import { Markdown } from "./Markdown";
+import { AskForReview, useRequestChange } from "./RequestControls";
 import { ConversationList, MergeRequestDialog, ReviewBox } from "./RequestReview";
 
 /** While checks are running, they're asked about again this often. */
@@ -32,22 +52,41 @@ interface Props {
 const STATES: Record<RequestDetails["state"], string> = { open: "Open", draft: "Draft", merged: "Merged", closed: "Closed" };
 
 const REVIEWS: Record<RequestReview["state"], string> = {
-  approved: "Approved",
-  changesRequested: "Asked for changes",
-  commented: "Commented",
-  requested: "Asked to review",
+  approved: "approved",
+  changesRequested: "asked for changes",
+  commented: "commented",
+  requested: "asked to review",
 };
 
+/** How the status card looks: good to merge, something wrong, waiting, or done. */
+type Tone = "good" | "bad" | "waiting" | "merged" | "closed" | "neutral";
+
+const TONE_ICONS: Record<Tone, ReactNode> = {
+  good: <CheckIcon size={16} />,
+  bad: <WarningIcon size={16} />,
+  waiting: <ClockIcon size={16} />,
+  merged: <MergeIcon size={16} />,
+  closed: <CloseIcon size={14} />,
+  neutral: <PullRequestIcon size={15} />,
+};
+
+/** Failed first, then running, passed, and skipped last. */
+const CHECK_ORDER: Record<string, number> = { failure: 0, pending: 1, success: 2, skipped: 3 };
+const checkState = (check: RequestCheck) => check.state ?? "skipped";
+
 /**
- * A pull request (or GitLab merge request), over the commit list: where it stands, what
- * reviewers said, each check, and its description. Checks still running are followed.
+ * A pull request (or GitLab merge request), over the commit list: where it stands (with
+ * Merge, and its checks), what can be done with it, its description and the
+ * conversation. Checks still running are followed.
  */
 export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBranch, hasCommit, onCompare, notify, onShowRewrite }: Props) {
   const [details, setDetails] = useState<RequestDetails | null>(null);
   const [conversation, setConversation] = useState<RequestConversation | null>(null);
   const [conversationError, setConversationError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [merging, setMerging] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const noun = requestNoun(request.forge);
@@ -93,17 +132,20 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
     setConversation(null);
     setConversationError(null);
     setReviewing(false);
+    setAsking(false);
     return loadConversation();
   }, [loadConversation]);
 
-  /** After commenting, reviewing or merging: say so, and show where it stands now. */
+  /** After commenting, reviewing, merging or changing it: say so, and show where it stands now. */
   const done = (message: string) => {
     notify(message);
     setReviewing(false);
+    setAsking(false);
     setMerging(false);
     load();
     loadConversation();
   };
+  const { busy, error: changeError, change } = useRequestChange(repoPath, details, done);
 
   // Follow checks that are still running.
   const running = details?.checks.some((check) => check.state === "pending") || details?.mergeable === "checking";
@@ -159,8 +201,15 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
       current = false;
     };
   }, [repoPath, remoteBranch, details?.headSha]);
-  const canAct = Boolean(conversation?.you) && (details?.state === "open" || details?.state === "draft");
+  const canAct = Boolean(conversation?.you) && open;
   const created = details ? Date.parse(details.created) / 1000 : NaN;
+
+  /** A menu under the button that opened it. */
+  const showMenu = (button: HTMLElement, items: MenuItem[]) => {
+    const box = button.getBoundingClientRect();
+    setMenu({ x: box.left, y: box.bottom + 4, items });
+  };
+
   return (
     <section className="diff-view request-view" aria-label={`${noun} ${requestNumber(request)}`}>
       <header className="diff-header">
@@ -200,130 +249,183 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
         ) : (
           <div className="request-content">
             <div className="request-meta">
-              <span className={`request-state ${details.state}`}>{STATES[details.state]}</span>
-              <span>
-                <strong>{details.author}</strong> wants to merge{" "}
-                <button className="request-ref mono" onClick={() => onShowBranch(details.branch)} title={`Highlight ${details.branch}'s history`}>
-                  {details.branch}
-                </button>{" "}
-                into <span className="request-ref mono">{details.base}</span>
-                {Number.isFinite(created) && <> · opened {relativeTime(created)}</>}
+              <span className={`request-state ${details.state}`}>
+                {details.state === "merged" ? <MergeIcon size={13} /> : details.state === "closed" ? <CloseIcon size={12} /> : <PullRequestIcon size={13} />}
+                <span className="chip-text">{STATES[details.state]}</span>
               </span>
+              <span className="request-who chip-text">
+                <strong>{details.author}</strong> wants to merge
+              </span>
+              <button className="request-ref" onClick={() => onShowBranch(details.branch)} title={`Highlight ${details.branch}'s history`}>
+                <span className="chip-text">{details.branch}</span>
+              </button>
+              <span className="request-into" aria-label="into">
+                <ChevronRightIcon size={14} />
+              </span>
+              <span className="request-ref">
+                <span className="chip-text">{details.base}</span>
+              </span>
+              {Number.isFinite(created) && <span className="request-when chip-text">opened {relativeTime(created)}</span>}
             </div>
             <div className="request-facts">
               {details.additions !== null && details.deletions !== null && (
                 <span className="request-lines">
-                  <span className="added">+{details.additions}</span> <span className="removed">−{details.deletions}</span>
+                  <span className="added chip-text">+{details.additions}</span>
+                  <span className="removed chip-text">−{details.deletions}</span>
                 </span>
               )}
-              {details.files !== null && <span>{plural(details.files, "file")}</span>}
-              <span>{plural(details.comments, "comment")}</span>
+              {details.files !== null && <span className="chip-text">{plural(details.files, "file")}</span>}
+              <span className="chip-text">{plural(details.comments, "comment")}</span>
+              {details.reviews.length > 0 && (
+                <span className="request-avatars" aria-label={describeReviews(details.reviews) ?? "Reviewers"}>
+                  {details.reviews.map((review) => (
+                    <span key={review.author} className={`request-avatar ${review.state}`} title={`${review.author} ${REVIEWS[review.state]}`}>
+                      <Avatar name={review.author} email="" size={22} />
+                    </span>
+                  ))}
+                </span>
+              )}
             </div>
 
-            {merge && <div className={`request-merge ${merge.tone}`}>{merge.text}</div>}
-            {localSaid && (
-              <div className={`request-merge ${localSaid.tone === "bad" ? "bad" : localSaid.tone === "good" ? "good" : "waiting"}`}>
-                Into {details.base}: {localSaid.text[0].toLowerCase() + localSaid.text.slice(1)} (checked here)
-              </div>
-            )}
-            {local?.outcome === "conflicts" && local.conflicts.length > 0 && (
-              <div className="request-conflicts">
-                <span className="muted">{local.conflictCount === 1 ? "The file that conflicts" : `The ${local.conflictCount} files that conflict`}, as merged here:</span>
-                <ul className="mono">
-                  {local.conflicts.slice(0, 12).map((file) => (
-                    <li key={file}>{file}</li>
-                  ))}
-                  {local.conflictCount > 12 && <li className="muted">and {plural(local.conflictCount - 12, "more file")}</li>}
-                </ul>
-              </div>
-            )}
+            <StatusCard
+              details={details}
+              title={
+                details.state === "merged"
+                  ? `Merged into ${details.base}`
+                  : details.state === "closed"
+                    ? "Closed without merging"
+                    : details.state === "draft" && merge?.tone !== "bad"
+                      ? "A draft: not ready for review yet"
+                      : (merge?.text ?? (localSaid ? `Into ${details.base}: ${localSaid.text[0].toLowerCase() + localSaid.text.slice(1)} (checked here)` : "Open"))
+              }
+              tone={
+                details.state === "merged"
+                  ? "merged"
+                  : details.state === "closed"
+                    ? "closed"
+                    : details.state === "draft" && merge?.tone !== "bad"
+                      ? "neutral"
+                      : (merge?.tone ?? (localSaid ? (localSaid.tone === "bad" ? "bad" : localSaid.tone === "good" ? "good" : "waiting") : "neutral"))
+              }
+              openUrl={openUrl}
+              action={
+                canAct && conversation ? (
+                  details.state === "draft" ? (
+                    <button className="primary-small-button request-primary" disabled={busy} onClick={() => void change({ kind: "draft", draft: false })}>
+                      <span className="button-label">Ready for review</span>
+                    </button>
+                  ) : conversation.mergeMethods.length > 0 ? (
+                    <span className="request-split">
+                      <button className="primary-small-button request-primary" onClick={() => setMerging(true)}>
+                        <MergeIcon size={14} />
+                        <span className="button-label">Merge…</span>
+                      </button>
+                      <button
+                        className="primary-small-button request-primary request-caret"
+                        disabled={busy}
+                        title="More ways to merge"
+                        aria-label="More ways to merge"
+                        onClick={(event) =>
+                          showMenu(event.currentTarget, [
+                            {
+                              label: details.forge === "gitlab" ? "Merge when the pipeline succeeds" : "Merge when checks pass",
+                              checked: details.autoMerge,
+                              detail: details.autoMerge ? "It merges by itself: choose again to stop" : "It merges by itself once they pass",
+                              onSelect: () => void change({ kind: "autoMerge", on: !details.autoMerge, method: conversation.mergeMethods[0] }),
+                            },
+                          ])
+                        }
+                      >
+                        <ChevronDownIcon size={14} />
+                      </button>
+                    </span>
+                  ) : null
+                ) : null
+              }
+              note={
+                conversation && !conversation.you && open
+                  ? details.forge === "gitlab"
+                    ? "To comment, review or merge here, git needs a token for GitLab: push or fetch once to sign in."
+                    : "To comment, review or merge here, sign in to GitHub in Settings."
+                  : null
+              }
+            >
+              {local?.outcome === "conflicts" && local.conflicts.length > 0 && (
+                <div className="request-conflicts">
+                  <span className="muted">{local.conflictCount === 1 ? "The file that conflicts" : `The ${local.conflictCount} files that conflict`}, as merged here:</span>
+                  <ul className="mono">
+                    {local.conflicts.slice(0, 12).map((file) => (
+                      <li key={file}>{file}</li>
+                    ))}
+                    {local.conflictCount > 12 && <li className="muted">and {plural(local.conflictCount - 12, "more file")}</li>}
+                  </ul>
+                </div>
+              )}
+            </StatusCard>
 
-            <div className="request-actions">
+            <div className="request-toolbar">
               <button
                 className="outline-button"
                 onClick={() => onCompare(details)}
                 disabled={!fetched}
                 title={fetched ? `What ${details.branch} changes, compared with ${details.base}` : `Fetch to see its changes here: its commits aren't loaded`}
               >
-                <CompareIcon size={13} />
+                <CompareIcon size={14} />
                 <span className="button-label">See its changes</span>
               </button>
               {forcePushed && (
-                <button
-                  className="outline-button"
-                  onClick={() => onShowRewrite(details.branch, details.base)}
-                  title={`${details.branch} was force-pushed: see what changed, commit by commit`}
-                >
-                  <RebaseIcon size={13} />
+                <button className="outline-button" onClick={() => onShowRewrite(details.branch, details.base)} title={`${details.branch} was force-pushed: see what changed, commit by commit`}>
+                  <RebaseIcon size={14} />
                   <span className="button-label">Since the force-push</span>
                 </button>
               )}
               {canAct && (
                 <button className={`outline-button${reviewing ? " active" : ""}`} onClick={() => setReviewing(!reviewing)} aria-expanded={reviewing}>
+                  <EyeIcon size={14} />
                   <span className="button-label">Review</span>
                 </button>
               )}
-              {canAct && details.state === "open" && conversation && conversation.mergeMethods.length > 0 && (
-                <button className="primary-small-button" onClick={() => setMerging(true)}>
-                  <MergeIcon size={13} />
-                  Merge…
+              {canAct && (
+                <button className={`outline-button${asking ? " active" : ""}`} disabled={busy} onClick={() => setAsking(!asking)} aria-expanded={asking}>
+                  <UserIcon size={14} />
+                  <span className="button-label">Ask for review…</span>
                 </button>
               )}
-              {conversation && !conversation.you && (details.state === "open" || details.state === "draft") && (
-                <span className="request-sign-in">
-                  {details.forge === "gitlab"
-                    ? "To comment, review or merge here, git needs a token for GitLab: push or fetch once to sign in."
-                    : "To comment, review or merge here, sign in to GitHub in Settings."}
-                </span>
-              )}
+              <button
+                className="outline-button quiet"
+                title="More"
+                onClick={(event) =>
+                  showMenu(event.currentTarget, [
+                    ...(canAct && details.state === "open"
+                      ? [{ label: "Back to draft", icon: <PencilIcon size={14} />, onSelect: () => void change({ kind: "draft", draft: true }) }]
+                      : []),
+                    {
+                      label: "Copy link",
+                      icon: <CopyIcon size={14} />,
+                      onSelect: () =>
+                        void copyText(details.url)
+                          .then(() => notify(`Copied the link to ${requestNumber(request)}`))
+                          .catch((e) => notify(String(e))),
+                    },
+                  ])
+                }
+              >
+                <span className="button-label">More</span>
+                <ChevronDownIcon size={13} />
+              </button>
             </div>
-            {canAct && conversation && (details.state === "open" || details.state === "draft") && (
-              <RequestControls repoPath={repoPath} details={details} methods={conversation.mergeMethods} onDone={done} />
-            )}
+            {asking && <AskForReview gitlab={details.forge === "gitlab"} busy={busy} onAsk={(reviewers) => void change({ kind: "reviewers", reviewers })} onCancel={() => setAsking(false)} />}
+            {changeError && <p className="review-error">{changeError}</p>}
             {reviewing && conversation && <ReviewBox repoPath={repoPath} details={details} conversation={conversation} onDone={done} onCancel={() => setReviewing(false)} />}
 
-            <div className="request-columns">
-              <section className="request-section" aria-label="Reviews">
-                <h3 className="team-heading">Reviews</h3>
-                {details.reviews.length === 0 ? (
-                  <p className="muted request-empty">No reviews yet.</p>
-                ) : (
-                  <ul className="request-reviews">
-                    {details.reviews.map((review) => (
-                      <li key={review.author}>
-                        <Avatar name={review.author} email="" size={22} />
-                        <span className="request-reviewer">{review.author}</span>
-                        <span className={`request-review ${review.state}`}>{REVIEWS[review.state]}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-              <section className="request-section" aria-label="Checks">
-                <h3 className="team-heading">
-                  {details.forge === "gitlab" ? "Pipeline" : "Checks"}
-                  {details.checks.length > 0 && <span className="request-check-summary">{summarizeChecks(details.checks)}</span>}
-                </h3>
-                {details.checks.length === 0 ? (
-                  <p className="muted request-empty">{details.forge === "gitlab" ? "No pipeline ran for it." : "No checks ran on it."}</p>
-                ) : (
-                  <ul className="request-checks">
-                    {details.checks.map((check, index) => (
-                      <CheckRow key={`${check.name}-${index}`} check={check} openUrl={openUrl} />
-                    ))}
-                  </ul>
-                )}
-              </section>
-            </div>
-
-            <section className="request-section" aria-label="Description">
-              <h3 className="team-heading">Description</h3>
-              {details.body.trim() ? <div className="request-description">{details.body.trim()}</div> : <p className="muted request-empty">No description.</p>}
+            <section className="request-card request-description-card" aria-label="Description">
+              {details.body.trim() ? <Markdown text={details.body.trim()} openUrl={openUrl} /> : <p className="muted request-empty">No description.</p>}
             </section>
+
             <section className="request-section" aria-label="Conversation">
               <h3 className="team-heading">Conversation</h3>
               {conversation ? (
-                <ConversationList repoPath={repoPath} details={details} conversation={conversation} onDone={done} />
+                <ConversationList repoPath={repoPath} details={details} conversation={conversation} openUrl={openUrl} onDone={done} />
               ) : conversationError ? (
                 <p className="muted request-empty">Couldn't read the comments: {conversationError}</p>
               ) : (
@@ -337,12 +439,106 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
       {merging && details && conversation && (
         <MergeRequestDialog repoPath={repoPath} details={details} methods={conversation.mergeMethods} onCancel={() => setMerging(false)} onDone={done} />
       )}
+      {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
     </section>
   );
 }
 
+/**
+ * Where a request stands, in a card: whether it can be merged (and Merge), what its
+ * reviewers said, and its checks, as a bar and a list.
+ */
+function StatusCard({
+  details,
+  title,
+  tone,
+  action,
+  note,
+  openUrl,
+  children,
+}: {
+  details: RequestDetails;
+  title: string;
+  tone: Tone;
+  action: ReactNode;
+  note: string | null;
+  openUrl: (url: string) => void;
+  children?: ReactNode;
+}) {
+  const gitlab = details.forge === "gitlab";
+  const settled = details.state === "merged" || details.state === "closed";
+  const said = settled ? null : describeReviews(details.reviews);
+  const progress = describeCheckProgress(details.checks, gitlab);
+  const checks = [...details.checks].sort((a, b) => CHECK_ORDER[checkState(a)] - CHECK_ORDER[checkState(b)]);
+  const shown = checks.filter((check) => check.state !== null);
+  const skipped = checks.filter((check) => check.state === null);
+  return (
+    <section className={`request-status ${tone}`} aria-label="Where it stands">
+      <div className="request-status-top">
+        <span className="request-status-icon" aria-hidden>
+          {TONE_ICONS[tone]}
+        </span>
+        <div className="request-status-text">
+          <div className="request-merge">{title}</div>
+          {said && <div className="request-status-said">{said}</div>}
+          {note && <div className="request-sign-in">{note}</div>}
+        </div>
+        {action}
+      </div>
+      {children}
+      {checks.length > 0 && (
+        <>
+          <div className="request-checks-head">
+            <span className="request-checks-title">{gitlab ? "Pipeline" : "Checks"}</span>
+            {progress && <span>{progress}</span>}
+          </div>
+          <div className="request-check-bar" role="img" aria-label={progress ?? "Checks"}>
+            {checks.map((check, index) => (
+              <span key={`${check.name}-${index}`} className={checkState(check)} />
+            ))}
+          </div>
+          {shown.length > 0 && (
+            <ul className="request-checks">
+              {shown.map((check, index) => (
+                <RequestCheckRow key={`${check.name}-${index}`} check={check} openUrl={openUrl} />
+              ))}
+            </ul>
+          )}
+          {skipped.length > 0 && (
+            <p className="request-skipped">
+              {skipped.length === 1 ? "Skipped" : `${skipped.length} skipped`}: {skipped.map((check) => check.name).join(", ")}
+            </p>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+/** One of a request's checks: its state, its name (which opens its page), and a word on it. */
+function RequestCheckRow({ check, openUrl }: { check: RequestCheck; openUrl: (url: string) => void }) {
+  const state = checkState(check);
+  const words = { success: "Passed", failure: "Failed", pending: "Running", skipped: "Skipped" }[state];
+  const name = <span className="request-check-name">{check.name}</span>;
+  return (
+    <li className={`request-check ${state}`} title={check.detail ? `${check.name}: ${check.detail}` : check.name}>
+      <span className="request-check-dot" aria-hidden />
+      {check.url ? (
+        <button className="request-check-open" onClick={() => openUrl(check.url!)} title={`See ${check.name} on its page`}>
+          {name}
+          <ExternalLinkIcon size={11} />
+        </button>
+      ) : (
+        name
+      )}
+      <span className="request-check-state">{check.detail ?? words}</span>
+    </li>
+  );
+}
+
+/** A check in a commit's details: its state, its name, and its page. */
 export function CheckRow({ check, openUrl }: { check: RequestCheck; openUrl: (url: string) => void }) {
-  const state = check.state ?? "skipped";
+  const state = checkState(check);
   const words = { success: "Passed", failure: "Failed", pending: "Running", skipped: "Skipped" }[state];
   return (
     <li className={`request-check ${state}`}>

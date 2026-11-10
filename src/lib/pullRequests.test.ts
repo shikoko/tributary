@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RequestDetails } from "../api";
-import { describeMergeable, suggestRequest, summarizeChecks, titleFromBranch } from "./pullRequests";
+import { describeCheckProgress, describeMergeable, describeReviews, suggestRequest, summarizeChecks, titleFromBranch } from "./pullRequests";
 
 describe("suggestRequest", () => {
   it("uses a single commit's message", () => {
@@ -62,5 +62,33 @@ describe("describeMergeable", () => {
     );
     expect(describeMergeable(details({ mergeable: "blocked" }))?.tone).toBe("waiting");
     expect(describeMergeable(details({ mergeable: null }))).toBeNull();
+  });
+});
+
+describe("describeReviews", () => {
+  it("says who approved, who asked for changes and who it waits for", () => {
+    expect(
+      describeReviews([
+        { author: "maya-chen", state: "approved" },
+        { author: "lena-fischer", state: "commented" },
+        { author: "sam-okafor", state: "requested" },
+      ]),
+    ).toBe("Approved by maya-chen · lena-fischer commented · waiting for sam-okafor");
+    expect(describeReviews([{ author: "diego-ramos", state: "changesRequested" }, { author: "maya-chen", state: "requested" }])).toBe(
+      "diego-ramos asked for changes · waiting for maya-chen",
+    );
+    expect(describeReviews([{ author: "a", state: "approved" }, { author: "b", state: "approved" }, { author: "c", state: "approved" }])).toBe("Approved by a, b and c");
+    expect(describeReviews([])).toBeNull();
+  });
+});
+
+describe("describeCheckProgress", () => {
+  const check = (state: "success" | "failure" | "pending" | null) => ({ name: "x", state, url: null, detail: null });
+  it("counts passed, failed and running checks, not skipped ones", () => {
+    expect(describeCheckProgress([check("success"), check("success"), check("pending"), check(null)])).toBe("2 of 3 checks passed, 1 still running");
+    expect(describeCheckProgress([check("failure"), check("success")])).toBe("1 of 2 checks failed");
+    expect(describeCheckProgress([check("success"), check("success")])).toBe("All 2 checks passed");
+    expect(describeCheckProgress([check("success")], true)).toBe("The job passed");
+    expect(describeCheckProgress([check(null)])).toBeNull();
   });
 });
