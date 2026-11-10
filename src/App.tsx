@@ -30,7 +30,7 @@ import { GitNeededBanner } from "./components/GitNeeded";
 import { useActions } from "./app/useActions";
 import { useBackgroundFetch } from "./app/useBackgroundFetch";
 import { useLocalHistory } from "./app/useLocalHistory";
-import { useScheduledPull } from "./app/useScheduledPull";
+import { useScheduledFetch } from "./app/useScheduledFetch";
 import { useBranchCounts } from "./app/useBranchCounts";
 import { useChangedElsewhere } from "./app/useChangedElsewhere";
 import { useSubmodules } from "./app/useSubmodules";
@@ -273,7 +273,7 @@ export default function App() {
     latest.current.refresh();
   });
   useLocalHistory({ tabs, minutes: preferences.historyMinutes, maxMB: preferences.historyMaxMB, days: preferences.historyDays });
-  const getLatestNow = useScheduledPull({
+  const fetchLatestNow = useScheduledFetch({
     tabs,
     days: preferences.scheduleDays,
     time: preferences.scheduleTime,
@@ -281,7 +281,7 @@ export default function App() {
     setLast: preferences.setScheduleLast,
     setRun: preferences.setScheduleRun,
     activePath: snapshot?.path ?? null,
-    pullActive: async () => Boolean(await act({ kind: "pull" }, "pull")),
+    fetchActive: async () => Boolean(await act({ kind: "fetchLatest" }, "fetch")),
     notify: setToast,
   });
   const tabNews = useBackgroundFetch({
@@ -522,7 +522,7 @@ export default function App() {
             menu={menu}
             commands={commands}
             preferences={preferences}
-            onGetLatestNow={getLatestNow}
+            onFetchLatestNow={fetchLatestNow}
             updates={updates}
             repoPath={repoPath}
             settingsSection={settingsSection}

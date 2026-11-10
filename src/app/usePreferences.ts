@@ -53,7 +53,7 @@ export function usePreferences() {
   const [historyMinutes, setHistoryMinutes] = useStoredState("history.minutes", 10);
   const [historyMaxMB, setHistoryMaxMB] = useStoredState("history.maxMB", 50);
   const [historyDays, setHistoryDays] = useStoredState("history.days", 7);
-  /** Get latest on a schedule: on which days, at what time, the last run started (its key) and how the last one went. */
+  /** Fetch latest on a schedule: on which days, at what time, the last run started (its key) and how the last one went. */
   const [scheduleDays, setScheduleDays] = useStoredState<ScheduleDays>("schedule.days", "off");
   const [scheduleTime, setScheduleTime] = useStoredState("schedule.time", "07:00");
   const [scheduleLast, setScheduleLast] = useStoredState<string | null>("schedule.last", null);

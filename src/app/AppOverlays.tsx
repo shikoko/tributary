@@ -22,7 +22,7 @@ import { Toast, type ToastMessage } from "../components/Toast";
 import { UpdateDialog } from "../components/UpdateDialog";
 import { AboutDialog } from "../components/AboutDialog";
 import { useAppRows } from "../components/AppRows";
-import { settingsTransferRow } from "../components/SettingsTransferRow";
+import { settingsTransferRows } from "../components/SettingsTransferRow";
 import { useDiffToolRows } from "../components/DiffToolRows";
 import { settingsSections } from "./settingsSections";
 import { GITLAB_COM, type Accounts } from "./useAccounts";
@@ -33,8 +33,8 @@ import { ThemeContext } from "./useAppearance";
 
 interface Props {
   overlays: Overlays;
-  /** Get the latest of every open repository now, as the schedule does. */
-  onGetLatestNow: () => Promise<void>;
+  /** Fetch the latest of every open repository now, as the schedule does. */
+  onFetchLatestNow: () => Promise<void>;
   menu: ContextMenuState;
   /** What the command palette offers, worked out when it opens. */
   commands: () => Command[];
@@ -132,12 +132,12 @@ export function AppOverlays(props: Props) {
           sections={settingsSections({
             diffTools,
             apps: appRows,
-            transfer: settingsTransferRow((text) => notify({ text })),
+            transfer: settingsTransferRows((text) => notify({ text })),
             theme,
             preferences,
-            onGetLatestNow: () => {
+            onFetchLatestNow: () => {
               hide("settings");
-              void props.onGetLatestNow();
+              void props.onFetchLatestNow();
             },
             accounts: {
               github: github.status,

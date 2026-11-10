@@ -141,7 +141,7 @@ One line each here; the [feature guide](docs/features.md) has the details.
 ### Working as a team
 - Git LFS locks: see who holds what, lock and unlock, and get reminders.
 - A warning when a file you're changing was also changed on another branch.
-- Get latest on a schedule, so a big update is waiting in the morning.
+- Fetch latest on a schedule (never merging), so a big update is waiting in the morning.
 
 → [More about teams](docs/features.md#working-as-a-team)
 
@@ -162,7 +162,7 @@ One line each here; the [feature guide](docs/features.md) has the details.
 - Tabs, worktrees and submodules; a start screen with every recent repository's state.
 - A command palette and keyboard shortcuts for everything.
 - Dark and light themes, your own accent and graph colours, and colour-blind safe palettes.
-- Open in your editor or terminal; move your settings to another computer.
+- Open in your editor or terminal; export your settings and import them on another computer.
 - Automatic, signed updates, and What's new after each one.
 
 → [More about the app](docs/features.md#tabs-repositories-and-the-start-screen) · [keyboard shortcuts](docs/features.md#keyboard-shortcuts)

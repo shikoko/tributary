@@ -638,3 +638,25 @@
   overflow-wrap: anywhere;
   user-select: text;
 }
+
+/* A section that's part of the one above it: indented, its icon smaller and quieter. */
+.settings-tab.sub {
+  padding-left: 30px;
+}
+
+.settings-tab.sub .settings-tab-icon {
+  opacity: 0.7;
+  transform: scale(0.85);
+}
+
+/* Sets the last sections apart (Export and import). */
+.settings-nav-line {
+  height: 1px;
+  margin: 10px 8px;
+  background: var(--border);
+}
+
+.settings-panel-parent {
+  color: var(--text-muted);
+  font-weight: 500;
+}

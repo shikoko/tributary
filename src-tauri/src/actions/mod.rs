@@ -133,6 +133,8 @@ pub enum Action {
     },
     /// Pull into the checked-out branch.
     Pull,
+    /// Fetch, and fast-forward the checked-out branch when nothing's in the way (never a merge).
+    FetchLatest,
     /// Push the checked-out branch, setting its upstream if it has none.
     /// `force` uses `--force-with-lease`; `no_verify` skips the pre-push hook.
     Push {
@@ -574,6 +576,7 @@ fn perform(
         }
         Action::Fetch { background } => remote::fetch(&repo, &git, background, on_progress),
         Action::Pull => remote::pull(&repo, &git, on_progress),
+        Action::FetchLatest => remote::fetch_latest(&repo, &git, on_progress),
         Action::Push { force, no_verify } => {
             remote::push(&repo, &git, force, no_verify, on_progress, extra)
         }
