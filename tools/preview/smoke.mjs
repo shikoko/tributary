@@ -986,6 +986,26 @@ try {
     await about.waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("downloads an update, and waits for git before restarting for it", async () => {
+    await page.evaluate(() => {
+      window.__PREVIEW__.update = { version: "9.9.0", notes: "## Fixes\n- Faster start-up", date: null };
+      window.__PREVIEW__.gitBusy = true;
+    });
+    await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Check for Updates" }).click();
+    const about = page.locator(".about-window");
+    // Found, downloaded in the background, then ready.
+    await about.locator(".about-status", { hasText: "Tributary 9.9.0 is ready" }).waitFor({ timeout: 15_000 });
+    await page.locator(".update-pill", { hasText: "Restart to update" }).waitFor({ timeout: 5000 });
+    await about.getByRole("button", { name: "Restart now" }).click();
+    await about.locator(".about-status", { hasText: "Restarting when git is done" }).waitFor({ timeout: 5000 });
+    await about.getByRole("button", { name: "Don't restart" }).click();
+    await about.getByRole("button", { name: "Restart now" }).waitFor({ timeout: 5000 });
+    expect(!(await page.evaluate(() => window.__PREVIEW__.installed)), "installed while git was busy");
+    await page.keyboard.press("Escape");
+    await about.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("keeps a local history snapshot and puts a file back from it", async () => {
     const file = join(demos.notebook, "README.md");
     const before = readFileSync(file, "utf8");

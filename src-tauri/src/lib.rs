@@ -146,14 +146,21 @@ pub fn run() {
             commands::remote_state,
             commands::commits_between,
             commands::check_for_update,
-            commands::install_update,
+            commands::download_update,
+            commands::restart_to_update,
+            commands::stop_update_restart,
             commands::third_party_notices,
             commands::cancel_action,
             commands::activity_log
         ])
         .build(tauri::generate_context!());
     match app {
-        Ok(app) => app.run(|_, _| {}),
+        Ok(app) => app.run(|app, event| {
+            // A downloaded update that wasn't restarted for is installed as Tributary quits.
+            if let tauri::RunEvent::Exit = event {
+                updates::install_on_quit(app);
+            }
+        }),
         // Nothing to show a window with: say why on the console, as the process ends.
         Err(error) => eprintln!("Tributary couldn't start: {error}"),
     }

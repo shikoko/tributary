@@ -10,6 +10,7 @@ mod progress;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Instant, SystemTime};
 
 use self::activity::record;
@@ -70,6 +71,7 @@ impl Git {
     /// `git merge-tree`, where 1 means "it conflicts"): the code and what it printed.
     /// Only failing to run git at all is an error.
     pub(crate) fn run_status(&self, args: &[&str]) -> Result<(Option<i32>, String)> {
+        let _working = Working::start();
         let (started, took) = (SystemTime::now(), Instant::now());
         let output = command(&self.executable)
             .arg("-C")
@@ -92,6 +94,7 @@ impl Git {
         args: &[&str],
         env: &[(&str, &str)],
     ) -> Result<String, Error> {
+        let _working = Working::start();
         let (started, took) = (SystemTime::now(), Instant::now());
         let output = command(&self.executable)
             .arg("-C")
@@ -271,6 +274,30 @@ pub(super) fn error_message(
         message
     };
     activity::without_credentials(&message)
+}
+
+/// How many git commands are running, so an update can wait until none are.
+static WORKING: AtomicUsize = AtomicUsize::new(0);
+
+/// Counts a git command as running until it's dropped.
+pub(crate) struct Working;
+
+impl Working {
+    pub(crate) fn start() -> Working {
+        WORKING.fetch_add(1, Ordering::SeqCst);
+        Working
+    }
+}
+
+impl Drop for Working {
+    fn drop(&mut self) {
+        WORKING.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+/// Whether any git command is running, in any repository.
+pub fn working() -> bool {
+    WORKING.load(Ordering::SeqCst) > 0
 }
 
 pub(crate) fn command(executable: &Path) -> Command {

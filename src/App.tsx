@@ -439,10 +439,20 @@ export default function App() {
               onContextMenu={tabMenu}
               menuBar={menuBar.element}
               extra={
-                updates.available && (
-                  <button className="update-pill" onClick={() => overlays.show("update")} title={`Tributary ${updates.available.version} is available`}>
+                // Once it's downloaded (or the download failed, to try again).
+                updates.available &&
+                (updates.ready || updates.error?.step === "download") && (
+                  <button
+                    className="update-pill"
+                    onClick={() => overlays.show("update")}
+                    title={
+                      updates.ready
+                        ? `Tributary ${updates.available.version} is ready: restart to install it (or it installs when you quit)`
+                        : `Tributary ${updates.available.version} is available`
+                    }
+                  >
                     <DownloadIcon size={13} />
-                    Update
+                    {updates.waiting ? "Restarting…" : updates.ready ? "Restart to update" : "Update"}
                   </button>
                 )
               }

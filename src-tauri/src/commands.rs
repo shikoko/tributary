@@ -853,11 +853,24 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<updates::UpdateIn
     updates::check(&app).await
 }
 
-/// Install the update found by `check_for_update` and restart. Reports the download as
-/// `update-progress` events.
+/// Download the update found by `check_for_update`, without installing it. Reports the
+/// download as `update-progress` events.
 #[tauri::command]
-pub async fn install_update(app: AppHandle) -> Result<()> {
-    updates::install(&app).await
+pub async fn download_update(app: AppHandle) -> Result<()> {
+    updates::download(&app).await
+}
+
+/// Install the downloaded update and restart, once no git command is running. False if
+/// `stop_update_restart` stopped the wait.
+#[tauri::command]
+pub async fn restart_to_update(app: AppHandle) -> Result<bool> {
+    updates::restart(&app).await
+}
+
+/// Stop waiting to restart for an update.
+#[tauri::command]
+pub fn stop_update_restart() {
+    updates::stop_waiting();
 }
 
 /// The licences of the software Tributary is made with (THIRD_PARTY_NOTICES.txt) and

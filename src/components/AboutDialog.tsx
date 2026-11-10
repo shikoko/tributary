@@ -14,7 +14,7 @@ interface Props {
   updates: Updates;
   auto: boolean;
   setAuto: (auto: boolean) => void;
-  /** The newer version's notes, and Install and restart. */
+  /** The newer version's notes, and Restart now. */
   onInstall: () => void;
   onWhatsNew: () => void;
   onLicences: () => void;
@@ -32,40 +32,69 @@ function useNow(): number {
 }
 
 /** What the last check found, with the one thing to do about it. */
-function UpdateStatus({ version, updates, onInstall }: Pick<Props, "version" | "updates" | "onInstall">) {
+function UpdateStatus({ updates, onInstall }: Pick<Props, "updates" | "onInstall">) {
   const now = useNow();
-  const { available, checking, error, checkedAt, check } = updates;
-  const again = (label: string) => (
-    <button className="secondary-button" onClick={() => void check()} disabled={checking}>
+  const { available, checking, checkedAt, downloading, ready, waiting, error, check } = updates;
+  const again = (label: string, retry = check) => (
+    <button className="secondary-button" onClick={() => void retry()} disabled={checking}>
       {label}
+    </button>
+  );
+  const whatsNew = available && (
+    <button className="link-button" onClick={onInstall}>
+      What's new
     </button>
   );
   let tone: string;
   let icon: ReactNode;
   let title: string;
-  let detail: string | null;
-  let action: ReactNode;
-  if (checking) {
+  let detail: ReactNode;
+  let action: ReactNode = null;
+  if (waiting) {
+    tone = "available";
+    icon = <RefreshIcon size={16} className="spin" />;
+    title = "Restarting when git is done…";
+    detail = "Waiting for a git command to finish";
+    action = (
+      <button className="secondary-button" onClick={updates.stopWaiting}>
+        Don't restart
+      </button>
+    );
+  } else if (error && error.step !== "check") {
+    tone = "failed";
+    icon = <WarningIcon size={16} />;
+    title = error.step === "download" ? "Couldn't download the update" : "Couldn't install the update";
+    detail = error.message;
+    action = again("Try again", error.step === "download" ? updates.download : updates.restart);
+  } else if (ready && available) {
+    tone = "available";
+    icon = <DownloadIcon size={16} />;
+    title = `Tributary ${available.version} is ready`;
+    detail = <>Installs when you restart, or when you quit · {whatsNew}</>;
+    action = (
+      <button className="primary-small-button" onClick={() => void updates.restart()}>
+        Restart now
+      </button>
+    );
+  } else if (downloading && available) {
+    tone = "available";
+    icon = <DownloadIcon size={16} />;
+    title = `Downloading Tributary ${available.version}…`;
+    detail = (
+      <>
+        {downloading.percent === null ? "Starting" : `${downloading.percent}%`} · {whatsNew}
+      </>
+    );
+  } else if (checking) {
     tone = "checking";
     icon = <RefreshIcon size={16} className="spin" />;
     title = "Checking for updates…";
     detail = "Asking Tributary's GitHub releases";
-    action = null;
-  } else if (available) {
-    tone = "available";
-    icon = <DownloadIcon size={16} />;
-    title = `Tributary ${available.version} is available`;
-    detail = version ? `You have ${version}` : null;
-    action = (
-      <button className="primary-small-button" onClick={onInstall}>
-        See what's new…
-      </button>
-    );
   } else if (error) {
     tone = "failed";
     icon = <WarningIcon size={16} />;
     title = "Couldn't check for updates";
-    detail = error;
+    detail = error.message;
     action = again("Try again");
   } else if (checkedAt) {
     tone = "current";
@@ -85,7 +114,7 @@ function UpdateStatus({ version, updates, onInstall }: Pick<Props, "version" | "
       <span className="about-status-icon">{icon}</span>
       <span className="about-status-text">
         <strong>{title}</strong>
-        {detail && <span title={detail}>{detail}</span>}
+        {detail && <span title={typeof detail === "string" ? detail : undefined}>{detail}</span>}
       </span>
       {action}
     </div>
@@ -120,7 +149,7 @@ export function AboutDialog({ version, updates, auto, setAuto, onInstall, onWhat
         <span className="about-tagline">A fast, friendly git client.</span>
       </div>
       <section className="about-updates" aria-label="Updates">
-        <UpdateStatus version={version} updates={updates} onInstall={onInstall} />
+        <UpdateStatus updates={updates} onInstall={onInstall} />
         <div className="about-auto">
           <span className="about-auto-text">
             <span>Check for updates automatically</span>
