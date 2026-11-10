@@ -24,11 +24,13 @@ type Answer = (Instant, Option<CheckState>);
 /// What's known of each commit, by repository and id.
 static KNOWN: Mutex<Option<HashMap<(String, String), Answer>>> = Mutex::new(None);
 
-/// How long an answer holds: running checks change soon, finished ones don't.
+/// How long an answer holds: running checks change soon, and failed ones may be run
+/// again (on the site, or with Re-run failed); passed ones stay passed.
 fn holds_for(state: Option<CheckState>) -> Duration {
     match state {
         Some(CheckState::Pending) => Duration::from_secs(45),
-        Some(_) => Duration::from_secs(15 * 60),
+        Some(CheckState::Failure) => Duration::from_secs(60),
+        Some(CheckState::Success) => Duration::from_secs(15 * 60),
         None => Duration::from_secs(5 * 60),
     }
 }
@@ -197,6 +199,15 @@ pub async fn rerun_failed(path: &Path, id: String) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn asks_again_soon_about_failed_checks() {
+        // Failed ones get run again, so they're asked about again almost as soon as running ones.
+        let hold = |state| holds_for(Some(state));
+        assert!(hold(CheckState::Failure) <= Duration::from_secs(60));
+        assert!(hold(CheckState::Pending) < hold(CheckState::Failure));
+        assert!(hold(CheckState::Failure) < hold(CheckState::Success));
+    }
 
     fn check(state: Option<CheckState>) -> Check {
         Check {
