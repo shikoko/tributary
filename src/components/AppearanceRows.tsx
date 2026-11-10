@@ -276,12 +276,19 @@ function LaneEditor({ colors, onChange }: { colors: string[]; onChange: (colors:
   );
 }
 
-/** The Appearance section's rows. */
-export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial<Appearance>) => void, theme: Theme): SettingRow[] {
+/** Appearance's rows, in groups: the look (theme and colours), the graph, and starting over. */
+export interface AppearanceRows {
+  look: SettingRow[];
+  graph: SettingRow[];
+  reset: SettingRow;
+}
+
+/** The rows for Appearance and its Graph section. */
+export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial<Appearance>) => void, theme: Theme): AppearanceRows {
   const appearance = normalizeAppearance(stored);
   const change = (patch: Partial<Appearance>) => set({ ...appearance, ...patch });
   const changed = JSON.stringify(appearance) !== JSON.stringify(DEFAULT_APPEARANCE);
-  return [
+  const rows: SettingRow[] = [
     {
       kind: "custom",
       label: "Theme",
@@ -371,4 +378,10 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
       ),
     },
   ];
+  const graph = new Set(["Graph colours", "Your graph colours", "Commits on the graph", "Graph line bends"]);
+  return {
+    look: rows.filter((row) => !graph.has(row.label) && row.label !== "Start over"),
+    graph: rows.filter((row) => graph.has(row.label)),
+    reset: rows[rows.length - 1],
+  };
 }

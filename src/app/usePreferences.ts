@@ -25,7 +25,7 @@ export function usePreferences() {
   const [autoFetch, setAutoFetch] = useStoredState("fetch.auto", true);
   const [reopenTabs, setReopenTabs] = useStoredState("reopenLast", true);
   const [firstParentOnly, setFirstParentOnly] = useStoredState("history.firstParent", false);
-  const [profilePictures, setProfilePictures] = useStoredState("avatars.pictures", false);
+  const [profilePictures, setProfilePictures] = useStoredState("avatars.pictures", true);
   const [previews, setPreviews] = useStoredState("previews", true);
   const [activityOpen, setActivityOpen] = useStoredState("activity.open", false);
   const [fetchMinutes, setFetchMinutes] = useStoredState("fetch.minutes", 5);

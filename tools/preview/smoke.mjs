@@ -191,7 +191,7 @@ try {
     await page.keyboard.press("Escape");
     await page.keyboard.press("Control+,");
     const settings = page.locator(".dialog", { hasText: "Settings" }).first();
-    await settings.locator(".settings-nav").getByText("Appearance").click();
+    await settings.locator(".settings-nav").getByText("Graph").click();
     await settings.getByRole("radio", { name: /Your own/ }).click();
     expect((await settings.locator(".lane-editor-swatch").count()) >= 8, "your own colours didn't start from the vivid ones");
     // Drag the first colour to the third's place, then move it back with the keyboard.
@@ -213,6 +213,8 @@ try {
       await page.waitForTimeout(100);
     }
     expect(JSON.stringify(await colours()) === JSON.stringify(before), "Alt+arrows didn't move it back");
+    // Back up to Appearance from the title ("Appearance › Graph").
+    await settings.locator(".settings-panel-parent", { hasText: "Appearance" }).click();
     await settings.getByLabel("Accent colour, as a hex code").fill("#e8702a");
     const accent = () => page.evaluate(() => document.documentElement.style.getPropertyValue("--accent"));
     await page.waitForFunction(() => document.documentElement.style.getPropertyValue("--accent") === "#e8702a", null, { timeout: 5000 });

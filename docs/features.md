@@ -280,17 +280,18 @@ The branch can be switched from the top, next to **Shelves** and **Local history
 
 ## Make it yours
 
-![The light theme, with the appearance settings: theme, accent colour, graph colours, commits as their authors' pictures, line bends and diff colours](images/appearance.png)
+![The light theme, with the graph's settings inside Appearance: graph colours, commits as their authors' pictures and line bends](images/appearance.png)
 
 - **Appearance:**
   - **Theme:** dark, light, or the same as your system (switching when it does). The app's icon follows it, in the Dock or on the taskbar.
   - **Accent colour:** for buttons, selections, links and the checked-out branch: one of nine, or any colour (picker or a hex code like `#e8702a`). Text on it is darkened or lightened until it's easy to read; notes and warnings keep their own colours.
+  - **Graph** (inside Appearance) has the graph's colours, its commits and its line bends.
   - **Graph colours:** vivid, soft, colour-blind safe (Okabe–Ito), or your own (start from any of them, then change, add or remove colours).
   - **Commits on the graph:** as their authors' pictures or initials, ringed in their branch's colour, or as dots. Lines between lanes bend smoothly (the default), or round, tight or sweeping everywhere.
   - **Diff colours:** green and red, or blue and orange, which are easier to tell apart with red–green colour blindness.
-- **Settings:** <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>,</kbd> opens the app's settings, grouped in a list on the left: general (submodules, updates), appearance, accounts (your GitHub sign-in), background fetching and notifications, large files and Git LFS, and how the commit list looks.
+- **Settings:** <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>,</kbd> opens the app's settings, grouped in a list on the left: general (submodules, notices, tours), appearance (with the graph and the commit list inside it, joined to it by a line), accounts (your GitHub and GitLab sign-ins), fetching (and fetching the latest on a schedule), local history, large files and Git LFS, diff and merge tools, and, set apart at the end, export and import. A section inside another shows the way there above its settings, like **Appearance › Graph**; click **Appearance** to go back up.
 - **Your layout:** drag the edges of the sidebar, the details panel and the Branch / Tag and Graph columns (double-click to reset). The graph widens by itself to fit the branches on screen; a width you drag it to is the least it gets. Right-click the column headings to show or hide Author, Date and SHA, and to show exact dates or commit dates instead of "3 hours ago". The View menu has compact rows and zoom. All of it is remembered. On macOS the toolbar sits in the title bar, next to the window buttons.
-- **Profile pictures (optional):** turn on **Profile pictures** in Settings (or the View menu) to show authors' pictures instead of initials.
+- **Profile pictures:** authors' pictures instead of initials, on at first; turn off **Profile pictures** in Settings → Appearance → Commit list (or the View menu) for initials only.
   - GitHub or GitLab is asked which account each author's email belongs to; otherwise, Gravatar.
   - It's off by default, because it sends authors' email addresses to GitHub or GitLab (which host the repository anyway) and a hash of them to Gravatar.
   - Pictures are kept on this computer for a week, in files named by a hash of each address, not the address. Turning them off deletes them.
