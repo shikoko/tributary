@@ -170,10 +170,12 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
     let counts = super::refs::upstream_counts(location);
     for label in refs.values_mut().flatten() {
         if label.kind == RefKind::Branch
-            && let Some(&(ahead, behind)) = counts.get(&label.name)
+            && let Some(distance) = counts.get(&label.name)
         {
-            label.ahead = Some(ahead);
-            label.behind = Some(behind);
+            label.ahead = Some(distance.ahead);
+            label.behind = Some(distance.behind);
+            label.ahead_commits = Some(distance.ahead_commits);
+            label.behind_commits = Some(distance.behind_commits);
         }
     }
     if let (None, Some(id)) = (&head_branch, head_commit) {
@@ -185,6 +187,8 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
             target: None,
             ahead: None,
             behind: None,
+            ahead_commits: None,
+            behind_commits: None,
         });
     }
 
@@ -295,6 +299,8 @@ pub fn load_with(path: &Path, options: LoadOptions) -> Result<RepoSnapshot, Erro
                 target: None,
                 ahead: None,
                 behind: None,
+                ahead_commits: None,
+                behind_commits: None,
             });
             walked.push(stash);
         }

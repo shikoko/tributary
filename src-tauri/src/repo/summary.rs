@@ -16,6 +16,8 @@ pub struct RepoSummary {
     pub branch: Option<String>,
     /// Like "origin/main".
     pub upstream: Option<String>,
+    /// How far it's ahead of the upstream, and behind it, along each one's own line (a merged
+    /// pull request counts once).
     pub ahead: u32,
     pub behind: u32,
     /// Files with changes not committed yet (new files included), and with conflicts.
@@ -41,7 +43,25 @@ pub fn summary(path: &Path) -> RepoSummary {
         ],
         &[("GIT_OPTIONAL_LOCKS", "0")],
     ) {
-        Ok(status) => read_status(&status),
+        Ok(status) => {
+            let mut summary = read_status(&status);
+            // Counted like the toolbar's: along each branch's own line, a merge once.
+            if summary.ahead + summary.behind > 0
+                && let Ok(counts) = git.in_background().run(&[
+                    "rev-list",
+                    "--count",
+                    "--left-right",
+                    "--first-parent",
+                    "HEAD...@{upstream}",
+                ])
+                && let Some((ahead, behind)) = counts.trim().split_once('\t')
+                && let (Ok(ahead), Ok(behind)) = (ahead.parse(), behind.parse())
+            {
+                summary.ahead = ahead;
+                summary.behind = behind;
+            }
+            summary
+        }
         Err(_) => RepoSummary::default(),
     }
 }
