@@ -308,7 +308,9 @@ export default function App() {
   const zoomBy = useZoom(preferences.zoom, preferences.setZoom);
 
   // Each recent commit's CI, for the dots in the list.
-  const ciStates = useCiStates(snapshot);
+  // When a pull request's checks change, its commit's dot is asked about again.
+  const prChecks = useMemo(() => prs.list.map((pr) => `${pr.remote}/${pr.branch}:${pr.checks}`).join(","), [prs.list]);
+  const ciStates = useCiStates(snapshot, prChecks);
   // The editor and terminal "Open in …" uses.
   const openApps = useOpenApps();
   // The menus: in the macOS menu bar, or in the tab bar elsewhere.

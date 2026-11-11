@@ -11,14 +11,31 @@ export const CiStatesContext = createContext<Map<string, CiState>>(new Map());
 const NEWEST = 60;
 /** While some are running, they're asked about again this often. */
 const POLL = 60_000;
+/** While some have failed (and none are running), this often: failed checks are the ones
+ *  people run again, on the site or with Re-run failed. */
+const FAILED_POLL = 120_000;
+
+/**
+ * How long until the commits' states are asked about again, in ms: soon while some are
+ * running, a little later while some have failed, and not at all once all have passed.
+ */
+export function askAgainIn(states: Iterable<CiState>): number | null {
+  const known = new Set(states);
+  return known.has("pending") ? POLL : known.has("failure") ? FAILED_POLL : null;
+}
 
 /** "Checks passed", for a dot's tooltip. */
 export function describeCiState(state: CiState): string {
   return { success: "Checks passed", failure: "Checks failed", pending: "Checks running" }[state];
 }
 
-/** The CI states of the repository's newest commits, when it's on GitHub or GitLab. */
-export function useCiStates(snapshot: RepoSnapshot | null): Map<string, CiState> {
+/**
+ * The CI states of the repository's newest commits, when it's on GitHub or GitLab.
+ * `nudge` changes when something else learns their checks changed (the pull requests'
+ * badges, which are checked every minute): they're asked about again then, so a branch's
+ * badge and its commit's dot don't disagree.
+ */
+export function useCiStates(snapshot: RepoSnapshot | null, nudge = ""): Map<string, CiState> {
   const [states, setStates] = useState<Map<string, CiState>>(new Map());
   const [round, setRound] = useState(0);
   const path = snapshot?.path ?? null;
@@ -40,15 +57,15 @@ export function useCiStates(snapshot: RepoSnapshot | null): Map<string, CiState>
     return () => {
       current = false;
     };
-    // The signature stands for the ids; `round` asks again.
+    // The signature stands for the ids; `round` and `nudge` ask again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, onSite, signature, round]);
-  // Running checks: ask again in a while.
-  const running = [...states.values()].includes("pending");
+  }, [path, onSite, signature, round, nudge]);
+  // Running checks, or failed ones (which may be run again): ask again in a while.
+  const wait = askAgainIn(states.values());
   useEffect(() => {
-    if (!running) return;
-    const timer = window.setTimeout(() => setRound((n) => n + 1), POLL);
+    if (wait === null) return;
+    const timer = window.setTimeout(() => setRound((n) => n + 1), wait);
     return () => window.clearTimeout(timer);
-  }, [running, round]);
+  }, [wait, round]);
   return states;
 }
