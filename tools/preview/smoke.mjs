@@ -727,6 +727,8 @@ try {
     await view.locator(".comment-box textarea").first().fill("Thanks!");
     await view.locator(".comment-box button", { hasText: "Reply" }).click();
     await view.locator(".request-comment.reply", { hasText: "Thanks!" }).waitFor({ timeout: 5000 });
+    // The reply is done once it says so.
+    await page.locator(".toast", { hasText: "Replied" }).waitFor({ timeout: 5000 });
     await view.locator(".request-toolbar").getByRole("button", { name: "Review", exact: true }).click();
     await view.locator(".review-box button", { hasText: "Approve" }).click();
     await page.locator(".toast", { hasText: "Approved #12" }).waitFor({ timeout: 5000 });
