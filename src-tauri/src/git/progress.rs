@@ -7,13 +7,14 @@ use std::sync::{Arc, Mutex};
 use std::time::{Instant, SystemTime};
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::activity::record;
 use super::{Git, command, error_message, lfs_progress, read_lines};
 use crate::error::{Error, Result};
 
 /// How far a fetch, pull or push has got.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Progress {
     /// Like "Receiving objects".
@@ -21,25 +22,31 @@ pub struct Progress {
     /// None until git reports a percentage.
     pub percent: Option<u8>,
     /// More about it, like "2 of 5 files · 56 MB of 80 MB · 12 MB/s".
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
     /// Files done of how many, when the percentage is about something else (the bytes of all
     /// of them, or of the one being downloaded).
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub files: Option<FileCount>,
     /// Bytes a second, the file being transferred, about how many seconds are left, and the
     /// biggest file still to come (Git LFS transfers).
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<u64>,
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current: Option<String>,
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remaining: Option<u64>,
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub biggest_left: Option<NamedSize>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct NamedSize {
     pub name: String,
     pub size: u64,
@@ -48,7 +55,7 @@ pub struct NamedSize {
 /// Files a Git LFS transfer is expected to get, with their sizes.
 pub type ExpectedFiles = Vec<(String, u64)>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 pub struct FileCount {
     pub done: u32,
     pub total: u32,

@@ -5,6 +5,7 @@
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use super::{HOST, api_request, client};
 use crate::error::{Error, Result};
@@ -16,8 +17,9 @@ const BROWSER_SIGN_IN: Duration = Duration::from_secs(300);
 const LOOKUP: Duration = Duration::from_secs(10);
 
 /// A GitHub user.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "GitHubAccount")]
 pub struct Account {
     pub login: String,
     #[serde(default)]
@@ -31,7 +33,7 @@ pub struct Account {
 }
 
 /// Who's signed in to GitHub, and how one can sign in.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct GitHubStatus {
     pub account: Option<Account>,

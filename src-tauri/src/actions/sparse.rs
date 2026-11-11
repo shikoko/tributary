@@ -5,13 +5,14 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::support::{LITERAL, count};
 use crate::error::{Error, Result};
 use crate::git::{Git, Progress};
 
 /// A folder that could be checked out.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct FolderChoice {
     /// Like "Content/Characters".
@@ -21,7 +22,7 @@ pub struct FolderChoice {
 }
 
 /// What's checked out, and what could be.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SparseSettings {
     /// Only some folders are checked out.

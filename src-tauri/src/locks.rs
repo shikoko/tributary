@@ -8,11 +8,13 @@ use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::Git;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// A file locked with Git LFS.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Lock {
     pub id: String,
@@ -26,7 +28,7 @@ pub struct Lock {
     pub mine: bool,
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Locks {
     /// The repository uses Git LFS and its server supports locking. When false, there is

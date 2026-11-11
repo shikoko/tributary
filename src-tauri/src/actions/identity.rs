@@ -4,12 +4,13 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::Git;
 
 /// Who commits are made as here, and where that comes from.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RepoIdentity {
     /// Set for this repository only (`git config --local`).
@@ -69,7 +70,7 @@ pub(super) fn set_identity(git: &Git, name: String, email: String) -> Result<Str
 
 /// The message new commits start from: git's `commit.template`, which a team can share (a
 /// file in the repository, set up for everyone) or Tributary keeps for one repository.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitTemplate {
     /// What the file says (None when there's no template, or it can't be read).

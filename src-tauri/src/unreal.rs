@@ -15,11 +15,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 
 /// What an actor's file holds.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ActorName {
     /// Its name in the editor's outliner, like "SM_RackShelf_215".

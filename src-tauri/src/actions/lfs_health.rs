@@ -5,6 +5,7 @@ use std::io::Read;
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::lfs_settings::FetchFilter;
 use crate::error::{Error, Result};
@@ -14,7 +15,7 @@ use crate::git::{ExpectedFiles, Git, Progress};
 const EXAMPLES: usize = 5;
 
 /// What's wrong with Git LFS in a repository that uses it, if anything.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LfsHealth {
     /// Git LFS isn't installed: files stored with it are left as pointer files, and

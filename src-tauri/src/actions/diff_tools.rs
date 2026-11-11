@@ -5,6 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::error::Result;
 use crate::git::Git;
@@ -13,7 +14,7 @@ use crate::git::Git;
 const VSCODE_DIFF: &str = r#"code --wait --diff "$LOCAL" "$REMOTE""#;
 const VSCODE_MERGE: &str = r#"code --wait --merge "$REMOTE" "$LOCAL" "$BASE" "$MERGED""#;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DiffToolSettings {
     /// The tool names set (`diff.tool`, `merge.tool`), like "meld" or "vscode".
@@ -26,7 +27,7 @@ pub struct DiffToolSettings {
     pub available: Vec<ToolChoice>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolChoice {
     pub name: String,

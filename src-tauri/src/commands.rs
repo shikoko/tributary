@@ -3,6 +3,7 @@
 //! progress and activity as events.
 
 use std::path::PathBuf;
+use ts_rs::TS;
 
 use tauri::{AppHandle, Emitter};
 
@@ -917,8 +918,10 @@ pub fn third_party_notices(app: AppHandle) -> Result<Notices> {
 }
 
 /// What `third_party_notices` gives back.
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, TS)]
+#[ts(rename = "ThirdPartyNotices")]
 pub struct Notices {
+    /// THIRD_PARTY_NOTICES.txt, as tools/notices.mjs writes it (see lib/notices.ts).
     pub notices: String,
     /// Tributary's own licence, when it's installed too.
     pub license: Option<String>,

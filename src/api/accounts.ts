@@ -1,40 +1,8 @@
 // Your repositories on GitHub and GitLab, and signing in to GitLab (GitHub's sign-in is in
 // ./github). Tokens are git's: its credential helper keeps them, never Tributary.
 import { invoke } from "@tauri-apps/api/core";
-
-/** One of your repositories, on GitHub or GitLab. */
-export interface AccountRepo {
-  forge: "GitHub" | "GitLab";
-  /** The user or organization (a GitLab group, with its subgroups) it belongs to. */
-  owner: string;
-  name: string;
-  description: string | null;
-  private: boolean;
-  /** When it last changed (ISO 8601). */
-  updated: string;
-  /** The address to clone it from. */
-  url: string;
-}
-
-export interface GitLabAccount {
-  username: string;
-  name?: string | null;
-  /** The account's picture, as a data: URL (when it could be fetched). */
-  picture?: string | null;
-}
-
-/** Who's signed in to a GitLab server, and how one can sign in. */
-export interface GitLabStatus {
-  /** Like "gitlab.com". */
-  host: string;
-  account: GitLabAccount | null;
-  /** Git keeps a token that the server no longer accepts. */
-  tokenRejected: boolean;
-  /** Git can keep a token: it has a credential helper. */
-  canKeepToken: boolean;
-  /** Git Credential Manager is set up, so signing in can happen in the browser. */
-  browserSignIn: boolean;
-}
+import type { AccountRepo, GitLabAccount, GitLabStatus } from "./generated";
+export type { AccountRepo, GitLabAccount, GitLabStatus };
 
 /** Your repositories on GitHub, the most recently pushed first (none when you aren't signed in). */
 export function gitHubRepositories(): Promise<AccountRepo[]> {

@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::elsewhere::unmergeable_files;
 use crate::error::{Error, Result};
@@ -16,7 +17,7 @@ const MOST_HOTSPOTS: usize = 10;
 /// At most this many commits are listed (for the lines-of-code graph).
 const MOST_COMMITS: usize = 5000;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum FileKind {
     Code,
@@ -60,7 +61,7 @@ pub fn file_kind(path: &str) -> FileKind {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct KindCount {
     pub kind: FileKind,
@@ -71,7 +72,7 @@ pub struct KindCount {
     pub work: f64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PersonWork {
     pub email: String,
@@ -81,7 +82,7 @@ pub struct PersonWork {
     pub removed: u64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkCommit {
     pub time: i64,
@@ -91,7 +92,7 @@ pub struct WorkCommit {
     pub files: u64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Hotspot {
     pub path: String,
@@ -103,11 +104,14 @@ pub struct Hotspot {
     pub unmergeable: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+/// What the team changed lately: kinds of file, hotspots, lines of code.
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct TeamWork {
     pub kinds: Vec<KindCount>,
+    /// Who changed it (emails), the most first.
     pub people: Vec<PersonWork>,
+    /// Each commit's time, lines of code added and removed, and files changed.
     pub commits: Vec<WorkCommit>,
     pub hotspots: Vec<Hotspot>,
 }

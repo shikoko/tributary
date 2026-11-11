@@ -9,6 +9,7 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::validate::revision_name;
 use crate::error::{Error, Result};
@@ -18,9 +19,10 @@ use crate::git::Git;
 const MOST_FILES: usize = 200;
 
 /// How a merge of `from` into `into` would go.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct MergeCheck {
+    /// "unknown": git is older than 2.38, or the two share no history.
     pub outcome: MergeOutcome,
     /// The files that would conflict.
     pub conflicts: Vec<String>,
@@ -32,7 +34,7 @@ pub struct MergeCheck {
     pub outgoing: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum MergeOutcome {
     /// Everything on `from` is already on `into`.

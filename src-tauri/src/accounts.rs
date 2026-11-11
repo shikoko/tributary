@@ -6,6 +6,7 @@
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::{Credential, Git};
@@ -19,7 +20,7 @@ const BROWSER_SIGN_IN: Duration = Duration::from_secs(300);
 const MOST_PAGES: u32 = 3;
 
 /// One of your repositories, on GitHub or GitLab.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountRepo {
     /// "GitHub" or "GitLab".
@@ -110,7 +111,7 @@ pub async fn github_repositories() -> Result<Vec<AccountRepo>> {
 }
 
 /// A GitLab user.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct GitLabAccount {
     pub username: String,
@@ -125,7 +126,7 @@ pub struct GitLabAccount {
 }
 
 /// Who's signed in to a GitLab server, and how one can sign in.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct GitLabStatus {
     /// Like "gitlab.com".

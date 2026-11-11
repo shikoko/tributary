@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::{Credential, Git};
@@ -15,7 +16,7 @@ use crate::github::client;
 use crate::requests::{Site, site};
 
 /// Which tracker a repository's issues are in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum TrackerKind {
     Github,
@@ -25,7 +26,7 @@ pub enum TrackerKind {
 }
 
 /// A repository's issue tracker, as set in its settings.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Tracker {
     pub kind: TrackerKind,
@@ -38,7 +39,7 @@ pub struct Tracker {
 }
 
 /// One issue.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Issue {
     /// Like "FEAST-12", or "#12".
@@ -52,7 +53,7 @@ pub struct Issue {
 }
 
 /// Whether you're signed in to the tracker, and as whom.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct TrackerStatus {
     pub signed_in: bool,

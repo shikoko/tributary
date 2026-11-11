@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::Git;
@@ -17,7 +18,8 @@ const MAX_SUGGESTIONS: usize = 8;
 /// At most this many folders are offered for choosing what to download.
 const MAX_FOLDERS: usize = 12;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// Which files a repository stores with Git LFS, and which big ones it could.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LfsSettings {
     /// Git LFS is installed on this computer.
@@ -35,7 +37,7 @@ pub struct LfsSettings {
 }
 
 /// A folder with files stored with Git LFS, to choose whether to download them.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LfsFolder {
     /// Like `Content/Characters`.
@@ -268,7 +270,7 @@ pub(super) fn set_lfs_fetch_folders(
     })
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LfsSuggestion {
     /// Like `*.psd`.

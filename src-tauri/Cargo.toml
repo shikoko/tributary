@@ -38,6 +38,7 @@ sha2 = "0.10"
 # Pure-Rust git implementation: reads history without needing git installed.
 gix = { version = "0.90", default-features = false, features = ["sha1", "blob-diff", "status", "max-performance"] }
 thiserror = "2"
+ts-rs = { version = "12", features = ["no-serde-warnings"] }
 # Notices changes to a repository's files made outside the app, to show them at once.
 notify = "8"
 # Leaves out what .gitignore ignores (build output) when watching: ripgrep's matcher.

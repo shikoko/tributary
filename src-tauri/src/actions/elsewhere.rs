@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::support::{LITERAL, in_batches};
 use crate::error::{Error, Result};
@@ -24,7 +25,7 @@ const RECENT_DAYS: i64 = 30;
 const MAX_BRANCHES: usize = 40;
 
 /// A file that's also changed elsewhere, and where.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Overlap {
     pub path: String,
@@ -32,11 +33,12 @@ pub struct Overlap {
     pub unmergeable: bool,
     /// Your change is uncommitted (otherwise it's in a commit on your branch).
     pub uncommitted: bool,
+    /// The other branches' latest changes to it, newest first.
     pub elsewhere: Vec<OtherChange>,
 }
 
 /// The latest change to a file on another branch.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct OtherChange {
     /// Like "origin/art/lighting" or "feature/tags".
@@ -44,6 +46,7 @@ pub struct OtherChange {
     pub commit: String,
     pub summary: String,
     pub author: String,
+    /// Seconds since the Unix epoch.
     pub time: i64,
 }
 

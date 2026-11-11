@@ -2,10 +2,12 @@
 //! into the repository's page on the web, like `https://github.com/owner/repo`.
 
 use serde::Serialize;
+use ts_rs::TS;
 
 /// The kind of site a remote lives on, which decides how its pages are laid out.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "lowercase")]
+#[ts(rename = "WebHost")]
 pub enum Host {
     GitHub,
     GitLab,
@@ -17,7 +19,7 @@ pub enum Host {
 }
 
 /// A remote whose repository has a web page.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WebRemote {
     /// The remote's name, like `origin`.

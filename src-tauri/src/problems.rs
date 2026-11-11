@@ -11,6 +11,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
+use ts_rs::TS;
 
 /// Where the log goes (the app's log folder), once the app knows it.
 static FOLDER: Mutex<Option<PathBuf>> = Mutex::new(None);
@@ -112,7 +113,7 @@ pub fn take_recovery() -> Option<String> {
 }
 
 /// What Diagnostics shows of the log and the saved crash reports.
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Summary {
     /// The folder with the log and the crash reports, once the app knows it.

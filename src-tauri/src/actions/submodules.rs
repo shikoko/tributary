@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::support::LITERAL;
 use super::validate::check_file_paths;
@@ -13,7 +14,7 @@ use crate::error::{Error, Result};
 use crate::git::{Git, Progress};
 
 /// Where a submodule is, compared with the commit this repository records for it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum SubmoduleState {
     /// Not cloned and checked out yet (`git submodule update --init` does that).
@@ -30,7 +31,7 @@ pub enum SubmoduleState {
     Conflicted,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Submodule {
     /// Its name in `.gitmodules` (usually its path).

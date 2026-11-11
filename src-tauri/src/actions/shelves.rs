@@ -7,6 +7,7 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::Extra;
 use super::changes::discard_files;
@@ -24,7 +25,7 @@ pub(super) const SHELVES: &str = "refs/tributary/shelves/";
 const FROM: &str = "Shelved-From: ";
 
 /// A shelf, someone's or your own.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Shelf {
     /// Its ref, under `refs/tributary/shelves/`.
@@ -44,7 +45,7 @@ pub struct Shelf {
     pub files: Vec<ShelfFile>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ShelfFile {
     pub path: String,

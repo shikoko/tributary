@@ -1,16 +1,7 @@
 // The diff and merge tools git opens (git difftool, git mergetool).
 import { invoke } from "@tauri-apps/api/core";
-
-export interface DiffToolSettings {
-  /** The tools set (diff.tool, merge.tool), like "meld" or "vscode". */
-  diff: string | null;
-  merge: string | null;
-  /** Their commands, when set up with one. */
-  diffCommand: string | null;
-  mergeCommand: string | null;
-  /** The tools git can open here (when asked for). */
-  available: { name: string; label: string; diff: boolean; merge: boolean }[];
-}
+import type { DiffToolSettings } from "./generated";
+export type { DiffToolSettings };
 
 /** With `list`, also the tools git finds on this computer (slower). */
 export function diffToolSettings(path: string | null, list: boolean): Promise<DiffToolSettings> {

@@ -3,12 +3,13 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::{Git, without_credentials};
 
 /// A remote and where it is.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteInfo {
     pub name: String,

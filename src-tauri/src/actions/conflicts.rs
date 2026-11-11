@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::Side;
 use super::support::{LITERAL, describe_files, file_name, in_batches};
@@ -15,7 +16,7 @@ use crate::git::Git;
 const MAX_CONFLICT_BYTES: u64 = 5 * 1024 * 1024;
 
 /// A conflicted file as it is now, with git's conflict markers, to resolve in the app.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ConflictText {
     /// None when it can't be resolved here, and why.

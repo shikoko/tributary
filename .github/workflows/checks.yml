@@ -65,7 +65,7 @@ jobs:
             echo "::notice::Only documentation changed: the app isn't built or tested."
             code=false
             rust=false
-          elif [ -n "$changed" ] && ! grep -qE '^(src-tauri/|package\.json$|\.github/workflows/checks\.yml$|\.github/scripts/)' <<<"$changed"; then
+          elif [ -n "$changed" ] && ! grep -qE '^(src-tauri/|src/api/generated\.ts$|package\.json$|\.github/workflows/checks\.yml$|\.github/scripts/)' <<<"$changed"; then
             echo "::notice::Nothing on the Rust side changed: its checks on Linux, macOS and Windows are skipped (the smoke test still builds it)."
             rust=false
           fi

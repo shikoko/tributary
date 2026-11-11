@@ -3,13 +3,14 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::support::LITERAL;
 use crate::error::{Error, Result};
 use crate::git::Git;
 
 /// The commits that changed a file or folder.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct FileHistory {
     /// Relative to the repository's root, with forward slashes, without a trailing slash.

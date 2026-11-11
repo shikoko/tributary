@@ -5,13 +5,14 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::support::count;
 use crate::error::{Error, Result};
 use crate::git::Git;
 
 /// What a patch file holds.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PatchInfo {
     /// Its commits' summaries and authors, when it's commits (as `git format-patch` writes).
@@ -22,14 +23,14 @@ pub struct PatchInfo {
     pub applies: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PatchCommit {
     pub summary: String,
     pub author: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PatchFile {
     pub path: String,
