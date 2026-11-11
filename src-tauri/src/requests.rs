@@ -490,7 +490,8 @@ pub(crate) fn sort_checks(checks: &mut [Check]) {
         Some(CheckState::Failure) => 0,
         Some(CheckState::Pending) => 1,
         Some(CheckState::Success) => 2,
-        None => 3,
+        Some(CheckState::Cancelled) => 3,
+        None => 4,
     };
     checks.sort_by(|a, b| {
         rank(a)

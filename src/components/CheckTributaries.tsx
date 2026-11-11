@@ -12,11 +12,11 @@ type Props = {
   lit: string | null;
   onLight: (name: string | null) => void;
 };
-type Tone = "success" | "failure" | "pending";
+type Tone = "success" | "failure" | "pending" | "cancelled";
 
 const stateOf = (check: RequestCheck): Tone => check.state ?? "success";
 const queued = (check: RequestCheck) => check.state === "pending" && !check.startedAt;
-const WORDS = { success: "passed", failure: "failed", pending: "running" };
+const WORDS = { success: "passed", failure: "failed", pending: "running", cancelled: "cancelled" };
 
 /** The width of an element, kept up to date. */
 function useWidth<T extends HTMLElement>() {
@@ -66,7 +66,7 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
     const changed = new Map<string, string>();
     for (const [name, look] of current) {
       const was = before.current?.get(name);
-      if (was && was !== look && (look === "success" || look === "failure")) changed.set(name, was);
+      if (was && was !== look && (look === "success" || look === "failure" || look === "cancelled")) changed.set(name, was);
     }
     const passedNow = toneBefore.current !== null && toneBefore.current !== "success" && v.tone === "success";
     before.current = current;

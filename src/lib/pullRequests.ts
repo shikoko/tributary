@@ -69,6 +69,7 @@ export function summarizeChecks(checks: RequestCheck[]): string {
     [count("failure"), "failed"],
     [count("pending"), "running"],
     [count("success"), "passed"],
+    [count("cancelled"), "cancelled"],
     [count(null), "skipped"],
   ] as const;
   return parts
@@ -159,18 +160,20 @@ export function describeCheckProgress(checks: RequestCheck[], gitlab = false): s
   if (counted.length === 0) return null;
   const what = gitlab ? "jobs" : "checks";
   const count = (state: RequestCheck["state"]) => counted.filter((check) => check.state === state).length;
-  const [failed, running, passed] = [count("failure"), count("pending"), count("success")];
-  if (counted.length === 1) return `The ${what.slice(0, -1)} ${failed ? "failed" : running ? "is still running" : "passed"}`;
+  const [failed, running, passed, cancelled] = [count("failure"), count("pending"), count("success"), count("cancelled")];
+  if (counted.length === 1) return `The ${what.slice(0, -1)} ${failed ? "failed" : running ? "is still running" : cancelled ? "was cancelled" : "passed"}`;
   const still = running > 0 ? `, ${running} still running` : "";
   if (failed > 0) return `${failed} of ${counted.length} ${what} failed${still}`;
   if (running > 0) return `${passed} of ${counted.length} ${what} passed${still}`;
+  if (cancelled > 0) return `${passed} of ${counted.length} ${what} passed, ${cancelled} cancelled`;
   return counted.length === 1 ? `The ${what.slice(0, -1)} passed` : `All ${counted.length} ${what} passed`;
 }
 
 /** How a request's checks went, in a word: failing if any failed, running if any still are, passing once all have passed. */
-export function checksVerdict(checks: RequestCheck[]): { tone: "success" | "failure" | "pending"; word: string } {
+export function checksVerdict(checks: RequestCheck[]): { tone: "success" | "failure" | "pending" | "cancelled"; word: string } {
   if (checks.some((check) => check.state === "failure")) return { tone: "failure", word: "Failing" };
   if (checks.some((check) => check.state === "pending")) return { tone: "pending", word: "Running" };
+  if (checks.some((check) => check.state === "cancelled")) return { tone: "cancelled", word: "Cancelled" };
   return { tone: "success", word: "Passing" };
 }
 
@@ -208,7 +211,9 @@ export function describeChecks(pr: PullRequest): string {
         ? `${what} failed`
         : pr.checks === "pending"
           ? `${what} running`
-          : null;
+          : pr.checks === "cancelled"
+            ? `${what} cancelled`
+            : null;
   return `${gitlab ? "Merge request" : "Pull request"} ${requestNumber(pr)}${pr.draft ? " (draft)" : ""}: ${pr.title}${pr.author ? ` by ${pr.author}` : ""}${checks ? ` · ${checks}` : ""}`;
 }
 

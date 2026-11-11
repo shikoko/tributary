@@ -180,3 +180,15 @@ describe("checksVerdict", () => {
     expect(checksVerdict([check("success"), check("success")])).toEqual({ tone: "success", word: "Passing" });
   });
 });
+
+describe("cancelled checks", () => {
+  const check = (state: RequestCheck["state"]): RequestCheck => ({ name: "Build", state, url: null, detail: null });
+  it("are neither passed nor failed", () => {
+    expect(describeCheckProgress([check("success"), check("cancelled")])).toBe("1 of 2 checks passed, 1 cancelled");
+    expect(describeCheckProgress([check("cancelled")])).toBe("The check was cancelled");
+    expect(checksVerdict([check("success"), check("cancelled")])).toEqual({ tone: "cancelled", word: "Cancelled" });
+    // A failure still decides.
+    expect(checksVerdict([check("failure"), check("cancelled")]).tone).toBe("failure");
+    expect(summarizeChecks([check("success"), check("cancelled")])).toBe("1 passed, 1 cancelled");
+  });
+});

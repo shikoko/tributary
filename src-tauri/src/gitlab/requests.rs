@@ -198,7 +198,8 @@ pub(super) fn job_check(job: RawJob) -> Check {
         "success" => Some(CheckState::Success),
         // A job allowed to fail doesn't hold anything up.
         "failed" if job.allow_failure => None,
-        "failed" | "canceled" => Some(CheckState::Failure),
+        "failed" => Some(CheckState::Failure),
+        "canceled" => Some(CheckState::Cancelled),
         "created" | "waiting_for_resource" | "preparing" | "pending" | "running" | "scheduled" => {
             Some(CheckState::Pending)
         }

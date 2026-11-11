@@ -48,7 +48,7 @@ export interface PullRequest {
   draft: boolean;
   author: string;
   /** Checks (GitHub) or the latest pipeline (GitLab). */
-  checks: "success" | "failure" | "pending" | null;
+  checks: "success" | "failure" | "pending" | "cancelled" | null;
   /** Where it is. Merge requests are numbered like !12. */
   forge?: "github" | "gitlab";
 }
@@ -104,7 +104,8 @@ export function createPullRequest(path: string, request: NewRequest): Promise<Pu
   return invoke<PullRequest>("create_pull_request", { path, request });
 }
 
-export type CheckState = "success" | "failure" | "pending";
+/** How a check went. Cancelled: stopped before it finished (replaced by a newer run, say), neither passed nor failed. */
+export type CheckState = "success" | "failure" | "pending" | "cancelled";
 
 /** One check (GitHub) or pipeline job (GitLab). */
 export interface RequestCheck {
@@ -223,8 +224,8 @@ export function mergeRequest(path: string, number: number, options: MergeRequest
 }
 
 /** The CI state of each of `ids` (full commit ids) that has one, on GitHub or GitLab. */
-export function commitStates(path: string, ids: string[]): Promise<Record<string, "success" | "failure" | "pending">> {
-  return invoke<Record<string, "success" | "failure" | "pending">>("commit_states", { path, ids });
+export function commitStates(path: string, ids: string[]): Promise<Record<string, CheckState>> {
+  return invoke<Record<string, CheckState>>("commit_states", { path, ids });
 }
 
 /** A commit's checks (GitHub) or latest pipeline's jobs (GitLab). */

@@ -283,6 +283,10 @@
   background: var(--danger);
 }
 
+.graph-ci.cancelled {
+  background: var(--text-faint);
+}
+
 .graph-ci.pending {
   background: var(--warning);
   animation: request-pending 1.4s ease-in-out infinite;
