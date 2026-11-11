@@ -1043,6 +1043,10 @@ try {
     expect(!(await page.evaluate(() => window.__PREVIEW__.installed)), "installed while git was busy");
     await page.keyboard.press("Escape");
     await about.waitFor({ state: "detached", timeout: 5000 });
+    // It said so too, once ready, with Restart.
+    const notice = await toast();
+    expect(/Tributary 9\.9\.0 is ready/.test(notice), `toast "${notice}"`);
+    await dismissToast();
   });
 
   await step("keeps a local history snapshot and puts a file back from it", async () => {
