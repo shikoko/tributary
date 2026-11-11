@@ -107,19 +107,9 @@ jobs:
 
       - name: Linux libraries
         if: runner.os == 'Linux'
-        timeout-minutes: 15
-        run: |
-          # Ubuntu's mirror sometimes can't be reached for a moment (or its name can't be
-          # looked up): give up on a request after 30 s, and try the whole thing again.
-          for attempt in 1 2 3 4; do
-            if sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update \
-              && sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev; then
-              exit 0
-            fi
-            echo "::warning::Couldn't install the Linux libraries (try $attempt of 4): trying again."
-            sleep $((attempt * 20))
-          done
-          exit 1
+        timeout-minutes: 20
+        # With retries, and another mirror if Ubuntu's on Azure can't be reached.
+        run: .github/scripts/linux-libraries.sh
 
       # The app and the setup are built with their pages in them.
       - name: Pages
@@ -161,19 +151,9 @@ jobs:
           workspaces: src-tauri
 
       - name: Linux libraries
-        timeout-minutes: 15
-        run: |
-          # Ubuntu's mirror sometimes can't be reached for a moment (or its name can't be
-          # looked up): give up on a request after 30 s, and try the whole thing again.
-          for attempt in 1 2 3 4; do
-            if sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update \
-              && sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev; then
-              exit 0
-            fi
-            echo "::warning::Couldn't install the Linux libraries (try $attempt of 4): trying again."
-            sleep $((attempt * 20))
-          done
-          exit 1
+        timeout-minutes: 20
+        # With retries, and another mirror if Ubuntu's on Azure can't be reached.
+        run: .github/scripts/linux-libraries.sh
 
       - name: Playwright
         timeout-minutes: 15
