@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ciOffset, DEFAULT_COLUMNS, fitColumns } from "./layout";
+import { ciOffset, DEFAULT_COLUMNS, fitColumns, rowRange } from "./layout";
 
 const fit = (width: number, lanes: number, extra: Partial<Parameters<typeof fitColumns>[0]> = {}) =>
   fitColumns({
@@ -75,5 +75,26 @@ describe("ciOffset", () => {
     expect(ciOffset({ avatar: true, dense: false, head: true, merge: false })).toBe(10.5);
     expect(ciOffset({ avatar: true, dense: true, head: false, merge: false })).toBe(7);
     expect(ciOffset({ avatar: false, dense: false, head: false, merge: true })).toBe(3.5);
+  });
+});
+
+describe("rowRange", () => {
+  it("renders the rows on screen and a few around them", () => {
+    expect(rowRange(280, 28, 280, 100)).toEqual({ first: 0, last: 32, firstOnScreen: 10, lastOnScreen: 20 });
+  });
+
+  it("asks for no row above the list while macOS bounces past its top", () => {
+    // The list pulled 30 px past its top: scrollTop is negative.
+    const range = rowRange(-30, 28, 280, 100);
+    expect(range.firstOnScreen).toBe(0);
+    expect(range.first).toBe(0);
+    expect(range.lastOnScreen).toBe(10);
+  });
+
+  it("asks for no row below the list while it bounces past its end", () => {
+    const range = rowRange(100 * 28 + 40, 28, 280, 100);
+    expect(range.firstOnScreen).toBeLessThanOrEqual(100);
+    expect(range.lastOnScreen).toBe(100);
+    expect(range.last).toBe(100);
   });
 });
