@@ -43,6 +43,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      # A workflow's scripts are only read when their step runs, some only on a release or a
+      # beta: a mistake in one is found here instead.
+      - name: Workflow scripts
+        run: |
+          python3 -c 'import yaml' 2>/dev/null || python3 -m pip install --quiet --break-system-packages pyyaml
+          python3 .github/scripts/check-workflows.py
+
       - name: Which parts?
         id: files
         env:
