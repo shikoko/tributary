@@ -361,18 +361,6 @@ button.request-ref:hover {
   opacity: 1;
 }
 
-.request-status .request-checks {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 10px 28px;
-}
-
-.request-status .request-check {
-  min-height: 20px;
-  gap: 10px;
-  border-bottom: none;
-}
-
 .request-status .request-check-name {
   max-width: none;
   overflow-x: clip;
@@ -412,21 +400,168 @@ button.request-ref:hover {
   opacity: 1;
 }
 
-.request-check-state {
-  flex: none;
-  max-width: 50%;
-  margin-left: auto;
+/* A request's checks on one clock (CheckTimeline): dot, name, a track with the check's bar
+   on it, and its time. Every row has the same columns, so the bars share one time axis,
+   and the axis under them uses the same columns to line up with the tracks. */
+.request-timeline {
+  --timeline-columns: 8px minmax(0, 170px) minmax(0, 1fr) 60px;
+}
+
+.request-timeline.untimed {
+  --timeline-columns: 8px minmax(0, 1fr) auto;
+}
+
+.request-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.request-status .request-check.request-timeline-row {
+  display: grid;
+  grid-template-columns: var(--timeline-columns);
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 8px;
+  min-height: 18px;
+  border-bottom: none;
+}
+
+/* A long name ends in "…" inside its column; the link only as wide as the name. */
+.request-timeline-name,
+.request-timeline-row .request-check-open {
+  display: inline-flex;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.request-timeline-row .request-check-name {
+  min-width: 0;
+}
+
+.request-timeline-track {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: rgb(var(--overlay-rgb) / 0.06);
+}
+
+.request-timeline-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 4px;
+  border-radius: 4px;
+  background: var(--text-faint);
+}
+
+.request-timeline-bar.success {
+  background: var(--success);
+}
+
+.request-timeline-bar.failure {
+  background: var(--danger);
+}
+
+/* Running: stripes that move, growing until now. */
+.request-timeline-bar.pending {
+  background: repeating-linear-gradient(-45deg, var(--warning) 0 6px, color-mix(in srgb, var(--warning) 60%, transparent) 6px 12px);
+  background-size: 17px 17px;
+  animation: request-timeline-stripes 1s linear infinite;
+}
+
+@keyframes request-timeline-stripes {
+  to {
+    background-position: 17px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .request-timeline-bar.pending {
+    animation: none;
+  }
+}
+
+/* Waiting for a runner: an empty, dashed track. */
+.request-timeline-waiting {
+  position: absolute;
+  inset: 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: 4px;
+}
+
+.request-timeline-time {
   overflow-x: clip;
   overflow-y: visible;
   text-box: trim-both cap alphabetic;
   color: var(--text-muted);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.request-timeline-row.pending .request-timeline-time {
+  color: var(--text);
+}
+
+/* Why it failed, under its name. */
+.request-timeline-detail {
+  grid-column: 2 / -1;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
+  color: var(--danger-text);
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.request-check.failure .request-check-state {
-  color: var(--danger-text);
+.request-timeline-axis {
+  display: grid;
+  grid-template-columns: var(--timeline-columns);
+  column-gap: 12px;
+  margin-top: 10px;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.request-timeline-axis span {
+  grid-column: 3;
+  grid-row: 1;
+  text-box: trim-both cap alphabetic;
+}
+
+.request-timeline-axis span:last-child {
+  justify-self: end;
+}
+
+/* How long a check has been running, or took. Figures of one width, so a ticking time
+   doesn't wobble the words beside it. */
+.request-check-time {
+  flex: none;
+  min-width: 6.5ch;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* In a commit's list: on the right, beside Details. */
+.request-check-name + .request-check-time {
+  margin-left: auto;
+}
+
+.request-check-time + .request-check-link {
+  margin-left: 0;
 }
 
 .request-skipped {

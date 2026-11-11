@@ -3,7 +3,8 @@ import { branchVersions, pullRequestDetails, requestConversation, type MergeChec
 import { copyText } from "../lib/clipboard";
 import { plural, relativeTime } from "../lib/format";
 import { checkMerge, describeMergeCheck } from "../lib/mergeChecks";
-import { describeCheckProgress, describeMergeable, describeReviews, requestNoun, requestNumber } from "../lib/pullRequests";
+import { anyRunning, describeCheckProgress, describeMergeable, describeReviews, requestNoun, requestNumber } from "../lib/pullRequests";
+import { useNow } from "../lib/useNow";
 import { Avatar } from "./Avatar";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import {
@@ -25,6 +26,7 @@ import {
   WarningIcon,
 } from "./Icons";
 import { Loader } from "./Loader";
+import { CheckTimeline } from "./CheckTimeline";
 import { Markdown } from "./Markdown";
 import { AskForReview, useRequestChange } from "./RequestControls";
 import { ConversationList, MergeRequestDialog, ReviewBox } from "./RequestReview";
@@ -473,6 +475,8 @@ function StatusCard({
   const checks = [...details.checks].sort((a, b) => CHECK_ORDER[checkState(a)] - CHECK_ORDER[checkState(b)]);
   const shown = checks.filter((check) => check.state !== null);
   const skipped = checks.filter((check) => check.state === null);
+  // Running checks count up to the second; otherwise the clock's ends ("5 minutes ago") still move.
+  const now = useNow(anyRunning(shown) ? 1000 : 30_000);
   return (
     <section className={`request-status ${tone}`} aria-label="Where it stands">
       <div className="request-status-top">
@@ -498,13 +502,7 @@ function StatusCard({
               <span key={`${check.name}-${index}`} className={checkState(check)} />
             ))}
           </div>
-          {shown.length > 0 && (
-            <ul className="request-checks">
-              {shown.map((check, index) => (
-                <RequestCheckRow key={`${check.name}-${index}`} check={check} openUrl={openUrl} />
-              ))}
-            </ul>
-          )}
+          {shown.length > 0 && <CheckTimeline checks={shown} now={now} openUrl={openUrl} />}
           {skipped.length > 0 && (
             <p className="request-skipped">
               {skipped.length === 1 ? "Skipped" : `${skipped.length} skipped`}: {skipped.map((check) => check.name).join(", ")}
@@ -516,29 +514,18 @@ function StatusCard({
   );
 }
 
-/** One of a request's checks: its state, its name (which opens its page), and a word on it. */
-function RequestCheckRow({ check, openUrl }: { check: RequestCheck; openUrl: (url: string) => void }) {
-  const state = checkState(check);
-  const words = { success: "Passed", failure: "Failed", pending: "Running", skipped: "Skipped" }[state];
-  const name = <span className="request-check-name">{check.name}</span>;
+/** How long a check has been running, ticking, or how long it took. */
+function CheckTime({ check, time }: { check: RequestCheck; time: string }) {
+  const running = check.state === "pending";
   return (
-    <li className={`request-check ${state}`} title={check.detail ? `${check.name}: ${check.detail}` : check.name}>
-      <span className="request-check-dot" aria-hidden />
-      {check.url ? (
-        <button className="request-check-open" onClick={() => openUrl(check.url!)} title={`See ${check.name} on its page`}>
-          {name}
-          <ExternalLinkIcon size={11} />
-        </button>
-      ) : (
-        name
-      )}
-      <span className="request-check-state">{check.detail ?? words}</span>
-    </li>
+    <span className="request-check-time" title={running ? `Running for ${time}` : `Took ${time}`}>
+      {time}
+    </span>
   );
 }
 
-/** A check in a commit's details: its state, its name, and its page. */
-export function CheckRow({ check, openUrl }: { check: RequestCheck; openUrl: (url: string) => void }) {
+/** A check in a commit's details: its state, its name, how long it took, and its page. */
+export function CheckRow({ check, time, openUrl }: { check: RequestCheck; time: string | null; openUrl: (url: string) => void }) {
   const state = checkState(check);
   const words = { success: "Passed", failure: "Failed", pending: "Running", skipped: "Skipped" }[state];
   return (
@@ -546,6 +533,7 @@ export function CheckRow({ check, openUrl }: { check: RequestCheck; openUrl: (ur
       <span className="request-check-dot" aria-label={words} title={words} />
       <span className="request-check-name">{check.name}</span>
       {check.detail && <span className="request-check-detail">{check.detail}</span>}
+      {time && <CheckTime check={check} time={time} />}
       {check.url && (
         <button className="link-button request-check-link" onClick={() => openUrl(check.url!)}>
           Details

@@ -113,6 +113,10 @@ export interface RequestCheck {
   state: CheckState | null;
   url: string | null;
   detail: string | null;
+  /** When it started running (RFC 3339), if it has. */
+  startedAt?: string | null;
+  /** When it finished, if it has. */
+  finishedAt?: string | null;
 }
 
 export interface RequestReview {

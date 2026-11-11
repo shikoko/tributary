@@ -850,6 +850,11 @@ export const STUDIO_PULL_REQUESTS = [
 
 /** The studio's pull requests in full, as the preview shows them (window.__PREVIEW__.pullRequestDetails). */
 const daysAgo = (days) => new Date(Date.now() - days * 86_400_000).toISOString();
+/** A check's times: started `from` seconds ago, finished `to` seconds ago (or still running). */
+const ran = (from, to = null) => ({
+  startedAt: new Date(Date.now() - from * 1000).toISOString(),
+  finishedAt: to === null ? null : new Date(Date.now() - to * 1000).toISOString(),
+});
 export const STUDIO_PULL_REQUEST_DETAILS = {
   12: {
     number: 12,
@@ -872,9 +877,9 @@ export const STUDIO_PULL_REQUEST_DETAILS = {
       { author: "sam-okafor", state: "requested" },
     ],
     checks: [
-      { name: "Build (Windows)", state: "success", url: "https://github.com/example/feast/actions/runs/1", detail: null },
-      { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/2", detail: null },
-      { name: "Asset sizes", state: "success", url: "https://github.com/example/feast/actions/runs/3", detail: null },
+      { name: "Build (Windows)", state: "success", url: "https://github.com/example/feast/actions/runs/1", detail: null, ...ran(7400, 6920) },
+      { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/2", detail: null, ...ran(7400, 6977) },
+      { name: "Asset sizes", state: "success", url: "https://github.com/example/feast/actions/runs/3", detail: null, ...ran(7400, 7352) },
       { name: "Deploy preview", state: null, url: null, detail: "Skipped" },
     ],
     forge: "github",
@@ -902,9 +907,12 @@ export const STUDIO_PULL_REQUEST_DETAILS = {
       { author: "maya-chen", state: "requested" },
     ],
     checks: [
-      { name: "Audio loudness", state: "failure", url: "https://github.com/example/feast/actions/runs/7", detail: "door_creak.wav peaks at -0.4 dB" },
-      { name: "Build (Windows)", state: "pending", url: "https://github.com/example/feast/actions/runs/8", detail: null },
-      { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/9", detail: null },
+      { name: "Audio loudness", state: "failure", url: "https://github.com/example/feast/actions/runs/7", detail: "door_creak.wav peaks at -0.4 dB", ...ran(300, 262) },
+      { name: "Build (Windows)", state: "pending", url: "https://github.com/example/feast/actions/runs/8", detail: null, ...ran(252) },
+      { name: "Build (Linux)", state: "pending", url: "https://github.com/example/feast/actions/runs/10", detail: "Queued", startedAt: null, finishedAt: null },
+      { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/9", detail: null, ...ran(300, 103) },
+      { name: "Asset sizes", state: "success", url: "https://github.com/example/feast/actions/runs/11", detail: null, ...ran(300, 281) },
+      { name: "Lint", state: "success", url: "https://github.com/example/feast/actions/runs/12", detail: null, ...ran(298, 262) },
     ],
     forge: "github",
     baseSha: null,

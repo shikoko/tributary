@@ -204,6 +204,8 @@ mod tests {
             state,
             url: None,
             detail: None,
+            started_at: None,
+            finished_at: None,
         }
     }
 

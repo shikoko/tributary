@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import type { Updates } from "../lib/updates";
 import { relativeTime } from "../lib/format";
+import { useNow } from "../lib/useNow";
 import { openInBrowser } from "../lib/weblinks";
 import { Dialog } from "./Dialog";
 import { CheckIcon, DownloadIcon, ExternalLinkIcon, InfoIcon, Logo, NotesIcon, RefreshIcon, SparkleIcon, WarningIcon } from "./Icons";
@@ -21,19 +22,10 @@ interface Props {
   onClose: () => void;
 }
 
-/** Ticks every half minute, so "checked just now" grows older while the window is open. */
-function useNow(): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(timer);
-  }, []);
-  return now;
-}
-
 /** What the last check found, with the one thing to do about it. */
 function UpdateStatus({ updates, onInstall }: Pick<Props, "updates" | "onInstall">) {
-  const now = useNow();
+  // Every half minute, so "checked just now" grows older while the window is open.
+  const now = useNow(30_000);
   const { available, checking, checkedAt, downloading, ready, waiting, error, check } = updates;
   const again = (label: string, retry = check) => (
     <button className="secondary-button" onClick={() => void retry()} disabled={checking}>
