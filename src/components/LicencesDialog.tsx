@@ -86,7 +86,7 @@ export function LicencesDialog({ onClose }: { onClose: () => void }) {
                   Version {selected.version} · {selected.license}
                 </span>
               </h3>
-              <button className="link-button licences-home" onClick={() => openInBrowser(selected.home)}>
+              <button className="link-button licences-home" onClick={() => openInBrowser(selected.home)} data-url={selected.home}>
                 <ExternalLinkIcon size={12} />
                 <span>{selected.home.replace(/^https?:\/\//, "")}</span>
               </button>

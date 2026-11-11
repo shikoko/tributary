@@ -502,3 +502,49 @@
   font-family: inherit;
   font-size: 12px;
 }
+
+/* While a link is pointed at, the status bar says where it goes instead of the rest. */
+.status-bar.showing-link > :not(.status-link) {
+  display: none;
+}
+
+.status-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 4px;
+  color: var(--text-secondary);
+}
+
+.status-link svg {
+  flex: none;
+  color: var(--text-faint);
+}
+
+.status-link > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* With no status bar to say it in (the start screen): at the bottom left, as browsers do. */
+.link-preview {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 1000;
+  max-width: min(640px, 60vw);
+  padding: 4px 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-bottom: none;
+  border-left: none;
+  border-top-right-radius: 6px;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}

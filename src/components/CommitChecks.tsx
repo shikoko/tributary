@@ -114,7 +114,7 @@ function CheckLine({ check, time }: { check: RequestCheck; time: string | null }
   return (
     <li className={`commit-check ${state}`}>
       {check.url ? (
-        <button className="commit-check-row" onClick={() => openInBrowser(check.url!)} title={`${check.name}: open its page`}>
+        <button className="commit-check-row" onClick={() => openInBrowser(check.url!)} data-url={check.url} title={`${check.name}: open its page`}>
           {content}
         </button>
       ) : (

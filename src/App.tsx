@@ -14,6 +14,7 @@ import type { OpenDialog } from "./menus";
 import { ProfilePictures } from "./components/Avatar";
 import { DownloadIcon } from "./components/Icons";
 import { TabBar } from "./components/TabBar";
+import { LinkPreview } from "./components/LinkPreview";
 import type { ToastMessage } from "./components/Toast";
 import { menuItems, shortcutLabel } from "./app/appCommand";
 import { aboutCommandsFor, appMenus, helpCommandsFor, settingsCommand, startCommands, type MenuBarContext } from "./app/appMenus";
@@ -554,6 +555,8 @@ export default function App() {
             hideToast={hideToast}
             dropping={dropping}
           />
+          {/* With a repository open, its status bar says where a link goes. */}
+          {!snapshot && <LinkPreview />}
         </div>
       </PullRequestsContext.Provider>
     </ProfilePictures.Provider>

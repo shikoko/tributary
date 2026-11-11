@@ -48,7 +48,7 @@ export function useLfsSettingsRows({ path, run, onCleanUp }: Options): SettingRo
         label: "Git LFS isn't installed",
         hint: "It keeps big files like art, audio and video out of git itself, so clones stay small. Install it, then come back here to choose which files to store with it.",
         content: (
-          <button className="outline-button" onClick={() => openInBrowser("https://git-lfs.com")}>
+          <button className="outline-button" onClick={() => openInBrowser("https://git-lfs.com")} data-url="https://git-lfs.com">
             <ExternalLinkIcon size={13} />
             <span className="button-label">Get Git LFS</span>
           </button>

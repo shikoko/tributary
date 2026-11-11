@@ -255,6 +255,7 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
                 {celebrating && <path className="tributaries-stream-sweep" d={d} pathLength={100} mask={joining} style={{ animationDelay: `${900 + index * 90}ms` }} />}
                 <path
                   className="tributaries-stream-hit"
+                  data-url={check.url ?? undefined}
                   d={d}
                   role={check.url ? "link" : undefined}
                   tabIndex={check.url ? 0 : -1}

@@ -18,7 +18,7 @@ export function openMenuItems(options: {
   const { snapshot, editor, terminal, reveal, openIn, notify } = options;
   const remote = webRemote(snapshot);
   const items: MenuItem[] = [];
-  if (remote) items.push({ label: `Open on ${siteName(remote)}`, icon: <ExternalLinkIcon />, onSelect: () => openInBrowser(remote.url) });
+  if (remote) items.push({ label: `Open on ${siteName(remote)}`, icon: <ExternalLinkIcon />, url: remote.url, onSelect: () => openInBrowser(remote.url) });
   items.push({ label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, onSelect: reveal });
   if (editor) items.push({ label: `Open in ${editor.name}`, icon: <CodeIcon />, separated: true, onSelect: () => openIn(editor) });
   if (terminal) items.push({ label: `Open in ${terminal.name}`, icon: <TerminalIcon />, separated: !editor, onSelect: () => openIn(terminal) });

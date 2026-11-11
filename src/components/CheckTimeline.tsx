@@ -68,6 +68,7 @@ export function CheckTimeline({
         // Anywhere on the row opens its page, as its wave above does; its name is the button
         // for the keyboard (its click comes here).
         onClick={check.url ? () => openUrl(check.url!) : undefined}
+        data-url={check.url ?? undefined}
         title={check.detail && check.detail !== "Queued" ? `${check.name}: ${check.detail}` : check.url ? `See ${check.name} on its page` : undefined}
       >
         <span className="request-check-dot" aria-hidden />

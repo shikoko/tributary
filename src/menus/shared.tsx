@@ -50,7 +50,7 @@ export function webItems(ctx: MenuContext, pill: RefPill): MenuItem[] {
   if (pill.kind === "tag") {
     const remote = webRemote(snapshot);
     const url = remote && branchUrl(remote, pill.name);
-    return url && remote ? [{ label: `Open ${pill.name} on ${siteName(remote)}`, icon: <ExternalLinkIcon />, separated: true, onSelect: () => ctx.openUrl(url) }] : [];
+    return url && remote ? [{ label: `Open ${pill.name} on ${siteName(remote)}`, icon: <ExternalLinkIcon />, separated: true, url, onSelect: () => ctx.openUrl(url) }] : [];
   }
   if (pill.kind !== "branch") return [];
   // The remote copy of the branch: the one it tracks, or one with the same name.
@@ -77,7 +77,7 @@ export function webItems(ctx: MenuContext, pill: RefPill): MenuItem[] {
   const items: MenuItem[] = [];
   const onRemote = !pill.local || Boolean(upstream) || pill.remotes.length > 0;
   const page = own && onRemote ? branchUrl(own, branch) : null;
-  if (page) items.push({ label: `Open ${branch} on ${siteName(remote)}`, icon: <ExternalLinkIcon />, separated: true, onSelect: () => ctx.openUrl(page) });
+  if (page) items.push({ label: `Open ${branch} on ${siteName(remote)}`, icon: <ExternalLinkIcon />, separated: true, url: page, onSelect: () => ctx.openUrl(page) });
   const existing = ctx.requests?.find(pill.name, pill.local, pill.remotes, upstream);
   const noun = remote.host === "gitlab" ? "merge request" : "pull request";
   if (existing) {

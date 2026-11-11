@@ -116,7 +116,7 @@ export function ProjectSetupDialog({
                     </button>
                   )}
                   {check.id === "lfs-installed" && !check.fix && (
-                    <button className="outline-button" onClick={() => openInBrowser("https://git-lfs.com")}>
+                    <button className="outline-button" onClick={() => openInBrowser("https://git-lfs.com")} data-url="https://git-lfs.com">
                       <span className="button-label">Get Git LFS</span>
                     </button>
                   )}
