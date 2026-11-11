@@ -33,7 +33,7 @@ export function blend(states: Tone[]): string | null {
     const count = states.filter((state) => state === tone).length;
     if (count === 0) continue;
     total += count;
-    colour = colour ? `color-mix(in srgb, ${COLOURS[tone]} ${Math.round((count / total) * 100)}%, ${colour})` : COLOURS[tone];
+    colour = colour ? `color-mix(in oklch, ${COLOURS[tone]} ${Math.round((count / total) * 100)}%, ${colour})` : COLOURS[tone];
   }
   return colour;
 }
@@ -141,6 +141,9 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   // Where they meet, the river is the colours of the waves that reach it (a failed one runs
   // dry first), and it turns into the verdict's colour on its way.
   const arriving = blend(checks.filter((check) => check.state !== "failure").map((check) => (queued(check) ? "pending" : stateOf(check))));
+  // It keeps their colour for a while, then turns into the verdict's through a bright middle
+  // (mixed by how colours look, not through a muddy brown), before it fades.
+  const from = arriving ?? "var(--river)";
   const litIndex = lit === null ? -1 : checks.findIndex((check) => check.name === lit);
   const litCheck = litIndex >= 0 ? checks[litIndex] : null;
   const labelX = Math.min(confluence - 40, Math.max(90, labelAt ?? width * 0.3));
@@ -155,8 +158,10 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
         <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
           <defs>
             <linearGradient id="tributaries-confluence" gradientUnits="userSpaceOnUse" x1={confluence} y1={middle} x2={riverEnd} y2={middle}>
-              <stop offset="0" style={{ stopColor: arriving ?? "var(--river)" }} />
-              <stop offset="0.5" style={{ stopColor: "var(--river)" }} />
+              <stop offset="0" style={{ stopColor: from }} />
+              <stop offset="0.12" style={{ stopColor: from }} />
+              <stop offset="0.24" style={{ stopColor: `color-mix(in oklch, ${from}, var(--river))` }} />
+              <stop offset="0.36" style={{ stopColor: "var(--river)" }} />
             </linearGradient>
             <linearGradient id="tributaries-mouth" gradientUnits="userSpaceOnUse" x1={confluence} y1={middle} x2={riverEnd} y2={middle}>
               {/* Fading out soon and slowly, so where it ends can't be made out. */}
