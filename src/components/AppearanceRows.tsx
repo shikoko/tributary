@@ -1,6 +1,8 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { moved } from "../lib/order";
 import {
   ACCENTS,
+  CI_DOTS,
   DEFAULT_APPEARANCE,
   LANE_PALETTE_LABELS,
   LANE_PALETTES,
@@ -10,6 +12,7 @@ import {
   parseHex,
   toHex,
   type Appearance,
+  type CiDots,
   type LaneChoice,
   type LanePaletteName,
   type Theme,
@@ -159,18 +162,134 @@ function LanePicker({ value, custom, theme, onChange }: { value: LaneChoice; cus
   );
 }
 
-/** Your own lane colours: click one to change it, × to take it out, + to add one. */
-function LaneEditor({ colors, onChange }: { colors: string[]; onChange: (colors: string[]) => void }) {
-  const set = (index: number, color: string) => onChange(colors.map((each, i) => (i === index ? color : each)));
+const CI_DOT_LABELS: Record<CiDots, string> = { beside: "Beside", ringed: "Ringed", halo: "Halo", filled: "Filled" };
+
+/** How a dot on the graph shows its checks, each with a small merge in the graph's colours. */
+function CiDotPicker({ value, lanes, onChange }: { value: CiDots; lanes: string[]; onChange: (value: CiDots) => void }) {
+  const style = { ["--lane" as string]: lanes[0], ["--lane-2" as string]: lanes[1] ?? lanes[0] };
   return (
-    <div className="lane-editor">
+    <div className="lane-picker" role="radiogroup" aria-label="Checks on dots" onKeyDown={arrowKeys}>
+      {CI_DOTS.map((look) => (
+        <button
+          key={look}
+          role="radio"
+          aria-checked={value === look}
+          tabIndex={value === look ? 0 : -1}
+          className={`lane-choice${value === look ? " chosen" : ""}`}
+          onClick={() => onChange(look)}
+        >
+          <span className="ci-dot-sample" aria-hidden style={style}>
+            <span className="ci-dot-sample-line" />
+            <span className="ci-dot-sample-branch" />
+            <span className="ci-dot-sample-node" />
+            <span
+              className={`graph-ci success${look === "beside" ? "" : ` on-dot ${look}`}`}
+              style={{ left: "var(--sample-x)", ["--ci-offset" as string]: look === "beside" ? "3.5px" : "0px" }}
+            />
+          </span>
+          <span>{CI_DOT_LABELS[look]}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Your own lane colours: click one to change it, drag it (or Alt+← →) to move it, × to take
+ * it out, + to add one. The branches take them in this order.
+ */
+function LaneEditor({ colors, onChange }: { colors: string[]; onChange: (colors: string[]) => void }) {
+  const row = useRef<HTMLDivElement>(null);
+  const [lifted, setLifted] = useState<number | null>(null);
+  // A drag that moved a colour: the click ending it doesn't open the colour picker.
+  const dragged = useRef(false);
+  const set = (index: number, color: string) => onChange(colors.map((each, i) => (i === index ? color : each)));
+
+  const startDrag = (index: number, event: ReactPointerEvent) => {
+    if (event.button !== 0) return;
+    const start = { x: event.clientX, y: event.clientY };
+    let order = colors;
+    let at = index;
+    let moving = false;
+    dragged.current = false;
+    const move = (e: PointerEvent) => {
+      if (!moving) {
+        // A few pixels first, so a click is still a click.
+        if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 5) return;
+        moving = true;
+        dragged.current = true;
+        setLifted(at);
+      }
+      // The new place: the swatch nearest the pointer (they wrap onto more rows).
+      const swatches = [...(row.current?.querySelectorAll(".lane-editor-swatch") ?? [])];
+      let target = at;
+      let nearest = Infinity;
+      swatches.forEach((swatch, i) => {
+        const rect = swatch.getBoundingClientRect();
+        const distance = Math.hypot(rect.left + rect.width / 2 - e.clientX, rect.top + rect.height / 2 - e.clientY);
+        if (distance < nearest) {
+          nearest = distance;
+          target = i;
+        }
+      });
+      if (target !== at) {
+        order = moved(order, at, target);
+        at = target;
+        setLifted(target);
+        onChange(order);
+      }
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      setLifted(null);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  // Alt+← → moves the colour with the focus, which stays on it.
+  const moveWithKeys = (index: number, event: KeyboardEvent) => {
+    const step = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : 0;
+    if (!event.altKey || step === 0) return;
+    event.preventDefault();
+    const to = index + step;
+    if (to < 0 || to >= colors.length) return;
+    onChange(moved(colors, index, to));
+    requestAnimationFrame(() => row.current?.querySelectorAll<HTMLInputElement>(".lane-editor-swatch input")[to]?.focus());
+  };
+
+  return (
+    <div className={`lane-editor${lifted !== null ? " dragging" : ""}`} ref={row}>
       {colors.map((color, index) => (
-        <span key={index} className="lane-editor-swatch">
-          <label style={{ background: color }} title={`Lane ${index + 1}: ${color}. Click to change it.`}>
-            <input type="color" value={color} aria-label={`Lane ${index + 1} colour`} onChange={(event) => set(index, event.target.value)} />
+        <span
+          key={index}
+          className={`lane-editor-swatch${lifted === index ? " lifted" : ""}`}
+          onPointerDown={(event) => startDrag(index, event)}
+          onClickCapture={(event) => {
+            if (!dragged.current) return;
+            dragged.current = false;
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+        >
+          <label style={{ background: color }} title={`Lane ${index + 1}: ${color}. Click to change it, drag to move it (or Alt+← →).`}>
+            <input
+              type="color"
+              value={color}
+              aria-label={`Lane ${index + 1} colour (Alt+arrow keys move it)`}
+              onChange={(event) => set(index, event.target.value)}
+              onKeyDown={(event) => moveWithKeys(index, event)}
+            />
           </label>
           {colors.length > 2 && (
-            <button className="lane-editor-remove" onClick={() => onChange(colors.filter((_, i) => i !== index))} aria-label={`Remove lane ${index + 1}'s colour`} title="Take it out">
+            <button
+              className="lane-editor-remove"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => onChange(colors.filter((_, i) => i !== index))}
+              aria-label={`Remove lane ${index + 1}'s colour`}
+              title="Take it out"
+            >
               ×
             </button>
           )}
@@ -191,12 +310,19 @@ function LaneEditor({ colors, onChange }: { colors: string[]; onChange: (colors:
   );
 }
 
-/** The Appearance section's rows. */
-export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial<Appearance>) => void, theme: Theme): SettingRow[] {
+/** Appearance's rows, in groups: the look (theme and colours), the graph, and starting over. */
+export interface AppearanceRows {
+  look: SettingRow[];
+  graph: SettingRow[];
+  reset: SettingRow;
+}
+
+/** The rows for Appearance and its Graph section. */
+export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial<Appearance>) => void, theme: Theme): AppearanceRows {
   const appearance = normalizeAppearance(stored);
   const change = (patch: Partial<Appearance>) => set({ ...appearance, ...patch });
   const changed = JSON.stringify(appearance) !== JSON.stringify(DEFAULT_APPEARANCE);
-  return [
+  const rows: SettingRow[] = [
     {
       kind: "custom",
       label: "Theme",
@@ -234,7 +360,7 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
           {
             kind: "custom" as const,
             label: "Your graph colours",
-            hint: "Click a colour to change it. The branches take them in turn, in light and dark themes alike.",
+            hint: "Click a colour to change it, or drag it to another place. The branches take them in turn, in light and dark themes alike.",
             content: <LaneEditor colors={appearance.customLanes} onChange={(colors) => change({ customLanes: colors })} />,
           },
         ]
@@ -249,6 +375,12 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
         { value: "dots", label: "Dots" },
       ],
       set: (value) => change({ nodes: value as Appearance["nodes"] }),
+    },
+    {
+      kind: "custom",
+      label: "Checks on dots",
+      hint: "How a merge shows its checks, and every commit when the graph shows dots. An author's picture has them beside it.",
+      content: <CiDotPicker value={appearance.ciDots} lanes={lanePalette(appearance, theme)} onChange={(value) => change({ ciDots: value })} />,
     },
     {
       kind: "select",
@@ -286,4 +418,10 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
       ),
     },
   ];
+  const graph = new Set(["Graph colours", "Your graph colours", "Commits on the graph", "Checks on dots", "Graph line bends"]);
+  return {
+    look: rows.filter((row) => !graph.has(row.label) && row.label !== "Start over"),
+    graph: rows.filter((row) => graph.has(row.label)),
+    reset: rows[rows.length - 1],
+  };
 }

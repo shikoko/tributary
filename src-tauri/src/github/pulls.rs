@@ -194,6 +194,34 @@ struct RawCheckRun {
     conclusion: Option<String>,
     html_url: Option<String>,
     details_url: Option<String>,
+    started_at: Option<String>,
+    completed_at: Option<String>,
+    check_suite: Option<RawSuite>,
+    app: Option<RawApp>,
+}
+
+#[derive(Deserialize)]
+struct RawSuite {
+    id: u64,
+}
+
+#[derive(Deserialize)]
+struct RawApp {
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct RawWorkflowRuns {
+    #[serde(default)]
+    workflow_runs: Vec<RawWorkflowRun>,
+}
+
+#[derive(Deserialize)]
+struct RawWorkflowRun {
+    name: Option<String>,
+    event: String,
+    head_branch: Option<String>,
+    check_suite_id: u64,
 }
 
 #[derive(Deserialize)]
@@ -208,6 +236,8 @@ struct RawStatus {
     state: String,
     target_url: Option<String>,
     description: Option<String>,
+    created_at: Option<String>,
+    updated_at: Option<String>,
 }
 
 /// Each reviewer's latest say: an approval or a request for changes counts over comments,
@@ -248,12 +278,18 @@ fn reviews(raw: Vec<RawReview>, requested: Vec<String>) -> Vec<Review> {
 }
 
 fn run_check(run: RawCheckRun) -> Check {
+    // Waiting for a runner: it hasn't started, whatever its started_at says.
+    let queued = matches!(
+        run.status.as_str(),
+        "queued" | "waiting" | "pending" | "requested"
+    );
     let state = if run.status != "completed" {
         Some(CheckState::Pending)
     } else {
         match run.conclusion.as_deref() {
             Some("success") => Some(CheckState::Success),
-            Some("failure" | "timed_out" | "cancelled" | "action_required" | "startup_failure") => {
+            Some("cancelled") => Some(CheckState::Cancelled),
+            Some("failure" | "timed_out" | "action_required" | "startup_failure") => {
                 Some(CheckState::Failure)
             }
             _ => None,
@@ -263,21 +299,110 @@ fn run_check(run: RawCheckRun) -> Check {
         name: run.name,
         state,
         url: run.html_url.or(run.details_url),
-        detail: None,
+        detail: queued.then(|| "Queued".to_string()),
+        started_at: run.started_at.filter(|_| !queued),
+        finished_at: run.completed_at,
+        // The app that ran it, until its workflow run is known (name_workflows).
+        workflow: run.app.map(|app| app.name),
+        trigger: None,
+        suite: run.check_suite.map(|suite| suite.id),
+    }
+}
+
+/// What started a workflow run, in words: "on push to develop", "on the pull request".
+fn trigger(event: &str, branch: Option<&str>) -> String {
+    match (event, branch) {
+        ("push", Some(branch)) => format!("on push to {branch}"),
+        ("push", None) => "on push".into(),
+        ("pull_request" | "pull_request_target", _) => "on the pull request".into(),
+        ("workflow_dispatch", _) => "run by hand".into(),
+        ("schedule", _) => "on a schedule".into(),
+        ("merge_group", _) => "in the merge queue".into(),
+        ("release", _) => "on a release".into(),
+        ("workflow_run", _) => "after another workflow".into(),
+        (event, _) => format!("on {}", event.replace('_', " ")),
+    }
+}
+
+/// Each GitHub Actions check's workflow and what started its run, from the runs for `sha`.
+fn name_runs(checks: &mut [Check], runs: Vec<RawWorkflowRun>) {
+    for check in checks {
+        let Some(run) = runs
+            .iter()
+            .find(|run| Some(run.check_suite_id) == check.suite)
+        else {
+            continue;
+        };
+        if let Some(name) = &run.name {
+            check.workflow = Some(name.clone());
+        }
+        check.trigger = Some(trigger(&run.event, run.head_branch.as_deref()));
+    }
+}
+
+/// When a workflow ran more than once for the commit for the same reason (a pull request's
+/// description edited after it was opened, say), only its latest run's jobs are kept: the
+/// earlier runs' are out of date, and GitHub goes by the latest too.
+fn keep_latest_runs(checks: &mut Vec<Check>) {
+    let same = |a: &Check, b: &Check| {
+        a.workflow == b.workflow && a.trigger == b.trigger && a.name == b.name
+    };
+    let latest: Vec<bool> = checks
+        .iter()
+        .map(|check| {
+            check.trigger.is_none()
+                || checks
+                    .iter()
+                    .filter(|other| other.trigger.is_some() && same(check, other))
+                    .all(|other| other.suite <= check.suite)
+        })
+        .collect();
+    let mut keep = latest.into_iter();
+    checks.retain(|_| keep.next().unwrap_or(true));
+}
+
+/// Names the workflow of each check of `sha` that GitHub Actions ran, and what started it,
+/// so the checks can be grouped by run, keeping each workflow's latest run. One request;
+/// without it they keep the app's name.
+async fn name_workflows(
+    client: &reqwest::Client,
+    full_name: &str,
+    token: Option<&str>,
+    sha: &str,
+    checks: &mut Vec<Check>,
+) {
+    if checks.iter().all(|check| check.suite.is_none()) {
+        return;
+    }
+    let url = format!(
+        "https://api.github.com/repos/{full_name}/actions/runs?head_sha={sha}&per_page=100"
+    );
+    if let Ok(answer) = api_request(client, url, token).send().await
+        && answer.status().is_success()
+        && let Ok(runs) = answer.json::<RawWorkflowRuns>().await
+    {
+        name_runs(checks, runs.workflow_runs);
+        keep_latest_runs(checks);
     }
 }
 
 fn status_check(status: RawStatus) -> Check {
+    let state = match status.state.as_str() {
+        "success" => Some(CheckState::Success),
+        "pending" => Some(CheckState::Pending),
+        "failure" | "error" => Some(CheckState::Failure),
+        _ => None,
+    };
+    // A status is set when it starts and changed when it ends.
+    let finished = state != Some(CheckState::Pending);
     Check {
         name: status.context,
-        state: match status.state.as_str() {
-            "success" => Some(CheckState::Success),
-            "pending" => Some(CheckState::Pending),
-            "failure" | "error" => Some(CheckState::Failure),
-            _ => None,
-        },
+        state,
         url: status.target_url.filter(|url| !url.is_empty()),
         detail: status.description.filter(|text| !text.is_empty()),
+        started_at: status.created_at,
+        finished_at: status.updated_at.filter(|_| finished),
+        ..Check::default()
     }
 }
 
@@ -357,7 +482,8 @@ pub(crate) async fn details(
         .chain(pull.requested_teams.into_iter().map(|team| team.name))
         .collect();
 
-    let checks = commit_checks(&client, full_name, token, &pull.head.sha).await;
+    let mut checks = commit_checks(&client, full_name, token, &pull.head.sha).await;
+    name_workflows(&client, full_name, token, &pull.head.sha, &mut checks).await;
 
     let (base_sha, head_sha) = (Some(pull.base.sha.clone()), Some(pull.head.sha.clone()));
     let state = if pull.merged {
@@ -456,9 +582,12 @@ mod tests {
     fn reads_checks_and_statuses() {
         let runs: RawCheckRuns = serde_json::from_str(
             r#"{"check_runs": [
-              {"name": "build", "status": "completed", "conclusion": "success", "html_url": "https://github.com/a/b/runs/1"},
-              {"name": "test", "status": "in_progress", "conclusion": null, "html_url": null, "details_url": "https://ci.example.com/2"},
-              {"name": "deploy", "status": "completed", "conclusion": "skipped"}
+              {"name": "build", "status": "completed", "conclusion": "success", "html_url": "https://github.com/a/b/runs/1",
+               "started_at": "2026-11-10T10:00:00Z", "completed_at": "2026-11-10T10:02:13Z"},
+              {"name": "test", "status": "in_progress", "conclusion": null, "html_url": null, "details_url": "https://ci.example.com/2",
+               "started_at": "2026-11-10T10:00:05Z", "completed_at": null},
+              {"name": "deploy", "status": "completed", "conclusion": "skipped"},
+              {"name": "package", "status": "queued", "conclusion": null, "started_at": "2026-11-10T10:00:00Z"}
             ]}"#,
         )
         .unwrap();
@@ -467,15 +596,103 @@ mod tests {
         assert_eq!(checks[1].state, Some(CheckState::Pending));
         assert_eq!(checks[1].url.as_deref(), Some("https://ci.example.com/2"));
         assert_eq!(checks[2].state, None);
+        // How long they took, or have been running.
+        assert_eq!(
+            checks[0].finished_at.as_deref(),
+            Some("2026-11-10T10:02:13Z")
+        );
+        assert_eq!(
+            checks[1].started_at.as_deref(),
+            Some("2026-11-10T10:00:05Z")
+        );
+        assert_eq!(checks[1].finished_at, None);
+        // Waiting for a runner: queued, not running yet.
+        assert_eq!(checks[3].state, Some(CheckState::Pending));
+        assert_eq!(checks[3].detail.as_deref(), Some("Queued"));
+        assert_eq!(checks[3].started_at, None);
         let status = status_check(RawStatus {
             context: "ci/jenkins".into(),
             state: "error".into(),
             target_url: Some(String::new()),
             description: Some("Build broke".into()),
+            created_at: Some("2026-11-10T10:00:00Z".into()),
+            updated_at: Some("2026-11-10T10:04:00Z".into()),
         });
+        assert_eq!(status.finished_at.as_deref(), Some("2026-11-10T10:04:00Z"));
         assert_eq!(status.state, Some(CheckState::Failure));
         assert_eq!(status.url, None);
         assert_eq!(status.detail.as_deref(), Some("Build broke"));
+    }
+
+    #[test]
+    fn groups_checks_by_their_workflow_run() {
+        let runs: RawCheckRuns = serde_json::from_str(
+            r#"{"check_runs": [
+              {"name": "macOS", "status": "in_progress", "check_suite": {"id": 11}, "app": {"name": "GitHub Actions"}},
+              {"name": "Rust (Linux)", "status": "in_progress", "check_suite": {"id": 12}, "app": {"name": "GitHub Actions"}},
+              {"name": "Preview", "status": "completed", "conclusion": "success", "check_suite": {"id": 13}, "app": {"name": "Vercel"}}
+            ]}"#,
+        )
+        .unwrap();
+        let mut checks: Vec<Check> = runs.check_runs.into_iter().map(run_check).collect();
+        let found: RawWorkflowRuns = serde_json::from_str(
+            r#"{"workflow_runs": [
+              {"name": "Build", "event": "push", "head_branch": "develop", "check_suite_id": 11},
+              {"name": "Checks", "event": "pull_request", "head_branch": "develop", "check_suite_id": 12}
+            ]}"#,
+        )
+        .unwrap();
+        name_runs(&mut checks, found.workflow_runs);
+        let groups: Vec<(Option<&str>, Option<&str>)> = checks
+            .iter()
+            .map(|check| (check.workflow.as_deref(), check.trigger.as_deref()))
+            .collect();
+        assert_eq!(
+            groups,
+            [
+                (Some("Build"), Some("on push to develop")),
+                (Some("Checks"), Some("on the pull request")),
+                // Not a GitHub Actions run: the app that ran it.
+                (Some("Vercel"), None),
+            ]
+        );
+        assert_eq!(trigger("workflow_dispatch", Some("main")), "run by hand");
+
+        // The same workflow run twice on the pull request (opened, then its description
+        // edited): only the later run's job is kept; a run on push is something else.
+        let footer = |suite: u64, trigger: &str| Check {
+            name: "footer".into(),
+            workflow: Some("Tidy pull requests".into()),
+            trigger: Some(trigger.into()),
+            suite: Some(suite),
+            ..Check::default()
+        };
+        let mut twice = vec![
+            footer(20, "on the pull request"),
+            footer(31, "on the pull request"),
+            footer(25, "on push to develop"),
+            Check {
+                name: "ci/jenkins".into(),
+                ..Check::default()
+            },
+        ];
+        keep_latest_runs(&mut twice);
+        let kept: Vec<(Option<u64>, &str)> = twice
+            .iter()
+            .map(|check| (check.suite, check.name.as_str()))
+            .collect();
+        assert_eq!(
+            kept,
+            [
+                (Some(31), "footer"),
+                (Some(25), "footer"),
+                (None, "ci/jenkins")
+            ]
+        );
+        assert_eq!(
+            trigger("repository_dispatch", None),
+            "on repository dispatch"
+        );
     }
 
     #[test]

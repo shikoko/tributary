@@ -3,6 +3,8 @@ import { createPullRequest, newRequestInfo, type NewRequestInfo, type PullReques
 import { plural } from "../lib/format";
 import { requestNoun, suggestRequest } from "../lib/pullRequests";
 import { Dialog } from "./Dialog";
+import { Loader } from "./Loader";
+import { MarkdownField } from "./MarkdownField";
 
 interface Props {
   repoPath: string;
@@ -144,7 +146,7 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
       }
     >
       {!info ? (
-        <p className="muted">Loading…</p>
+        <Loader size={56} title="Reading its commits" />
       ) : (
         <form
           className="dialog-form"
@@ -175,12 +177,12 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
           </label>
           <label className="field">
             <span>Description</span>
-            <textarea
-              className="text-input request-body"
+            <MarkdownField
+              className="request-body"
               rows={8}
               value={body}
               onChange={(event) => setBody(event.target.value)}
-              placeholder="What it changes and why, how to try it… (Markdown)"
+              placeholder="What it changes and why, how to try it…"
             />
           </label>
           <label className="checkbox">

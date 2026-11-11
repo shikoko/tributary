@@ -5,6 +5,7 @@ import { laneColor } from "../lib/colors";
 import { fullDate, plural, shortId } from "../lib/format";
 import { Avatar } from "./Avatar";
 import { RefPills } from "./RefPills";
+import { Loader } from "./Loader";
 
 interface Props {
   commit: CommitRow;
@@ -66,7 +67,7 @@ export function CommitPreview({ commit, x, y, loadDetails }: Props) {
       </div>
       <div className="preview-files">
         {!details ? (
-          <span className="muted">Loading…</span>
+          <Loader inline size={22} title="Loading…" />
         ) : details.files.length === 0 ? (
           <span className="muted">No file changes</span>
         ) : (

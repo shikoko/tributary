@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { RequestDetails } from "../api";
-import { describeMergeable, suggestRequest, summarizeChecks, titleFromBranch } from "./pullRequests";
+import type { RequestCheck, RequestDetails } from "../api";
+import { anyRunning, byStart, checksVerdict, checkTime, checkTimeline, describeCheckProgress, describeMergeable, describeReviews, suggestRequest, formatElapsed, groupChecks, startedLater, summarizeChecks, titleFromBranch } from "./pullRequests";
 
 describe("suggestRequest", () => {
   it("uses a single commit's message", () => {
@@ -62,5 +62,191 @@ describe("describeMergeable", () => {
     );
     expect(describeMergeable(details({ mergeable: "blocked" }))?.tone).toBe("waiting");
     expect(describeMergeable(details({ mergeable: null }))).toBeNull();
+  });
+});
+
+describe("describeReviews", () => {
+  it("says who approved, who asked for changes and who it waits for", () => {
+    expect(
+      describeReviews([
+        { author: "maya-chen", state: "approved" },
+        { author: "lena-fischer", state: "commented" },
+        { author: "sam-okafor", state: "requested" },
+      ]),
+    ).toBe("Approved by maya-chen · lena-fischer commented · waiting for sam-okafor");
+    expect(describeReviews([{ author: "diego-ramos", state: "changesRequested" }, { author: "maya-chen", state: "requested" }])).toBe(
+      "diego-ramos asked for changes · waiting for maya-chen",
+    );
+    expect(describeReviews([{ author: "a", state: "approved" }, { author: "b", state: "approved" }, { author: "c", state: "approved" }])).toBe("Approved by a, b and c");
+    expect(describeReviews([])).toBeNull();
+  });
+});
+
+describe("describeCheckProgress", () => {
+  const check = (state: "success" | "failure" | "pending" | null) => ({ name: "x", state, url: null, detail: null });
+  it("counts passed, failed and running checks, not skipped ones", () => {
+    expect(describeCheckProgress([check("success"), check("success"), check("pending"), check(null)])).toBe("2 of 3 checks passed, 1 still running");
+    expect(describeCheckProgress([check("failure"), check("success")])).toBe("1 of 2 checks failed");
+    expect(describeCheckProgress([check("success"), check("success")])).toBe("All 2 checks passed");
+    expect(describeCheckProgress([check("success")], true)).toBe("The job passed");
+    expect(describeCheckProgress([check(null)])).toBeNull();
+  });
+});
+
+describe("check times", () => {
+  const check = (state: RequestCheck["state"], startedAt: string | null, finishedAt: string | null): RequestCheck => ({
+    name: "Build",
+    state,
+    url: null,
+    detail: null,
+    startedAt,
+    finishedAt,
+  });
+  const start = "2026-11-10T10:00:00Z";
+  const at = (iso: string) => Date.parse(iso);
+
+  it("says a length of time briefly", () => {
+    expect(formatElapsed(0)).toBe("0s");
+    expect(formatElapsed(45_400)).toBe("45s");
+    expect(formatElapsed(252_000)).toBe("4m 12s");
+    expect(formatElapsed(3_780_000)).toBe("1h 3m");
+    expect(formatElapsed(-5000)).toBe("0s");
+  });
+
+  it("counts a running check up to now, and a finished one to its end", () => {
+    expect(checkTime(check("pending", start, null), at("2026-11-10T10:04:12Z"))).toBe("4m 12s");
+    expect(checkTime(check("success", start, "2026-11-10T10:02:13Z"), at("2026-11-10T11:00:00Z"))).toBe("2m 13s");
+  });
+
+  it("has no time for a check that hasn't started, or a finished one without an end", () => {
+    expect(checkTime(check("pending", null, null), Date.now())).toBeNull();
+    expect(checkTime(check("failure", start, null), Date.now())).toBeNull();
+    // GitHub gives a skipped check a start and an end, the same moment: it still didn't run.
+    expect(checkTime(check(null, start, start), Date.now())).toBeNull();
+    expect(anyRunning([check("success", start, "2026-11-10T10:02:13Z"), check("pending", null, null)])).toBe(false);
+    expect(anyRunning([check("pending", start, null)])).toBe(true);
+  });
+});
+
+describe("groupChecks", () => {
+  const at = (seconds: number) => new Date(Date.UTC(2026, 10, 10, 10, 0, seconds)).toISOString();
+  const check = (name: string, start: number | null, workflow: string | null = null, trigger: string | null = null, state: RequestCheck["state"] = "success"): RequestCheck => ({
+    name,
+    state,
+    url: null,
+    detail: null,
+    startedAt: start === null ? null : at(start),
+    finishedAt: null,
+    workflow,
+    trigger,
+  });
+
+  it("orders checks by when they started, ones starting together A to Z", () => {
+    const order = byStart([check("Windows", 10), check("skipped", null, null, null, null), check("macOS", 12), check("queued", null, null, null, "pending"), check("Version", 0)]);
+    expect(order.map((c) => c.name)).toEqual(["Version", "macOS", "Windows", "queued", "skipped"]);
+    // Twenty seconds apart isn't together.
+    expect(byStart([check("b", 30), check("a", 50)]).map((c) => c.name)).toEqual(["b", "a"]);
+  });
+
+  it("groups them by workflow run, the earliest run first", () => {
+    const groups = groupChecks([
+      check("App", 540, "Checks", "on the pull request"),
+      check("Windows", 0, "Build", "on push to develop"),
+      check("footer", 541, "Tidy", "on the pull request"),
+      check("Rust (Linux)", 540, "Checks", "on the pull request"),
+      check("Version", 0, "Build", "on push to develop"),
+    ]);
+    expect(groups.map((g) => [g.name, g.trigger, g.checks.map((c) => c.name)])).toEqual([
+      ["Build", "on push to develop", ["Version", "Windows"]],
+      ["Checks", "on the pull request", ["App", "Rust (Linux)"]],
+      ["Tidy", "on the pull request", ["footer"]],
+    ]);
+  });
+
+  it("says how much later than its run each check started, past a few seconds", () => {
+    const groups = groupChecks([
+      check("Version", 0, "Build"),
+      check("macOS", 15, "Build"),
+      check("Windows", 17, "Build"),
+      check("Lint", 3, "Build"),
+      check("Queued", null, "Build", null, "pending"),
+      check("App", 540, "Checks"),
+    ]);
+    const later = startedLater(groups);
+    expect(Object.fromEntries([...later].map(([c, ms]) => [c.name, ms]))).toEqual({ macOS: 15_000, Windows: 17_000 });
+  });
+
+  it("keeps runs of one workflow with different triggers apart, and checks without one together", () => {
+    const groups = groupChecks([check("a", 0, "Checks", "on push to develop"), check("b", 0, "Checks", "on the pull request"), check("ci/jenkins", 3)]);
+    expect(groups.map((g) => [g.name, g.trigger])).toEqual([
+      ["Checks", "on push to develop"],
+      ["Checks", "on the pull request"],
+      [null, null],
+    ]);
+  });
+});
+
+describe("checkTimeline", () => {
+  const check = (state: RequestCheck["state"], startedAt: string | null, finishedAt: string | null): RequestCheck => ({
+    name: "Build",
+    state,
+    url: null,
+    detail: null,
+    startedAt,
+    finishedAt,
+  });
+
+  it("puts every check on one clock, from the first start to the last end or now", () => {
+    const now = Date.parse("2026-11-10T10:10:00Z");
+    const timeline = checkTimeline(
+      [
+        check("success", "2026-11-10T10:00:00Z", "2026-11-10T10:05:00Z"),
+        check("pending", "2026-11-10T10:05:00Z", null),
+        check("pending", null, null),
+      ],
+      now,
+    );
+    expect(timeline?.first).toBe(Date.parse("2026-11-10T10:00:00Z"));
+    expect(timeline?.last).toBe(now);
+    expect(timeline?.bars).toEqual([{ from: 0, to: 0.5 }, { from: 0.5, to: 1 }, null]);
+  });
+
+  it("has nothing to show when no check has times", () => {
+    expect(checkTimeline([check("success", null, null)], Date.now())).toBeNull();
+  });
+
+  it("keeps a bar when the clock here is behind the site's", () => {
+    const timeline = checkTimeline([check("pending", "2026-11-10T10:00:05Z", null)], Date.parse("2026-11-10T10:00:00Z"));
+    expect(timeline?.bars).toEqual([{ from: 0, to: 0 }]);
+  });
+});
+
+describe("describeCheckProgress for one check", () => {
+  const check = (state: RequestCheck["state"]): RequestCheck => ({ name: "Build", state, url: null, detail: null });
+  it("speaks of the check, not of counts", () => {
+    expect(describeCheckProgress([check("pending")])).toBe("The check is still running");
+    expect(describeCheckProgress([check("failure")])).toBe("The check failed");
+    expect(describeCheckProgress([check("success")], true)).toBe("The job passed");
+  });
+});
+
+describe("checksVerdict", () => {
+  const check = (state: RequestCheck["state"]): RequestCheck => ({ name: "Build", state, url: null, detail: null });
+  it("fails if any failed, runs while any run, and passes once all have", () => {
+    expect(checksVerdict([check("success"), check("pending"), check("failure")])).toEqual({ tone: "failure", word: "Failing" });
+    expect(checksVerdict([check("success"), check("pending")])).toEqual({ tone: "pending", word: "Running" });
+    expect(checksVerdict([check("success"), check("success")])).toEqual({ tone: "success", word: "Passing" });
+  });
+});
+
+describe("cancelled checks", () => {
+  const check = (state: RequestCheck["state"]): RequestCheck => ({ name: "Build", state, url: null, detail: null });
+  it("are neither passed nor failed", () => {
+    expect(describeCheckProgress([check("success"), check("cancelled")])).toBe("1 of 2 checks passed, 1 cancelled");
+    expect(describeCheckProgress([check("cancelled")])).toBe("The check was cancelled");
+    expect(checksVerdict([check("success"), check("cancelled")])).toEqual({ tone: "cancelled", word: "Cancelled" });
+    // A failure still decides.
+    expect(checksVerdict([check("failure"), check("cancelled")]).tone).toBe("failure");
+    expect(summarizeChecks([check("success"), check("cancelled")])).toBe("1 passed, 1 cancelled");
   });
 });

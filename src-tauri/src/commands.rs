@@ -355,6 +355,18 @@ pub async fn read_settings_file(file: String) -> Result<String> {
     .await
 }
 
+/// Export the settings (their JSON) to a git repository of your own: committed and pushed.
+#[tauri::command]
+pub async fn export_settings_to_repository(url: String, contents: String) -> Result<String> {
+    blocking(move || crate::settings_repo::export(&url, &contents, &[])).await
+}
+
+/// The settings exported to a git repository, as JSON.
+#[tauri::command]
+pub async fn import_settings_from_repository(url: String) -> Result<String> {
+    blocking(move || crate::settings_repo::import(&url)).await
+}
+
 /// Change an open pull (or merge) request: ready or a draft, more reviewers, auto-merge.
 #[tauri::command]
 pub async fn change_request(
@@ -616,6 +628,12 @@ pub fn forget_avatars() {
     crate::avatars::forget();
 }
 
+/// Ask again about the authors found to have no picture (after signing in).
+#[tauri::command]
+pub fn forget_missing_avatars() {
+    crate::avatars::forget_missing();
+}
+
 /// Profile pictures of these authors, as `data:` URLs (null for those without one).
 #[tauri::command]
 pub async fn avatars(
@@ -745,6 +763,24 @@ pub async fn merge_request(
     crate::reviews::merge(&PathBuf::from(path), number, options).await
 }
 
+/// Where git is and which version, or what's in the way when it isn't there.
+#[tauri::command]
+pub async fn git_install() -> Result<git::install::GitInstall> {
+    blocking(|| Ok(git::install::installed())).await
+}
+
+/// Look for git again (after installing it, say).
+#[tauri::command]
+pub async fn look_for_git() -> Result<git::install::GitInstall> {
+    blocking(|| Ok(git::install::look_again())).await
+}
+
+/// Open Apple's installer for the Command Line Tools, which bring git (macOS).
+#[tauri::command]
+pub async fn install_command_line_tools() -> Result<()> {
+    blocking(git::install::install_command_line_tools).await
+}
+
 /// Who's signed in to GitHub (going by the token git keeps), and how one can sign in.
 #[tauri::command]
 pub async fn github_status() -> Result<github::account::GitHubStatus> {
@@ -835,11 +871,24 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<updates::UpdateIn
     updates::check(&app).await
 }
 
-/// Install the update found by `check_for_update` and restart. Reports the download as
-/// `update-progress` events.
+/// Download the update found by `check_for_update`, without installing it. Reports the
+/// download as `update-progress` events.
 #[tauri::command]
-pub async fn install_update(app: AppHandle) -> Result<()> {
-    updates::install(&app).await
+pub async fn download_update(app: AppHandle) -> Result<()> {
+    updates::download(&app).await
+}
+
+/// Install the downloaded update and restart, once no git command is running. False if
+/// `stop_update_restart` stopped the wait.
+#[tauri::command]
+pub async fn restart_to_update(app: AppHandle) -> Result<bool> {
+    updates::restart(&app).await
+}
+
+/// Stop waiting to restart for an update.
+#[tauri::command]
+pub fn stop_update_restart() {
+    updates::stop_waiting();
 }
 
 /// The licences of the software Tributary is made with (THIRD_PARTY_NOTICES.txt) and

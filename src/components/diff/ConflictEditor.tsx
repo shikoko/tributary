@@ -4,6 +4,7 @@ import { conflictsIn, parseConflicts, resolveConflict, resolvedText, type Choice
 import { plural } from "../../lib/format";
 import { highlightCode, languageFor, pieces } from "../../lib/syntax";
 import { LineText } from "./DiffLines";
+import { Loader } from "../Loader";
 
 interface Props {
   repoPath: string;
@@ -118,7 +119,7 @@ export function ConflictEditor({ repoPath, path, mine, theirs, version, run }: P
       </div>
     );
   }
-  if (!file) return <div className="diff-message muted">Loading…</div>;
+  if (!file) return <Loader size={88} title="Reading the conflict" />;
   if (file.text === null) {
     return (
       <div className="diff-message">

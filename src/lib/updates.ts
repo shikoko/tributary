@@ -9,6 +9,8 @@ export interface UpdateInfo {
   current: string;
   notes: string | null;
   date: string | null;
+  /** Already downloaded, ready to install. */
+  ready?: boolean;
 }
 
 export interface UpdateProgress {
@@ -24,45 +26,120 @@ export function checkForUpdate(): Promise<UpdateInfo | null> {
   return invoke<UpdateInfo | null>("check_for_update");
 }
 
-/** Download and install the update found by the last check, then restart. */
-export function installUpdate(): Promise<void> {
-  return invoke("install_update");
+/** Download the update found by the last check (and check its signature), without installing it. */
+function downloadUpdate(): Promise<void> {
+  return invoke("download_update");
 }
 
-export function onUpdateProgress(handler: (progress: UpdateProgress) => void): Promise<() => void> {
+/** Install the downloaded update and restart, once no git command is running. False if the wait was stopped. */
+function restartToUpdate(): Promise<boolean> {
+  return invoke<boolean>("restart_to_update");
+}
+
+function onUpdateProgress(handler: (progress: UpdateProgress) => void): Promise<() => void> {
   return listen<UpdateProgress>("update-progress", (event) => handler(event.payload));
+}
+
+/** What went wrong, and at which step. */
+export interface UpdateError {
+  step: "check" | "download" | "install";
+  message: string;
 }
 
 export interface Updates {
   /** A newer version, once a check found one. */
   available: UpdateInfo | null;
   checking: boolean;
-  /** What the last check found, for "Check now": "Tributary is up to date" or an error. */
-  status: string | null;
+  /** When the last check that worked finished (ms since the epoch). */
+  checkedAt: number | null;
   check: () => Promise<void>;
+  /** Downloading it: how far, when the size is known. */
+  downloading: { percent: number | null } | null;
+  download: () => Promise<void>;
+  /** Downloaded and checked: restarting (or quitting) installs it. */
+  ready: boolean;
+  /** Restarting as soon as no git command is running. */
+  waiting: boolean;
+  restart: () => Promise<void>;
+  /** Stop waiting to restart (the update stays ready). */
+  stopWaiting: () => void;
+  error: UpdateError | null;
 }
 
-/** Checks for a newer version a little after launching and every few hours, when `auto`. */
+const message = (e: unknown) => String(e).replace(/^Error:\s*/, "");
+
+/**
+ * Checks for a newer version a little after launching and every few hours (when `auto`),
+ * and downloads one as soon as it's found. It's installed only when the person restarts for
+ * it (and no git command is running then), or when they quit.
+ */
 export function useUpdates(auto: boolean): Updates {
   const [available, setAvailable] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const running = useRef(false);
+  const [checkedAt, setCheckedAt] = useState<number | null>(null);
+  const [downloading, setDownloading] = useState<{ percent: number | null } | null>(null);
+  const [ready, setReady] = useState(false);
+  const [waiting, setWaiting] = useState(false);
+  const [error, setError] = useState<UpdateError | null>(null);
+  const checkingNow = useRef(false);
+  const downloadingNow = useRef(false);
+
+  const download = useCallback(async () => {
+    if (downloadingNow.current) return;
+    downloadingNow.current = true;
+    setDownloading({ percent: null });
+    setError(null);
+    let stop: (() => void) | undefined;
+    try {
+      stop = await onUpdateProgress(({ downloaded, total }) =>
+        setDownloading({ percent: total ? Math.min(100, Math.round((downloaded / total) * 100)) : null }),
+      ).catch(() => undefined);
+      await downloadUpdate();
+      setReady(true);
+    } catch (e) {
+      setError({ step: "download", message: message(e) });
+    } finally {
+      stop?.();
+      downloadingNow.current = false;
+      setDownloading(null);
+    }
+  }, []);
 
   const check = useCallback(async () => {
-    if (running.current) return;
-    running.current = true;
+    if (checkingNow.current) return;
+    checkingNow.current = true;
     setChecking(true);
     try {
       const found = await checkForUpdate();
       setAvailable(found);
-      setStatus(found ? `Version ${found.version} is available` : "Tributary is up to date");
+      setReady(Boolean(found?.ready));
+      setError(null);
+      setCheckedAt(Date.now());
+      // Downloading changes nothing yet, so it starts straight away.
+      if (found && !found.ready) void download();
     } catch (e) {
-      setStatus(String(e));
+      setError({ step: "check", message: message(e) });
     } finally {
-      running.current = false;
+      checkingNow.current = false;
       setChecking(false);
     }
+  }, [download]);
+
+  const restart = useCallback(async () => {
+    setWaiting(true);
+    setError(null);
+    try {
+      // Resolves only if the wait was stopped: otherwise Tributary restarts.
+      await restartToUpdate();
+    } catch (e) {
+      setError({ step: "install", message: message(e) });
+    } finally {
+      setWaiting(false);
+    }
+  }, []);
+
+  const stopWaiting = useCallback(() => {
+    invoke("stop_update_restart").catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -76,5 +153,5 @@ export function useUpdates(auto: boolean): Updates {
     };
   }, [auto, check]);
 
-  return { available, checking, status, check };
+  return { available, checking, checkedAt, check, downloading, download, ready, waiting, restart, stopWaiting, error };
 }

@@ -486,6 +486,21 @@ export const RewriteIcon = (p: IconProps) => (
 );
 
 
+/** The logo's five branches: where each starts, and its colour (the graph's first five). */
+export const LOGO_LANES: [number, string][] = [
+  [200, "#1fb5ff"],
+  [356, "#ff4f9a"],
+  [512, "#ffad1f"],
+  [668, "#2fd38a"],
+  [824, "#8f6bff"],
+];
+/** A branch of the logo, from above its top edge down to the commit they merge into. */
+export const logoLane = (x: number) => `M${x} 20V320C${x} 520 512 510 512 690`;
+/** Outer branches first, the middle one last, so they overlap evenly where they meet. */
+export const LOGO_LANE_ORDER = [0, 4, 1, 3, 2];
+/** The river flowing on from the commit. */
+export const LOGO_RIVER = "M450 690L418 1060H606L574 690Z";
+
 /** The app icon's tile: a rounded square with continuous (Apple-style) corners. */
 const LOGO_TILE = "M924 512C924 922 922 924 512 924C102 924 100 922 100 512C100 102 102 100 512 100C922 100 924 102 924 512Z";
 
@@ -497,21 +512,12 @@ const LOGO_TILE = "M924 512C924 922 922 924 512 924C102 924 100 922 100 512C100 
  */
 export function Logo({ size = 32, tile = false }: { size?: number; tile?: boolean }) {
   const id = useId().replace(/:/g, "");
-  const lanes: [number, string][] = [
-    [200, "#1fb5ff"],
-    [356, "#ff4f9a"],
-    [512, "#ffad1f"],
-    [668, "#2fd38a"],
-    [824, "#8f6bff"],
-  ];
-  const lane = (x: number) => `M${x} 20V320C${x} 520 512 510 512 690`;
   const mark = (
     <>
-      <path d="M450 690L418 1060H606L574 690Z" style={{ fill: "var(--logo-ink)" }} />
+      <path d={LOGO_RIVER} style={{ fill: "var(--logo-ink)" }} />
       <g fill="none" strokeLinecap="round">
-        {/* Outer lanes first, the middle one last, so they overlap evenly where they meet. */}
-        {[0, 4, 1, 3, 2].map((i) => (
-          <path key={i} d={lane(lanes[i][0])} stroke={lanes[i][1]} strokeWidth={86} />
+        {LOGO_LANE_ORDER.map((i) => (
+          <path key={i} d={logoLane(LOGO_LANES[i][0])} stroke={LOGO_LANES[i][1]} strokeWidth={86} />
         ))}
       </g>
       <circle cx="512" cy="690" r="92" style={{ fill: "var(--logo-ink)" }} />
@@ -583,6 +589,22 @@ export const DownloadIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M8 2.5v7.5M4.75 7 8 10.25 11.25 7" />
     <path d="M3 13.5h10" />
+  </Icon>
+);
+
+/** A clock, for what happens at a set time (Fetch latest). */
+export const ClockIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="8" r="5.75" />
+    <path d="M8 4.75V8l2.25 1.5" />
+  </Icon>
+);
+
+/** Two arrows passing, for moving settings in and out (export and import). */
+export const TransferIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 5.5h9.5M10 3l2.5 2.5L10 8" />
+    <path d="M13 10.5H3.5M6 8l-2.5 2.5L6 13" />
   </Icon>
 );
 

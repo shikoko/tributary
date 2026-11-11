@@ -1,0 +1,164 @@
+/* Something loading: the logo with light running down its branches (components/Loader). */
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  height: 100%;
+  min-height: 0;
+  padding: 24px;
+  /* Only after a moment, so a quick load doesn't flash. */
+  animation: loader-in 0.3s ease 0.15s both;
+}
+
+@keyframes loader-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.loader svg {
+  flex: none;
+}
+
+/* The branches, quieter, with the light running down them. */
+.loader-lane {
+  opacity: 0.5;
+}
+
+.loader-flow {
+  stroke-dasharray: 0.22 1.2;
+  stroke-dashoffset: 0.22;
+  animation: loader-flow 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes loader-flow {
+  0% {
+    stroke-dashoffset: 0.22;
+  }
+
+  70%,
+  100% {
+    stroke-dashoffset: -1;
+  }
+}
+
+/* The commit glows as the light arrives. */
+.loader-glow {
+  fill: #ffad1f;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: loader-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes loader-glow {
+  0%,
+  30% {
+    opacity: 0;
+    transform: scale(1);
+  }
+
+  55% {
+    opacity: 0.35;
+    transform: scale(1.35);
+  }
+
+  85%,
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+.loader-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: loader-beat 2.4s ease-in-out infinite;
+}
+
+@keyframes loader-beat {
+  0%,
+  35% {
+    transform: scale(1);
+  }
+
+  52% {
+    transform: scale(1.35);
+  }
+
+  70%,
+  100% {
+    transform: scale(1);
+  }
+}
+
+.loader-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  max-width: min(560px, 100%);
+  text-align: center;
+}
+
+.loader-title {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  text-box: trim-both cap alphabetic;
+}
+
+/* Clipped sideways only: trimmed to the capitals, letters like "j" reach below its box. */
+.loader-detail {
+  max-width: 100%;
+  overflow-x: clip;
+  overflow-y: visible;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-box: trim-both cap alphabetic;
+}
+
+/* In a panel or a dialog: smaller, closer together. */
+.loader.small {
+  gap: 16px;
+  padding: 20px 16px;
+}
+
+.loader.small .loader-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* In a line, like a preview's: the logo beside the words. */
+.loader.inline {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 10px;
+  height: auto;
+  padding: 0;
+}
+
+.loader.inline .loader-title {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+/* With less motion asked for, the logo stays as it is, in full colour. */
+@media (prefers-reduced-motion: reduce) {
+  .loader-lane {
+    opacity: 1;
+  }
+
+  .loader-flow,
+  .loader-glow {
+    display: none;
+  }
+}

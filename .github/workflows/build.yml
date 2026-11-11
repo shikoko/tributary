@@ -1,29 +1,63 @@
 name: Build
 
-# Builds only run when started by hand: Actions tab → Build → Run workflow.
+# The installers for macOS and Windows:
+# - on every merge into develop, to try (the run's Artifacts), as a build of the next
+#   version, like 0.3.0-dev.4;
+# - on every merge into main, as a release: signed for automatic updates, and attached to a
+#   draft GitHub release of the next version;
+# - for any branch, by hand (Actions → Build → Run workflow), to try it before it's merged.
+# The next version comes from the labels of the pull requests merged since the last
+# release (.github/scripts/next-version.mjs).
 on:
+  push:
+    branches: [develop, main]
   workflow_dispatch:
-    inputs:
-      release:
-        description: "Version tag for a draft GitHub release, like v0.2.0. Leave empty to only build the installers."
-        required: false
-        default: ""
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer build of a branch replaces one still going, but a release always finishes.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
 
 jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The whole history and its tags: the last release, and what's been merged since.
+          fetch-depth: 0
+
+      - name: Next version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          if [ "$RELEASE" = true ]; then
+            version=$(node .github/scripts/next-version.mjs)
+          else
+            version=$(node .github/scripts/next-version.mjs --dev)
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   build:
     name: ${{ matrix.name }}
+    needs: version
     runs-on: ${{ matrix.os }}
-    # Releases get the signing key from the "release" environment, which only main can use
-    # and which waits for approval. Other builds use "test-build", which has no secrets, so
-    # they're unsigned (they install by hand, but not as updates).
-    environment: ${{ inputs.release != '' && 'release' || 'test-build' }}
+    # Releases (builds of main) get the signing key from the "release" environment, which
+    # only main can use. Other builds use "test-build", which has no secrets, so they're
+    # unsigned (they install by hand, but not as updates).
+    environment: ${{ github.ref == 'refs/heads/main' && 'release' || 'test-build' }}
     strategy:
       fail-fast: false
       matrix:
@@ -42,9 +76,8 @@ jobs:
             target: x86_64-pc-windows-msvc
             rust-targets: x86_64-pc-windows-msvc
             bundles: |
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe.sig
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe.sig
 
     steps:
       - uses: actions/checkout@v7
@@ -69,34 +102,99 @@ jobs:
       - name: Third-party notices
         run: node tools/notices.mjs
 
-      # A release's version comes from its tag (v0.2.0 → 0.2.0). With the signing key
-      # secret set, the installers are signed for automatic updates too.
+      # The terms of use, on the installer's licence page (as rich text), which shows when
+      # the setup below can't show its own window. The setup shows them itself.
+      - name: Terms of use
+        if: matrix.name == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p src-tauri/target
+          node tools/terms-rtf.mjs src-tauri/target/TERMS.rtf
+          echo "TERMS_RTF=$GITHUB_WORKSPACE/src-tauri/target/TERMS.rtf" >> "$GITHUB_ENV"
+
+      # Tributary's uninstall window: the setup, without installers in it, installed with the
+      # app (as a resource), which the uninstall entry points to (src-tauri/windows/hooks.nsh).
+      - name: Uninstall window
+        if: matrix.name == 'Windows'
+        shell: bash
+        run: |
+          npm run setup:build
+          cargo build --release --manifest-path src-tauri/Cargo.toml -p tributary-setup --features custom-protocol --target ${{ matrix.target }}
+          mkdir -p src-tauri/target/uninstall
+          cp "src-tauri/target/${{ matrix.target }}/release/tributary-setup.exe" src-tauri/target/uninstall/tributary-uninstall.exe
+          echo "UNINSTALLER=target/uninstall/tributary-uninstall.exe" >> "$GITHUB_ENV"
+
+      # With the signing key secret set, the installers are signed for automatic updates too.
       - name: Build installers
         shell: bash
         env:
-          RELEASE: ${{ inputs.release }}
-          BRANCH: ${{ github.ref }}
+          VERSION: ${{ needs.version.outputs.version }}
+          # On a build server (CI=true) Tauri leaves out the disk image's window: the
+          # background and where Tributary and Applications sit, which Finder sets up. Keep it.
+          TAURI_BUNDLER_DMG_IGNORE_CI: "true"
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           config=$(node -e '
-            const config = {};
-            const version = (process.env.RELEASE || "").replace(/^v/, "");
-            if (version) {
-              if (process.env.BRANCH !== "refs/heads/main") {
-                console.error("Releases are built from main: choose main in \"Use workflow from\".");
-                process.exit(1);
-              }
-              if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
-                console.error(`"${process.env.RELEASE}" is not a version like v0.2.0`);
-                process.exit(1);
-              }
-              config.version = version;
-            }
-            if (process.env.TAURI_SIGNING_PRIVATE_KEY) config.bundle = { createUpdaterArtifacts: true };
+            const config = { version: process.env.VERSION, bundle: {} };
+            if (process.env.TAURI_SIGNING_PRIVATE_KEY) config.bundle.createUpdaterArtifacts = true;
+            if (process.env.TERMS_RTF) config.bundle.licenseFile = process.env.TERMS_RTF;
+            if (process.env.UNINSTALLER) config.bundle.resources = { [process.env.UNINSTALLER]: "tributary-uninstall.exe" };
             console.log(JSON.stringify(config));
           ')
+          echo "$config" > "$RUNNER_TEMP/tauri-config.json"
           npm run tauri build -- --target ${{ matrix.target }} --config "$config"
+
+      # The disk image opens on a window showing Tributary and Applications over the
+      # background, telling people to drag one onto the other: Finder keeps that window's
+      # settings in a .DS_Store, which isn't there when that part was skipped.
+      - name: Check the disk image's window
+        if: matrix.name == 'macOS'
+        shell: bash
+        run: |
+          dmg=$(ls src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg)
+          volume=$(hdiutil attach -nobrowse -readonly "$dmg" | grep -o '/Volumes/.*$')
+          ls -la "$volume" "$volume/.background" || true
+          if [ -f "$volume/.DS_Store" ] && [ -d "$volume/.background" ]; then ok=1; else ok=0; fi
+          hdiutil detach "$volume" -quiet || hdiutil detach "$volume" -force -quiet
+          if [ "$ok" = 0 ]; then
+            echo "::error::The disk image has no window settings: it would open as a plain Finder window."
+            exit 1
+          fi
+
+      # On Windows, what people download is Tributary's own setup: a window in the app's
+      # style that carries two installers for the app (just for you, and for everyone on the
+      # PC) and runs one silently. It's also what the automatic updates download, so it's
+      # signed like the installers, and it's the only Windows file in the release.
+      - name: Build the setup
+        if: matrix.name == 'Windows'
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          bundle=src-tauri/target/${{ matrix.target }}/release/bundle/nsis
+          work=src-tauri/target/setup-installers
+          mkdir -p "$work"
+          installer=$(ls "$bundle"/*-setup.exe)
+          name=$(basename "$installer")
+          version=$(sed -E 's/^Tributary_([^_]+)_.*$/\1/' <<<"$name")
+          mv "$installer" "$work/just-me.exe"
+          rm -f "$bundle"/*.sig
+          # The same app, as an installer for everyone on the PC (in Program Files).
+          npm run tauri bundle -- --target ${{ matrix.target }} --bundles nsis --config "$RUNNER_TEMP/tauri-config.json" \
+            --config '{"bundle":{"createUpdaterArtifacts":false,"windows":{"nsis":{"installMode":"perMachine"}}}}'
+          mv "$(ls "$bundle"/*-setup.exe)" "$work/everyone.exe"
+          npm run setup:build
+          TRIBUTARY_INSTALLER="$(cygpath -w "$PWD/$work/just-me.exe")" \
+          TRIBUTARY_INSTALLER_ALL="$(cygpath -w "$PWD/$work/everyone.exe")" \
+          TRIBUTARY_VERSION="$version" TAURI_CONFIG="{\"version\":\"$version\"}" \
+            cargo build --release --manifest-path src-tauri/Cargo.toml -p tributary-setup --features custom-protocol --target ${{ matrix.target }}
+          cp "src-tauri/target/${{ matrix.target }}/release/tributary-setup.exe" "$bundle/$name"
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            npm run tauri signer sign -- --app-version "$version" "$bundle/$name"
+          fi
+          ls -l "$bundle"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -104,11 +202,12 @@ jobs:
           path: ${{ matrix.bundles }}
           if-no-files-found: error
 
-  # When a version tag is given, create a draft GitHub release with the installers attached.
+  # Builds of main: a draft GitHub release for the version in the files, with the
+  # installers attached. Publishing it is what offers the update to everyone.
   release:
-    if: inputs.release != ''
-    needs: build
-    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [version, build]
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
@@ -132,11 +231,11 @@ jobs:
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.release }}
+          TAG: v${{ needs.version.outputs.version }}
         run: |
           existing=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq "[.[] | select(.tag_name == \"$TAG\") | {id, draft}]")
           if [ "$(jq '[.[] | select(.draft | not)] | length' <<<"$existing")" != 0 ]; then
-            echo "::error::$TAG has already been released: use a new version tag."
+            echo "::error::$TAG has already been released."
             exit 1
           fi
           for id in $(jq -r '.[].id' <<<"$existing"); do
@@ -157,7 +256,7 @@ jobs:
       - name: Add the update manifest
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.release }}
+          TAG: v${{ needs.version.outputs.version }}
         run: |
           # The draft's notes and the names GitHub gave its files.
           gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" \

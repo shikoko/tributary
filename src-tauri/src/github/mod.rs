@@ -95,6 +95,9 @@ pub enum CheckState {
     Success,
     Failure,
     Pending,
+    /// Stopped before it finished, like a build replaced by a newer one: neither passed nor
+    /// failed (GitHub shows it grey).
+    Cancelled,
 }
 
 #[derive(Deserialize)]
@@ -166,7 +169,8 @@ pub(crate) fn github_repository(path: &Path) -> Result<Option<(String, String)>,
     }))
 }
 
-/// Combine the results of a commit's checks: any failure fails, anything still running is pending.
+/// Combine the results of a commit's checks: any failure fails, anything still running is
+/// pending, and one stopped before it finished (with no failures) makes it cancelled.
 fn summarize(runs: &[CheckRun]) -> Option<CheckState> {
     if runs.is_empty() {
         return None;
@@ -174,14 +178,19 @@ fn summarize(runs: &[CheckRun]) -> Option<CheckState> {
     let failed = runs.iter().any(|run| {
         matches!(
             run.conclusion.as_deref(),
-            Some("failure" | "timed_out" | "cancelled" | "action_required" | "startup_failure")
+            Some("failure" | "timed_out" | "action_required" | "startup_failure")
         )
     });
     let running = runs.iter().any(|run| run.status != "completed");
+    let cancelled = runs
+        .iter()
+        .any(|run| run.conclusion.as_deref() == Some("cancelled"));
     Some(if failed {
         CheckState::Failure
     } else if running {
         CheckState::Pending
+    } else if cancelled {
+        CheckState::Cancelled
     } else {
         CheckState::Success
     })
@@ -205,20 +214,23 @@ pub async fn pull_requests(path: &Path) -> Result<Vec<PullRequest>, Error> {
     };
 
     let client = client()?;
-    let get = |url: String| api_request(&client, url, token.as_deref()).send();
+    // Asked for again with each answer's ETag: one that hasn't changed costs nothing.
+    let get = |url: String| {
+        let key = crate::conditional::key(&url, token.as_deref());
+        let request = api_request(&client, url, token.as_deref());
+        async move { crate::conditional::send(&key, request).await }
+    };
 
-    let response = get(format!(
+    let answer = get(format!(
         "https://api.github.com/repos/{full_name}/pulls?state=open&per_page=100"
     ))
     .await
     .map_err(|e| format!("Couldn't reach GitHub ({e})"))?;
-    if !response.status().is_success() {
+    if !answer.status.is_success() {
         // No access (a private repository without a token), or rate limited: no badges.
         return Ok(Vec::new());
     }
-    let pulls: Vec<RawPull> = response
-        .json()
-        .await
+    let pulls: Vec<RawPull> = serde_json::from_str(&answer.body)
         .map_err(|e| format!("Couldn't read the pull requests ({e})"))?;
 
     let mut result = Vec::new();
@@ -252,27 +264,28 @@ pub async fn pull_requests(path: &Path) -> Result<Vec<PullRequest>, Error> {
 async fn check_state<F, R>(get: &F, full_name: &str, sha: &str) -> Option<CheckState>
 where
     F: Fn(String) -> R,
-    R: std::future::Future<Output = reqwest::Result<reqwest::Response>>,
+    R: std::future::Future<Output = reqwest::Result<crate::conditional::Answer>>,
 {
     let runs: Option<CheckRuns> = match get(format!(
         "https://api.github.com/repos/{full_name}/commits/{sha}/check-runs?per_page=100"
     ))
     .await
     {
-        Ok(response) if response.status().is_success() => response.json().await.ok(),
+        Ok(answer) if answer.status.is_success() => serde_json::from_str(&answer.body).ok(),
         _ => None,
     };
     if let Some(state) = runs.and_then(|runs| summarize(&runs.check_runs)) {
         return Some(state);
     }
-    let status: CombinedStatus = get(format!(
+    let answer = get(format!(
         "https://api.github.com/repos/{full_name}/commits/{sha}/status"
     ))
     .await
-    .ok()?
-    .json()
-    .await
     .ok()?;
+    if !answer.status.is_success() {
+        return None;
+    }
+    let status: CombinedStatus = serde_json::from_str(&answer.body).ok()?;
     if status.total_count == 0 {
         return None;
     }

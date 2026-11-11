@@ -1,0 +1,34 @@
+[package]
+name = "tributary-setup"
+version = "0.2.0"
+description = "Tributary's setup for Windows: a window in the app's style around Tauri's installer"
+authors = ["shikoko"]
+license = "MIT"
+repository = "https://github.com/shikoko/tributary"
+edition = "2024"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+
+# Where Tributary is installed already, from its uninstall entry.
+[target.'cfg(windows)'.dependencies]
+windows-registry = "0.6"
+
+[features]
+# The window's page built into the program (as in a release), rather than from a dev server:
+# cargo build --release -p tributary-setup --features custom-protocol
+custom-protocol = ["tauri/custom-protocol"]
+
+[lints.rust]
+unsafe_code = "deny"
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(has_installer)", "cfg(has_installer_all)"] }
+
+[lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"

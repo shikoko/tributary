@@ -1,0 +1,57 @@
+# Dependabot keeps the app's dependencies up to date, as pull requests into develop.
+#
+# - Security updates come as soon as a fix for a vulnerable dependency is out, one pull
+#   request per kind of package with every fix in it.
+# - Version updates come once a week: the minor and patch updates of each kind of package
+#   together in one pull request, and each major update (which can need changes) on its own.
+#
+# They're labelled "fix", which the Labels check needs (it decides the next version:
+# docs/development.md), and "dependencies". Merge them like any other pull request.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [fix, dependencies]
+    open-pull-requests-limit: 5
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      npm:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # The app and its setup (src-tauri/setup) share one Cargo.lock.
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [fix, dependencies]
+    open-pull-requests-limit: 5
+    groups:
+      cargo-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      cargo:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # The actions the workflows use (actions/checkout and the like).
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [fix, dependencies]
+    groups:
+      actions:
+        patterns: ["*"]

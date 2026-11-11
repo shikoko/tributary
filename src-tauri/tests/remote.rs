@@ -4,7 +4,7 @@ mod common;
 
 use common::{TempRepo, outcome, remote_turn, run, with_identity};
 use tributary_lib::actions::{Action, CloneOptions};
-use tributary_lib::{actions, git, repo};
+use tributary_lib::{actions, git, repo, settings_repo};
 
 #[test]
 fn pushes_fetches_and_pulls() {
@@ -88,6 +88,102 @@ fn pushes_fetches_and_pulls() {
     for id in [&from_bob, &from_alice] {
         bob.git(&["merge-base", "--is-ancestor", id, "main"]);
     }
+}
+
+#[test]
+fn fetch_latest_only_fast_forwards() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("latest-remote.git");
+    let mut alice = TempRepo::new("latest-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "First");
+    let push = || Action::Push {
+        force: false,
+        no_verify: false,
+    };
+    run(&alice, push()).unwrap();
+    let mut bob = TempRepo::clone_of("latest-bob", &remote);
+    bob.git(&["config", "user.name", "Bob"]);
+    bob.git(&["config", "user.email", "bob@example.com"]);
+
+    // Nothing new: fetched, and nothing moves.
+    assert_eq!(
+        run(&bob, Action::FetchLatest).unwrap(),
+        "Fetched: main is up to date"
+    );
+
+    // Behind only: moved forward.
+    let second = alice.commit("b.txt", "Second");
+    run(&alice, push()).unwrap();
+    assert_eq!(
+        run(&bob, Action::FetchLatest).unwrap(),
+        "Brought main up to date"
+    );
+    assert_eq!(bob.git(&["rev-parse", "main"]), second);
+
+    // Both sides have commits: fetched, but main is left for a pull (never a merge).
+    let own = bob.commit("bob.txt", "From Bob");
+    let third = alice.commit("c.txt", "Third");
+    run(&alice, push()).unwrap();
+    assert!(
+        run(&bob, Action::FetchLatest)
+            .unwrap()
+            .contains("has commits of its own")
+    );
+    assert_eq!(bob.git(&["rev-parse", "main"]), own);
+    assert_eq!(bob.git(&["rev-parse", "origin/main"]), third);
+
+    // Behind, with a change of its own in the way: git refuses, and nothing changes.
+    bob.git(&["reset", "--quiet", "--hard", "origin/main"]);
+    alice.commit("c.txt", "Fourth");
+    run(&alice, push()).unwrap();
+    std::fs::write(bob.path().join("c.txt"), "Bob's unsaved work\n").unwrap();
+    assert!(run(&bob, Action::FetchLatest).is_err());
+    assert_eq!(bob.git(&["rev-parse", "main"]), third);
+    assert_eq!(
+        std::fs::read_to_string(bob.path().join("c.txt")).unwrap(),
+        "Bob's unsaved work\n"
+    );
+}
+
+#[test]
+fn keeps_settings_in_a_repository() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("settings-remote.git");
+    let identity = [
+        ("user.name", "Maya Chen"),
+        ("user.email", "maya@example.com"),
+        ("commit.gpgsign", "false"),
+    ];
+    // Nothing there yet, even in an empty repository.
+    assert!(
+        settings_repo::import(remote.url())
+            .unwrap_err()
+            .to_string()
+            .contains("no Tributary settings yet")
+    );
+    assert_eq!(
+        settings_repo::export(remote.url(), "{\"zoom\": 1}", &identity).unwrap(),
+        "Exported your settings to the repository"
+    );
+    assert_eq!(
+        settings_repo::import(remote.url()).unwrap(),
+        "{\"zoom\": 1}"
+    );
+    // The same again changes nothing; new ones are a new commit, beside what else is there.
+    assert!(
+        settings_repo::export(remote.url(), "{\"zoom\": 1}", &identity)
+            .unwrap()
+            .contains("already")
+    );
+    settings_repo::export(remote.url(), "{\"zoom\": 2}", &identity).unwrap();
+    assert_eq!(
+        settings_repo::import(remote.url()).unwrap(),
+        "{\"zoom\": 2}"
+    );
+    assert_eq!(remote.git(&["rev-list", "--count", "HEAD"]), "2");
+    // A link that isn't one.
+    assert!(settings_repo::import("--upload-pack=evil").is_err());
 }
 
 #[test]

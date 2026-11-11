@@ -5,7 +5,7 @@ import { requestNumber } from "./pullRequests";
 export interface RequestSeen {
   /** The comments (and reviews) seen so far, by id. */
   comments: Set<string>;
-  checks: "pending" | "success" | "failure" | null;
+  checks: "pending" | "success" | "failure" | "cancelled" | null;
   state: RequestDetails["state"];
 }
 
@@ -13,6 +13,8 @@ export interface RequestSeen {
 export function checksState(checks: RequestCheck[]): RequestSeen["checks"] {
   if (checks.some((check) => check.state === "pending")) return "pending";
   if (checks.some((check) => check.state === "failure")) return "failure";
+  // Stopped before finishing (replaced by a newer run): no news either way.
+  if (checks.some((check) => check.state === "cancelled")) return "cancelled";
   if (checks.some((check) => check.state === "success")) return "success";
   return null;
 }

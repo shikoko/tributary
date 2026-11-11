@@ -7,6 +7,7 @@ import { plural, shortId } from "../lib/format";
 import { FileLine } from "./FileLine";
 import { FileFilter, FileList } from "./FileList";
 import { CloseIcon, CompareIcon } from "./Icons";
+import { Loader } from "./Loader";
 
 interface Props {
   comparing: Comparing;
@@ -82,7 +83,7 @@ export function ComparePanel({ comparing, onOpenFile, isShown, onSelect, hasComm
             {error ? (
               <div className="details-error">{error}</div>
             ) : !comparison ? (
-              <div className="details-loading">Loading…</div>
+              <Loader size={48} title="Comparing them" />
             ) : comparison.files.length === 0 ? (
               <div className="muted">{split ? `${to.label} hasn't changed any files since they split.` : "The files are the same in both."}</div>
             ) : (

@@ -5729,7 +5729,7 @@ dependencies = [
 
 [[package]]
 name = "tributary"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64 0.23.1",
  "flate2",
@@ -5755,6 +5755,17 @@ dependencies = [
  "tauri-plugin-updater",
  "thiserror 2.0.21",
  "windows",
+]
+
+[[package]]
+name = "tributary-setup"
+version = "0.2.0"
+dependencies = [
+ "serde",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "windows-registry",
 ]
 
 [[package]]

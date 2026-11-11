@@ -9,6 +9,7 @@ pub mod avatars;
 pub mod ci;
 pub mod codeowners;
 mod commands;
+mod conditional;
 pub mod diagnostics;
 pub mod error;
 pub mod git;
@@ -21,6 +22,7 @@ pub mod locks;
 pub mod repo;
 pub mod requests;
 pub mod reviews;
+pub mod settings_repo;
 pub mod textures;
 pub mod unreal;
 pub mod updates;
@@ -89,6 +91,8 @@ pub fn run() {
             commands::rerun_failed_checks,
             commands::save_settings_file,
             commands::read_settings_file,
+            commands::export_settings_to_repository,
+            commands::import_settings_from_repository,
             commands::publish_release,
             commands::range_diff,
             commands::patch_text,
@@ -128,6 +132,10 @@ pub fn run() {
             commands::tracker_sign_out,
             commands::avatars,
             commands::forget_avatars,
+            commands::forget_missing_avatars,
+            commands::git_install,
+            commands::look_for_git,
+            commands::install_command_line_tools,
             commands::github_status,
             commands::github_sign_in,
             commands::github_sign_in_with_browser,
@@ -143,14 +151,21 @@ pub fn run() {
             commands::remote_state,
             commands::commits_between,
             commands::check_for_update,
-            commands::install_update,
+            commands::download_update,
+            commands::restart_to_update,
+            commands::stop_update_restart,
             commands::third_party_notices,
             commands::cancel_action,
             commands::activity_log
         ])
         .build(tauri::generate_context!());
     match app {
-        Ok(app) => app.run(|_, _| {}),
+        Ok(app) => app.run(|app, event| {
+            // A downloaded update that wasn't restarted for is installed as Tributary quits.
+            if let tauri::RunEvent::Exit = event {
+                updates::install_on_quit(app);
+            }
+        }),
         // Nothing to show a window with: say why on the console, as the process ends.
         Err(error) => eprintln!("Tributary couldn't start: {error}"),
     }

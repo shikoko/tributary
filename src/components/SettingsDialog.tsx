@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { stepFocus } from "../lib/inputMode";
 import { Dialog } from "./Dialog";
 import { CloseIcon } from "./Icons";
+import { Loader } from "./Loader";
 
 /** One setting: an on/off switch, a choice, or something of its own. */
 export type SettingRow =
@@ -15,13 +16,19 @@ export type SettingRow =
       set: (value: string) => void;
       disabled?: boolean;
     }
-  | { kind: "custom"; label: string; hint?: string; content: ReactNode };
+  | { kind: "custom"; label: string; hint?: string; content: ReactNode }
+  /** Still being read: the loader, in place of the settings. */
+  | { kind: "loading"; label: string };
 
 export interface SettingsSection {
   title: string;
   /** Shown under the title in the list, like the repository's name. */
   subtitle?: string;
   icon?: ReactNode;
+  /** Shown in the list under this section, indented: part of it (Commit list under Appearance). */
+  parent?: string;
+  /** A line above it in the list, setting it apart (Export and import, at the end). */
+  separated?: boolean;
   rows: SettingRow[];
 }
 
@@ -56,9 +63,14 @@ export function SettingsDialog({
     >
       <div className="settings">
         <nav className="settings-nav" role="tablist" aria-orientation="vertical" aria-label="Settings sections">
-          {sections.map((candidate) => {
+          {sections.map((candidate, index) => {
             const selected = candidate === section;
-            return (
+            // A section inside another: lines join it to that one (the last one ends them).
+            const sub = candidate.parent
+              ? ` sub${sections[index - 1]?.parent !== candidate.parent ? " first" : ""}${sections[index + 1]?.parent !== candidate.parent ? " last" : ""}`
+              : "";
+            return [
+              candidate.separated && <div key={`${candidate.title}-line`} className="settings-nav-line" role="presentation" />,
               <button
                 key={candidate.title}
                 role="tab"
@@ -66,7 +78,7 @@ export function SettingsDialog({
                 aria-selected={selected}
                 aria-controls="settings-panel"
                 tabIndex={selected ? 0 : -1}
-                className={`settings-tab${selected ? " selected" : ""}`}
+                className={`settings-tab${selected ? " selected" : ""}${sub}`}
                 onClick={() => setChosen(candidate.title)}
                 onKeyDown={(event) => {
                   // ↑ ↓ Home End move between the sections, showing each.
@@ -83,13 +95,23 @@ export function SettingsDialog({
                   <span>{candidate.title}</span>
                   {candidate.subtitle && <span className="settings-tab-subtitle">{candidate.subtitle}</span>}
                 </span>
-              </button>
-            );
+              </button>,
+            ];
           })}
         </nav>
         {section && (
           <section key={section.title} className="settings-panel" id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${section.title}`}>
             <h3>
+              {section.parent && (
+                <>
+                  <button className="settings-panel-parent" onClick={() => setChosen(section.parent!)}>
+                    {section.parent}
+                  </button>
+                  <span className="settings-panel-crumb" aria-hidden>
+                    ›
+                  </span>
+                </>
+              )}
               {section.title}
               {section.subtitle && <span className="settings-panel-subtitle">{section.subtitle}</span>}
             </h3>
@@ -106,6 +128,7 @@ export function SettingsDialog({
 
 /** One setting: its label and hint on the left, its control on the right. */
 function SettingRowView({ row }: { row: SettingRow }) {
+  if (row.kind === "loading") return <Loader size={56} title={row.label} />;
   return (
     <div className={`settings-row${"disabled" in row && row.disabled ? " disabled" : ""}`}>
       <div className="settings-label">

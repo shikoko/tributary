@@ -5,6 +5,7 @@ import { startTour } from "./useTours";
 import { forMenu, onStart, type Release } from "../lib/whatsNew";
 import { loadRecent } from "../lib/recent";
 import { useStoredState } from "../lib/settings";
+import { askAgainForMissingAvatars } from "../lib/avatars";
 import { getVersion } from "@tauri-apps/api/app";
 import type { Updates } from "../lib/updates";
 import { CloneDialog } from "../components/CloneDialog";
@@ -19,8 +20,9 @@ import { SettingsDialog } from "../components/SettingsDialog";
 import { ShortcutsDialog } from "../components/ShortcutsDialog";
 import { Toast, type ToastMessage } from "../components/Toast";
 import { UpdateDialog } from "../components/UpdateDialog";
+import { AboutDialog } from "../components/AboutDialog";
 import { useAppRows } from "../components/AppRows";
-import { settingsTransferRow } from "../components/SettingsTransferRow";
+import { settingsTransferRows } from "../components/SettingsTransferRow";
 import { useDiffToolRows } from "../components/DiffToolRows";
 import { settingsSections } from "./settingsSections";
 import { GITLAB_COM, type Accounts } from "./useAccounts";
@@ -31,8 +33,8 @@ import { ThemeContext } from "./useAppearance";
 
 interface Props {
   overlays: Overlays;
-  /** Get the latest of every open repository now, as the schedule does. */
-  onGetLatestNow: () => Promise<void>;
+  /** Fetch the latest of every open repository now, as the schedule does. */
+  onFetchLatestNow: () => Promise<void>;
   menu: ContextMenuState;
   /** What the command palette offers, worked out when it opens. */
   commands: () => Command[];
@@ -130,15 +132,12 @@ export function AppOverlays(props: Props) {
           sections={settingsSections({
             diffTools,
             apps: appRows,
-            transfer: settingsTransferRow((text) => notify({ text })),
+            transfer: settingsTransferRows((text) => notify({ text })),
             theme,
             preferences,
-            version,
-            updates,
-            onInstallUpdate: () => show("update"),
-            onGetLatestNow: () => {
+            onFetchLatestNow: () => {
               hide("settings");
-              void props.onGetLatestNow();
+              void props.onFetchLatestNow();
             },
             accounts: {
               github: github.status,
@@ -160,6 +159,7 @@ export function AppOverlays(props: Props) {
             hide("signIn");
             notify({ text: `Signed in to GitHub as ${account.login}` });
             accounts.recheck();
+            void askAgainForMissingAvatars();
             props.onSignedIn();
           }}
         />
@@ -174,6 +174,7 @@ export function AppOverlays(props: Props) {
             notify({ text: `Signed in to ${host === GITLAB_COM ? "GitLab" : host} as ${account.username}` });
             gitlab.setHost(host);
             accounts.recheck();
+            void askAgainForMissingAvatars();
             props.onSignedIn();
           }}
         />
@@ -189,8 +190,26 @@ export function AppOverlays(props: Props) {
           onClose={() => hide("diagnostics")}
         />
       )}
+      {open.about && (
+        <AboutDialog
+          version={version}
+          updates={updates}
+          auto={preferences.autoUpdate}
+          setAuto={preferences.setAutoUpdate}
+          onInstall={() => show("update")}
+          onWhatsNew={() => {
+            hide("about");
+            show("whatsNew");
+          }}
+          onLicences={() => {
+            hide("about");
+            show("licences");
+          }}
+          onClose={() => hide("about")}
+        />
+      )}
       {open.licences && <LicencesDialog onClose={() => hide("licences")} />}
-      {open.update && updates.available && <UpdateDialog update={updates.available} onClose={() => hide("update")} />}
+      {open.update && updates.available && <UpdateDialog updates={updates} onClose={() => hide("update")} />}
       {menu.menu && (
         <ContextMenu x={menu.menu.x} y={menu.menu.y} items={menu.menu.items} onSideways={menu.menu.onSideways} onClose={menu.close} />
       )}

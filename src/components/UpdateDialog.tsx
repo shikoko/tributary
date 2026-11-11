@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { installUpdate, onUpdateProgress, type UpdateInfo, type UpdateProgress } from "../lib/updates";
+import type { Updates } from "../lib/updates";
 import { Dialog } from "./Dialog";
 
 /** Release notes, from GitHub's Markdown: headings, bullet points and paragraphs. */
@@ -33,60 +32,55 @@ function Notes({ text }: { text: string }) {
   );
 }
 
-export function UpdateDialog({ update, onClose }: { update: UpdateInfo; onClose: () => void }) {
-  const [progress, setProgress] = useState<UpdateProgress | null>(null);
-  const [installing, setInstalling] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!installing) return;
-    let stop: (() => void) | undefined;
-    let disposed = false;
-    onUpdateProgress(setProgress)
-      .then((unlisten) => (disposed ? unlisten() : (stop = unlisten)))
-      .catch(() => {});
-    return () => {
-      disposed = true;
-      stop?.();
-    };
-  }, [installing]);
-
-  const install = async () => {
-    setInstalling(true);
-    setError(null);
-    try {
-      // Tributary restarts into the new version when it's installed.
-      await installUpdate();
-    } catch (e) {
-      setError(String(e));
-      setInstalling(false);
-    }
-  };
-  const percent = progress?.total ? Math.min(100, Math.round((progress.downloaded / progress.total) * 100)) : null;
-
+/**
+ * A newer version: what changed, and Restart now. It downloads in the background first;
+ * restarting waits until no git command is running, so nothing is cut off. Not now, it
+ * installs when Tributary quits.
+ */
+export function UpdateDialog({ updates, onClose }: { updates: Updates; onClose: () => void }) {
+  const { available, downloading, ready, waiting, error } = updates;
+  if (!available) return null;
+  const percent = downloading?.percent ?? null;
   return (
     <Dialog
-      title={`Tributary ${update.version} is available`}
+      title={ready ? `Tributary ${available.version} is ready` : `Tributary ${available.version} is available`}
       wide
-      busy={installing}
-      error={error}
+      error={error && error.step !== "check" ? error.message : null}
+      errorAction={
+        error?.step === "download"
+          ? { label: "Try again", onClick: () => void updates.download() }
+          : error?.step === "install"
+            ? { label: "Try again", onClick: () => void updates.restart() }
+            : null
+      }
       onCancel={onClose}
       buttons={
-        <>
-          <button className="secondary-button" onClick={onClose} disabled={installing}>
-            Later
-          </button>
-          <button className="primary-small-button" onClick={install} disabled={installing}>
-            {installing ? (percent === null ? "Downloading…" : `Downloading… ${percent}%`) : "Install and restart"}
-          </button>
-        </>
+        waiting ? (
+          <>
+            <span className="update-waiting">Waiting for git to finish…</span>
+            <span className="spacer" />
+            <button className="secondary-button" onClick={updates.stopWaiting}>
+              Don't restart
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="secondary-button" onClick={onClose}>
+              Later
+            </button>
+            <button className="primary-small-button" onClick={() => void updates.restart()} disabled={!ready} autoFocus={ready}>
+              {ready ? "Restart now" : percent === null ? "Downloading…" : `Downloading… ${percent}%`}
+            </button>
+          </>
+        )
       }
     >
       <p className="hint">
-        You have version {update.current}. Installing restarts Tributary, and your tabs open again where you were.
+        {available.current && `You have version ${available.current}. `}Restarting installs it, as soon as no git command is running, and your
+        tabs open again where you were. Later, it installs when you quit Tributary.
       </p>
-      {update.notes && <Notes text={update.notes} />}
-      {installing && (
+      {available.notes && <Notes text={available.notes} />}
+      {downloading && (
         <div className="progress-track update-progress">
           <div className={`progress-fill${percent === null ? " indeterminate" : ""}`} style={percent === null ? undefined : { width: `${percent}%` }} />
         </div>

@@ -283,9 +283,68 @@
   background: var(--danger);
 }
 
+.graph-ci.cancelled {
+  background: var(--text-faint);
+}
+
 .graph-ci.pending {
   background: var(--warning);
   animation: request-pending 1.4s ease-in-out infinite;
+}
+
+/* A dot on the graph showing its checks itself (Graph settings, "Checks on dots"): in
+   their colour, ringed in its lane's ("ringed"); in its lane's colour, ringed in theirs
+   ("halo"); or in their colour alone ("filled"). A selected commit's ring goes around it. */
+.graph-ci.success {
+  --ci: var(--success);
+}
+
+.graph-ci.failure {
+  --ci: var(--danger);
+}
+
+.graph-ci.pending {
+  --ci: var(--warning);
+}
+
+.graph-ci.cancelled {
+  --ci: var(--text-faint);
+}
+
+.graph-ci.on-dot {
+  --ci-edge: var(--ci-ring);
+  --ci-select: transparent;
+}
+
+.commit-row.selected .graph-ci.on-dot {
+  --ci-edge: var(--graph-ring);
+  --ci-select: var(--graph-ring);
+}
+
+.graph-ci.on-dot.ringed {
+  width: 9px;
+  height: 9px;
+  background: var(--ci);
+  box-shadow:
+    0 0 0 2px var(--lane),
+    0 0 0 3.5px var(--ci-edge);
+}
+
+.graph-ci.on-dot.halo {
+  width: 8px;
+  height: 8px;
+  background: var(--lane);
+  box-shadow:
+    0 0 0 2px var(--ci-ring),
+    0 0 0 4px var(--ci),
+    0 0 0 5.5px var(--ci-select);
+}
+
+.graph-ci.on-dot.filled {
+  width: 10px;
+  height: 10px;
+  background: var(--ci);
+  box-shadow: 0 0 0 1.5px var(--ci-edge);
 }
 
 .commit-row.dimmed .graph-ci {

@@ -1,0 +1,33 @@
+name: Labels
+
+# Each pull request into develop is labelled with its kind of change, which decides the next
+# version (.github/scripts/next-version.mjs): fix, feature or breaking. The check runs once
+# there's a label (and again on each push), not when the pull request is opened: a label is
+# usually added a moment later, and until then the check waits (and, being required, so does
+# the merge) instead of failing.
+on:
+  pull_request:
+    branches: [develop]
+    types: [reopened, synchronize, labeled, unlabeled]
+
+concurrency:
+  group: labels-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  kind:
+    name: Kind of change
+    runs-on: ubuntu-24.04
+    steps:
+      - name: fix, feature or breaking
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          kinds=$(jq -r '[.[] | select(. == "fix" or . == "feature" or . == "breaking")] | join(", ")' <<<"$LABELS")
+          if [ -z "$kinds" ] || [[ "$kinds" == *,* ]]; then
+            echo "::error::Label this pull request with one of fix, feature or breaking: it decides the next version."
+            exit 1
+          fi
+          echo "::notice::A $kinds."

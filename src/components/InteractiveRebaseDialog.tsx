@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { moved } from "../lib/order";
 import type { CommitDetails, CommitRow, RebaseStep, StepAction } from "../api";
 import { shortId } from "../lib/format";
 import { Avatar } from "./Avatar";
@@ -32,12 +33,6 @@ const ACTIONS: { value: StepAction; label: string; title: string }[] = [
   { value: "drop", label: "Drop", title: "Leave the commit out" },
 ];
 
-function moved<T>(list: T[], from: number, to: number): T[] {
-  const next = [...list];
-  const [item] = next.splice(from, 1);
-  next.splice(to, 0, item);
-  return next;
-}
 
 /** Reorder, reword, squash or drop the commits after a commit on the checked-out branch. */
 export function InteractiveRebaseDialog({ branch, onto, commits, loadDetails, onCancel, onStart }: Props) {

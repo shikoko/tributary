@@ -102,7 +102,7 @@ pub struct Review {
 }
 
 /// One check (GitHub) or pipeline job (GitLab).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Check {
     pub name: String,
@@ -112,6 +112,18 @@ pub struct Check {
     pub url: Option<String>,
     /// A line about it, like the stage of a GitLab job.
     pub detail: Option<String>,
+    /// When it started running (RFC 3339), if it has.
+    pub started_at: Option<String>,
+    /// When it finished (RFC 3339), if it has.
+    pub finished_at: Option<String>,
+    /// What it's part of, to group it by: its GitHub workflow (or the app that ran it),
+    /// or its GitLab stage.
+    pub workflow: Option<String>,
+    /// What started that, in words, like "on push to develop".
+    pub trigger: Option<String>,
+    /// Its GitHub check suite, which tells which workflow run it's part of.
+    #[serde(skip)]
+    pub suite: Option<u64>,
 }
 
 /// One pull (or merge) request in full.
@@ -486,7 +498,8 @@ pub(crate) fn sort_checks(checks: &mut [Check]) {
         Some(CheckState::Failure) => 0,
         Some(CheckState::Pending) => 1,
         Some(CheckState::Success) => 2,
-        None => 3,
+        Some(CheckState::Cancelled) => 3,
+        None => 4,
     };
     checks.sort_by(|a, b| {
         rank(a)
@@ -593,8 +606,7 @@ mod tests {
         let check = |name: &str, state| Check {
             name: name.into(),
             state,
-            url: None,
-            detail: None,
+            ..Check::default()
         };
         let mut checks = vec![
             check("lint", Some(CheckState::Success)),

@@ -5,6 +5,7 @@ import { useThemeColors } from "../app/useAppearance";
 import { CloseIcon, UserIcon } from "./Icons";
 import { useTip, type TeamData } from "./team/parts";
 import { TeamCards } from "./team/TeamCards";
+import { Loader } from "./Loader";
 
 const PERIODS = [7, 14, 30];
 
@@ -150,7 +151,7 @@ export function TeamView({ repoPath, version, user, locks, overlaps, onClose, on
             <span>{error}</span>
           </div>
         ) : !data ? (
-          <div className="diff-message muted">Loading…</div>
+          <Loader size={88} title="Reading the team's activity" />
         ) : data.team.people.length === 0 ? (
           <div className="diff-message muted">Nobody committed in the last {days} days. Fetch to see your teammates' latest work.</div>
         ) : (

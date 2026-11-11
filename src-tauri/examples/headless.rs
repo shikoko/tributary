@@ -354,12 +354,28 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             tributary_lib::avatars::forget();
             Ok(Value::Null)
         }
+        "forget_missing_avatars" => {
+            tributary_lib::avatars::forget_missing();
+            Ok(Value::Null)
+        }
+        "export_settings_to_repository" => {
+            let url: String = arg(args, "url")?;
+            let contents: String = arg(args, "contents")?;
+            to_json(tributary_lib::settings_repo::export(&url, &contents, &[])?)
+        }
+        "import_settings_from_repository" => {
+            let url: String = arg(args, "url")?;
+            to_json(tributary_lib::settings_repo::import(&url)?)
+        }
         "avatars" => {
             let emails: Vec<String> = arg(args, "emails")?;
             to_json(tauri::async_runtime::block_on(
                 tributary_lib::avatars::avatars(&path()?, emails),
             )?)
         }
+        "git_install" => to_json(git::install::installed()),
+        "look_for_git" => to_json(git::install::look_again()),
+        "install_command_line_tools" => to_json(git::install::install_command_line_tools()?),
         "github_status" => to_json(tauri::async_runtime::block_on(github::account::status())?),
         "github_sign_in" => {
             let token: String = arg(args, "token")?;

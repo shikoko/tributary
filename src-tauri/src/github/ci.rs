@@ -9,7 +9,7 @@ use serde::Deserialize;
 use super::{CheckState, api_request, client};
 use crate::error::Result;
 
-/// A rollup's state as a dot's colour.
+/// A rollup's state as a dot's colour, when its checks don't say more.
 fn rollup_state(state: &str) -> Option<CheckState> {
     match state {
         "SUCCESS" => Some(CheckState::Success),
@@ -33,7 +33,7 @@ fn query(full_name: &str, shas: &[String]) -> Option<String> {
     for (index, sha) in shas.iter().enumerate() {
         if sha.len() == 40 && sha.chars().all(|c| c.is_ascii_hexdigit()) {
             fields.push_str(&format!(
-                "c{index}: object(oid: \"{sha}\") {{ ... on Commit {{ statusCheckRollup {{ state }} }} }} "
+                "c{index}: object(oid: \"{sha}\") {{ ... on Commit {{ statusCheckRollup {{ state contexts(first: 100) {{ nodes {{ ... on CheckRun {{ status conclusion }} ... on StatusContext {{ statusState: state }} }} }} }} }} }} "
             ));
         }
     }
@@ -61,6 +61,59 @@ struct Object {
 #[derive(Deserialize)]
 struct Rollup {
     state: String,
+    #[serde(default)]
+    contexts: Option<Contexts>,
+}
+
+#[derive(Deserialize)]
+struct Contexts {
+    #[serde(default)]
+    nodes: Vec<Context>,
+}
+
+/// One of a commit's checks (a check run) or statuses, in GraphQL's words.
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct Context {
+    status: Option<String>,
+    conclusion: Option<String>,
+    status_state: Option<String>,
+}
+
+/// A commit's state from its checks. GitHub's rollup counts a cancelled run (a build
+/// replaced by a newer one, say) as failed; here it's cancelled, unless something failed.
+fn contexts_state(contexts: &[Context]) -> Option<CheckState> {
+    if contexts.is_empty() {
+        return None;
+    }
+    let (mut failed, mut running, mut cancelled) = (false, false, false);
+    for context in contexts {
+        match (
+            context.status.as_deref(),
+            context.conclusion.as_deref(),
+            context.status_state.as_deref(),
+        ) {
+            (_, _, Some("FAILURE" | "ERROR")) => failed = true,
+            (_, _, Some("PENDING" | "EXPECTED")) => running = true,
+            (Some(status), _, _) if status != "COMPLETED" => running = true,
+            (_, Some("CANCELLED"), _) => cancelled = true,
+            (
+                _,
+                Some("FAILURE" | "TIMED_OUT" | "ACTION_REQUIRED" | "STARTUP_FAILURE" | "STALE"),
+                _,
+            ) => failed = true,
+            _ => {}
+        }
+    }
+    Some(if failed {
+        CheckState::Failure
+    } else if running {
+        CheckState::Pending
+    } else if cancelled {
+        CheckState::Cancelled
+    } else {
+        CheckState::Success
+    })
 }
 
 /// The overall CI state of each of `shas` that has one (GraphQL needs a token).
@@ -101,7 +154,13 @@ pub(crate) async fn commit_states(
             index.and_then(|index| shas.get(index)),
             object
                 .and_then(|o| o.status_check_rollup)
-                .and_then(|rollup| rollup_state(&rollup.state)),
+                .and_then(|rollup| {
+                    rollup
+                        .contexts
+                        .as_ref()
+                        .and_then(|contexts| contexts_state(&contexts.nodes))
+                        .or_else(|| rollup_state(&rollup.state))
+                }),
         ) {
             states.insert(sha.clone(), state);
         }
@@ -168,6 +227,47 @@ pub(crate) async fn rerun_failed(full_name: &str, token: &str, sha: &str) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn run(status: &str, conclusion: Option<&str>) -> Context {
+        Context {
+            status: Some(status.into()),
+            conclusion: conclusion.map(Into::into),
+            status_state: None,
+        }
+    }
+
+    #[test]
+    fn a_cancelled_build_is_cancelled_not_failed() {
+        let done = |conclusion| run("COMPLETED", Some(conclusion));
+        // A build replaced by a newer one: cancelled, grey.
+        assert_eq!(
+            contexts_state(&[done("SUCCESS"), done("CANCELLED")]),
+            Some(CheckState::Cancelled)
+        );
+        // Something that really failed still fails, and running still runs.
+        assert_eq!(
+            contexts_state(&[done("CANCELLED"), done("FAILURE")]),
+            Some(CheckState::Failure)
+        );
+        assert_eq!(
+            contexts_state(&[done("CANCELLED"), run("IN_PROGRESS", None)]),
+            Some(CheckState::Pending)
+        );
+        assert_eq!(
+            contexts_state(&[done("SUCCESS"), done("SKIPPED")]),
+            Some(CheckState::Success)
+        );
+        // Commit statuses count too.
+        let status = Context {
+            status_state: Some("ERROR".into()),
+            ..Context::default()
+        };
+        assert_eq!(
+            contexts_state(&[done("SUCCESS"), status]),
+            Some(CheckState::Failure)
+        );
+        assert_eq!(contexts_state(&[]), None);
+    }
 
     #[test]
     fn asks_for_many_commits_in_one_query() {

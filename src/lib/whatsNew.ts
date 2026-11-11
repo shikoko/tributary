@@ -31,8 +31,8 @@ export const RELEASES: Release[] = [
       },
       {
         icon: "schedule",
-        title: "Get latest overnight",
-        text: "Settings → Get latest pulls every open repository at a set time, Git LFS files and all, so a big update is waiting when you start.",
+        title: "Fetch latest overnight",
+        text: "Settings → Fetching → Fetch latest fetches every open repository at a set time, and moves each branch forward when it can without merging, Git LFS files and all, so a big update is waiting when you start.",
       },
       {
         icon: "disk",
@@ -82,7 +82,7 @@ export function compareVersions(a: string, b: string): number {
 }
 
 /**
- * What Help → What's New shows: the notes of the newest version up to `version`, or, when
+ * What What's New in About Tributary shows: the notes of the newest version up to `version`, or, when
  * there are none (a build from before its version was raised for a release), the newest.
  */
 export function forMenu(version: string | null, releases = RELEASES): Release[] {

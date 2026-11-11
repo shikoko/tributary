@@ -1,7 +1,8 @@
 import { useContext, useEffect, useState } from "react";
 import { commitChecks, rerunFailedChecks, type CommitChecks as Checks } from "../api";
 import { CiStatesContext } from "../lib/ciStates";
-import { summarizeChecks } from "../lib/pullRequests";
+import { anyRunning, checkTime, summarizeChecks } from "../lib/pullRequests";
+import { useNow } from "../lib/useNow";
 import { openInBrowser } from "../lib/weblinks";
 import { CheckRow } from "./PullRequestView";
 
@@ -26,6 +27,7 @@ export function CommitChecks({ repoPath, id, notify }: { repoPath: string; id: s
       current = false;
     };
   }, [repoPath, id, state]);
+  const now = useNow(1000, Boolean(checks && anyRunning(checks.checks)));
   if (!state || !checks || checks.checks.length === 0) return null;
   const failed = checks.checks.filter((check) => check.state === "failure");
   // Failures first, then the rest when asked.
@@ -59,7 +61,7 @@ export function CommitChecks({ repoPath, id, notify }: { repoPath: string; id: s
       {shown.length > 0 && (
         <ul className="request-checks">
           {shown.map((check, index) => (
-            <CheckRow key={`${check.name}-${index}`} check={check} openUrl={openInBrowser} />
+            <CheckRow key={`${check.name}-${index}`} check={check} time={checkTime(check, now)} openUrl={openInBrowser} />
           ))}
         </ul>
       )}

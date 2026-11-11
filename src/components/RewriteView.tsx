@@ -3,6 +3,7 @@ import { branchVersions, rangeDiff, type BranchVersion, type CommitPair, type Ra
 import { relativeTime } from "../lib/format";
 import { changeLineKind, describeRewrite, rewrittenVersions, summarizePairs } from "../lib/rewrites";
 import { ChevronDownIcon, ChevronRightIcon, CloseIcon, RebaseIcon } from "./Icons";
+import { Loader } from "./Loader";
 
 interface Props {
   repoPath: string;
@@ -112,7 +113,7 @@ export function RewriteView({ repoPath, branch, base, onClose }: Props) {
             <span>{error}</span>
           </div>
         ) : !versions ? (
-          <div className="diff-message muted">Loading…</div>
+          <Loader size={88} title="Reading what changed" />
         ) : choices.length === 0 ? (
           <div className="diff-message">
             <strong>{branch} hasn't been rewritten</strong>

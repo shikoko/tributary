@@ -138,7 +138,19 @@ fn opens_the_diff_tool_set_up_in_git() {
         },
     );
     assert_eq!(opened.message, "Opened notes.txt in your diff tool");
-    assert_eq!(std::fs::read_to_string(&recorded).unwrap(), "one\ntwo\n");
+    // The app only waits a moment for a tool (they stay open), so this one may still be
+    // starting, as on a slow Windows runner: wait for what it writes.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    let written = loop {
+        match std::fs::read_to_string(&recorded) {
+            Ok(text) if text == "one\ntwo\n" => break text,
+            _ if std::time::Instant::now() > deadline => {
+                break std::fs::read_to_string(&recorded).unwrap_or_default();
+            }
+            _ => std::thread::sleep(std::time::Duration::from_millis(100)),
+        }
+    };
+    assert_eq!(written, "one\ntwo\n");
 
     // A new file has nothing to be compared with.
     std::fs::write(repo.path().join("new.txt"), "new\n").unwrap();

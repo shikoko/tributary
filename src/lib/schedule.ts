@@ -1,10 +1,10 @@
-// Get latest on a schedule: a pull of every open repository at a set time (07:00, say), so
-// a big update is waiting in the morning.
+// Fetch latest on a schedule: every open repository fetched at a set time (07:00, say), and
+// brought up to date when that's a fast-forward, so a big update is waiting in the morning.
 
 /** On which days. */
 export type ScheduleDays = "off" | "daily" | "weekdays";
 
-/** How a repository's scheduled pull went. */
+/** How a repository's scheduled fetch went. */
 export interface ScheduledResult {
   name: string;
   ok: boolean;
@@ -57,8 +57,8 @@ export function describeRun(run: ScheduledRun): string {
   const done = run.results.filter((result) => result.ok);
   const failed = run.results.filter((result) => !result.ok);
   const total = run.results.length;
-  if (total === 0) return "No repositories were open to get the latest of";
-  if (failed.length === 0) return total === 1 ? `Got the latest of ${run.results[0].name}` : `Got the latest of ${total} repositories`;
+  if (total === 0) return "No repositories were open to fetch the latest of";
+  if (failed.length === 0) return total === 1 ? `Fetched the latest of ${run.results[0].name}` : `Fetched the latest of ${total} repositories`;
   const names = failed.map((result) => result.name).join(", ");
-  return done.length === 0 ? `Couldn't get the latest of ${names}` : `Got the latest of ${done.length} of ${total} repositories; not ${names}`;
+  return done.length === 0 ? `Couldn't fetch the latest of ${names}` : `Fetched the latest of ${done.length} of ${total} repositories; not ${names}`;
 }

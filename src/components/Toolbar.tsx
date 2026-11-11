@@ -15,7 +15,6 @@ import {
   GearIcon,
   PullIcon,
   PushIcon,
-  RefreshIcon,
   SearchIcon,
   SidebarIcon,
   TeamIcon,
@@ -49,7 +48,6 @@ const MODES: { mode: SearchMode; label: string; placeholder: string; title: stri
 
 interface Props {
   snapshot: RepoSnapshot;
-  refreshing: boolean;
   /** The remote action that is running, if any. */
   running: RemoteAction | null;
   /** How far the checked-out branch is ahead of its upstream, and behind it (a merge counts once). */
@@ -71,7 +69,6 @@ interface Props {
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
   onViewMenu: (anchor: HTMLElement) => void;
-  onRefresh: () => void;
   /** Team activity: who's been working on what. */
   teamOpen: boolean;
   onToggleTeam: () => void;
@@ -83,7 +80,7 @@ interface Props {
 }
 
 export function Toolbar(props: Props) {
-  const { snapshot, refreshing, running, ahead, behind, search, searchInput } = props;
+  const { snapshot, running, ahead, behind, search, searchInput } = props;
   const pushMenuButton = useRef<HTMLButtonElement>(null);
   const viewButton = useRef<HTMLButtonElement>(null);
   const openButton = useRef<HTMLButtonElement>(null);
@@ -299,15 +296,6 @@ export function Toolbar(props: Props) {
           aria-label="Repository settings"
         >
           <GearIcon />
-        </button>
-        <button
-          className="icon-button"
-          onClick={props.onRefresh}
-          disabled={refreshing}
-          title={`Refresh (${modKey}R)`}
-          aria-label="Refresh"
-        >
-          <RefreshIcon className={refreshing ? "spin" : undefined} />
         </button>
         <button
           ref={openButton}

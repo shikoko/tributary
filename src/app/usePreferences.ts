@@ -25,7 +25,7 @@ export function usePreferences() {
   const [autoFetch, setAutoFetch] = useStoredState("fetch.auto", true);
   const [reopenTabs, setReopenTabs] = useStoredState("reopenLast", true);
   const [firstParentOnly, setFirstParentOnly] = useStoredState("history.firstParent", false);
-  const [profilePictures, setProfilePictures] = useStoredState("avatars.pictures", false);
+  const [profilePictures, setProfilePictures] = useStoredState("avatars.pictures", true);
   const [previews, setPreviews] = useStoredState("previews", true);
   const [activityOpen, setActivityOpen] = useStoredState("activity.open", false);
   const [fetchMinutes, setFetchMinutes] = useStoredState("fetch.minutes", 5);
@@ -53,7 +53,7 @@ export function usePreferences() {
   const [historyMinutes, setHistoryMinutes] = useStoredState("history.minutes", 10);
   const [historyMaxMB, setHistoryMaxMB] = useStoredState("history.maxMB", 50);
   const [historyDays, setHistoryDays] = useStoredState("history.days", 7);
-  /** Get latest on a schedule: on which days, at what time, the last run started (its key) and how the last one went. */
+  /** Fetch latest on a schedule: on which days, at what time, the last run started (its key) and how the last one went. */
   const [scheduleDays, setScheduleDays] = useStoredState<ScheduleDays>("schedule.days", "off");
   const [scheduleTime, setScheduleTime] = useStoredState("schedule.time", "07:00");
   const [scheduleLast, setScheduleLast] = useStoredState<string | null>("schedule.last", null);

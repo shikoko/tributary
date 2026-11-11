@@ -11,6 +11,7 @@ import { DENSE_ROW_HEIGHT, FOOTER_HEIGHT, GRAPH_PADDING, laneWidthFor, ROW_HEIGH
 import { ListHeader } from "./commitList/ListHeader";
 import { DaySeparator, ListRow, type RowHandlers } from "./commitList/ListRow";
 import { CommitPreview } from "./CommitPreview";
+import { Loader } from "./Loader";
 
 export { DEFAULT_COLUMNS, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
 
@@ -95,7 +96,7 @@ export function CommitList(props: Props) {
   const contentHeight = slots.length * rowHeight + (snapshot.truncated ? FOOTER_HEIGHT : 0);
   const [settledWidth, setSettledWidth] = useState(0);
   // Commits as their authors' pictures (or dots), from Appearance.
-  const { colors, curves, nodes } = useContext(ThemeContext);
+  const { colors, curves, nodes, ciDots } = useContext(ThemeContext);
   const avatars = nodes === "authors";
   const laneWidth = laneWidthFor(avatars, dense);
   const layout = useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport, settledWidth, columnWidths, show, laneWidth, authorsOnGraph: avatars });
@@ -251,6 +252,7 @@ export function CommitList(props: Props) {
         lanes={colors.lanes}
         visible={layout.visible}
         options={show}
+        ciDots={ciDots}
         changes={commit.kind === "worktree" ? changeCounts : undefined}
         narrow={layout.narrow}
         dense={dense}
@@ -312,7 +314,7 @@ export function CommitList(props: Props) {
                 <div className="list-footer" style={{ top: slots.length * rowHeight, height: FOOTER_HEIGHT }}>
                   <span>Showing the {commits.length.toLocaleString()} most recent commits.</span>
                   <button className="tool-button" onClick={onLoadMore} disabled={loadingMore}>
-                    {loadingMore ? "Loading…" : `Load ${PAGE_SIZE.toLocaleString()} more`}
+                    {loadingMore ? <Loader inline size={18} title="Loading…" /> : `Load ${PAGE_SIZE.toLocaleString()} more`}
                   </button>
                 </div>
               )}

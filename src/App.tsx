@@ -16,7 +16,7 @@ import { DownloadIcon } from "./components/Icons";
 import { TabBar } from "./components/TabBar";
 import type { ToastMessage } from "./components/Toast";
 import { menuItems, shortcutLabel } from "./app/appCommand";
-import { appMenus, helpCommandsFor, settingsCommand, startCommands, type MenuBarContext } from "./app/appMenus";
+import { aboutCommandsFor, appMenus, helpCommandsFor, settingsCommand, startCommands, type MenuBarContext } from "./app/appMenus";
 import { AppOverlays } from "./app/AppOverlays";
 import { FOCUS_REFRESH_INTERVAL, type Running } from "./app/constants";
 import { chooseFilesToLock } from "./app/lockPicker";
@@ -25,10 +25,12 @@ import { RepositoryView } from "./app/RepositoryView";
 import { StartView } from "./app/StartView";
 import { useAccounts } from "./app/useAccounts";
 import { useViewFade } from "./app/useViewFade";
+import { useGitInstall } from "./app/useGitInstall";
+import { GitNeededBanner } from "./components/GitNeeded";
 import { useActions } from "./app/useActions";
 import { useBackgroundFetch } from "./app/useBackgroundFetch";
 import { useLocalHistory } from "./app/useLocalHistory";
-import { useScheduledPull } from "./app/useScheduledPull";
+import { useScheduledFetch } from "./app/useScheduledFetch";
 import { useBranchCounts } from "./app/useBranchCounts";
 import { useChangedElsewhere } from "./app/useChangedElsewhere";
 import { useSubmodules } from "./app/useSubmodules";
@@ -271,7 +273,7 @@ export default function App() {
     latest.current.refresh();
   });
   useLocalHistory({ tabs, minutes: preferences.historyMinutes, maxMB: preferences.historyMaxMB, days: preferences.historyDays });
-  const getLatestNow = useScheduledPull({
+  const fetchLatestNow = useScheduledFetch({
     tabs,
     days: preferences.scheduleDays,
     time: preferences.scheduleTime,
@@ -279,7 +281,7 @@ export default function App() {
     setLast: preferences.setScheduleLast,
     setRun: preferences.setScheduleRun,
     activePath: snapshot?.path ?? null,
-    pullActive: async () => Boolean(await act({ kind: "pull" }, "pull")),
+    fetchActive: async () => Boolean(await act({ kind: "fetchLatest" }, "fetch")),
     notify: setToast,
   });
   const tabNews = useBackgroundFetch({
@@ -306,7 +308,9 @@ export default function App() {
   const zoomBy = useZoom(preferences.zoom, preferences.setZoom);
 
   // Each recent commit's CI, for the dots in the list.
-  const ciStates = useCiStates(snapshot);
+  // When a pull request's checks change, its commit's dot is asked about again.
+  const prChecks = useMemo(() => prs.list.map((pr) => `${pr.remote}/${pr.branch}:${pr.checks}`).join(","), [prs.list]);
+  const ciStates = useCiStates(snapshot, prChecks);
   // The editor and terminal "Open in …" uses.
   const openApps = useOpenApps();
   // The menus: in the macOS menu bar, or in the tab bar elsewhere.
@@ -351,9 +355,9 @@ export default function App() {
       reveal: () => repoPath && revealItemInDir(repoPath).catch((e) => repo.setError({ message: String(e) })),
       openIn: (app) => repoPath && openInApp(app.id, repoPath).catch((e) => repo.setError({ message: String(e) })),
       diagnostics: () => overlays.show("diagnostics"),
-      whatsNew: () => overlays.show("whatsNew"),
       tours: () => overlays.show("tours"),
       notices: () => overlays.show("licences"),
+      about: () => overlays.show("about"),
     },
   };
   const menus = appMenus(menuBarContext);
@@ -401,9 +405,10 @@ export default function App() {
           openSettings: () => openSettings(),
           highlightMine: highlight.highlightMine,
         })
-      : [...startCommands(menuBarContext), settingsCommand(menuBarContext), ...helpCommandsFor(menuBarContext)].map((c) => ({
+      : [...startCommands(menuBarContext), settingsCommand(menuBarContext), ...helpCommandsFor(menuBarContext), ...aboutCommandsFor(menuBarContext)].map((c) => ({
           id: c.id,
           label: c.label,
+          keywords: c.keywords,
           icon: c.icon,
           shortcut: c.keys && shortcutLabel(c.keys),
           run: c.run,
@@ -411,6 +416,8 @@ export default function App() {
 
   const showTabBar = Boolean(snapshot) || tabs.length > 0 || menuBar.element !== undefined;
   useViewFade(snapshot ? `repository:${snapshot.path}` : "start");
+  // Where git is: without it, almost nothing works, so it's said up front.
+  const git = useGitInstall(repo.refresh);
   return (
     <ThemeContext.Provider value={theme}>
     <BranchSyncContext.Provider value={counts.aheadBehind}>
@@ -431,10 +438,20 @@ export default function App() {
               onContextMenu={tabMenu}
               menuBar={menuBar.element}
               extra={
-                updates.available && (
-                  <button className="update-pill" onClick={() => overlays.show("update")} title={`Tributary ${updates.available.version} is available`}>
+                // Once it's downloaded (or the download failed, to try again).
+                updates.available &&
+                (updates.ready || updates.error?.step === "download") && (
+                  <button
+                    className="update-pill"
+                    onClick={() => overlays.show("update")}
+                    title={
+                      updates.ready
+                        ? `Tributary ${updates.available.version} is ready: restart to install it (or it installs when you quit)`
+                        : `Tributary ${updates.available.version} is available`
+                    }
+                  >
                     <DownloadIcon size={13} />
-                    Update
+                    {updates.waiting ? "Restarting…" : updates.ready ? "Restart to update" : "Update"}
                   </button>
                 )
               }
@@ -446,6 +463,7 @@ export default function App() {
               }
             />
           )}
+          {snapshot && git.missing && <GitNeededBanner install={git} />}
           {snapshot ? (
             <RepositoryView
               snapshot={snapshot}
@@ -498,6 +516,7 @@ export default function App() {
               onClone={() => setDialog({ kind: "clone" })}
               accounts={accounts}
               onSignIn={(forge) => overlays.show(forge === "github" ? "signIn" : "gitlabSignIn")}
+              git={git}
             />
           )}
           <AppOverlays
@@ -505,7 +524,7 @@ export default function App() {
             menu={menu}
             commands={commands}
             preferences={preferences}
-            onGetLatestNow={getLatestNow}
+            onFetchLatestNow={fetchLatestNow}
             updates={updates}
             repoPath={repoPath}
             settingsSection={settingsSection}

@@ -1,7 +1,7 @@
 import { open as openFile } from "@tauri-apps/plugin-dialog";
 import type { Action, CommitRow, InstalledApp, RepoSnapshot } from "../api";
 import { WORKTREE_ID } from "../api";
-import { BranchIcon, BroomIcon, CheckIcon, CloneIcon, CloseIcon, CodeIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, FetchIcon, FileHistoryIcon, FolderIcon, GearIcon, HistoryIcon, IgnoreIcon, InfoIcon, KeyboardIcon, LockIcon, NewRepoIcon, NotesIcon, PlusIcon, PullIcon, PullRequestIcon, PushIcon, RecoverIcon, RefreshIcon, SearchIcon, ShelfIcon, SparkleIcon, StashIcon, TagIcon, TerminalIcon } from "../components/Icons";
+import { BranchIcon, BroomIcon, CheckIcon, CloneIcon, CloseIcon, CodeIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, FetchIcon, FileHistoryIcon, FolderIcon, GearIcon, HistoryIcon, IgnoreIcon, InfoIcon, KeyboardIcon, LockIcon, NewRepoIcon, NotesIcon, PlusIcon, PullIcon, PullRequestIcon, PushIcon, RecoverIcon, RefreshIcon, SearchIcon, ShelfIcon, StashIcon, TagIcon, TerminalIcon } from "../components/Icons";
 import type { NativeMenu } from "../lib/nativeMenu";
 import { isMac } from "../lib/platform";
 import { newPullRequestUrl, openInBrowser, siteName, webRemote } from "../lib/weblinks";
@@ -64,8 +64,9 @@ export interface MenuBarContext {
     diagnostics: () => void;
     /** Opens the licences of the software Tributary is made with. */
     notices: () => void;
-    whatsNew: () => void;
     tours: () => void;
+    /** The About window, which also checks for updates. */
+    about: () => void;
   };
 }
 
@@ -88,12 +89,19 @@ export function helpCommandsFor(ctx: MenuBarContext): AppCommand[] {
   return [
     { id: "palette", label: "Command Palette", icon: <SearchIcon />, keys: "CmdOrCtrl+K", run: ctx.do.palette },
     { id: "shortcuts", label: "Keyboard Shortcuts", icon: <KeyboardIcon />, run: ctx.do.shortcuts },
-    { id: "whats-new", label: "What's New", icon: <SparkleIcon />, run: ctx.do.whatsNew },
     { id: "tours", label: "Tours…", icon: <InfoIcon />, run: ctx.do.tours },
     { id: "diagnostics", label: "Copy Diagnostics…", icon: <CopyIcon />, run: ctx.do.diagnostics },
     { id: "notices", label: "Third-Party Licences…", icon: <NotesIcon />, run: ctx.do.notices },
   ];
 }
+
+/** About Tributary, which shows the version and checks for updates: at the end of Help, or in the app menu on macOS. */
+export function aboutCommandsFor(ctx: MenuBarContext): AppCommand[] {
+  return [{ id: "about", label: "About Tributary", icon: <InfoIcon />, keywords: "check for updates version", run: ctx.do.about }];
+}
+
+/** On macOS these are in the app menu instead. */
+const IN_APP_MENU = new Set(["about"]);
 
 /** File, View, Repository and Help, with every command and its shortcut. */
 export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
@@ -105,6 +113,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
   const fileCommands = startCommands(ctx);
   const settings = settingsCommand(ctx);
   const helpCommands = helpCommandsFor(ctx);
+  const aboutCommands = aboutCommandsFor(ctx);
   const zoomCommands: AppCommand[] = [
     { id: "zoom-in", label: "Zoom In", keys: "CmdOrCtrl+=", run: () => run.zoom(1) },
     { id: "zoom-out", label: "Zoom Out", keys: "CmdOrCtrl+-", run: () => run.zoom(-1) },
@@ -123,7 +132,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
       return [
         { label: "File", entries: [...fileCommands, ...(isMac ? [] : ["-" as const, settings])] },
         { label: "View", entries: [...settingCommands, "-", ...zoomCommands] },
-        { label: "Help", entries: helpCommands },
+        { label: "Help", entries: [...helpCommands, "-", ...aboutCommands] },
       ];
     }
     const hasRemotes = snapshot.remotes.length > 0 && !snapshot.bare;
@@ -269,10 +278,17 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           settingCommands[2],
         ],
       },
-      { label: "Help", entries: [...helpCommands, "-", settingCommands[3]] },
+      { label: "Help", entries: [...helpCommands, "-", settingCommands[3], "-", ...aboutCommands] },
     ];
   };
   return menus();
+}
+
+/** The entries without those that go in the app menu, and without the separators left at the end. */
+function withoutAppMenuCommands(entries: MenuEntry[]): MenuEntry[] {
+  const kept = entries.filter((entry) => entry === "-" || isSubmenu(entry) || !IN_APP_MENU.has(entry.id));
+  while (kept[kept.length - 1] === "-") kept.pop();
+  return kept;
 }
 
 /** Menu entries as macOS menu items, submenus included (and left out when empty). */
@@ -299,9 +315,9 @@ function nativeItems(entries: MenuEntry[]): NativeMenu["items"] {
 /** The menus as macOS shows them: the app menu first, Edit after File and Window before Help. */
 export function nativeMenusFor(menus: AppMenuDefinition[]): NativeMenu[] {
   return [
-    { label: "Tributary", items: [{ system: "About" }, { system: "Separator" }, { id: "settings", label: "Settings…", accelerator: "CmdOrCtrl+," }, { system: "Separator" }, { system: "Services" }, { system: "Separator" }, { system: "Hide" }, { system: "HideOthers" }, { system: "ShowAll" }, { system: "Separator" }, { system: "Quit" }] },
+    { label: "Tributary", items: [{ id: "about", label: "About Tributary" }, { system: "Separator" }, { id: "settings", label: "Settings…", accelerator: "CmdOrCtrl+," }, { system: "Separator" }, { system: "Services" }, { system: "Separator" }, { system: "Hide" }, { system: "HideOthers" }, { system: "ShowAll" }, { system: "Separator" }, { system: "Quit" }] },
     ...menus.flatMap((m, index): NativeMenu[] => {
-      const menu = { label: m.label, items: nativeItems(m.entries) };
+      const menu = { label: m.label, items: nativeItems(withoutAppMenuCommands(m.entries)) };
       if (index === 0) {
         return [menu, { label: "Edit", items: [{ system: "Undo" }, { system: "Redo" }, { system: "Separator" }, { system: "Cut" }, { system: "Copy" }, { system: "Paste" }, { system: "SelectAll" }] }];
       }

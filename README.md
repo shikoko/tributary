@@ -82,6 +82,18 @@
   </tr>
   <tr>
     <td width="50%" valign="top">
+      <img src="docs/images/checks.png" alt="A pull request's checks drawn as streams flowing together into one river and the verdict, Failing, above a timeline of the checks in groups by workflow run"><br>
+      <b>Checks at a glance</b><br>
+      Every check a stream flowing into the verdict, and a timeline of each workflow run.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/what-makes-it-big.png" alt="What makes this repository big: a map of the biggest files in all of the history, coloured by kind, with the kinds to move into Git LFS"><br>
+      <b>What makes it big</b><br>
+      The biggest files in all of the history, by kind and folder, and moving them into Git LFS.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
       <img src="docs/images/local-history.png" alt="Local history: snapshots of uncommitted work, with Restore for each file"><br>
       <b>Local history</b><br>
       Your uncommitted work, kept every few minutes, to put back after a crash or an overwrite.
@@ -132,7 +144,8 @@ One line each here; the [feature guide](docs/features.md) has the details.
 
 ### Pull requests, CI and issues
 - Pull and merge requests in the app: open, review, comment and merge.
-- CI status on every commit, and re-running failed jobs.
+- Checks drawn as streams flowing into the verdict, over a timeline of each workflow run.
+- CI status on every commit (merges show it on their own dot), and re-running failed jobs.
 - GitHub, GitLab, Jira and Linear issues, with branches named after them.
 - Code owners offered as reviewers when you open a pull request.
 
@@ -141,7 +154,7 @@ One line each here; the [feature guide](docs/features.md) has the details.
 ### Working as a team
 - Git LFS locks: see who holds what, lock and unlock, and get reminders.
 - A warning when a file you're changing was also changed on another branch.
-- Get latest on a schedule, so a big update is waiting in the morning.
+- Fetch latest on a schedule (never merging), so a big update is waiting in the morning.
 
 → [More about teams](docs/features.md#working-as-a-team)
 
@@ -162,7 +175,7 @@ One line each here; the [feature guide](docs/features.md) has the details.
 - Tabs, worktrees and submodules; a start screen with every recent repository's state.
 - A command palette and keyboard shortcuts for everything.
 - Dark and light themes, your own accent and graph colours, and colour-blind safe palettes.
-- Open in your editor or terminal; move your settings to another computer.
+- Open in your editor or terminal; export your settings and import them on another computer.
 - Automatic, signed updates, and What's new after each one.
 
 → [More about the app](docs/features.md#tabs-repositories-and-the-start-screen) · [keyboard shortcuts](docs/features.md#keyboard-shortcuts)
@@ -172,7 +185,7 @@ One line each here; the [feature guide](docs/features.md) has the details.
 Get the latest version from the [releases page](https://github.com/shikoko/tributary/releases):
 
 - **macOS:** the `.dmg`, one app for Apple Silicon and Intel.
-- **Windows:** the `-setup.exe` or `.msi` (64-bit).
+- **Windows:** the `-setup.exe` (64-bit). **Install** puts Tributary in your user folder, with no administrator needed; **Custom install** installs it for everyone on the PC (in Program Files) or somewhere else. For IT tools it installs silently: `/S` for the person running it, `/S /ALLUSERS` for everyone (from an administrator), and `/D=<folder>` for another folder. Uninstalling (Settings → Apps) opens Tributary's own window, which can remove your settings too.
 
 Tributary updates itself after that. It needs [git](https://git-scm.com) installed (and [Git LFS](https://git-lfs.com) for repositories that use it).
 

@@ -191,9 +191,30 @@ try {
     await page.keyboard.press("Escape");
     await page.keyboard.press("Control+,");
     const settings = page.locator(".dialog", { hasText: "Settings" }).first();
-    await settings.locator(".settings-nav").getByText("Appearance").click();
+    await settings.locator(".settings-nav").getByText("Graph").click();
     await settings.getByRole("radio", { name: /Your own/ }).click();
     expect((await settings.locator(".lane-editor-swatch").count()) >= 8, "your own colours didn't start from the vivid ones");
+    // Drag the first colour to the third's place, then move it back with the keyboard.
+    const colours = () => settings.locator(".lane-editor-swatch input").evaluateAll((inputs) => inputs.map((input) => input.value));
+    const before = await colours();
+    const swatches = settings.locator(".lane-editor-swatch");
+    const from = await swatches.nth(0).boundingBox();
+    const to = await swatches.nth(2).boundingBox();
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2, { steps: 3 });
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+    await page.mouse.up();
+    const dragged = await colours();
+    expect(dragged[2] === before[0] && dragged[0] === before[1] && dragged[1] === before[2], `dragging didn't move the colour (${dragged.slice(0, 3)})`);
+    await swatches.nth(2).locator("input").focus();
+    for (const _ of [1, 2]) {
+      await page.keyboard.press("Alt+ArrowLeft");
+      await page.waitForTimeout(100);
+    }
+    expect(JSON.stringify(await colours()) === JSON.stringify(before), "Alt+arrows didn't move it back");
+    // Back up to Appearance from the title ("Appearance › Graph").
+    await settings.locator(".settings-panel-parent", { hasText: "Appearance" }).click();
     await settings.getByLabel("Accent colour, as a hex code").fill("#e8702a");
     const accent = () => page.evaluate(() => document.documentElement.style.getPropertyValue("--accent"));
     await page.waitForFunction(() => document.documentElement.style.getPropertyValue("--accent") === "#e8702a", null, { timeout: 5000 });
@@ -325,7 +346,7 @@ try {
       }
     }
     try {
-      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+      await page.keyboard.press("F5");
       await row("Fix the note counter in the sidebar").click({ button: "right" });
       await page.locator(".menu-item", { hasText: "Find what broke since this commit (bisect)…" }).click();
       const dialog = page.locator(".dialog", { hasText: "Find the commit that broke it" });
@@ -347,7 +368,7 @@ try {
       await dismissToast();
     } finally {
       git("stash", "pop", "-q", "--index");
-      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+      await page.keyboard.press("F5");
     }
   });
 
@@ -377,7 +398,7 @@ try {
       // It stops with the conflict, as it should.
     }
     expect(git(["ls-files", "-u"]).includes("src/store.ts"), "no conflict to resolve");
-    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await page.keyboard.press("F5");
     await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
     await page.locator(".details .conflicts .file", { hasText: "store.ts" }).click();
     const card = page.locator(".conflict-card").first();
@@ -401,7 +422,7 @@ try {
     writeFileSync(store, before);
     if (staged.length) git(["add", "--", ...staged]);
     git(["branch", "-q", "-D", "smoke/version"]);
-    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await page.keyboard.press("F5");
     await page.locator(".operation-bar").waitFor({ state: "detached", timeout: 10_000 });
   });
 
@@ -688,9 +709,11 @@ try {
     const view = page.locator(".request-view");
     await view.locator(".request-merge", { hasText: "changes were asked for" }).waitFor({ timeout: 10_000 });
     await view.locator(".request-check.failure", { hasText: "Audio loudness" }).waitFor({ timeout: 5000 });
-    await view.locator(".request-reviews li", { hasText: "diego-ramos" }).locator(".request-review", { hasText: "Asked for changes" }).waitFor({ timeout: 5000 });
-    // The details button opens the check's page.
-    await view.locator(".request-check", { hasText: "Audio loudness" }).getByRole("button", { name: "Details" }).click();
+    await view.locator(".request-status-said", { hasText: "diego-ramos asked for changes" }).waitFor({ timeout: 5000 });
+    // The description and comments are Markdown, shown as such.
+    await view.locator(".request-comment-text").first().waitFor({ timeout: 5000 });
+    // A check's name opens its page.
+    await view.locator(".request-check", { hasText: "Audio loudness" }).getByRole("button").click();
     expect((await page.evaluate(() => window.__PREVIEW__.opened)).some((url) => url.endsWith("/actions/runs/7")), "the check's page didn't open");
     await page.keyboard.press("Escape");
     await view.waitFor({ state: "detached", timeout: 5000 });
@@ -704,10 +727,12 @@ try {
     await view.locator(".comment-box textarea").first().fill("Thanks!");
     await view.locator(".comment-box button", { hasText: "Reply" }).click();
     await view.locator(".request-comment.reply", { hasText: "Thanks!" }).waitFor({ timeout: 5000 });
-    await view.locator(".request-actions button", { hasText: "Review" }).click();
+    // The reply is done once it says so.
+    await page.locator(".toast", { hasText: "Replied" }).waitFor({ timeout: 5000 });
+    await view.locator(".request-toolbar").getByRole("button", { name: "Review", exact: true }).click();
     await view.locator(".review-box button", { hasText: "Approve" }).click();
     await page.locator(".toast", { hasText: "Approved #12" }).waitFor({ timeout: 5000 });
-    await view.locator(".request-actions button", { hasText: "Merge" }).click();
+    await view.locator(".request-status button", { hasText: "Merge…" }).click();
     await page.locator(".dialog button.primary-button", { hasText: "Squash and merge" }).click();
     await page.locator(".toast", { hasText: "Merged #12" }).waitFor({ timeout: 5000 });
     const merged = await page.evaluate(() => window.__PREVIEW__.merged);
@@ -722,7 +747,7 @@ try {
     git("branch", "smoke/lights", git("log", "-1", "--format=%H", "--grep=Seat guests by the fire", "--all"));
     git("push", "-q", "origin", "smoke/lights");
     await page.evaluate(() => Object.assign(window.__PREVIEW__, { newRequest: { commits: [{ summary: "Warmer lights in the tavern", body: "Candles flicker now." }] } }));
-    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await page.keyboard.press("F5");
     await page.locator(".ref-pill", { hasText: "smoke/lights" }).first().click({ button: "right" });
     await page.locator(".menu-item", { hasText: "Create pull request…" }).click();
     const dialog = page.locator(".request-dialog");
@@ -742,7 +767,7 @@ try {
     git("branch", "-D", "smoke/lights");
     git("push", "-q", "origin", "--delete", "smoke/lights");
     await page.evaluate((list) => Object.assign(window.__PREVIEW__, { pullRequests: list }), STUDIO_PULL_REQUESTS);
-    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await page.keyboard.press("F5");
     await dismissToast();
   });
 
@@ -915,7 +940,7 @@ try {
       await dialog.waitFor({ state: "detached", timeout: 5000 });
       await dismissToast();
       git("commit", "-q", "--allow-empty", "-m", "Signed in the smoke test");
-      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+      await page.keyboard.press("F5");
       await row("Signed in the smoke test").click();
       const mark = page.locator(".details .signature-mark.good", { hasText: "Verified" });
       await mark.waitFor({ timeout: 10_000 });
@@ -930,7 +955,7 @@ try {
       for (const key of ["commit.gpgsign", "gpg.format", "user.signingkey", "gpg.program"]) spawnSync("git", ["-C", demos.notebook, "config", "--local", "--unset", key]);
       spawnSync("gpgconf", ["--kill", "gpg-agent"], { env: { ...process.env, GNUPGHOME: home } });
       rmSync(home, { recursive: true, force: true });
-      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+      await page.keyboard.press("F5");
     }
   });
 
@@ -967,6 +992,45 @@ try {
     const shown = await text.innerText();
     expect(shown.includes("Tributary") && shown.includes("Git:"), `diagnostics "${shown.slice(0, 80)}"`);
     await page.locator(".dialog").getByRole("button", { name: "Close", exact: true }).click();
+  });
+
+  await step("checks for updates in Help → About Tributary", async () => {
+    await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "About Tributary" }).click();
+    const about = page.locator(".about-window");
+    // Opening it checks; the preview has no newer version.
+    await about.locator(".about-status.current", { hasText: "You're up to date" }).waitFor({ timeout: 10_000 });
+    const auto = about.getByRole("switch", { name: "Check for updates automatically" });
+    const before = await auto.getAttribute("aria-checked");
+    await auto.click();
+    expect((await auto.getAttribute("aria-checked")) !== before, "the automatic check didn't change");
+    await auto.click();
+    await about.getByRole("button", { name: "Check again" }).click();
+    await about.locator(".about-status.current").waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await about.waitFor({ state: "detached", timeout: 5000 });
+  });
+
+  await step("downloads an update, and waits for git before restarting for it", async () => {
+    await page.evaluate(() => {
+      window.__PREVIEW__.update = { version: "9.9.0", notes: "## Fixes\n- Faster start-up", date: null };
+      window.__PREVIEW__.gitBusy = true;
+    });
+    await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "About Tributary" }).click();
+    const about = page.locator(".about-window");
+    // It checked a moment ago (the step before), so it's checked again by hand.
+    await about.getByRole("button", { name: "Check again" }).click();
+    // Found, downloaded in the background, then ready.
+    await about.locator(".about-status", { hasText: "Tributary 9.9.0 is ready" }).waitFor({ timeout: 15_000 });
+    await page.locator(".update-pill", { hasText: "Restart to update" }).waitFor({ timeout: 5000 });
+    await about.getByRole("button", { name: "Restart now" }).click();
+    await about.locator(".about-status", { hasText: "Restarting when git is done" }).waitFor({ timeout: 5000 });
+    await about.getByRole("button", { name: "Don't restart" }).click();
+    await about.getByRole("button", { name: "Restart now" }).waitFor({ timeout: 5000 });
+    expect(!(await page.evaluate(() => window.__PREVIEW__.installed)), "installed while git was busy");
+    await page.keyboard.press("Escape");
+    await about.waitFor({ state: "detached", timeout: 5000 });
   });
 
   await step("keeps a local history snapshot and puts a file back from it", async () => {
@@ -1051,6 +1115,28 @@ try {
     await card.locator("h3").filter({ hasNotText: "The graph" }).waitFor({ timeout: 5000 });
     await page.keyboard.press("Escape");
     await card.waitFor({ state: "detached", timeout: 5000 });
+  });
+
+  await step("exports the settings to a git repository, and imports them back", async () => {
+    const remote = join(folder, "settings.git");
+    execFileSync("git", ["init", "--quiet", "--bare", remote]);
+    await page.keyboard.press("Control+,");
+    const settings = page.locator(".settings-window");
+    await settings.locator(".settings-nav").getByText("Export and import").click();
+    await settings.getByRole("button", { name: "Export to a repository…" }).click();
+    const dialog = page.locator(".settings-repository-window");
+    await dialog.getByLabel("Repository").fill(remote);
+    await dialog.getByRole("button", { name: "Export", exact: true }).click();
+    await page.locator(".toast", { hasText: "Exported your settings to the repository" }).waitFor({ timeout: 20_000 });
+    const exported = JSON.parse(execFileSync("git", ["--git-dir", remote, "show", "HEAD:tributary-settings.json"], { encoding: "utf8" }));
+    expect(exported.app === "Tributary" && Object.keys(exported.settings).length > 3, "the settings weren't committed");
+    await settings.getByRole("button", { name: "Import from a repository…" }).click();
+    expect((await dialog.getByLabel("Repository").inputValue()) === remote, "the link wasn't remembered");
+    const reloaded = page.waitForEvent("load", { timeout: 15_000 });
+    await dialog.getByRole("button", { name: "Import", exact: true }).click();
+    await page.locator(".toast", { hasText: "Imported" }).waitFor({ timeout: 20_000 });
+    // Tributary starts again with them.
+    await reloaded;
   });
 
   await step("had no errors on the page", async () => {

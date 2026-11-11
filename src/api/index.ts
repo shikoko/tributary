@@ -10,6 +10,7 @@ export * from "./diffTools";
 export * from "./github";
 export * from "./history";
 export * from "./identity";
+export * from "./install";
 export * from "./issues";
 export * from "./lfs";
 export * from "./repository";

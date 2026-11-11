@@ -97,8 +97,8 @@ export const TOURS: Tour[] = [
       },
       {
         target: null,
-        title: "Get latest overnight",
-        text: "Settings → Get latest can pull every open repository at a set time, Git LFS files and all, so a big update is waiting in the morning.",
+        title: "Fetch latest overnight",
+        text: "Settings → Fetching → Fetch latest can fetch every open repository at a set time and move each branch forward when it can without merging, Git LFS files and all, so a big update is waiting in the morning.",
       },
     ],
   },

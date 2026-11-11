@@ -17,7 +17,13 @@ pub(super) fn fetch(
     background: bool,
     on_progress: &dyn Fn(Progress),
 ) -> Result<String> {
-    if repo.remote_names().is_empty() {
+    // Its remotes, by name: "origin", or "origin and upstream" (this repository's only).
+    let remotes: Vec<String> = repo
+        .remote_names()
+        .iter()
+        .map(|name| name.to_string())
+        .collect();
+    if remotes.is_empty() {
         return Err("This repository has no remotes to fetch from.".into());
     }
     if background {
@@ -30,7 +36,7 @@ pub(super) fn fetch(
     } else {
         git.run_progress(&["fetch", "--all", "--prune", "--progress"], on_progress)?;
     }
-    Ok("Fetched from all remotes".into())
+    Ok(format!("Fetched from {}", in_words(&remotes)))
 }
 
 /// Pull into the checked-out branch.
@@ -88,6 +94,76 @@ pub(super) fn pull(
     };
     git.run_progress_counting(&args, &[], on_progress, &expected)?;
     Ok(format!("Pulled {branch}"))
+}
+
+/// Fetch latest: fetch, then bring the checked-out branch up to date only when that's a
+/// fast-forward. It never merges, so it can't conflict: a branch with commits of its own is
+/// left as it is, and git refuses (changing nothing) when uncommitted changes are in the
+/// way. The Git LFS files it brings are downloaded together first, as for a pull.
+pub(super) fn fetch_latest(
+    repo: &gix::Repository,
+    git: &Git,
+    on_progress: &dyn Fn(Progress),
+) -> Result<String> {
+    let branch = current_branch(repo)?;
+    git.run_progress(&["fetch", "--all", "--prune", "--progress"], on_progress)?;
+    if git
+        .run(&["rev-parse", "--verify", "--quiet", "@{upstream}"])
+        .is_err()
+    {
+        return Ok(format!("Fetched: {branch} isn't on a remote"));
+    }
+    let counts = git.run(&["rev-list", "--left-right", "--count", "HEAD...@{upstream}"])?;
+    let (ahead, behind) = parse_counts(&counts);
+    if behind == 0 {
+        return Ok(format!("Fetched: {branch} is up to date"));
+    }
+    if ahead > 0 {
+        return Ok(format!(
+            "Fetched: {branch} has commits of its own, so it's left for you to pull"
+        ));
+    }
+    let common = repo.common_dir().to_owned();
+    let before = git
+        .run(&["rev-parse", "--verify", "--quiet", "HEAD"])
+        .ok()
+        .map(|id| id.trim().to_owned());
+    if let Some(before) = &before
+        && git.run(&["lfs", "version"]).is_ok()
+    {
+        super::lfs_count::prefetch(
+            git,
+            &common,
+            &format!("{before}...@{{upstream}}"),
+            "@{upstream}",
+            on_progress,
+        )?;
+    }
+    let expected = |seen: &std::collections::HashSet<String>| {
+        let before = before.as_deref()?;
+        super::lfs_count::lfs_downloads(
+            git,
+            &common,
+            &format!("{before}...@{{upstream}}"),
+            "@{upstream}",
+            seen,
+        )
+    };
+    git.run_progress_counting(
+        &["merge", "--ff-only", "--progress", "@{upstream}"],
+        &[],
+        on_progress,
+        &expected,
+    )?;
+    Ok(format!("Brought {branch} up to date"))
+}
+
+/// `git rev-list --left-right --count` → (ahead, behind).
+fn parse_counts(text: &str) -> (u32, u32) {
+    let mut numbers = text
+        .split_whitespace()
+        .map(|part| part.parse::<u32>().unwrap_or(0));
+    (numbers.next().unwrap_or(0), numbers.next().unwrap_or(0))
 }
 
 /// Push the checked-out branch, setting its upstream if it has none.
@@ -216,4 +292,37 @@ pub(super) fn default_remote(repo: &gix::Repository) -> Result<String, Error> {
         return Err(format!("Unsupported remote name {remote}").into());
     }
     Ok(remote)
+}
+
+/// Names in words: "origin", "origin and upstream", "origin, upstream and mirror".
+fn in_words(names: &[String]) -> String {
+    match names {
+        [] => String::new(),
+        [one] => one.clone(),
+        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{in_words, parse_counts};
+
+    #[test]
+    fn names_the_remotes_in_words() {
+        let names =
+            |list: &[&str]| in_words(&list.iter().map(|name| name.to_string()).collect::<Vec<_>>());
+        assert_eq!(names(&["origin"]), "origin");
+        assert_eq!(names(&["origin", "upstream"]), "origin and upstream");
+        assert_eq!(
+            names(&["origin", "upstream", "mirror"]),
+            "origin, upstream and mirror"
+        );
+    }
+
+    #[test]
+    fn reads_ahead_and_behind() {
+        assert_eq!(parse_counts("2\t5\n"), (2, 5));
+        assert_eq!(parse_counts("0\t0"), (0, 0));
+        assert_eq!(parse_counts(""), (0, 0));
+    }
 }

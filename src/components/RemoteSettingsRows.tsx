@@ -40,7 +40,7 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
     return ok;
   };
 
-  if (!remotes) return [{ kind: "custom", label: "Loading…", content: null }];
+  if (!remotes) return [{ kind: "loading", label: "Reading the remotes" }];
 
   const saveEdit = async (remote: RemoteInfo, draft: Editing["draft"]) => {
     const name = draft.name.trim();

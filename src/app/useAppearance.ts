@@ -11,6 +11,7 @@ import {
   type Appearance,
   type CanvasColors,
   type CurveStyle,
+  type CiDots,
   type GraphNodes,
   type Theme,
 } from "../lib/appearance";
@@ -27,12 +28,14 @@ export interface ThemeInfo {
   colors: CanvasColors;
   curves: CurveStyle;
   nodes: GraphNodes;
+  ciDots: CiDots;
 }
 
 const FALLBACK: ThemeInfo = {
   theme: "dark",
   curves: "mixed",
   nodes: "authors",
+  ciDots: "ringed",
   colors: {
     background: "#14161b",
     selectedBackground: "#252b38",
@@ -90,7 +93,7 @@ export function useAppearance(value: Partial<Appearance> | undefined): ThemeInfo
   useLayoutEffect(() => {
     applyAppearance(appearance, theme);
     const colors = readCanvasColors(lanePalette(appearance, theme));
-    setInfo({ theme, colors, curves: appearance.curves, nodes: appearance.nodes });
+    setInfo({ theme, colors, curves: appearance.curves, nodes: appearance.nodes, ciDots: appearance.ciDots });
     applyToWindow(appearance.theme, colors.background);
   }, [appearance, theme]);
   // The app's icon follows the theme too (the light one when it's light, the dark one when dark).

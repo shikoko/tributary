@@ -12,7 +12,7 @@
 //! this computer for a week (in the app's cache folder, by a hash of each address), so the
 //! pictures show at once the next time: older ones show while they're asked for again.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex, OnceLock};
 use std::time::{Duration, SystemTime};
@@ -82,6 +82,31 @@ fn to_disk(address: &str, picture: &Option<String>) {
         let _ = std::fs::create_dir_all(folder);
     }
     let _ = std::fs::write(file, picture.as_deref().unwrap_or(""));
+}
+
+/// Forget who was found to have no picture, and what GitHub said about whom: after signing
+/// in, they're asked again (a private repository's authors, say). Pictures found stay.
+pub fn forget_missing() {
+    PICTURES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .retain(|_, picture| picture.is_some());
+    GITHUB_AUTHORS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clear();
+    let Some(entries) = KEPT_IN
+        .get()
+        .and_then(|folder| std::fs::read_dir(folder).ok())
+    else {
+        return;
+    };
+    for entry in entries.flatten() {
+        // "No picture" is kept as an empty file.
+        if entry.metadata().is_ok_and(|metadata| metadata.len() == 0) {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
 }
 
 /// Forget every kept picture (when profile pictures are turned off).
@@ -170,11 +195,11 @@ async fn look_up(path: &Path, addresses: &[String]) -> Result<()> {
     .map_err(|e| Error::Message(e.to_string()))?;
 
     let client = client()?;
-    let from_github = match &forges.github {
+    let (from_github, unasked) = match &forges.github {
         Some((full_name, token)) => {
             github_accounts(&client, full_name, token.as_deref(), addresses).await
         }
-        None => HashMap::new(),
+        None => (HashMap::new(), HashSet::new()),
     };
 
     // Each address's candidates, tried in order, a few addresses at a time.
@@ -210,8 +235,10 @@ async fn look_up(path: &Path, addresses: &[String]) -> Result<()> {
             let Ok((address, found)) = task.await else {
                 continue;
             };
-            // A download that failed (offline, say) is tried again next time.
-            if let Some(found) = found {
+            // A download that failed (offline, say) is tried again next time, and so is
+            // "no picture" for someone GitHub couldn't be asked about.
+            let undecided = matches!(found, Some(None)) && unasked.contains(&address);
+            if let Some(found) = found.filter(|_| !undecided) {
                 to_disk(&address, &found);
                 PICTURES
                     .lock()
@@ -300,13 +327,14 @@ fn accounts_of(commits: Vec<RawCommit>) -> Accounts {
 
 /// The GitHub account picture of each address, as far as GitHub knows them: from the
 /// latest commits (one request), then, with a token, by asking for each remaining
-/// author's latest commit.
+/// author's latest commit. Also the addresses GitHub couldn't be asked about (a request
+/// failed: no access to a private repository yet, say), whose "no picture" mustn't stand.
 async fn github_accounts(
     client: &reqwest::Client,
     full_name: &str,
     token: Option<&str>,
     addresses: &[String],
-) -> Accounts {
+) -> (Accounts, HashSet<String>) {
     let cached = |address: &str| -> Option<Option<String>> {
         GITHUB_AUTHORS
             .lock()
@@ -322,6 +350,7 @@ async fn github_accounts(
             .or_default()
             .extend(found);
     };
+    // None when GitHub couldn't be asked.
     let fetch = |url: String| async move {
         let response = api_request(client, url, token).send().await.ok()?;
         if !response.status().is_success() {
@@ -330,16 +359,21 @@ async fn github_accounts(
         response.json::<Vec<RawCommit>>().await.ok()
     };
 
+    let mut unasked = HashSet::new();
     let first_time = !GITHUB_AUTHORS
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .contains_key(full_name);
     if first_time {
         let url = format!("https://api.github.com/repos/{full_name}/commits?per_page=100");
-        remember(fetch(url).await.map(accounts_of).unwrap_or_default());
+        match fetch(url).await {
+            Some(commits) => remember(accounts_of(commits)),
+            // Not remembered: it's asked for again next time.
+            None => unasked.extend(addresses.iter().cloned()),
+        }
     }
     // Without a token GitHub allows few requests an hour: the first page has to do.
-    if token.is_some() {
+    if token.is_some() && unasked.is_empty() {
         let unknown: Vec<&String> = addresses
             .iter()
             .filter(|address| noreply_picture(address).is_none() && cached(address).is_none())
@@ -350,15 +384,22 @@ async fn github_accounts(
                 "https://api.github.com/repos/{full_name}/commits?author={}&per_page=1",
                 encode_path(address)
             );
-            let mut found = fetch(url).await.map(accounts_of).unwrap_or_default();
-            let picture = found.remove(address.as_str()).flatten();
-            remember(HashMap::from([(address.clone(), picture)]));
+            match fetch(url).await {
+                Some(commits) => {
+                    let picture = accounts_of(commits).remove(address.as_str()).flatten();
+                    remember(HashMap::from([(address.clone(), picture)]));
+                }
+                None => {
+                    unasked.insert(address.clone());
+                }
+            }
         }
     }
-    addresses
+    let found = addresses
         .iter()
         .filter_map(|address| Some((address.clone(), cached(address)?)))
-        .collect()
+        .collect();
+    (found, unasked)
 }
 
 #[derive(Deserialize)]
