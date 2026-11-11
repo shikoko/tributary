@@ -9,6 +9,7 @@ use std::path::Path;
 
 use gix::ObjectId;
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::backups::{BackupEvent, back_up};
 use super::rewrites::branch_versions;
@@ -22,7 +23,7 @@ const MOST_BRANCHES: usize = 60;
 const MOST_VERSIONS: usize = 5;
 
 /// A branch built on another unmerged branch.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Stacked {
     pub branch: String,

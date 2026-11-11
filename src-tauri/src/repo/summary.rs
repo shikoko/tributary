@@ -4,10 +4,12 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::git::Git;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+/// Where a recent repository stands, for the start screen.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RepoSummary {
     /// The folder is there and holds a repository.

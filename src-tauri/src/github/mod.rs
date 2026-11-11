@@ -13,6 +13,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::Git;
@@ -52,7 +53,8 @@ pub(crate) fn api_request(
 /// At most this many pull requests get their checks looked up.
 const MAX_CHECKED: usize = 25;
 
-#[derive(Debug, Clone, Serialize)]
+/// An open pull request on GitHub, or merge request on GitLab.
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PullRequest {
     pub number: u64,
@@ -71,7 +73,7 @@ pub struct PullRequest {
 }
 
 /// The site a pull (or merge) request is on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum Forge {
     GitHub,
@@ -89,7 +91,7 @@ pub async fn open_requests(path: &Path) -> Result<Vec<PullRequest>, Error> {
 }
 
 /// How a pull request's checks (GitHub Actions and others) went.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum CheckState {
     Success,

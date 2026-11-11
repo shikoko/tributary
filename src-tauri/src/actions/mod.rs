@@ -58,6 +58,7 @@ mod worktrees;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::{Git, Progress};
@@ -109,7 +110,7 @@ pub use unity_meta::{MetaKind, MetaProblem};
 use self::stash::{pop_stash, stash_top};
 
 /// Something to do to the repository, as sent by the frontend.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Action {
     /// `git reset --hard <id>` on the checked-out branch.
@@ -128,6 +129,7 @@ pub enum Action {
     },
     /// Fetch from every remote. `background` fetches never show sign-in prompts.
     Fetch {
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         background: bool,
     },
@@ -139,21 +141,25 @@ pub enum Action {
     /// `force` uses `--force-with-lease`; `no_verify` skips the pre-push hook.
     Push {
         force: bool,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default, rename = "noVerify")]
         no_verify: bool,
     },
     /// Shelve the working copy's versions of `paths` (every change, when empty) for the
     /// team, as `description`; unless `keep`, take them out of the working copy after.
     Shelve {
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         paths: Vec<String>,
         description: String,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         keep: bool,
     },
     /// Put files back as a local history snapshot had them (all its files, when empty).
     RestoreFromHistory {
         reference: String,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         paths: Vec<String>,
     },
@@ -167,15 +173,19 @@ pub enum Action {
     /// Stash uncommitted changes, run `action`, then put the changes back.
     StashAndRetry {
         action: Box<Action>,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default, rename = "includeUntracked")]
         include_untracked: bool,
     },
     /// `git stash push`.
     StashPush {
+        #[ts(optional = nullable)]
         message: Option<String>,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default, rename = "includeUntracked")]
         include_untracked: bool,
         /// Only these files (all changes when empty).
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         paths: Vec<String>,
     },
@@ -200,6 +210,7 @@ pub enum Action {
     Commit {
         message: String,
         amend: bool,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default, rename = "noVerify")]
         no_verify: bool,
     },
@@ -229,6 +240,7 @@ pub enum Action {
     /// Merge a branch, tag or commit into the checked-out branch.
     Merge {
         target: String,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         mode: MergeMode,
     },
@@ -269,6 +281,7 @@ pub enum Action {
     /// branch's commits not pushed yet, or with `everything`, every local branch's history.
     MigrateToLfs {
         patterns: Vec<String>,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         everything: bool,
     },
@@ -279,6 +292,7 @@ pub enum Action {
     CreateTag {
         name: String,
         id: String,
+        #[ts(optional = nullable)]
         message: Option<String>,
     },
     /// Delete a local tag.
@@ -288,6 +302,7 @@ pub enum Action {
     /// Push a tag to a remote (the default remote when none is given).
     PushTag {
         name: String,
+        #[ts(optional = nullable)]
         remote: Option<String>,
     },
     /// Delete a tag from a remote.
@@ -307,6 +322,7 @@ pub enum Action {
     /// the staged `paths` among them into LFS files.
     TrackWithLfs {
         patterns: Vec<String>,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         paths: Vec<String>,
     },
@@ -321,8 +337,10 @@ pub enum Action {
     ApplyLines {
         file: String,
         mode: LineMode,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         added: Vec<u32>,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         removed: Vec<u32>,
     },
@@ -337,8 +355,10 @@ pub enum Action {
     /// Download only the Git LFS files in the `include` folders (all, when empty) and not
     /// those in `exclude`: this repository's `lfs.fetchinclude` and `lfs.fetchexclude`.
     SetLfsFetchFolders {
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         include: Vec<String>,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         exclude: Vec<String>,
     },
@@ -349,14 +369,17 @@ pub enum Action {
     AddWorktree {
         path: String,
         branch: String,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         create: bool,
+        #[ts(optional = nullable)]
         #[serde(default)]
         start: Option<String>,
     },
     /// Delete a linked working tree's folder. `force` throws away its uncommitted changes.
     RemoveWorktree {
         path: String,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         force: bool,
     },
@@ -380,6 +403,7 @@ pub enum Action {
     /// Mark the commit being tested (or `id`) good, bad or skipped.
     BisectMark {
         verdict: Verdict,
+        #[ts(optional = nullable)]
         id: Option<String>,
     },
     /// Stop bisecting, back where it started.
@@ -421,11 +445,13 @@ pub enum Action {
     /// Sign commits in this repository: as usual, never, or with a GPG or SSH key.
     SetSigning {
         mode: SigningMode,
+        #[ts(optional = nullable)]
         key: Option<String>,
     },
     /// Check out the recorded commit in these submodules (all of them when empty),
     /// setting up those that aren't yet (`git submodule update --init --recursive`).
     UpdateSubmodules {
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         paths: Vec<String>,
     },
@@ -433,20 +459,21 @@ pub enum Action {
     /// someone else's lock.
     UnlockFiles {
         locks: Vec<LockRef>,
+        #[ts(as = "Option<_>", optional)]
         #[serde(default)]
         force: bool,
     },
 }
 
 /// A Git LFS lock: its id, and the file it's on (for messages).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 pub struct LockRef {
     pub id: String,
     pub path: String,
 }
 
 /// How to merge.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum MergeMode {
     /// Like `git merge`: fast-forward when possible, otherwise a merge commit.
@@ -459,7 +486,7 @@ pub enum MergeMode {
 }
 
 /// Which version of a conflicted file to keep.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum Side {
     /// The checked-out branch's version (for a rebase, the branch being rebased).
@@ -470,27 +497,30 @@ pub enum Side {
 
 /// A local branch, the commit it points to and, to restore it as it was, its upstream
 /// (`branch.<name>.remote` and `branch.<name>.merge`).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 pub struct BranchTip {
     pub name: String,
     pub id: String,
+    #[ts(optional = nullable)]
     #[serde(default)]
     pub remote: Option<String>,
+    #[ts(optional = nullable)]
     #[serde(default)]
     pub merge: Option<String>,
 }
 
 /// One commit in an interactive rebase.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, TS)]
 pub struct RebaseStep {
     pub id: String,
     pub action: StepAction,
     /// The new message, for [`StepAction::Reword`].
+    #[ts(optional = nullable)]
     #[serde(default)]
     pub message: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum StepAction {
     Pick,
@@ -504,18 +534,21 @@ pub enum StepAction {
 }
 
 /// What an action did.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Outcome {
     /// A short message for the user.
     pub message: String,
     /// After pushing a new branch: the page the remote suggested for opening a pull request.
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pull_request: Option<String>,
     /// Where what the action threw away was kept, to undo it (like discarded changes).
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub backup: Option<String>,
     /// After a push: the files the pushed commits changed.
+    #[ts(as = "Option<_>", optional)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub pushed_files: Vec<String>,
 }

@@ -6,6 +6,8 @@ pub mod actions;
 mod app_icon;
 pub mod apps;
 pub mod avatars;
+#[cfg(test)]
+mod bindings;
 pub mod ci;
 pub mod codeowners;
 mod commands;

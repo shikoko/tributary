@@ -6,6 +6,7 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::validate::revision_name;
 use crate::error::{Error, Result};
@@ -17,7 +18,7 @@ const MOST_VERSIONS: usize = 50;
 const MOST_LINES: usize = 400;
 
 /// Where a branch pointed, and how it got there.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct BranchVersion {
     pub id: String,
@@ -31,7 +32,7 @@ pub struct BranchVersion {
 }
 
 /// A commit of the old version, its new version, or both.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitPair {
     pub status: PairStatus,
@@ -45,7 +46,7 @@ pub struct CommitPair {
     pub cut: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum PairStatus {
     /// The same changes (its id may differ, being on a new base).
@@ -57,7 +58,7 @@ pub enum PairStatus {
     Removed,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RangeDiff {
     /// The branch both versions are compared against, if one was found.

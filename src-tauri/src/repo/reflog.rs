@@ -4,12 +4,13 @@ use std::path::Path;
 
 use gix::bstr::ByteSlice;
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::open;
 use crate::error::{Error, Result};
 
 /// One entry of HEAD's reflog: something that moved HEAD (a commit, checkout, reset, …).
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ReflogEntry {
     /// Where HEAD went.

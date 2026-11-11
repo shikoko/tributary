@@ -10,6 +10,7 @@ use gix::bstr::ByteSlice;
 use gix::revision::walk::Sorting;
 use gix::traverse::commit::simple::CommitTimeOrder;
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::open;
 use super::operation::{Operation, operation};
@@ -26,7 +27,7 @@ use crate::links::WebRemote;
 /// Upper bound for a single load, to keep the UI responsive on huge repositories.
 pub const MAX_LIMIT: usize = 200_000;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RepoSnapshot {
     /// The repository's working directory (or git directory for bare repositories).
@@ -71,14 +72,15 @@ pub struct RepoSnapshot {
     pub squash_message: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+/// The name and email address commits are made with (`user.name`, `user.email`).
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Identity {
     pub name: Option<String>,
     pub email: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitRow {
     /// The commit id, or [`WORKTREE_ID`] for the uncommitted changes row.
@@ -99,7 +101,8 @@ pub struct CommitRow {
 /// The id of the row that stands for uncommitted changes.
 pub const WORKTREE_ID: &str = "worktree";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+/// What a row in the graph stands for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum RowKind {
     Commit,

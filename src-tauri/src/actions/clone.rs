@@ -3,23 +3,28 @@
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::{Git, Progress};
 
 /// Ways to make a clone of a big repository smaller and quicker.
-#[derive(Debug, Default, Clone, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
 pub struct CloneOptions {
     /// Leave files stored with Git LFS as small pointer files, to download later (all at
     /// once, or as other branches are checked out).
+    #[ts(as = "Option<_>", optional)]
     pub skip_lfs: bool,
     /// Only check out these folders (a sparse checkout). The contents of files outside
     /// them aren't downloaded at all.
+    #[ts(as = "Option<_>", optional)]
     pub folders: Vec<String>,
     /// Only download this many of the latest commits (a shallow clone).
+    #[ts(optional = nullable)]
     pub depth: Option<u32>,
     /// Also clone its submodules (and theirs), each at the commit it records.
+    #[ts(as = "Option<_>", optional)]
     pub submodules: bool,
 }
 

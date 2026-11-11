@@ -7,11 +7,13 @@ use std::sync::OnceLock;
 
 use gix::bstr::ByteSlice;
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::actions::{LfsHealth, lfs_health};
 use crate::git::{Git, command};
 
-#[derive(Debug, Serialize)]
+/// For reporting a problem: versions, the platform, and how the repository is set up.
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Diagnostics {
     /// Tributary's version.
@@ -30,7 +32,7 @@ pub struct Diagnostics {
 }
 
 /// How a repository is set up.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RepositoryInfo {
     pub path: String,

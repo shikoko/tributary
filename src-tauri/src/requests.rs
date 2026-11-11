@@ -6,13 +6,14 @@
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::Git;
 use crate::github::{CheckState, Forge, PullRequest};
 
 /// What the dialog for a new pull request starts from.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct NewRequestInfo {
     pub forge: Forge,
@@ -34,7 +35,8 @@ pub struct NewRequestInfo {
     pub owners: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+/// A commit's message: its first line, and the rest.
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitMessage {
     pub summary: String,
@@ -42,23 +44,26 @@ pub struct CommitMessage {
 }
 
 /// A pull request to open: `branch` (on the remote) into `base`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct NewRequest {
     pub branch: String,
     pub base: String,
     pub title: String,
+    #[ts(as = "Option<_>", optional)]
     #[serde(default)]
     pub body: String,
+    #[ts(as = "Option<_>", optional)]
     #[serde(default)]
     pub draft: bool,
     /// People (`@user`) and teams (`@org/team`) to ask for a review.
+    #[ts(as = "Option<_>", optional)]
     #[serde(default)]
     pub reviewers: Vec<String>,
 }
 
 /// Where a request is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum RequestState {
     Open,
@@ -68,7 +73,7 @@ pub enum RequestState {
 }
 
 /// Whether a request can be merged as it is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum Mergeable {
     /// Nothing in the way.
@@ -84,7 +89,7 @@ pub enum Mergeable {
 }
 
 /// What a reviewer made of a request.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum ReviewState {
     Approved,
@@ -94,16 +99,18 @@ pub enum ReviewState {
     Requested,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "RequestReview")]
 pub struct Review {
     pub author: String,
     pub state: ReviewState,
 }
 
 /// One check (GitHub) or pipeline job (GitLab).
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "RequestCheck")]
 pub struct Check {
     pub name: String,
     /// None when it was skipped, or neither passed nor failed.
@@ -127,7 +134,7 @@ pub struct Check {
 }
 
 /// One pull (or merge) request in full.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestDetails {
     pub number: u64,
@@ -199,7 +206,7 @@ pub(crate) async fn site_of(path: &Path) -> Result<Site> {
 }
 
 /// A pull or merge request, for Team activity's figures.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RecentRequest {
     pub number: u64,
@@ -622,7 +629,7 @@ mod tests {
 }
 
 /// A change to an open request, from its view.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum RequestChange {
     /// Ready for review (false), or back to a draft (true).
@@ -633,6 +640,7 @@ pub enum RequestChange {
     /// or not any more.
     AutoMerge {
         on: bool,
+        #[ts(optional = nullable)]
         #[serde(default)]
         method: Option<String>,
     },

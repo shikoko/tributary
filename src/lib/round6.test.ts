@@ -15,6 +15,7 @@ const pr = (number: number, remote: string, branch: string, checks: PullRequest[
   draft: false,
   author: "rosa",
   checks,
+  forge: "github",
 });
 
 describe("pull requests", () => {

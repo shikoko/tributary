@@ -4,8 +4,9 @@ use std::path::Path;
 
 use gix::bstr::ByteSlice;
 use serde::Serialize;
+use ts_rs::TS;
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WorktreeStatus {
     /// Changes in the index, compared to `HEAD`.
@@ -14,7 +15,7 @@ pub struct WorktreeStatus {
     pub unstaged: Vec<FileChange>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct FileChange {
     pub path: String,
@@ -23,7 +24,7 @@ pub struct FileChange {
     pub status: FileStatus,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum FileStatus {
     Added,

@@ -6,6 +6,7 @@ use std::path::Path;
 use gix::ObjectId;
 use gix::bstr::ByteSlice;
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::open;
 use super::refs::upstream;
@@ -13,7 +14,7 @@ use crate::error::{Error, Result};
 
 /// Where the remote branches point, and which one the checked-out branch tracks: enough
 /// to tell, after a fetch, what's new.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteState {
     /// Like "origin/main" → its commit.
@@ -64,7 +65,7 @@ pub fn remote_state(path: &Path) -> Result<RemoteState, Error> {
 }
 
 /// Commits that arrived on a branch.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct NewCommits {
     pub count: usize,

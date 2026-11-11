@@ -6,6 +6,7 @@ use std::path::Path;
 use gix::ObjectId;
 use gix::bstr::ByteSlice;
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::support::{now_millis, ref_id, summary_of};
 use super::validate::check_new_branch_name;
@@ -32,7 +33,7 @@ pub(super) fn remove_backup(git: &Git, reference: String) -> Result<String> {
 
 /// Where a branch was before Tributary deleted, reset, rebased or force-pushed it, kept
 /// for [`BACKUP_DAYS`] days so it can be put back.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Backup {
     /// The backup's own ref, under `refs/tributary/backups/`.
@@ -44,13 +45,14 @@ pub struct Backup {
     /// The commit it pointed to, its summary, and when the backup was made.
     pub id: String,
     pub summary: String,
+    /// When the backup was made (seconds).
     pub time: i64,
     /// Where the branch points now, if it still exists.
     pub current: Option<String>,
 }
 
 /// What happened to a branch that made Tributary keep a backup of it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum BackupEvent {
     Deleted,

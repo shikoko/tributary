@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::LockRef;
 use super::support::{LITERAL, describe_files, file_name, in_batches};
@@ -158,7 +159,7 @@ pub(super) fn each_file(
 }
 
 /// Changed files to look at before committing.
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct FileChecks {
     /// Big files that aren't stored with Git LFS: committed like this, everyone who
@@ -174,7 +175,8 @@ pub struct FileChecks {
     pub metas: Vec<super::MetaProblem>,
 }
 
-#[derive(Debug, Serialize)]
+/// A big file that isn't stored with Git LFS.
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LargeFile {
     pub path: String,
@@ -275,7 +277,7 @@ pub fn file_checks(
 }
 
 /// The Git LFS files kept on this computer.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LfsStorage {
     pub bytes: u64,

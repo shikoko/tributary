@@ -6,12 +6,13 @@ use gix::ObjectId;
 use gix::bstr::ByteSlice;
 use gix::object::tree::diff::ChangeDetached;
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::open;
 use super::status::{FileChange, FileStatus};
 use crate::error::{Error, Result};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitDetails {
     pub id: String,
@@ -27,9 +28,11 @@ pub struct CommitDetails {
 }
 
 /// A signed commit's signature, as git checks it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitSignature {
+    /// good: a trusted key's; untrusted: good, but the key isn't trusted; expired or revoked:
+    /// good, by a key that no longer is; bad: it doesn't match; unchecked: it couldn't be checked.
     pub status: SignatureStatus,
     /// "gpg", "ssh" or "x509".
     pub kind: &'static str,
@@ -39,7 +42,7 @@ pub struct CommitSignature {
     pub key: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum SignatureStatus {
     /// A good signature, by a key that's trusted.
@@ -55,7 +58,7 @@ pub enum SignatureStatus {
     Unchecked,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Person {
     pub name: String,

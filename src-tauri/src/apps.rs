@@ -7,11 +7,14 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::error::Result;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// An editor or terminal installed on this computer.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "InstalledApp")]
 pub struct App {
     pub id: String,
     pub name: String,
