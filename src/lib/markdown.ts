@@ -187,9 +187,24 @@ function parseBlocks(lines: string[]): Block[] {
   return blocks;
 }
 
+/**
+ * Without its HTML comments (a template's hints, say), as GitHub shows it: taken out until
+ * none are left (taking one out can join the pieces of another), and one left open hides the
+ * rest. Nothing here is ever shown as HTML, but no "<!--" is left either way.
+ */
+export function withoutComments(text: string): string {
+  let result = text;
+  for (let before = ""; before !== result; ) {
+    before = result;
+    result = result.replace(/<!--[\s\S]*?-->/g, "");
+  }
+  const open = result.indexOf("<!--");
+  return open < 0 ? result : result.slice(0, open);
+}
+
 /** Markdown text, read into blocks. */
 export function parseMarkdown(text: string): Block[] {
-  const source = text.replace(/\r\n?/g, "\n").replace(/<!--[\s\S]*?-->/g, "");
+  const source = withoutComments(text.replace(/\r\n?/g, "\n"));
   return parseBlocks(source.split("\n"));
 }
 
