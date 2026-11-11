@@ -475,6 +475,8 @@ function StatusCard({
   children?: ReactNode;
 }) {
   const gitlab = details.forge === "gitlab";
+  // The check in the spotlight: hovering its wave or its row lights up both.
+  const [lit, setLit] = useState<string | null>(null);
   const settled = details.state === "merged" || details.state === "closed";
   const said = settled ? null : describeReviews(details.reviews);
   const checks = [...details.checks].sort((a, b) => CHECK_ORDER[checkState(a)] - CHECK_ORDER[checkState(b)]);
@@ -500,8 +502,8 @@ function StatusCard({
           <div className="request-checks-head">
             <span className="request-checks-title">{gitlab ? "Pipeline" : "Checks"}</span>
           </div>
-          {ran.length > 0 && <CheckTributaries key={details.number} checks={ran} now={now} gitlab={gitlab} openUrl={openUrl} />}
-          <CheckTimeline checks={checks} now={now} openUrl={openUrl} />
+          {ran.length > 0 && <CheckTributaries key={details.number} checks={ran} now={now} gitlab={gitlab} openUrl={openUrl} lit={lit} onLight={setLit} />}
+          <CheckTimeline checks={checks} now={now} openUrl={openUrl} lit={lit} onLight={setLit} />
         </>
       )}
     </section>

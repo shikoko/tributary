@@ -1,8 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { RequestCheck } from "../api";
 import { checksVerdict, checkTime, describeCheckProgress } from "../lib/pullRequests";
+import { ExternalLinkIcon } from "./Icons";
 
-type Props = { checks: RequestCheck[]; now: number; gitlab: boolean; openUrl: (url: string) => void };
+type Props = {
+  checks: RequestCheck[];
+  now: number;
+  gitlab: boolean;
+  openUrl: (url: string) => void;
+  /** The check in the spotlight (its wave here, its row in the timeline), and a way to change it. */
+  lit: string | null;
+  onLight: (name: string | null) => void;
+};
 type Tone = "success" | "failure" | "pending";
 
 const stateOf = (check: RequestCheck): Tone => check.state ?? "success";
@@ -29,10 +38,11 @@ function useWidth<T extends HTMLElement>() {
  * once every check has passed it's a braid of green. A running one flows, a queued one is a
  * dotted trickle, and a failed one runs dry before the end, where a ripple keeps spreading.
  * When a check finishes, its wave refills in its new colour; when the last one passes, a
- * light runs along them all and the braid glows once. Hovering a wave names it; clicking
- * opens its page.
+ * light runs along them all and the braid glows once. Hovering a wave (or its row in the
+ * timeline, or tabbing to it) puts it in the spotlight, with a label that follows the
+ * pointer; clicking it, or Enter, opens its page.
  */
-export function CheckTributaries({ checks: given, now, gitlab, openUrl }: Props) {
+export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onLight }: Props) {
   // Each check keeps its lane however it's doing, so a wave changes colour where it is.
   const checks = [...given].sort((a, b) => a.name.localeCompare(b.name));
   const [box, width] = useWidth<HTMLDivElement>();
@@ -49,6 +59,8 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl }: Props)
   const toneBefore = useRef<Tone | null>(null);
   const [settling, setSettling] = useState<Map<string, string>>(new Map());
   const [celebrating, setCelebrating] = useState(false);
+  // Where along the lit wave the label sits: under the pointer, or a third of the way along.
+  const [labelAt, setLabelAt] = useState<number | null>(null);
   useEffect(() => {
     const current = new Map(JSON.parse(looks) as [string, string][]);
     const changed = new Map<string, string>();
@@ -80,8 +92,16 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl }: Props)
       return start + (end - start) * s + 7 * (1 - 0.75 * s) * Math.sin((2 * Math.PI * x) / 190 + phase);
     };
   };
+  const litIndex = lit === null ? -1 : checks.findIndex((check) => check.name === lit);
+  const litCheck = litIndex >= 0 ? checks[litIndex] : null;
+  const labelX = Math.min(width - 90, Math.max(90, labelAt ?? width * 0.3));
+  const across = (event: { clientX: number }) => event.clientX - (box.current?.getBoundingClientRect().left ?? 0);
+  const light = (name: string | null, x: number | null = null) => {
+    onLight(name);
+    setLabelAt(x);
+  };
   return (
-    <div className={`tributaries ${v.tone}${celebrating ? " celebrating" : ""}`}>
+    <div className={`tributaries ${v.tone}${celebrating ? " celebrating" : ""}${litCheck ? " lit" : ""}`}>
       <div className="tributaries-streams" ref={box}>
         <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
           {checks.map((check, index) => {
@@ -94,8 +114,9 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl }: Props)
             const time = checkTime(check, now);
             const title = `${check.name}: ${waiting ? "queued" : WORDS[state]}${time ? ` · ${time}` : ""}`;
             const was = settling.get(check.name);
+            const open = () => check.url && openUrl(check.url);
             return (
-              <g key={`${check.name}-${index}`} className={`tributaries-stream ${state}${waiting ? " queued" : ""}${was ? " settling" : ""}`}>
+              <g key={`${check.name}-${index}`} className={`tributaries-stream ${state}${waiting ? " queued" : ""}${was ? " settling" : ""}${check.name === lit ? " lit" : ""}`}>
                 {was && <path className={`tributaries-stream-ghost ${was}`} d={d} pathLength={100} />}
                 <path className="tributaries-stream-line" d={d} pathLength={100} />
                 {state === "failure" && (
@@ -105,13 +126,45 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl }: Props)
                   </>
                 )}
                 {celebrating && <path className="tributaries-stream-sweep" d={d} pathLength={100} style={{ animationDelay: `${900 + index * 90}ms` }} />}
-                <path className="tributaries-stream-hit" d={d} onClick={() => check.url && openUrl(check.url)}>
-                  <title>{title}</title>
-                </path>
+                <path
+                  className="tributaries-stream-hit"
+                  d={d}
+                  role={check.url ? "link" : undefined}
+                  tabIndex={check.url ? 0 : -1}
+                  aria-label={check.url ? `${title}: open its page` : title}
+                  onMouseEnter={(event) => light(check.name, across(event))}
+                  onMouseMove={(event) => setLabelAt(across(event))}
+                  onMouseLeave={() => light(null)}
+                  onFocus={() => light(check.name)}
+                  onBlur={() => light(null)}
+                  onClick={open}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      open();
+                    }
+                  }}
+                />
               </g>
             );
           })}
         </svg>
+        {litCheck && (
+          // Above its wave, or below it when the wave runs along the top.
+          <div
+            className={`tributaries-label ${stateOf(litCheck)}${wave(litIndex)(labelX) < 44 ? " below" : ""}`}
+            style={{ left: labelX, top: wave(litIndex)(labelX) }}
+            aria-hidden
+          >
+            <span className="tributaries-label-dot" />
+            <span className="tributaries-label-name">{litCheck.name}</span>
+            <span className="tributaries-label-state">
+              {queued(litCheck) ? "queued" : WORDS[stateOf(litCheck)]}
+              {checkTime(litCheck, now) ? ` · ${checkTime(litCheck, now)}` : ""}
+            </span>
+            {litCheck.url && <ExternalLinkIcon size={11} />}
+          </div>
+        )}
       </div>
       <div className={`tributaries-verdict ${v.tone}`}>
         <span className="tributaries-word">{v.word}</span>

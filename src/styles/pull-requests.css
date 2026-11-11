@@ -466,6 +466,19 @@ button.request-ref:hover {
   border-radius: 4px;
 }
 
+/* The check in the spotlight (its wave is lit above): a soft band behind its row. */
+.request-status .request-check.request-timeline-row {
+  border-radius: 8px;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.request-status .request-check.request-timeline-row.lit {
+  background: rgb(var(--overlay-rgb) / 0.06);
+  box-shadow: 0 0 0 7px rgb(var(--overlay-rgb) / 0.06);
+}
+
 /* Skipped: it didn't run. The whole row faded, at the bottom of the list. */
 .request-status .request-check.request-timeline-row.skipped {
   opacity: 0.45;

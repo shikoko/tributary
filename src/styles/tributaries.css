@@ -8,6 +8,7 @@
 }
 
 .tributaries-streams {
+  position: relative;
   min-width: 0;
 }
 
@@ -207,8 +208,96 @@
   cursor: pointer;
 }
 
-.tributaries-stream:hover .tributaries-stream-line {
+/* The check in the spotlight: its wave bold and glowing, the others faded back. */
+.tributaries-stream {
+  transition: opacity 0.18s ease;
+}
+
+.tributaries-stream.success {
+  --wave: var(--success);
+}
+
+.tributaries-stream.failure {
+  --wave: var(--danger);
+}
+
+.tributaries-stream.pending {
+  --wave: var(--warning);
+}
+
+.tributaries.lit .tributaries-stream:not(.lit) {
+  opacity: 0.2;
+}
+
+.tributaries-stream.lit .tributaries-stream-line {
   stroke-width: 4;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--wave) 70%, transparent));
+}
+
+.tributaries-stream-hit:focus {
+  outline: none;
+}
+
+/* Its name, how it went and how long, following the pointer along the wave. */
+.tributaries-label {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  box-shadow: 0 8px 22px var(--shadow);
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 12px));
+}
+
+.tributaries-label.below {
+  transform: translate(-50%, 12px);
+}
+
+.tributaries-label.success {
+  --wave: var(--success);
+}
+
+.tributaries-label.failure {
+  --wave: var(--danger);
+}
+
+.tributaries-label.pending {
+  --wave: var(--warning);
+}
+
+.tributaries-label-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--wave);
+}
+
+.tributaries-label-name,
+.tributaries-label-state {
+  text-box: trim-both cap alphabetic;
+}
+
+.tributaries-label-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tributaries-label-state {
+  font-variant-numeric: tabular-nums;
+}
+
+.tributaries-label svg {
+  flex: none;
 }
 
 .tributaries-verdict {
