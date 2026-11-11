@@ -333,62 +333,89 @@ button.request-ref:hover {
   font-weight: 600;
 }
 
-/* A segment for each check that ran. Each is taller than it looks, so it's easy to click:
-   the coloured part is drawn inside. */
+/* A block for each check that ran, with its name and time inside, in its state's colour:
+   dark text on green and amber, white on red. Running ones are striped like their bars in
+   the timeline, queued ones only outlined. */
 .request-check-bar {
   display: flex;
-  gap: 4px;
-  margin: -4px 0;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .request-check-bar > * {
-  flex: 1;
-  height: 18px;
-  padding: 0;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
   border: none;
-  background: none;
+  border-radius: 8px;
   font: inherit;
+  font-size: 12px;
+  text-align: left;
+  transition: filter 0.12s ease;
 }
 
-.request-check-bar > *::before {
-  content: "";
-  display: block;
-  height: 10px;
-  margin-top: 4px;
-  border-radius: 5px;
-  background: var(--text-faint);
-  transition:
-    filter 0.12s ease,
-    transform 0.12s ease;
+.request-check-bar-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.request-check-bar .success::before {
+.request-check-bar-time {
+  flex: none;
+  margin-left: auto;
+  text-box: trim-both cap alphabetic;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.request-check-bar > .success {
   background: var(--success);
+  color: rgb(0 0 0 / 0.82);
 }
 
-.request-check-bar .failure::before {
+.request-check-bar > .failure {
   background: var(--danger);
+  color: #fff;
 }
 
-.request-check-bar .pending::before {
-  background: var(--warning);
+.request-check-bar > .pending {
+  background: repeating-linear-gradient(-45deg, var(--warning) 0 8px, color-mix(in srgb, var(--warning) 88%, #000) 8px 16px);
+  color: rgb(0 0 0 / 0.85);
+}
+
+.request-check-bar > .pending.queued {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--warning);
+  color: var(--text);
 }
 
 .request-check-bar button {
   cursor: pointer;
 }
 
-.request-check-bar button:hover::before {
-  filter: brightness(1.15);
-  transform: scaleY(1.2);
+.request-check-bar button:hover {
+  filter: brightness(1.12);
 }
 
 .request-check-bar button:focus-visible {
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-.request-check-bar button:focus-visible::before {
-  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+@media (prefers-reduced-motion: reduce) {
+  .request-check-bar > * {
+    transition: none;
+  }
 }
 
 .request-status .request-check-name {

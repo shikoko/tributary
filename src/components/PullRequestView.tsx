@@ -509,8 +509,9 @@ function StatusCard({
 }
 
 /**
- * A segment for each check that ran (skipped ones are only in the list), coloured by how it
- * went; clicking one opens that check's page. Its tooltip says which it is and how long it took.
+ * A block for each check that ran (skipped ones are only in the list), coloured by how it
+ * went, with its name and time inside; clicking one opens that check's page. Blocks are as
+ * wide as their names, fill the row, and wrap onto more rows when there are many.
  */
 function CheckBar({ checks, now, label, openUrl }: { checks: RequestCheck[]; now: number; label: string; openUrl: (url: string) => void }) {
   const words = { success: "passed", failure: "failed", pending: "running", skipped: "skipped" };
@@ -523,10 +524,21 @@ function CheckBar({ checks, now, label, openUrl }: { checks: RequestCheck[]; now
         const queued = check.state === "pending" && !check.startedAt;
         const time = checkTime(check, now);
         const said = `${check.name}: ${queued ? "queued" : words[state]}${time ? ` · ${time}` : ""}`;
+        const inside = (
+          <>
+            <span className="request-check-bar-name">{check.name}</span>
+            <span className="request-check-bar-time">{queued ? "Queued" : time}</span>
+          </>
+        );
+        const look = `${state}${queued ? " queued" : ""}`;
         return check.url ? (
-          <button key={`${check.name}-${index}`} className={state} onClick={() => openUrl(check.url!)} title={`${said} · open its page`} aria-label={said} />
+          <button key={`${check.name}-${index}`} className={look} onClick={() => openUrl(check.url!)} title={`${said} · open its page`} aria-label={said}>
+            {inside}
+          </button>
         ) : (
-          <span key={`${check.name}-${index}`} className={state} title={said} />
+          <span key={`${check.name}-${index}`} className={look} title={said}>
+            {inside}
+          </span>
         );
       })}
     </div>
