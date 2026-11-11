@@ -1,0 +1,194 @@
+/* About Tributary: the logo and version large, the update check under them, then the links. */
+.dialog.about-window {
+  width: min(500px, 100%);
+  padding: 34px 32px 22px;
+}
+
+/* The window's name is for screen readers: the logo and name say it. */
+.about-window > h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.about-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.about-hero .logo-tile {
+  filter: drop-shadow(0 10px 24px rgb(0 0 0 / 0.35));
+}
+
+.about-name {
+  margin-top: 18px;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.about-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* A beta version, marked beside its number: a fixed height with the word centred in it, so
+   it sits in the middle however the font's line box falls, and a pixel up, level with the
+   middle of the number's letters rather than its line. */
+.about-beta {
+  position: relative;
+  top: -1px;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  line-height: 1;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.about-tagline {
+  margin-top: 12px;
+  color: var(--text-muted);
+}
+
+.about-updates {
+  margin-top: 32px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgb(var(--overlay-rgb) / 0.02);
+}
+
+.about-status {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 18px;
+}
+
+.about-status-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--text-secondary);
+  background: rgb(var(--overlay-rgb) / 0.06);
+}
+
+.about-status.current .about-status-icon {
+  color: var(--success);
+  background: rgb(var(--success-rgb) / 0.12);
+}
+
+.about-status.available .about-status-icon {
+  color: var(--accent);
+  background: rgb(var(--accent-rgb) / 0.14);
+}
+
+.about-status.failed .about-status-icon {
+  color: var(--warning);
+  background: rgb(var(--warning-rgb) / 0.12);
+}
+
+.about-status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.about-status-text strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.about-status-text span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.about-auto {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.about-auto + .about-auto {
+  padding-top: 14px;
+}
+
+.about-auto-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.about-links {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 24px;
+}
+
+.about-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-secondary);
+}
+
+.about-link:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.about-window .dialog-buttons {
+  justify-content: center;
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.about-copyright {
+  color: var(--text-faint);
+  font-size: 11.5px;
+  text-align: center;
+}
+
+.update-waiting {
+  color: var(--text-secondary);
+}
+
+.about-status-text .link-button {
+  font-size: inherit;
+}

@@ -1,0 +1,111 @@
+/* How to merge, in the merge dialog. */
+.merge-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.merge-method {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.merge-method.selected {
+  border-color: var(--accent);
+}
+
+.merge-method input {
+  grid-row: span 2;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.merge-method-label {
+  font-weight: 600;
+}
+
+.merge-method-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.dialog-note-line.warning {
+  color: var(--warning-text);
+}
+
+/* What a patch holds, in the apply dialog. */
+.patch-commits,
+.patch-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.patch-commits li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.patch-commit-summary {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patch-files {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.patch-files li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.patch-file {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patch-files .added {
+  color: var(--added);
+}
+
+.patch-files .removed {
+  color: var(--removed);
+}
+
+.request-owners {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.request-owners-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.request-owner-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+}
