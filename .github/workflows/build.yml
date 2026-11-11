@@ -353,13 +353,11 @@ jobs:
             --jq "[.[] | select(.tag_name == \"$TAG\")][0] | {body, assets: [.assets[] | {name}]}" \
             > release.json
           node .github/scripts/latest-json.mjs "$GITHUB_REPOSITORY" "$TAG" release.json installers latest.json "docs/release-notes/$TAG.md"
-          if [ -f latest.json ]; then
-            gh release upload "$TAG" latest.json --repo "$GITHUB_REPOSITORY"
-          fi
-          else
+          if [ ! -f latest.json ]; then
             echo "::error::No latest.json (the installers aren't signed for updates): $TAG is left as a draft."
             exit 1
           fi
+          gh release upload "$TAG" latest.json --repo "$GITHUB_REPOSITORY"
 
       # Published with its latest.json in place: from now on, everyone is offered it.
       - name: Publish the release
