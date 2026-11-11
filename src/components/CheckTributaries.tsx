@@ -59,11 +59,17 @@ function useWidth<T extends HTMLElement>() {
  * dotted trickle, and a failed one runs dry before the end, where a ripple keeps spreading.
  * When a check finishes, its wave refills in its new colour; when the last one passes, a
  * light runs along them all and the braid glows once. Hovering a wave (or its row in the
- * timeline, or tabbing to it) puts it in the spotlight, with a label that follows the
- * pointer; clicking it, or Enter, opens its page.
+ * timeline, or tabbing to it) puts it in the spotlight, and names it under its wave, hanging
+ * from it on a dotted line, where it hides none of them; clicking it, or Enter, opens its page.
  */
 /** How wide a wave is (its stroke, in the stylesheet too). */
 const WAVE_WIDTH = 2.5;
+/** Where along the way to the river a failed wave runs dry. */
+const DRY = 0.72;
+/** The caption hangs this far under the waves (the grid's gap and its margin, in the stylesheet). */
+const CAPTION_DROP = 24;
+/** How far apart the dots of the line it hangs from are. */
+const DOT = 4;
 
 export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onLight }: Props) {
   // Each check keeps its lane however it's doing, so a wave changes colour where it is.
@@ -82,8 +88,6 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   const toneBefore = useRef<Tone | null>(null);
   const [settling, setSettling] = useState<Map<string, string>>(new Map());
   const [celebrating, setCelebrating] = useState(false);
-  // Where along the lit wave the label sits: under the pointer, or a third of the way along.
-  const [labelAt, setLabelAt] = useState<number | null>(null);
   useEffect(() => {
     const current = new Map(JSON.parse(looks) as [string, string][]);
     const changed = new Map<string, string>();
@@ -167,12 +171,18 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
       waiting: queued(litCheck),
     };
   })();
-  const labelX = Math.min(confluence - 40, Math.max(90, labelAt ?? width * 0.3));
-  const across = (event: { clientX: number }) => event.clientX - (box.current?.getBoundingClientRect().left ?? 0);
-  const light = (key: string | null, x: number | null = null) => {
-    onLight(key);
-    setLabelAt(x);
-  };
+  // The check in the spotlight is named under its wave, hanging from it on a dotted line:
+  // from where it ran dry if it failed, or else from the river where they all meet.
+  const hang = (() => {
+    if (!litCheck) return null;
+    const dry = stateOf(litCheck) === "failure";
+    const x = dry ? confluence * DRY : confluence;
+    const y = dry ? wave(litIndex)(x) : middle;
+    // From a little under the wave to a little over the caption, in whole dots, so it
+    // starts and ends on one.
+    const gaps = Math.max(1, Math.floor((height + CAPTION_DROP - 16 - y) / DOT));
+    return { x, length: gaps * DOT };
+  })();
   return (
     <div className={`tributaries ${v.tone}${celebrating ? " celebrating" : ""}${litCheck ? " lit" : ""}`}>
       <div className="tributaries-streams" ref={box}>
@@ -193,6 +203,15 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
               <stop offset="0.8" stopColor="#fff" stopOpacity="0.07" />
               <stop offset="0.9" stopColor="#fff" stopOpacity="0" />
             </linearGradient>
+            {/* The waves fade into the river as it fades in under them, so where they meet has
+                no seam: no brighter stretch where they lie on top of each other, no round ends. */}
+            <linearGradient id="tributaries-joining" gradientUnits="userSpaceOnUse" x1={confluence - leadIn} y1={0} x2={confluence} y2={0}>
+              <stop offset="0" stopColor="#fff" />
+              <stop offset="1" stopColor="#fff" stopOpacity="0" />
+            </linearGradient>
+            <mask id="tributaries-join" maskUnits="userSpaceOnUse" x={-8} y={-8} width={confluence + 16} height={height + 16}>
+              <rect x={-8} y={-8} width={confluence + 16} height={height + 16} fill="url(#tributaries-joining)" />
+            </mask>
             <mask id="tributaries-fade" maskUnits="userSpaceOnUse" x={confluence - leadIn - 12} y={0} width={riverEnd - confluence + leadIn + 24} height={height}>
               <rect x={confluence - leadIn - 12} y={0} width={riverEnd - confluence + leadIn + 24} height={height} fill="url(#tributaries-mouth)" />
             </mask>
@@ -216,33 +235,34 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
             d += ` L${confluence} ${arrival(index).toFixed(2)}`;
             const state = stateOf(check);
             const waiting = queued(check);
-            const dry = confluence * 0.72;
+            const dry = confluence * DRY;
             const time = checkTime(check, now);
             const title = `${check.name}: ${waiting ? "queued" : WORDS[state]}${time ? ` · ${time}` : ""}`;
             const was = settling.get(checkKey(check));
+            // The one in the spotlight carries on along the river instead.
+            const joining = checkKey(check) === lit ? undefined : "url(#tributaries-join)";
             const open = () => check.url && openUrl(check.url);
             return (
               <g key={`${check.name}-${index}`} className={`tributaries-stream ${state}${waiting ? " queued" : ""}${was ? " settling" : ""}${checkKey(check) === lit ? " lit" : ""}`}>
-                {was && <path className={`tributaries-stream-ghost ${was}`} d={d} pathLength={100} />}
-                <path className="tributaries-stream-line" d={d} pathLength={100} />
+                {was && <path className={`tributaries-stream-ghost ${was}`} d={d} pathLength={100} mask={joining} />}
+                <path className="tributaries-stream-line" d={d} pathLength={100} mask={joining} />
                 {state === "failure" && (
                   <>
                     <circle className="tributaries-stream-ripple" cx={dry} cy={y(dry)} r={3.5} />
                     <circle className="tributaries-stream-end" cx={dry} cy={y(dry)} r={3.5} />
                   </>
                 )}
-                {celebrating && <path className="tributaries-stream-sweep" d={d} pathLength={100} style={{ animationDelay: `${900 + index * 90}ms` }} />}
+                {celebrating && <path className="tributaries-stream-sweep" d={d} pathLength={100} mask={joining} style={{ animationDelay: `${900 + index * 90}ms` }} />}
                 <path
                   className="tributaries-stream-hit"
                   d={d}
                   role={check.url ? "link" : undefined}
                   tabIndex={check.url ? 0 : -1}
                   aria-label={check.url ? `${title}: open its page` : title}
-                  onMouseEnter={(event) => light(checkKey(check), across(event))}
-                  onMouseMove={(event) => setLabelAt(across(event))}
-                  onMouseLeave={() => light(null)}
-                  onFocus={() => light(checkKey(check))}
-                  onBlur={() => light(null)}
+                  onMouseEnter={() => onLight(checkKey(check))}
+                  onMouseLeave={() => onLight(null)}
+                  onFocus={() => onLight(checkKey(check))}
+                  onBlur={() => onLight(null)}
                   onClick={open}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
@@ -255,26 +275,26 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
             );
           })}
         </svg>
-        {litCheck && (
-          // Above its wave, or below it when the wave runs along the top.
-          <div
-            className={`tributaries-label ${stateOf(litCheck)}${wave(litIndex)(labelX) < 44 ? " below" : ""}`}
-            style={{ left: labelX, top: wave(litIndex)(labelX) }}
-            aria-hidden
-          >
-            <span className="tributaries-label-dot" />
-            <span className="tributaries-label-name">{litCheck.name}</span>
-            <span className="tributaries-label-state">
-              {queued(litCheck) ? "queued" : WORDS[stateOf(litCheck)]}
+      </div>
+      <div className={`tributaries-verdict ${v.tone}`}>
+        <span className="tributaries-word">{v.word}</span>
+        {line && <span className="tributaries-line">{line}</span>}
+      </div>
+      {/* Its room is kept, so nothing moves when it shows. */}
+      <div className="tributaries-caption-row" aria-hidden>
+        {litCheck && hang && (
+          <div className={`tributaries-caption ${stateOf(litCheck)}`} style={{ left: hang.x }}>
+            <svg className="tributaries-caption-line" width={4} height={hang.length + 2}>
+              <line x1={2} y1={1} x2={2} y2={hang.length + 1} />
+            </svg>
+            <span className="tributaries-caption-name">{litCheck.name}</span>
+            <span className="tributaries-caption-state">
+              <span className="tributaries-caption-word">{queued(litCheck) ? "queued" : WORDS[stateOf(litCheck)]}</span>
               {checkTime(litCheck, now) ? ` · ${checkTime(litCheck, now)}` : ""}
             </span>
             {litCheck.url && <ExternalLinkIcon size={11} />}
           </div>
         )}
-      </div>
-      <div className={`tributaries-verdict ${v.tone}`}>
-        <span className="tributaries-word">{v.word}</span>
-        {line && <span className="tributaries-line">{line}</span>}
       </div>
     </div>
   );
