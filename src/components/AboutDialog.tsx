@@ -184,7 +184,7 @@ export function AboutDialog({ version, updates, auto, setAuto, beta, setBeta, on
           <NotesIcon size={14} />
           Licences
         </button>
-        <button className="about-link" onClick={() => openInBrowser(SOURCE)}>
+        <button className="about-link" onClick={() => openInBrowser(SOURCE)} data-url={SOURCE}>
           <ExternalLinkIcon size={14} />
           Source code
         </button>

@@ -20,13 +20,13 @@ function GetGit({ install }: { install: GitInstallState }) {
     );
   if (isWindows)
     return (
-      <button className="primary-small-button" onClick={() => openInBrowser(GIT_FOR_WINDOWS)}>
+      <button className="primary-small-button" onClick={() => openInBrowser(GIT_FOR_WINDOWS)} data-url={GIT_FOR_WINDOWS}>
         Get Git for Windows
       </button>
     );
   if (isMac)
     return (
-      <button className="primary-small-button" onClick={() => openInBrowser(GIT_DOWNLOADS)}>
+      <button className="primary-small-button" onClick={() => openInBrowser(GIT_DOWNLOADS)} data-url={GIT_DOWNLOADS}>
         Get git
       </button>
     );
@@ -88,7 +88,7 @@ export function GitOldNote({ install }: { install: GitInstallState }) {
   return (
     <p className="git-old">
       git {install.install?.version} works, but checking a merge before doing it needs git 2.38 or newer.{" "}
-      <button className="link-button" onClick={() => openInBrowser(isWindows ? GIT_FOR_WINDOWS : GIT_DOWNLOADS)}>
+      <button className="link-button" onClick={() => openInBrowser(isWindows ? GIT_FOR_WINDOWS : GIT_DOWNLOADS)} data-url={isWindows ? GIT_FOR_WINDOWS : GIT_DOWNLOADS}>
         Get a newer git
       </button>
     </p>

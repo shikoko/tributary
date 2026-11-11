@@ -239,7 +239,7 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
         >
           <RefreshIcon size={14} />
         </button>
-        <button className="outline-button" onClick={() => openUrl(details?.url ?? request.url)} title={`Open it on ${site}`}>
+        <button className="outline-button" onClick={() => openUrl(details?.url ?? request.url)} title={`Open it on ${site}`} data-url={details?.url ?? request.url}>
           <ExternalLinkIcon size={13} />
           <span className="button-label">Open on {site}</span>
         </button>
@@ -531,7 +531,7 @@ export function CheckRow({ check, time, openUrl }: { check: RequestCheck; time: 
       {check.detail && <span className="request-check-detail">{check.detail}</span>}
       {time && <CheckTime check={check} time={time} />}
       {check.url && (
-        <button className="link-button request-check-link" onClick={() => openUrl(check.url!)}>
+        <button className="link-button request-check-link" onClick={() => openUrl(check.url!)} data-url={check.url}>
           Details
         </button>
       )}

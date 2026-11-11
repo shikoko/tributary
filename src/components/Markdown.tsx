@@ -95,7 +95,6 @@ function renderInline(piece: Inline, key: number, openUrl: (url: string) => void
         <a
           key={key}
           href={piece.href}
-          title={piece.href}
           onClick={(event) => {
             event.preventDefault();
             openUrl(piece.href);

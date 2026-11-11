@@ -60,7 +60,7 @@ export function MentionedIssues({ text }: { text: string }) {
         const request = requests ? requestFor(key, issue, number ? requests.byNumber(Number(number)) : undefined, tracker, remote) : null;
         return (
           <li key={key} className={`mentioned-issue${issue?.done ? " done" : ""}`}>
-            <button className="link-button mentioned-issue-key mono" onClick={() => url && openInBrowser(url)} disabled={!url} title={url ?? undefined}>
+            <button className="link-button mentioned-issue-key mono" onClick={() => url && openInBrowser(url)} disabled={!url} data-url={url ?? undefined}>
               {key}
             </button>
             {issue && <span className="mentioned-issue-title">{issue.title}</span>}

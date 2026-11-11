@@ -117,7 +117,7 @@ export function GitLabSignInDialog({ host: startHost, status, onCancel, onDone }
           />
         </label>
         <p className="hint">
-          <button type="button" className="link-button" onClick={() => server && openInBrowser(newGitLabTokenUrl(server))} disabled={!server}>
+          <button type="button" className="link-button" onClick={() => server && openInBrowser(newGitLabTokenUrl(server))} disabled={!server} data-url={server ? newGitLabTokenUrl(server) : undefined}>
             Make a token on {server || "GitLab"}
           </button>{" "}
           with the “api” and “write_repository” scopes.
@@ -125,7 +125,7 @@ export function GitLabSignInDialog({ host: startHost, status, onCancel, onDone }
         {status && !status.canKeepToken && (
           <p className="hint warning">
             Git has no credential helper, so there's nowhere safe to keep a token.{" "}
-            <button type="button" className="link-button" onClick={() => openInBrowser(CREDENTIAL_MANAGER_URL)}>
+            <button type="button" className="link-button" onClick={() => openInBrowser(CREDENTIAL_MANAGER_URL)} data-url={CREDENTIAL_MANAGER_URL}>
               Install Git Credential Manager
             </button>{" "}
             first.

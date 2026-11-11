@@ -95,7 +95,7 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
   };
 
   const browserButton = browserUrl && (
-    <button className="secondary-button" onClick={() => openUrl(browserUrl)} disabled={running !== null}>
+    <button className="secondary-button" onClick={() => openUrl(browserUrl)} disabled={running !== null} data-url={browserUrl}>
       Open on {site} instead
     </button>
   );
@@ -112,7 +112,7 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
               Close
             </button>
             {browserUrl && (
-              <button className="primary-small-button" onClick={() => openUrl(browserUrl)}>
+              <button className="primary-small-button" onClick={() => openUrl(browserUrl)} data-url={browserUrl}>
                 Open in the browser
               </button>
             )}
