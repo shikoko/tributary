@@ -139,14 +139,19 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
     return loadConversation();
   }, [loadConversation]);
 
-  /** After commenting, reviewing, merging or changing it: say so, and show where it stands now. */
-  const done = (message: string) => {
+  /** After a comment or a reply: say so, and show the conversation as it is now. A review,
+   *  a request for reviewers or a merge someone has started stays open. */
+  const refresh = (message: string) => {
     notify(message);
+    load();
+    loadConversation();
+  };
+  /** After reviewing, merging or changing it: that's finished, so close it too. */
+  const done = (message: string) => {
     setReviewing(false);
     setAsking(false);
     setMerging(false);
-    load();
-    loadConversation();
+    refresh(message);
   };
   const { busy, error: changeError, change } = useRequestChange(repoPath, details, done);
 
@@ -428,7 +433,7 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
             <section className="request-section" aria-label="Conversation">
               <h3 className="team-heading">Conversation</h3>
               {conversation ? (
-                <ConversationList repoPath={repoPath} details={details} conversation={conversation} openUrl={openUrl} onDone={done} />
+                <ConversationList repoPath={repoPath} details={details} conversation={conversation} openUrl={openUrl} onDone={refresh} />
               ) : conversationError ? (
                 <p className="muted request-empty">Couldn't read the comments: {conversationError}</p>
               ) : (
