@@ -130,7 +130,7 @@ The **Build** workflow (`.github/workflows/build.yml`) makes the installers:
 - **macOS:** `.dmg` with a universal app (Apple Silicon and Intel)
 - **Windows:** `-setup.exe`, Tributary's own setup, which the automatic updates run too
 
-It runs on every merge into `develop`, so the latest is always there to try: open the run in the **Actions** tab and download them from its **Artifacts**. To try a branch before it's merged, start a build by hand: **Actions → Build → Run workflow**, and choose the branch. These builds aren't signed for updates, so they install by hand but aren't offered as an update.
+Every merge into `develop` (but one of only documentation) is a **beta**: the installers are signed for updates and published as a GitHub pre-release, like `v0.3.0-beta.4`, with what was merged since the beta before. GitHub's latest release skips pre-releases, so only the copies of Tributary that get betas are offered it (**About Tributary → Get beta versions**): they read `latest.json` from the release tagged `beta`, the beta channel, which each new beta and each new release points at itself if it's newer than what it offered (`.github/scripts/beta-channel.sh`). The newest five betas are kept. To try a branch before it's merged, start a build by hand: **Actions → Build → Run workflow**, and choose the branch, then download the installers from the run's **Artifacts**. These aren't signed for updates, so they install by hand but aren't offered as an update.
 
 Nobody sets the version by hand: it's worked out from the pull requests merged into `develop` since the last release (`.github/scripts/next-version.mjs`). Each pull request into `develop` gets one label for its kind of change, and the **Labels** check asks for it:
 
@@ -142,20 +142,20 @@ Nobody sets the version by hand: it's worked out from the pull requests merged i
 
 Dependabot's pull requests (`.github/dependabot.yml`: security fixes as they come, and a weekly round of version updates) are labelled `fix` already.
 
-The biggest change since the last release decides, once: two features and a fix after 0.2.0 make 0.3.0. Builds of `develop` are named after the release they lead to and the number of pull requests merged since the last one, like `0.3.0-dev.3`, so About shows which build it is, and a release counts as newer. Before the first release, the version is the one in `package.json`. The version in the other files (`Cargo.toml`, `tauri.conf.json`) is only for builds on your own computer.
+The biggest change since the last release decides, once: two features and a fix after 0.2.0 make 0.3.0. Betas are named after the release they lead to and the number of pull requests merged since the last one, like `0.3.0-beta.3`, so About shows which beta it is, the next beta counts as newer, and so does the release they lead to. Before the first release, the version is the one in `package.json`. The version in the other files (`Cargo.toml`, `tauri.conf.json`) is only for builds on your own computer.
 
 A merge into `main` makes a release. To make one:
 
-1. In a pull request into `develop` as usual, write the release's notes in `docs/release-notes/v<version>.md` (like `v0.2.0.md`): the latest build of `develop` shows the version, like `0.3.0-dev.3` for 0.3.0. They become the release page's notes, and the update window shows them up to the `<!-- release page only -->` comment (put install steps and the like after it).
+1. In a pull request into `develop` as usual, write the release's notes in `docs/release-notes/v<version>.md` (like `v0.2.0.md`): the latest beta shows the version, like `0.3.0-beta.3` for 0.3.0. They become the release page's notes, and the update window shows them up to the `<!-- release page only -->` comment (put install steps and the like after it).
 2. Open a pull request from `develop` into `main`. Its checks include **Ready to release**, which says which version merging it releases, and fails if that version's notes aren't there. Merge it with **Create a merge commit**.
 3. The merge starts the Build workflow on `main`, which signs the installers with the key in the protected `release` environment (if the environment asks for approval, open the run, choose **Review deployments**, tick **release** and approve).
-4. When it finishes, a draft GitHub release of that version, with the installers attached, is waiting on the **Releases** page. Publish it, and Tributary offers the update to everyone running an older version. Publishing tags the release, and the next version counts from there.
+4. When it finishes, the release is published on its own: it's made as a draft with the installers attached, given its `latest.json`, then published, so nobody is offered it before it can be installed. From then on, Tributary offers the update to everyone running an older version, and to the copies that get betas. Publishing tags the release, and the next version counts from there.
 
-If a release build fails, **Re-run failed jobs** on its run, or start **Build** by hand on `main`: a draft of the same version is replaced, and a version that's already been published is never built again.
+If a release build fails, nothing is published: **Re-run failed jobs** on its run, or start **Build** by hand on `main`. A draft of the same version is replaced, and a version that's already been published is never built again.
 
-Tributary finds new versions by reading `latest.json` from the latest release (`plugins.updater.endpoints` in `src-tauri/tauri.conf.json`), and installs them only if they're signed with the key whose public half is `plugins.updater.pubkey` there. A fork that publishes its own releases needs to change both.
+Tributary finds new versions by reading `latest.json` from the latest release (`plugins.updater.endpoints` in `src-tauri/tauri.conf.json`), or, for betas, from the beta channel first (`src-tauri/src/updates.rs`), and installs them only if they're signed with the key whose public half is `plugins.updater.pubkey` there. A fork that publishes its own releases needs to change all three.
 
-The private key lives in the `release` environment's secrets, as `TAURI_SIGNING_PRIVATE_KEY` (and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, if it has a password). Without them, builds still work, but they can't be installed as updates. To make a new key pair:
+The private key lives in the `release` environment's secrets (which `main` and `develop` can use: betas are signed too), as `TAURI_SIGNING_PRIVATE_KEY` (and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, if it has a password). Without them, builds still work, but they can't be installed as updates. To make a new key pair:
 
 ```bash
 npm run tauri signer generate -- -w ~/.tauri/tributary.key

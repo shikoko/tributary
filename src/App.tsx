@@ -71,7 +71,7 @@ import { DEFAULT_COLUMNS } from "./components/CommitList";
 export default function App() {
   const preferences = usePreferences();
   const { tabs, setTabs, setActiveTab, firstParentOnly } = preferences;
-  const updates = useUpdates(preferences.autoUpdate);
+  const updates = useUpdates(preferences.autoUpdate, preferences.betaUpdates);
   const theme = useAppearance(preferences.appearance);
   const overlays = useOverlays();
   const openSettings = (section?: string) => {

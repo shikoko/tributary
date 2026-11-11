@@ -1166,10 +1166,32 @@ body.resizing * {
 }
 
 .about-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 6px;
   font-size: 13.5px;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
+}
+
+/* A beta version, marked beside its number: a fixed height with the word centred in it, so
+   it sits in the middle however the font's line box falls, and a pixel up, level with the
+   middle of the number's letters rather than its line. */
+.about-beta {
+  position: relative;
+  top: -1px;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  line-height: 1;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .about-tagline {
@@ -1246,6 +1268,10 @@ body.resizing * {
   gap: 16px;
   padding: 16px 18px 18px;
   border-top: 1px solid var(--border);
+}
+
+.about-auto + .about-auto {
+  padding-top: 14px;
 }
 
 .about-auto-text {

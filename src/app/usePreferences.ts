@@ -34,6 +34,8 @@ export function usePreferences() {
   /** News of your pull requests (reviews, comments, checks, merges): the same choices. */
   const [requestNotices, setRequestNotices] = useStoredState<NewCommitNotices>("notify.pullRequests", "app");
   const [autoUpdate, setAutoUpdate] = useStoredState("updates.auto", true);
+  // Betas: a version of what's coming, from each change merged into develop.
+  const [betaUpdates, setBetaUpdates] = useStoredState("updates.beta", false);
   /** Warn about files at least this big (in MB) that aren't in Git LFS. */
   const [largeFileMB, setLargeFileMB] = useStoredState("files.largeMB", 10);
   /** Lock lockable files as soon as you change them. */
@@ -67,7 +69,7 @@ export function usePreferences() {
     dense, setDense, zoom, setZoom, autoFetch, setAutoFetch, reopenTabs, setReopenTabs,
     firstParentOnly, setFirstParentOnly, profilePictures, setProfilePictures, previews, setPreviews,
     activityOpen, setActivityOpen, fetchMinutes, setFetchMinutes, newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices,
-    autoUpdate, setAutoUpdate, largeFileMB, setLargeFileMB, autoLock, setAutoLock, releaseLocks, setReleaseLocks,
+    autoUpdate, setAutoUpdate, betaUpdates, setBetaUpdates, largeFileMB, setLargeFileMB, autoLock, setAutoLock, releaseLocks, setReleaseLocks,
     submoduleUpdates, setSubmoduleUpdates, appearance, setAppearance,
     simpleMode, setSimpleMode,
     toursOff, setToursOff, skipIgnoreIntro, setSkipIgnoreIntro, toursSeen, setToursSeen, toursDone, setToursDone, toursFirst, setToursFirst,

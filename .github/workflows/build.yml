@@ -1,11 +1,14 @@
 name: Build
 
-# The installers for macOS and Windows:
-# - on every merge into develop, to try (the run's Artifacts), as a build of the next
-#   version, like 0.3.0-dev.4;
-# - on every merge into main, as a release: signed for automatic updates, and attached to a
-#   draft GitHub release of the next version;
-# - for any branch, by hand (Actions → Build → Run workflow), to try it before it's merged.
+# The installers for macOS and Windows, signed for automatic updates:
+# - on every merge into develop, as a beta of the next version, like 0.3.0-beta.4: published
+#   as a GitHub pre-release, and offered to the copies of Tributary that get betas (through
+#   the beta channel, .github/scripts/beta-channel.sh). A merge of only documentation isn't
+#   built;
+# - on every merge into main, as a release: published as the latest GitHub release, which
+#   offers it to everyone;
+# - for any branch, by hand (Actions → Build → Run workflow), to try it before it's merged
+#   (the run's Artifacts, unsigned).
 # The next version comes from the labels of the pull requests merged since the last
 # release (.github/scripts/next-version.mjs).
 on:
@@ -31,11 +34,28 @@ jobs:
       pull-requests: read
     outputs:
       version: ${{ steps.version.outputs.version }}
+      build: ${{ steps.changes.outputs.build }}
     steps:
       - uses: actions/checkout@v7
         with:
           # The whole history and its tags: the last release, and what's been merged since.
           fetch-depth: 0
+
+      # A merge into develop of only words and pictures (Markdown, docs/, the issue forms,
+      # the licence) would be a beta just like the one before: it isn't built.
+      - name: Anything to build?
+        id: changes
+        env:
+          BEFORE: ${{ github.event.before }}
+          DEVELOP: ${{ github.ref == 'refs/heads/develop' && github.event_name == 'push' }}
+        run: |
+          changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA" 2>/dev/null || true)
+          if [ "$DEVELOP" = true ] && [ -n "$changed" ] && ! grep -qvE '(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/)' <<<"$changed"; then
+            echo "::notice::Only documentation changed: no beta."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Next version
         id: version
@@ -46,18 +66,20 @@ jobs:
           if [ "$RELEASE" = true ]; then
             version=$(node .github/scripts/next-version.mjs)
           else
-            version=$(node .github/scripts/next-version.mjs --dev)
+            version=$(node .github/scripts/next-version.mjs --beta)
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
   build:
     name: ${{ matrix.name }}
     needs: version
+    if: needs.version.outputs.build == 'true'
     runs-on: ${{ matrix.os }}
-    # Releases (builds of main) get the signing key from the "release" environment, which
-    # only main can use. Other builds use "test-build", which has no secrets, so they're
-    # unsigned (they install by hand, but not as updates).
-    environment: ${{ github.ref == 'refs/heads/main' && 'release' || 'test-build' }}
+    # Releases (builds of main) and betas (builds of develop) get the signing key from the
+    # "release" environment, which only main and develop can use. Other builds use
+    # "test-build", which has no secrets, so they're unsigned (they install by hand, but not
+    # as updates).
+    environment: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && 'release' || 'test-build' }}
     strategy:
       fail-fast: false
       matrix:
@@ -202,8 +224,76 @@ jobs:
           path: ${{ matrix.bundles }}
           if-no-files-found: error
 
-  # Builds of main: a draft GitHub release for the version in the files, with the
-  # installers attached. Publishing it is what offers the update to everyone.
+  # Builds of develop: a beta. It's published as a pre-release (which GitHub's "latest"
+  # skips, so only the copies that get betas are offered it), with what was merged since
+  # the beta before, and the beta channel points at it. The newest few betas are kept.
+  beta:
+    if: github.ref == 'refs/heads/develop'
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Gather the installers
+        run: |
+          mkdir installers
+          find artifacts -type f -exec mv -t installers {} +
+          ls -l installers
+
+      - name: Publish the beta
+        run: |
+          if ! ls installers/*.sig >/dev/null 2>&1; then
+            echo "::error::The installers aren't signed for updates (is develop allowed to use the release environment?), so they can't be a beta."
+            exit 1
+          fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::notice::$TAG is out already: this build was run again."
+            echo "AGAIN=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          # What's in it: what was merged since the beta before (or the last release).
+          previous=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '[.[] | select((.draft | not) and (.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(-beta\\.[0-9]+)?$")))] | sort_by(.created_at) | last | .tag_name // empty')
+          since=()
+          if [ -n "$previous" ]; then since=(--notes-start-tag "$previous"); fi
+          gh release create "$TAG" installers/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Tributary $TAG" \
+            --notes "A beta of what's coming, built from develop. Tributary offers it to people who get beta versions (About Tributary → Get beta versions). It may have rough edges: [tell us](https://github.com/$GITHUB_REPOSITORY/issues/new/choose) if something's wrong." \
+            --generate-notes "${since[@]}"
+
+      - name: Point the beta channel at it
+        if: env.AGAIN != 'true'
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '{body, assets: [.assets[] | {name}]}' > release.json
+          node .github/scripts/latest-json.mjs "$GITHUB_REPOSITORY" "$TAG" release.json installers latest.json
+          .github/scripts/beta-channel.sh latest.json
+
+      - name: Keep the newest betas
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '[.[] | select(.prerelease and (.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-beta\\.[0-9]+$")))] | sort_by(.created_at) | reverse | .[5:] | .[].tag_name' |
+            while read -r old; do
+              echo "Removing $old"
+              gh release delete "$old" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+            done
+
+  # Builds of main: the GitHub release of the version in the files, with the installers
+  # attached. It's made as a draft, given its latest.json, then published: publishing it is
+  # what offers the update to everyone, so they never see it without its latest.json. The
+  # beta channel points at it too.
   release:
     if: github.ref == 'refs/heads/main'
     needs: [version, build]
@@ -266,3 +356,22 @@ jobs:
           if [ -f latest.json ]; then
             gh release upload "$TAG" latest.json --repo "$GITHUB_REPOSITORY"
           fi
+          else
+            echo "::error::No latest.json (the installers aren't signed for updates): $TAG is left as a draft."
+            exit 1
+          fi
+
+      # Published with its latest.json in place: from now on, everyone is offered it.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ needs.version.outputs.version }}
+        run: |
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          echo "::notice::$TAG is released."
+
+      # A release is newer than its betas: the copies that get betas are offered it too.
+      - name: Point the beta channel at it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/beta-channel.sh latest.json

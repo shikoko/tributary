@@ -1010,6 +1010,13 @@ try {
     await auto.click();
     expect((await auto.getAttribute("aria-checked")) !== before, "the automatic check didn't change");
     await auto.click();
+    // Betas: off to begin with; turning them on looks again, and they're turned off again.
+    const beta = about.getByRole("switch", { name: "Get beta versions" });
+    expect((await beta.getAttribute("aria-checked")) === "false", "betas are on to begin with");
+    await beta.click();
+    expect((await beta.getAttribute("aria-checked")) === "true", "betas didn't turn on");
+    await about.locator(".about-status.current").waitFor({ timeout: 10_000 });
+    await beta.click();
     await about.getByRole("button", { name: "Check again" }).click();
     await about.locator(".about-status.current").waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");

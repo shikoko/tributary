@@ -8,8 +8,9 @@
 // The biggest change decides: two features and a fix since 1.2.3 make 1.3.0.
 //
 //   node .github/scripts/next-version.mjs         the release's version, like 1.3.0
-//   node .github/scripts/next-version.mjs --dev   a build of develop, like 1.3.0-dev.3
-//                                                 (the third pull request since 1.2.3)
+//   node .github/scripts/next-version.mjs --beta  a beta, built from develop, like 1.3.0-beta.3
+//                                                 (the third pull request since 1.2.3), which
+//                                                 comes before 1.3.0 and after 1.3.0-beta.2
 //
 // The last release is the newest tag like v1.2.3 (a release's tag appears when it's
 // published). Before the first release, the version is the one in package.json.
@@ -61,7 +62,8 @@ async function kind(number) {
   return KINDS.findLast((name) => labels.includes(name)) ?? "fix";
 }
 
-const dev = process.argv.includes("--dev");
+// --dev is what builds of develop were called before they were betas.
+const beta = process.argv.includes("--beta") || process.argv.includes("--dev");
 const last = lastRelease();
 const merged = mergedSince(last);
 // Before the first release, the labels don't change anything.
@@ -75,7 +77,7 @@ if (!last) {
   const biggest = Math.max(0, ...kinds.map((name) => KINDS.indexOf(name)));
   version = [`${major}.${minor}.${patch + 1}`, `${major}.${minor + 1}.0`, `${major + 1}.0.0`][biggest];
 }
-if (dev) version += `-dev.${merged.length}`;
+if (beta) version += `-beta.${merged.length}`;
 
 // What it was worked out from, on the run's page.
 if (process.env.GITHUB_STEP_SUMMARY) {

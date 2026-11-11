@@ -196,6 +196,8 @@ export function AppOverlays(props: Props) {
           updates={updates}
           auto={preferences.autoUpdate}
           setAuto={preferences.setAutoUpdate}
+          beta={preferences.betaUpdates}
+          setBeta={preferences.setBetaUpdates}
           onInstall={() => show("update")}
           onWhatsNew={() => {
             hide("about");

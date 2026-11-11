@@ -8,6 +8,12 @@
 //! An update is downloaded as soon as it's found, and installed only when the person
 //! restarts Tributary for it (once no git command is running, so none is cut off), or
 //! else when they quit.
+//!
+//! People who get beta versions read the beta channel's `latest.json` instead: the release
+//! tagged `beta`, which the build of each merge into develop points at its new beta, and the
+//! release of a new version points at that version, so it always offers the newest of
+//! either. Before there's a beta channel, the stable one is read instead. Turning betas off
+//! never goes back: an update is only ever newer than the version running.
 
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -18,6 +24,23 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
 use crate::error::{Error, Result};
+
+/// The beta channel's list of the newest version, beta or not.
+const BETA: &str = "https://github.com/shikoko/tributary/releases/download/beta/latest.json";
+/// The newest release's (as in tauri.conf.json).
+const STABLE: &str = "https://github.com/shikoko/tributary/releases/latest/download/latest.json";
+
+/// Where to look for a newer version: for betas, the beta channel, then the stable one if
+/// there's no beta channel (the updater reads the first that answers). None: the stable one
+/// in tauri.conf.json.
+fn endpoints(beta: bool) -> Option<Vec<tauri::Url>> {
+    beta.then(|| {
+        [BETA, STABLE]
+            .iter()
+            .filter_map(|url| tauri::Url::parse(url).ok())
+            .collect()
+    })
+}
 
 /// A newer version that can be installed.
 #[derive(Debug, Clone, Serialize)]
@@ -65,10 +88,16 @@ fn found<R: Runtime>(app: &AppHandle<R>) -> std::sync::MutexGuard<'_, Found> {
         .unwrap_or_else(|e| e.into_inner())
 }
 
-/// Look for a newer version. Remembers it for [`download`]; one already downloaded stays
-/// ready if it's still the newest.
-pub async fn check<R: Runtime>(app: &AppHandle<R>) -> Result<Option<UpdateInfo>, Error> {
+/// Look for a newer version (a beta too, if `beta`). Remembers it for [`download`]; one
+/// already downloaded stays ready if it's still the newest.
+pub async fn check<R: Runtime>(
+    app: &AppHandle<R>,
+    beta: bool,
+) -> Result<Option<UpdateInfo>, Error> {
     let mut builder = app.updater_builder().timeout(Duration::from_secs(30));
+    if let Some(urls) = endpoints(beta) {
+        builder = builder.endpoints(urls).map_err(|e| e.to_string())?;
+    }
     // On Windows the update is Tributary's setup, which updates the copy in this folder
     // (just for you, or for everyone on the PC).
     if cfg!(windows)
@@ -191,4 +220,26 @@ pub fn install_on_quit<R: Runtime>(app: &AppHandle<R>) {
         (update, installer)
     };
     let _ = update.restart_after_install(false).install(installer);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn betas_read_the_beta_channel_then_the_stable_one() {
+        assert!(endpoints(false).is_none());
+        let urls: Vec<String> = endpoints(true)
+            .unwrap()
+            .iter()
+            .map(|url| url.to_string())
+            .collect();
+        assert_eq!(urls, [BETA, STABLE]);
+    }
+
+    #[test]
+    fn the_stable_list_is_the_one_in_the_config() {
+        let config = include_str!("../tauri.conf.json");
+        assert!(config.contains(STABLE));
+    }
 }
