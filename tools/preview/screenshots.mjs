@@ -395,8 +395,8 @@ const shots = {
     await page.locator(".commit-row", { hasText: "A slower door with a longer creak" }).first().click();
     await page.locator(".details .file", { hasText: "DoorCreak.wav" }).click();
     await page.locator(".diff-view .diff-waveform").nth(1).waitFor();
-    await page.keyboard.press("]");
-    await page.keyboard.press("]");
+    // The 3D model (after the sound, the video and the Blender file).
+    await page.locator(".details .file", { hasText: "Stool.glb" }).click();
     await page.locator(".diff-model-facts").waitFor({ timeout: 20_000 });
     await settle(page, 1500);
     return page;
@@ -435,6 +435,7 @@ const shots = {
   async "project-setup"() {
     const page = await open(fresh().studio);
     await page.locator(".menu-bar-item", { hasText: "Repository" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Tools" }).hover();
     await page.locator(".menu-item", { hasText: "Check Project Setup" }).click();
     await page.locator(".setup-item").first().waitFor({ timeout: 15_000 });
     await settle(page);
