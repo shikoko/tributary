@@ -486,6 +486,20 @@ button.request-ref:hover {
   border-radius: 4px;
 }
 
+/* A row with a page: anywhere on it opens the page, its name underlined while pointed at. */
+.request-timeline-row.opens {
+  cursor: pointer;
+}
+
+.request-timeline-row.opens:hover .request-check-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.request-timeline-row.opens:hover .request-check-open svg {
+  opacity: 1;
+}
+
 /* The check in the spotlight (its wave is lit above): a soft band behind its row. */
 .request-status .request-check.request-timeline-row {
   border-radius: 8px;
