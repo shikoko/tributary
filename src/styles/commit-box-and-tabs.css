@@ -32,7 +32,7 @@
 }
 
 .commit-row-controls .checkbox {
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .details-scroll.worktree .files:first-child {

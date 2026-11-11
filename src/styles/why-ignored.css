@@ -7,7 +7,7 @@
 
 .ignore-window h2 {
   margin-bottom: 14px;
-  font-size: var(--text-xl);
+  font-size: var(--type-xl);
 }
 
 .dialog .ignore-lead {
@@ -37,14 +37,14 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--bg);
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   line-height: 1.45;
   color: var(--text-muted);
 }
 
 .ignore-steps strong {
   color: var(--text);
-  font-size: var(--text-base);
+  font-size: var(--type-base);
 }
 
 .ignore-step-number {
@@ -55,7 +55,7 @@
   height: 24px;
   margin-bottom: 6px;
   border-radius: 50%;
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   font-weight: 700;
 }
 
@@ -76,7 +76,7 @@
 }
 
 .ignore-skip {
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   color: var(--text-secondary);
 }
 
@@ -96,7 +96,7 @@
   gap: 7px;
   margin: 0;
   color: var(--text-secondary);
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   overflow-wrap: anywhere;
 }
 
@@ -120,7 +120,7 @@
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   color: var(--text-secondary);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .ignore-rule-line {
@@ -133,7 +133,7 @@
   padding: 16px 14px 16px 0;
   border-left: 3px solid var(--accent);
   color: var(--text);
-  font-size: var(--text-md);
+  font-size: var(--type-md);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

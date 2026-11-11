@@ -15,7 +15,7 @@
   padding: 1px 8px 1px 6px;
   border: 1px solid;
   border-radius: var(--radius-pill);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   font-weight: 600;
 }
 
@@ -74,7 +74,7 @@
 
 .remote-confirm {
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 /* Bisecting: the bar, its buttons, and the commits marked in the list. */
@@ -120,7 +120,7 @@
   margin-right: 8px;
   padding: 0 6px;
   border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
+  font-size: var(--type-xs);
   font-weight: 700;
   letter-spacing: 0.02em;
   line-height: 16px;
@@ -189,7 +189,7 @@
   gap: 4px;
   padding: 1px 7px;
   border-radius: var(--radius-pill);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -209,7 +209,7 @@
   background: var(--bg-raised);
   color: var(--text-secondary);
   font-family: var(--mono);
-  font-size: var(--text-xs);
+  font-size: var(--type-xs);
 }
 
 .recent li.missing .recent-name,

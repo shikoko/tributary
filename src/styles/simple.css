@@ -46,7 +46,7 @@
   background: none;
   color: var(--text);
   font-family: var(--mono);
-  font-size: var(--text-md);
+  font-size: var(--type-md);
   font-weight: 600;
   outline: none;
 }
@@ -62,7 +62,7 @@
   gap: 5px;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   font-weight: 600;
 }
 
@@ -118,7 +118,7 @@
 
 .simple-card-head h2 {
   margin: 0;
-  font-size: var(--text-xl);
+  font-size: var(--type-xl);
   font-weight: 650;
   letter-spacing: -0.01em;
 }
@@ -133,7 +133,7 @@
 .simple-count,
 .simple-muted {
   color: var(--text-muted);
-  font-size: var(--text-base);
+  font-size: var(--type-base);
 }
 
 .simple-empty {
@@ -178,7 +178,7 @@
   flex: 1;
   gap: 10px;
   min-width: 0;
-  font-size: var(--text-md);
+  font-size: var(--type-md);
 }
 
 .simple-file-name {
@@ -189,7 +189,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -203,7 +203,7 @@
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -243,7 +243,7 @@
 
 .simple-message .text-input {
   font-family: inherit;
-  font-size: var(--text-md);
+  font-size: var(--type-md);
 }
 
 .simple-message textarea {
@@ -256,7 +256,7 @@
   gap: 6px;
   margin: 0;
   color: var(--danger);
-  font-size: var(--text-base);
+  font-size: var(--type-base);
 }
 
 .simple-submit {
@@ -270,7 +270,7 @@
   justify-content: center;
   gap: 8px;
   padding: 10px 20px;
-  font-size: var(--text-md);
+  font-size: var(--type-md);
 }
 
 .simple-latest {
@@ -282,20 +282,20 @@
 .simple-latest-text {
   margin: 0;
   color: var(--text-secondary);
-  font-size: var(--text-md);
+  font-size: var(--type-md);
   line-height: 1.5;
 }
 
 .simple-view .simple-get {
   align-self: stretch;
   padding: 12px 20px;
-  font-size: var(--text-lg);
+  font-size: var(--type-lg);
 }
 
 .simple-subhead {
   margin: 4px 0 0;
   color: var(--text-muted);
-  font-size: var(--text-xs);
+  font-size: var(--type-xs);
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -315,7 +315,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--text-base);
+  font-size: var(--type-base);
 }
 
 .simple-locks svg {
@@ -342,7 +342,7 @@
 
 .simple-recent-summary {
   overflow: hidden;
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

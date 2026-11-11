@@ -17,7 +17,7 @@ function found(pattern: RegExp): string[] {
 describe("the stylesheets", () => {
   it("are read", () => {
     expect(sheets.length).toBeGreaterThan(20);
-    expect(found(/font-size: var\(--text-sm\)/g).length).toBeGreaterThan(100);
+    expect(found(/font-size: var\(--type-sm\)/g).length).toBeGreaterThan(100);
   });
 
   // The scale is in theme.css: a size of its own would drift from things like it.

@@ -106,7 +106,7 @@
 
 .loader-title {
   color: var(--text);
-  font-size: var(--text-lg);
+  font-size: var(--type-lg);
   font-weight: 600;
   text-box: trim-both cap alphabetic;
 }
@@ -118,7 +118,7 @@
   overflow-y: visible;
   color: var(--text-muted);
   font-family: var(--mono);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
   text-box: trim-both cap alphabetic;
@@ -131,7 +131,7 @@
 }
 
 .loader.small .loader-title {
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   font-weight: 500;
   color: var(--text-secondary);
 }
@@ -147,7 +147,7 @@
 
 .loader.inline .loader-title {
   color: var(--text-muted);
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   font-weight: 400;
 }
 

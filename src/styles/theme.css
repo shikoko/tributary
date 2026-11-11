@@ -138,7 +138,7 @@
 
   color-scheme: dark;
   font-family: var(--font);
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   line-height: 1.4;
   color: var(--text);
   background: var(--bg);
@@ -281,21 +281,21 @@
 }
 
 /* Sizes, so the same kinds of things match everywhere: pick a step, not a number of pixels.
-   Text in nine steps: most of the interface is --text-sm, captions and counts --text-xs,
-   text to read --text-base, and titles from --text-lg up. Corners grow with what they
+   Text in nine steps: most of the interface is --type-sm, captions and counts --type-xs,
+   text to read --type-base, and titles from --type-lg up. Corners grow with what they
    round: marks and tags, then buttons and fields, then cards and windows. */
 :root {
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-base: 13px;
-  --text-md: 14px;
-  --text-lg: 16px;
-  --text-xl: 18px;
-  --text-2xl: 22px;
-  --text-3xl: 26px;
-  --text-4xl: 30px;
+  --type-xs: 11px;
+  --type-sm: 12px;
+  --type-base: 13px;
+  --type-md: 14px;
+  --type-lg: 16px;
+  --type-xl: 18px;
+  --type-2xl: 22px;
+  --type-3xl: 26px;
+  --type-4xl: 30px;
   /* One number shown large, like the team's commits this week. */
-  --text-hero: 52px;
+  --type-hero: 52px;
 
   --radius-xs: 2px;
   --radius-sm: 4px;
@@ -354,7 +354,7 @@ button:disabled {
 
 .mono {
   font-family: var(--mono);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .muted {

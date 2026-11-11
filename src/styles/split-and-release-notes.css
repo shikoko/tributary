@@ -23,7 +23,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 /* Release notes: which tag they start after, and the Markdown. */
@@ -41,6 +41,6 @@
 
 .release-text {
   min-height: 260px;
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   line-height: 1.55;
 }

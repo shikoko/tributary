@@ -32,7 +32,7 @@
 
 .merge-method-hint {
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .dialog-note-line.warning {
@@ -69,7 +69,7 @@
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .patch-files li {
@@ -100,7 +100,7 @@
 }
 
 .request-owners-label {
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   color: var(--text-muted);
 }
 

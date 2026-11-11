@@ -35,7 +35,7 @@
 .diff-submodule-head strong {
   display: block;
   color: var(--text);
-  font-size: var(--text-lg);
+  font-size: var(--type-lg);
 }
 
 .diff-submodule-ids {
@@ -113,7 +113,7 @@
 
 .elsewhere-panel-header span {
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .elsewhere-branches {
@@ -175,7 +175,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--mono);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   font-weight: 600;
 }
 
@@ -183,7 +183,7 @@
   flex: none;
   margin-left: auto;
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .elsewhere-branch-entry.assets .elsewhere-branch-count {
@@ -193,7 +193,7 @@
 .elsewhere-branch-who {
   padding: 0 8px 0 46px;
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -217,7 +217,7 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   text-align: left;
   cursor: pointer;
 }
@@ -247,7 +247,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--mono);
-  font-size: var(--text-xs);
+  font-size: var(--type-xs);
   color: var(--text-faint);
 }
 
@@ -260,7 +260,7 @@
 
 .elsewhere-more {
   padding: 4px 8px;
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 /* A repository's own settings */
@@ -304,7 +304,7 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   cursor: pointer;
 }
 

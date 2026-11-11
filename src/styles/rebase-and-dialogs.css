@@ -11,13 +11,13 @@
   gap: 8px;
   height: 40px;
   padding: 0 16px;
-  font-size: var(--text-md);
+  font-size: var(--type-md);
 }
 
 .welcome-hint {
   margin: -4px 0 0;
   color: var(--text-faint);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .recent-heading {
@@ -45,7 +45,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .recent-text {
@@ -67,13 +67,13 @@
   align-items: center;
   gap: 4px;
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   font-weight: 400;
 }
 
 .recent-when {
   color: var(--text-faint);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   white-space: nowrap;
   flex: none;
 }
@@ -125,13 +125,13 @@
 .details .hint {
   margin: 10px 0 0;
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .dialog-note {
   margin-right: auto;
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .dialog-warning {
@@ -140,14 +140,14 @@
   border-radius: var(--radius-md);
   background: rgb(var(--warning-rgb) / 0.1);
   color: var(--warning-soft-text);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .clone-progress {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 textarea.text-input {
@@ -216,12 +216,12 @@ textarea.text-input {
   background: var(--bg-raised);
   color: var(--text);
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .rebase-sha {
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .rebase-summary {
@@ -265,7 +265,7 @@ textarea.text-input {
   align-items: center;
   gap: 8px;
   height: 28px;
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 .selected-commits .mono {
@@ -361,7 +361,7 @@ textarea.text-input {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  font-size: var(--text-base);
+  font-size: var(--type-base);
 }
 
 .setup-text > span {
@@ -373,7 +373,7 @@ textarea.text-input {
   margin: 2px 0 0;
   padding: 0;
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   list-style: none;
 }
 

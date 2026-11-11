@@ -25,7 +25,7 @@
 
 .welcome-card h1 {
   margin: 4px 0 0;
-  font-size: var(--text-4xl);
+  font-size: var(--type-4xl);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -33,7 +33,7 @@
 .tagline {
   margin: 0 0 12px;
   color: var(--text-muted);
-  font-size: var(--text-md);
+  font-size: var(--type-md);
 }
 
 .welcome-card .error-banner {
@@ -51,7 +51,7 @@
   margin: 0 0 6px;
   padding: 0 10px;
   color: var(--text-faint);
-  font-size: var(--text-xs);
+  font-size: var(--type-xs);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -101,7 +101,7 @@
 .recent-path {
   min-width: 0;
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -135,7 +135,7 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   line-height: 1;
   cursor: pointer;
 }
@@ -226,7 +226,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: var(--text-base);
+  font-size: var(--type-base);
 }
 
 .your-repos-toggle {
@@ -279,7 +279,7 @@
 .your-repos-note {
   padding: 14px 10px;
   color: var(--text-muted);
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   font-weight: 400;
 }
 
@@ -315,7 +315,7 @@
   gap: 5px;
   min-width: 0;
   overflow: hidden;
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -338,14 +338,14 @@
   border-radius: var(--radius-pill);
   background: var(--bg-active);
   color: var(--text-muted);
-  font-size: var(--text-xs);
+  font-size: var(--type-xs);
   font-weight: 500;
 }
 
 .your-repo-desc {
   overflow: hidden;
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -354,7 +354,7 @@
 .your-repo-when {
   flex: none;
   color: var(--text-faint);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
   font-weight: 400;
 }
 
@@ -380,7 +380,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: var(--text-lg);
+  font-size: var(--type-lg);
 }
 
 .git-needed-head svg {
@@ -412,7 +412,7 @@
 .git-old {
   margin: 0;
   color: var(--text-muted);
-  font-size: var(--text-base);
+  font-size: var(--type-base);
 }
 
 .git-needed-banner .primary-small-button {

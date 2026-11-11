@@ -1,7 +1,7 @@
 /* Markdown from GitHub or GitLab: a pull request's description, comments. */
 .markdown {
   color: var(--text);
-  font-size: var(--text-md);
+  font-size: var(--type-md);
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -52,18 +52,18 @@
 }
 
 .markdown-heading.level-1 {
-  font-size: var(--text-xl);
+  font-size: var(--type-xl);
 }
 
 .markdown-heading.level-2 {
-  font-size: var(--text-lg);
+  font-size: var(--type-lg);
 }
 
 .markdown-heading.level-3,
 .markdown-heading.level-4,
 .markdown-heading.level-5,
 .markdown-heading.level-6 {
-  font-size: var(--text-md);
+  font-size: var(--type-md);
 }
 
 .markdown ul,
@@ -137,7 +137,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--sunken);
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   line-height: 1.55;
 }
 
@@ -161,7 +161,7 @@
 
 .markdown table {
   border-collapse: collapse;
-  font-size: var(--text-base);
+  font-size: var(--type-base);
 }
 
 .markdown th,
@@ -209,7 +209,7 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: var(--text-base);
+  font-size: var(--type-base);
 }
 
 .markdown-field-tab:hover {
@@ -226,7 +226,7 @@
   margin-left: auto;
   padding-right: 4px;
   color: var(--text-faint);
-  font-size: var(--text-sm);
+  font-size: var(--type-sm);
 }
 
 /* The text box itself: borderless inside the field, which has the border. */
@@ -241,7 +241,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: var(--text-base);
+  font-size: var(--type-base);
   line-height: 1.55;
   resize: vertical;
 }
@@ -256,5 +256,5 @@
 .markdown-field-empty {
   margin: 0;
   color: var(--text-muted);
-  font-size: var(--text-base);
+  font-size: var(--type-base);
 }
