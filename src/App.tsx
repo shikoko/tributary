@@ -436,7 +436,7 @@ export default function App() {
     <BisectMarksContext.Provider value={marks}>
     <CiStatesContext.Provider value={ciStates}>
     <ProfilePictures.Provider value={preferences.profilePictures ? repoPath : null}>
-      <PullRequestsContext.Provider value={prs.list.length > 0 ? prLookup : null}>
+      <PullRequestsContext.Provider value={prLookup}>
         <div className="app">
           {showTabBar && (
             <TabBar
