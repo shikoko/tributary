@@ -140,6 +140,8 @@ Nobody sets the version by hand: it's worked out from the pull requests merged i
 | `feature` | 0.2.0 → 0.3.0 |
 | `breaking` | 0.2.0 → 1.0.0 |
 
+Dependabot's pull requests (`.github/dependabot.yml`: security fixes as they come, and a weekly round of version updates) are labelled `fix` already.
+
 The biggest change since the last release decides, once: two features and a fix after 0.2.0 make 0.3.0. Builds of `develop` are named after the release they lead to and the number of pull requests merged since the last one, like `0.3.0-dev.3`, so About shows which build it is, and a release counts as newer. Before the first release, the version is the one in `package.json`. The version in the other files (`Cargo.toml`, `tauri.conf.json`) is only for builds on your own computer.
 
 A merge into `main` makes a release. To make one:
