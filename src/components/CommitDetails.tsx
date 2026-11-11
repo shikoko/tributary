@@ -219,7 +219,7 @@ export function CommitDetailsPanel(props: Props) {
           <section className="details-section files">
             <div className="details-section-head">
               <h3>Changed files</h3>
-              {details && <span className="details-section-note">{details.files.length}</span>}
+              {details && <span className="details-section-note">{details.files.length.toLocaleString()}</span>}
               {commit.parents.length > 1 && <span className="details-section-note">· compared to the first parent</span>}
             </div>
             {current.error ? (
