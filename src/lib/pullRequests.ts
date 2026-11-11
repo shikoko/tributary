@@ -88,9 +88,11 @@ export function formatElapsed(ms: number): string {
 
 /**
  * How long a check has been running (at `now`), or how long it took once it's done. Null
- * when it hasn't started, like one still queued, or the site didn't say.
+ * when it hasn't started, like one still queued, when it was skipped, or the site didn't say.
  */
 export function checkTime(check: RequestCheck, now: number): string | null {
+  // A skipped one didn't run, whatever times the site gives it.
+  if (check.state === null) return null;
   const start = check.startedAt ? Date.parse(check.startedAt) : NaN;
   const end = check.finishedAt ? Date.parse(check.finishedAt) : check.state === "pending" ? now : NaN;
   if (Number.isNaN(start) || Number.isNaN(end)) return null;
@@ -109,6 +111,8 @@ export interface CheckTimeline {
 /** Lays the checks out on one clock, or null when none of them has times to show. */
 export function checkTimeline(checks: RequestCheck[], now: number): CheckTimeline | null {
   const spans = checks.map((check) => {
+    // A skipped check didn't run: no bar, and it doesn't stretch the clock.
+    if (check.state === null) return null;
     const start = check.startedAt ? Date.parse(check.startedAt) : NaN;
     const end = check.finishedAt ? Date.parse(check.finishedAt) : check.state === "pending" ? now : NaN;
     // A clock a little behind the site's could put a running check's start after now.

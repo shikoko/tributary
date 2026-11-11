@@ -913,6 +913,7 @@ export const STUDIO_PULL_REQUEST_DETAILS = {
       { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/9", detail: null, ...ran(300, 103) },
       { name: "Asset sizes", state: "success", url: "https://github.com/example/feast/actions/runs/11", detail: null, ...ran(300, 281) },
       { name: "Lint", state: "success", url: "https://github.com/example/feast/actions/runs/12", detail: null, ...ran(298, 262) },
+      { name: "Deploy preview", state: null, url: "https://github.com/example/feast/actions/runs/13", detail: null, ...ran(250, 250) },
     ],
     forge: "github",
     baseSha: null,

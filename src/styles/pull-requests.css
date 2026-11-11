@@ -333,32 +333,62 @@ button.request-ref:hover {
   font-weight: 600;
 }
 
+/* A segment for each check that ran. Each is taller than it looks, so it's easy to click:
+   the coloured part is drawn inside. */
 .request-check-bar {
   display: flex;
-  gap: 3px;
-  height: 6px;
+  gap: 4px;
+  margin: -4px 0;
 }
 
-.request-check-bar span {
+.request-check-bar > * {
   flex: 1;
-  border-radius: 3px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+}
+
+.request-check-bar > *::before {
+  content: "";
+  display: block;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 5px;
   background: var(--text-faint);
-  opacity: 0.45;
+  transition:
+    filter 0.12s ease,
+    transform 0.12s ease;
 }
 
-.request-check-bar .success {
+.request-check-bar .success::before {
   background: var(--success);
-  opacity: 1;
 }
 
-.request-check-bar .failure {
+.request-check-bar .failure::before {
   background: var(--danger);
-  opacity: 1;
 }
 
-.request-check-bar .pending {
+.request-check-bar .pending::before {
   background: var(--warning);
-  opacity: 1;
+}
+
+.request-check-bar button {
+  cursor: pointer;
+}
+
+.request-check-bar button:hover::before {
+  filter: brightness(1.15);
+  transform: scaleY(1.2);
+}
+
+.request-check-bar button:focus-visible {
+  outline: none;
+}
+
+.request-check-bar button:focus-visible::before {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
 }
 
 .request-status .request-check-name {
@@ -494,6 +524,15 @@ button.request-ref:hover {
   border-radius: 4px;
 }
 
+/* Skipped: it didn't run. The whole row faded, at the bottom of the list. */
+.request-status .request-check.request-timeline-row.skipped {
+  opacity: 0.45;
+}
+
+.request-timeline-row.skipped .request-timeline-time {
+  color: var(--text-faint);
+}
+
 .request-timeline-time {
   overflow-x: clip;
   overflow-y: visible;
@@ -562,12 +601,6 @@ button.request-ref:hover {
 
 .request-check-time + .request-check-link {
   margin-left: 0;
-}
-
-.request-skipped {
-  margin: -6px 0 0;
-  color: var(--text-faint);
-  font-size: 12px;
 }
 
 .request-conflicts {

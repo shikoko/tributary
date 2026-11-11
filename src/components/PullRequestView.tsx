@@ -3,7 +3,7 @@ import { branchVersions, pullRequestDetails, requestConversation, type MergeChec
 import { copyText } from "../lib/clipboard";
 import { plural, relativeTime } from "../lib/format";
 import { checkMerge, describeMergeCheck } from "../lib/mergeChecks";
-import { anyRunning, describeCheckProgress, describeMergeable, describeReviews, requestNoun, requestNumber } from "../lib/pullRequests";
+import { anyRunning, checkTime, describeCheckProgress, describeMergeable, describeReviews, requestNoun, requestNumber } from "../lib/pullRequests";
 import { useNow } from "../lib/useNow";
 import { Avatar } from "./Avatar";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
@@ -478,10 +478,8 @@ function StatusCard({
   const said = settled ? null : describeReviews(details.reviews);
   const progress = describeCheckProgress(details.checks, gitlab);
   const checks = [...details.checks].sort((a, b) => CHECK_ORDER[checkState(a)] - CHECK_ORDER[checkState(b)]);
-  const shown = checks.filter((check) => check.state !== null);
-  const skipped = checks.filter((check) => check.state === null);
   // Running checks count up to the second; otherwise the clock's ends ("5 minutes ago") still move.
-  const now = useNow(anyRunning(shown) ? 1000 : 30_000);
+  const now = useNow(anyRunning(checks) ? 1000 : 30_000);
   return (
     <section className={`request-status ${tone}`} aria-label="Where it stands">
       <div className="request-status-top">
@@ -502,20 +500,36 @@ function StatusCard({
             <span className="request-checks-title">{gitlab ? "Pipeline" : "Checks"}</span>
             {progress && <span>{progress}</span>}
           </div>
-          <div className="request-check-bar" role="img" aria-label={progress ?? "Checks"}>
-            {checks.map((check, index) => (
-              <span key={`${check.name}-${index}`} className={checkState(check)} />
-            ))}
-          </div>
-          {shown.length > 0 && <CheckTimeline checks={shown} now={now} openUrl={openUrl} />}
-          {skipped.length > 0 && (
-            <p className="request-skipped">
-              {skipped.length === 1 ? "Skipped" : `${skipped.length} skipped`}: {skipped.map((check) => check.name).join(", ")}
-            </p>
-          )}
+          <CheckBar checks={checks} now={now} label={progress ?? "Checks"} openUrl={openUrl} />
+          <CheckTimeline checks={checks} now={now} openUrl={openUrl} />
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * A segment for each check that ran (skipped ones are only in the list), coloured by how it
+ * went; clicking one opens that check's page. Its tooltip says which it is and how long it took.
+ */
+function CheckBar({ checks, now, label, openUrl }: { checks: RequestCheck[]; now: number; label: string; openUrl: (url: string) => void }) {
+  const words = { success: "passed", failure: "failed", pending: "running", skipped: "skipped" };
+  const ran = checks.filter((check) => check.state !== null);
+  if (ran.length === 0) return null;
+  return (
+    <div className="request-check-bar" role="group" aria-label={label}>
+      {ran.map((check, index) => {
+        const state = checkState(check);
+        const queued = check.state === "pending" && !check.startedAt;
+        const time = checkTime(check, now);
+        const said = `${check.name}: ${queued ? "queued" : words[state]}${time ? ` · ${time}` : ""}`;
+        return check.url ? (
+          <button key={`${check.name}-${index}`} className={state} onClick={() => openUrl(check.url!)} title={`${said} · open its page`} aria-label={said} />
+        ) : (
+          <span key={`${check.name}-${index}`} className={state} title={said} />
+        );
+      })}
+    </div>
   );
 }
 

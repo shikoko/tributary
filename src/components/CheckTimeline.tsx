@@ -49,9 +49,9 @@ export function CheckTimeline({ checks, now, openUrl }: { checks: RequestCheck[]
                 <span className="request-timeline-track" aria-hidden>
                   {bar ? (
                     <span className={`request-timeline-bar ${state}`} style={{ left: `${bar.from * 100}%`, width: `${(bar.to - bar.from) * 100}%` }} />
-                  ) : (
+                  ) : state !== "skipped" ? (
                     <span className="request-timeline-waiting" />
-                  )}
+                  ) : null}
                 </span>
               )}
               <span className="request-timeline-time" title={queued ? "Waiting for a runner" : undefined}>

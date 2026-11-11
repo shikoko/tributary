@@ -121,6 +121,8 @@ describe("check times", () => {
   it("has no time for a check that hasn't started, or a finished one without an end", () => {
     expect(checkTime(check("pending", null, null), Date.now())).toBeNull();
     expect(checkTime(check("failure", start, null), Date.now())).toBeNull();
+    // GitHub gives a skipped check a start and an end, the same moment: it still didn't run.
+    expect(checkTime(check(null, start, start), Date.now())).toBeNull();
     expect(anyRunning([check("success", start, "2026-11-10T10:02:13Z"), check("pending", null, null)])).toBe(false);
     expect(anyRunning([check("pending", start, null)])).toBe(true);
   });
