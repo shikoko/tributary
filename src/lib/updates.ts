@@ -22,9 +22,13 @@ export interface UpdateProgress {
 const FIRST_CHECK = 15_000;
 const CHECK_EVERY = 6 * 60 * 60 * 1000;
 
-export function checkForUpdate(): Promise<UpdateInfo | null> {
-  return invoke<UpdateInfo | null>("check_for_update");
+/** A newer version, if there is one: a beta too, if `beta`. */
+export function checkForUpdate(beta = false): Promise<UpdateInfo | null> {
+  return invoke<UpdateInfo | null>("check_for_update", { beta });
 }
+
+/** A beta (or a build of develop, before betas were named so), like 0.3.0-beta.4. */
+export const isBeta = (version: string | null | undefined) => Boolean(version && /-(beta|dev)\./.test(version));
 
 /** Download the update found by the last check (and check its signature), without installing it. */
 function downloadUpdate(): Promise<void> {
@@ -70,10 +74,10 @@ const message = (e: unknown) => String(e).replace(/^Error:\s*/, "");
 
 /**
  * Checks for a newer version a little after launching and every few hours (when `auto`),
- * and downloads one as soon as it's found. It's installed only when the person restarts for
- * it (and no git command is running then), or when they quit.
+ * and downloads one as soon as it's found: a beta too, when `beta`. It's installed only when
+ * the person restarts for it (and no git command is running then), or when they quit.
  */
-export function useUpdates(auto: boolean): Updates {
+export function useUpdates(auto: boolean, beta = false): Updates {
   const [available, setAvailable] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
   const [checkedAt, setCheckedAt] = useState<number | null>(null);
@@ -110,7 +114,7 @@ export function useUpdates(auto: boolean): Updates {
     checkingNow.current = true;
     setChecking(true);
     try {
-      const found = await checkForUpdate();
+      const found = await checkForUpdate(beta);
       setAvailable(found);
       setReady(Boolean(found?.ready));
       setError(null);
@@ -123,7 +127,7 @@ export function useUpdates(auto: boolean): Updates {
       checkingNow.current = false;
       setChecking(false);
     }
-  }, [download]);
+  }, [beta, download]);
 
   const restart = useCallback(async () => {
     setWaiting(true);
@@ -152,6 +156,14 @@ export function useUpdates(auto: boolean): Updates {
       clearInterval(timer);
     };
   }, [auto, check]);
+
+  // Turning betas on or off looks again straight away (not when Tributary starts).
+  const betaBefore = useRef(beta);
+  useEffect(() => {
+    if (betaBefore.current === beta) return;
+    betaBefore.current = beta;
+    void check();
+  }, [beta, check]);
 
   return { available, checking, checkedAt, check, downloading, download, ready, waiting, restart, stopWaiting, error };
 }
