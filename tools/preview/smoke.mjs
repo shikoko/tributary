@@ -115,8 +115,12 @@ try {
   });
 
   await step("shows a commit's details", async () => {
+    // It's near the end, which isn't drawn until it's scrolled to: how near depends on how
+    // many days the commits cross, which depends on the time of day the demo is made.
+    await scrollList("end");
     await row("Add the note model").click();
     await page.locator(".details", { hasText: "Sam Okafor" }).waitFor({ timeout: 5000 });
+    await scrollList("top");
   });
 
   await step("searches commits", async () => {
@@ -335,13 +339,14 @@ try {
     const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" }).trim();
     const head = git("rev-parse", "HEAD");
     // Bisecting checks out older commits: the demo's changes go aside meanwhile. (The app
-    // may be reading the repository right then, holding git's lock for a moment.)
+    // may be reading the repository right then, holding one of git's locks for a moment, so
+    // it's tried again for a few seconds whatever went wrong.)
     for (let tries = 0; ; tries++) {
       try {
         git("stash", "push", "-q", "--include-untracked", "-m", "smoke: bisect");
         break;
       } catch (e) {
-        if (tries >= 20 || !String(e).includes("index.lock")) throw e;
+        if (tries >= 20) throw e;
         await page.waitForTimeout(150);
       }
     }
