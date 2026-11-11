@@ -140,14 +140,28 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   const leadIn = 18;
   const narrowFrom = confluence + (riverEnd - confluence) * 0.45;
   const along = (x: number, from: number, to: number) => smooth(Math.max(0, Math.min(1, (x - from) / (to - from))));
+  // The waves that reach the river (a failed one runs dry first).
+  const reaching = checks.flatMap((check, index) => (check.state === "failure" ? [] : [index]));
   const river = (() => {
     const half = (x: number) =>
       x < confluence ? (wide / 2) * along(x, confluence - leadIn, confluence) : (wide / 2) * (1 - 0.6 * along(x, narrowFrom, riverEnd));
+    // Before they meet, it's as wide as the waves that reach it, edge to edge, and it comes
+    // to its own width where they meet, so they flow into it without a narrow waist or a
+    // step where it starts.
+    const edges = (x: number): [number, number] => {
+      if (x >= confluence || reaching.length === 0) return [middle - half(x), middle + half(x)];
+      const ys = reaching.map((index) => wave(index)(x));
+      const k = along(x, confluence - leadIn, confluence);
+      const top = Math.min(...ys) - WAVE_WIDTH / 2;
+      const bottom = Math.max(...ys) + WAVE_WIDTH / 2;
+      return [top + (middle - wide / 2 - top) * k, bottom + (middle + wide / 2 - bottom) * k];
+    };
     const xs: number[] = [];
-    for (let x = confluence - leadIn; x < riverEnd; x += 6) xs.push(x);
+    for (let x = confluence - leadIn; x < confluence; x += 2) xs.push(x);
+    for (let x = confluence; x < riverEnd; x += 6) xs.push(x);
     xs.push(riverEnd);
-    const top = xs.map((x) => `${x} ${(middle - half(x)).toFixed(2)}`);
-    const bottom = [...xs].reverse().map((x) => `${x} ${(middle + half(x)).toFixed(2)}`);
+    const top = xs.map((x) => `${x} ${edges(x)[0].toFixed(2)}`);
+    const bottom = [...xs].reverse().map((x) => `${x} ${edges(x)[1].toFixed(2)}`);
     return `M${top.join(" L")} L${bottom.join(" L")} Z`;
   })();
   // Where they meet, the river is the colours of the waves that reach it (a failed one runs
@@ -156,6 +170,9 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   // It keeps their colour for a while, then turns into the verdict's (mixed as `mixing`
   // says), before it fades.
   const from = arriving ?? "var(--river)";
+  // On their last stretch, the waves take on the river's colour, so where they meet there's
+  // no change of colour to see either.
+  const taking = Math.round(confluence * 0.3);
   const litIndex = lit === null ? -1 : checks.findIndex((check) => checkKey(check) === lit);
   const litCheck = litIndex >= 0 ? checks[litIndex] : null;
   // A wave in the spotlight carries on along the river (where it ran, as the river narrows)
@@ -211,21 +228,35 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
               <stop offset="0.8" stopColor="#fff" stopOpacity="0.07" />
               <stop offset="0.9" stopColor="#fff" stopOpacity="0" />
             </linearGradient>
-            {/* The waves fade into the river as it fades in under them, so where they meet has
-                no seam: no brighter stretch where they lie on top of each other, no round ends. */}
+            {/* The river fades in under the waves, and then they fade into it, so where they meet
+                has no seam: no brighter stretch where they lie on top of each other, no round
+                ends, and no fainter one where both are fading. */}
             <linearGradient id="tributaries-joining" gradientUnits="userSpaceOnUse" x1={confluence - leadIn} y1={0} x2={confluence} y2={0}>
-              <stop offset="0" stopColor="#fff" />
+              <stop offset="0.4" stopColor="#fff" />
               <stop offset="1" stopColor="#fff" stopOpacity="0" />
             </linearGradient>
+            <linearGradient id="tributaries-rising" gradientUnits="userSpaceOnUse" x1={confluence - leadIn} y1={0} x2={confluence} y2={0}>
+              <stop offset="0" stopColor="#fff" stopOpacity="0" />
+              <stop offset="0.5" stopColor="#fff" />
+            </linearGradient>
+            <mask id="tributaries-rise" maskUnits="userSpaceOnUse" x={confluence - leadIn - 8} y={-8} width={riverEnd - confluence + leadIn + 16} height={height + 16}>
+              <rect x={confluence - leadIn - 8} y={-8} width={riverEnd - confluence + leadIn + 16} height={height + 16} fill="url(#tributaries-rising)" />
+            </mask>
             <mask id="tributaries-join" maskUnits="userSpaceOnUse" x={-8} y={-8} width={confluence + 16} height={height + 16}>
               <rect x={-8} y={-8} width={confluence + 16} height={height + 16} fill="url(#tributaries-joining)" />
             </mask>
+            {checks.map((check, index) => (
+              <linearGradient key={index} id={`tributaries-taking-${index}`} gradientUnits="userSpaceOnUse" x1={confluence - taking} y1={0} x2={confluence} y2={0}>
+                <stop offset="0" style={{ stopColor: COLOURS[queued(check) ? "pending" : stateOf(check)] }} />
+                <stop offset="1" style={{ stopColor: from }} />
+              </linearGradient>
+            ))}
             <mask id="tributaries-fade" maskUnits="userSpaceOnUse" x={confluence - leadIn - 12} y={0} width={riverEnd - confluence + leadIn + 24} height={height}>
               <rect x={confluence - leadIn - 12} y={0} width={riverEnd - confluence + leadIn + 24} height={height} fill="url(#tributaries-mouth)" />
             </mask>
           </defs>
           <g mask="url(#tributaries-fade)">
-            <path className="tributaries-river" d={river} fill="url(#tributaries-confluence)" />
+            <path className="tributaries-river" d={river} fill="url(#tributaries-confluence)" mask="url(#tributaries-rise)" />
             {v.tone === "pending" && <path className="tributaries-river-flow" d={`M${confluence} ${middle} L${riverEnd} ${middle}`} />}
             {onward && (
               <g className={`tributaries-stream lit onward ${onward.state}${onward.waiting ? " queued" : ""}`} aria-hidden>
@@ -253,7 +284,14 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
             return (
               <g key={`${check.name}-${index}`} className={`tributaries-stream ${state}${waiting ? " queued" : ""}${was ? " settling" : ""}${checkKey(check) === lit ? " lit" : ""}`}>
                 {was && <path className={`tributaries-stream-ghost ${was}`} d={d} pathLength={100} mask={joining} />}
-                <path className="tributaries-stream-line" d={d} pathLength={100} mask={joining} />
+                <path
+                  className="tributaries-stream-line"
+                  d={d}
+                  pathLength={100}
+                  mask={joining}
+                  // Into the river's colour (unless it runs dry, or carries on in the spotlight).
+                  style={joining && state !== "failure" ? { stroke: `url(#tributaries-taking-${index})` } : undefined}
+                />
                 {state === "failure" && (
                   <>
                     <circle className="tributaries-stream-ripple" cx={dry} cy={y(dry)} r={3.5} />
