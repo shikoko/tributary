@@ -25,6 +25,14 @@ const COLOURS: Record<Tone, string> = {
   cancelled: "var(--text-faint)",
 };
 
+/**
+ * How to mix a colour with `tone`'s: by how they look, going round the hues (so green to red
+ * passes a bright amber, not a muddy brown), but straight towards cancelled's grey, which has
+ * no hue to go round to. Its grey is a little blue, and going round to that would pass a
+ * bright cyan that no check is.
+ */
+const mixing = (tone: Tone) => (tone === "cancelled" ? "oklab" : "oklch");
+
 /** The colours of `states` mixed in proportion, as CSS (null for none). */
 export function blend(states: Tone[]): string | null {
   let colour: string | null = null;
@@ -33,7 +41,7 @@ export function blend(states: Tone[]): string | null {
     const count = states.filter((state) => state === tone).length;
     if (count === 0) continue;
     total += count;
-    colour = colour ? `color-mix(in oklch, ${COLOURS[tone]} ${Math.round((count / total) * 100)}%, ${colour})` : COLOURS[tone];
+    colour = colour ? `color-mix(in ${mixing(tone)}, ${COLOURS[tone]} ${Math.round((count / total) * 100)}%, ${colour})` : COLOURS[tone];
   }
   return colour;
 }
@@ -145,8 +153,8 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   // Where they meet, the river is the colours of the waves that reach it (a failed one runs
   // dry first), and it turns into the verdict's colour on its way.
   const arriving = blend(checks.filter((check) => check.state !== "failure").map((check) => (queued(check) ? "pending" : stateOf(check))));
-  // It keeps their colour for a while, then turns into the verdict's through a bright middle
-  // (mixed by how colours look, not through a muddy brown), before it fades.
+  // It keeps their colour for a while, then turns into the verdict's (mixed as `mixing`
+  // says), before it fades.
   const from = arriving ?? "var(--river)";
   const litIndex = lit === null ? -1 : checks.findIndex((check) => checkKey(check) === lit);
   const litCheck = litIndex >= 0 ? checks[litIndex] : null;
@@ -191,7 +199,7 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
             <linearGradient id="tributaries-confluence" gradientUnits="userSpaceOnUse" x1={confluence} y1={middle} x2={riverEnd} y2={middle}>
               <stop offset="0" style={{ stopColor: from }} />
               <stop offset="0.12" style={{ stopColor: from }} />
-              <stop offset="0.24" style={{ stopColor: `color-mix(in oklch, ${from}, var(--river))` }} />
+              <stop offset="0.24" style={{ stopColor: `color-mix(in ${mixing(v.tone)}, ${from}, var(--river))` }} />
               <stop offset="0.36" style={{ stopColor: "var(--river)" }} />
             </linearGradient>
             <linearGradient id="tributaries-mouth" gradientUnits="userSpaceOnUse" x1={confluence} y1={middle} x2={riverEnd} y2={middle}>
