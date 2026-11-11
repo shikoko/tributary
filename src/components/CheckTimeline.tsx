@@ -13,22 +13,22 @@ const ago = (ms: number, now: number) => {
 
 const isRunning = (check: RequestCheck) => check.state === "pending" && Boolean(check.startedAt) && !check.finishedAt;
 
-/** Past this far along the clock, a run's "Started …" goes left of its line, so it fits. */
-const LABEL_FLIPS_AT = 0.72;
-
 /** A bar starting this close to the start of the clock (under a pixel) starts it: nothing dotted before it. */
 const AT_THE_START = 0.002;
+
 
 /**
  * A request's checks on one clock: each one a bar from when it started to when it ended,
  * a running one striped and growing until now, one waiting for a runner an empty track.
  * The time beside each says how long it took or has been running. They're in groups by
  * what they're part of (a GitHub workflow run, with what started it, or a GitLab stage),
- * in the order they started: a dotted line down each group marks when its run started,
- * and the time before a check started is dotted on its track. A bar is cut square where it
- * starts, flush against its run's line or the dots, except one that started the clock in a
- * list without lines, which is round at both ends. Beside its name, how much later than its
- * run a check started ("+15s"), when it waited for another job or a runner. Clicking a row
+ * in the order they started. Everything counts from one start, when the first check of all
+ * started: a dotted line down through every run, headed by "Started 11 minutes ago". A
+ * check that started later (waiting for another job, for a runner, or in a run that started
+ * later) says how much later beside its name ("+49s"), and the time before it is dotted on
+ * its track. A bar is cut square where it starts, flush against the line or the dots,
+ * except one that started the clock in a list without the line, which is round at both
+ * ends. Clicking a row
  * opens the check's page, as clicking its wave does. Without times from the
  * site, just the names and how they went.
  */
@@ -53,9 +53,8 @@ export function CheckTimeline({
   const barOf = (check: RequestCheck) => timeline?.bars[ordered.indexOf(check)] ?? null;
   // Headings only when the checks say what they're part of.
   const headed = groups.some((group) => group.name !== null);
-  const length = timeline ? Math.max(timeline.last - timeline.first, 1) : 1;
 
-  const row = (groupName: string) => (check: RequestCheck, index: number) => {
+  const row = (check: RequestCheck, index: number) => {
     const state = check.state ?? "skipped";
     const queued = check.state === "pending" && !check.startedAt;
     const bar = barOf(check);
@@ -83,7 +82,7 @@ export function CheckTimeline({
           </span>
         )}
         {timeline && (
-          <span className="request-timeline-later" title={later.has(check) ? `Started ${formatElapsed(later.get(check)!)} after the first of ${groupName}` : undefined}>
+          <span className="request-timeline-later" title={later.has(check) ? `Started ${formatElapsed(later.get(check)!)} after the first check` : undefined}>
             {later.has(check) ? `+${formatElapsed(later.get(check)!)}` : null}
           </span>
         )}
@@ -107,29 +106,22 @@ export function CheckTimeline({
     );
   };
 
-  const group = (each: CheckGroup) => {
+  const group = (each: CheckGroup, index: number) => {
     // When its run started and ended (or now), on the clock.
     const span = timeline ? checkTimeline(each.checks, now) : null;
-    const start = span && timeline ? (span.first - timeline.first) / length : 0;
     const running = each.checks.some(isRunning);
     return (
       <li key={`${each.name}\u0000${each.trigger}`} className="request-timeline-group">
-        {span && (
-          <div className="request-timeline-guide" aria-hidden>
-            <span>
-              <span style={{ left: `${start * 100}%` }} />
-            </span>
-          </div>
-        )}
         <div className="request-timeline-group-head">
           <span className="request-timeline-group-name">
             {each.name ?? "Other checks"}
             {each.trigger && <span className="request-timeline-group-trigger"> · {each.trigger}</span>}
           </span>
-          {span && (
+          {/* The one start, at the top of its line. */}
+          {index === 0 && timeline && (
             <span className="request-timeline-group-start">
-              <span className={`request-timeline-group-flag${start > LABEL_FLIPS_AT ? " flipped" : ""}`} style={{ left: `${start * 100}%` }}>
-                Started {relativeTime(span.first / 1000, now / 1000)}
+              <span className="request-timeline-group-flag" style={{ left: 0 }}>
+                Started {relativeTime(timeline.first / 1000, now / 1000)}
               </span>
             </span>
           )}
@@ -139,17 +131,26 @@ export function CheckTimeline({
             </span>
           )}
         </div>
-        <ul className="request-timeline-list">{each.checks.map(row(`the ${each.name ?? "other checks"}`))}</ul>
+        <ul className="request-timeline-list">{each.checks.map(row)}</ul>
       </li>
     );
   };
 
   return (
     <div className={`request-timeline${timeline ? "" : " untimed"}${headed ? " grouped" : ""}`}>
-      <ul className="request-timeline-list">{headed ? groups.map(group) : ordered.map(row("these checks"))}</ul>
+      {/* When the first check started: a dotted line down through every run, which the
+          bars start from (flush, or after the dotted wait). */}
+      {timeline && headed && (
+        <div className="request-timeline-origin" aria-hidden>
+          <span>
+            <span />
+          </span>
+        </div>
+      )}
+      <ul className="request-timeline-list">{headed ? groups.map((each, index) => group(each, index)) : ordered.map(row)}</ul>
       {timeline && (
         <div className="request-timeline-axis" aria-hidden>
-          <span>{ago(timeline.first, now)}</span>
+          <span>{headed ? null : ago(timeline.first, now)}</span>
           <span>{ordered.some(isRunning) ? "Now" : ago(timeline.last, now)}</span>
         </div>
       )}

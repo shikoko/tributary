@@ -163,7 +163,14 @@ describe("groupChecks", () => {
     ]);
   });
 
-  it("says how much later than its run each check started, past a few seconds", () => {
+  it("says how long after the first check of all each check started, across runs", () => {
+    const groups = groupChecks([check("Analyze", 0, "CodeQL"), check("App", 8, "Checks"), check("Lint", 3, "Checks"), check("Slow", 40, "Checks")]);
+    const later = startedLater(groups);
+    // Lint started with the first: nothing to say.
+    expect(Object.fromEntries([...later].map(([c, ms]) => [c.name, ms]))).toEqual({ App: 8_000, Slow: 40_000 });
+  });
+
+  it("says how much later than the first check each check started, past a few seconds", () => {
     const groups = groupChecks([
       check("Version", 0, "Build"),
       check("macOS", 15, "Build"),
@@ -173,7 +180,7 @@ describe("groupChecks", () => {
       check("App", 540, "Checks"),
     ]);
     const later = startedLater(groups);
-    expect(Object.fromEntries([...later].map(([c, ms]) => [c.name, ms]))).toEqual({ macOS: 15_000, Windows: 17_000 });
+    expect(Object.fromEntries([...later].map(([c, ms]) => [c.name, ms]))).toEqual({ macOS: 15_000, Windows: 17_000, App: 540_000 });
   });
 
   it("keeps runs of one workflow with different triggers apart, and checks without one together", () => {

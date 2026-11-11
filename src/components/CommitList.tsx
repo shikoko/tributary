@@ -237,11 +237,13 @@ export function CommitList(props: Props) {
   const rows = [];
   for (let slotIndex = first; slotIndex < last; slotIndex++) {
     const slot = slots[slotIndex];
+    if (slot === undefined) continue;
     if (typeof slot !== "number") {
       rows.push(<DaySeparator key={`day:${slot.before}`} day={slot.day} top={slotIndex * rowHeight} height={rowHeight} />);
       continue;
     }
     const commit = commits[slot];
+    if (!commit) continue;
     rows.push(
       <ListRow
         key={commit.id}

@@ -284,7 +284,7 @@
 }
 
 .tributaries-stream.cancelled,
-.tributaries-label.cancelled {
+.tributaries-caption.cancelled {
   --wave: var(--text-faint);
 }
 
@@ -301,65 +301,85 @@
   outline: none;
 }
 
-/* Its name, how it went and how long, following the pointer along the wave. */
-.tributaries-label {
+/* The check in the spotlight, named under its wave and hanging from it on a dotted line
+   (CheckTributaries works out where, and how long the line is). */
+.tributaries-caption-row {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 20px;
+  margin: 2px 0 8px;
+}
+
+.tributaries-caption {
+  --wave: var(--text-faint);
   position: absolute;
-  z-index: 2;
-  display: inline-flex;
+  top: 0;
+  display: flex;
   align-items: center;
   gap: 8px;
-  height: 28px;
-  padding: 0 11px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-raised);
-  box-shadow: 0 8px 22px var(--shadow);
+  height: 20px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 12.5px;
   white-space: nowrap;
-  pointer-events: none;
-  transform: translate(-50%, calc(-100% - 12px));
+  transform: translateX(-50%);
+  animation: tributaries-caption 0.12s ease both;
 }
 
-.tributaries-label.below {
-  transform: translate(-50%, 12px);
+@keyframes tributaries-caption {
+  from {
+    opacity: 0;
+  }
 }
 
-.tributaries-label.success {
+.tributaries-caption.success {
   --wave: var(--success);
 }
 
-.tributaries-label.failure {
+.tributaries-caption.failure {
   --wave: var(--danger);
 }
 
-.tributaries-label.pending {
+.tributaries-caption.pending {
   --wave: var(--warning);
 }
 
-.tributaries-label-dot {
-  flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--wave);
+/* Round dots, evenly spaced: dashes of nothing with round ends. */
+.tributaries-caption-line {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: calc(50% - 2px);
+  overflow: visible;
 }
 
-.tributaries-label-name,
-.tributaries-label-state {
+.tributaries-caption-line line {
+  stroke: var(--wave);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 0 4;
+  opacity: 0.85;
+}
+
+.tributaries-caption-name,
+.tributaries-caption-state {
   text-box: trim-both cap alphabetic;
 }
 
-.tributaries-label-name {
+.tributaries-caption-name {
   color: var(--text);
+  font-size: 13.5px;
   font-weight: 600;
 }
 
-.tributaries-label-state {
+.tributaries-caption-state {
   font-variant-numeric: tabular-nums;
 }
 
-.tributaries-label svg {
+.tributaries-caption-word {
+  color: var(--wave);
+  font-weight: 600;
+}
+
+.tributaries-caption svg {
   flex: none;
 }
 
