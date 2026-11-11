@@ -149,6 +149,29 @@ button.request-ref:hover {
   background: rgb(var(--overlay-rgb) / 0.2);
 }
 
+/* Copies its name: the icon turns into a tick once copied. */
+.request-ref.copies {
+  gap: 6px;
+}
+
+/* The copy mark always shows, faintly, so it's clear a click copies (like the SHA in Details). */
+.request-ref.copies svg {
+  flex: none;
+  color: var(--text-muted);
+  opacity: 0.55;
+  transition: opacity 0.12s ease;
+}
+
+.request-ref.copies:hover svg,
+.request-ref.copies:focus-visible svg,
+.request-ref.copies.copied svg {
+  opacity: 1;
+}
+
+.request-ref.copies.copied svg {
+  color: var(--success-text);
+}
+
 .request-into {
   display: inline-flex;
   color: var(--text-muted);
