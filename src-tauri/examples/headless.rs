@@ -432,6 +432,13 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             let license = std::fs::read_to_string(root.join("LICENSE")).ok();
             Ok(serde_json::json!({ "notices": notices, "license": license }))
         }
+        // The preview has no problems log: interface errors go to the server's output.
+        "report_problem" => {
+            let what: String = arg(args, "what")?;
+            eprintln!("Interface problem: {what}");
+            Ok(Value::Null)
+        }
+        "take_recovery_note" => Ok(Value::Null),
         "cancel_action" => to_json(git::cancel()),
         "activity_log" => to_json(git::activity()),
         other => Err(Error::Message(format!(

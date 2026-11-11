@@ -28,6 +28,8 @@ body:
       label: Diagnostics
       description: |
         In Tributary, choose **Help → Copy Diagnostics…**, then paste it here. It has the versions of Tributary, git and Git LFS, your system, how the open repository is set up, and the last git commands that failed. Passwords and tokens are left out, but it does include the repository's folder and remote addresses: read it first, and change anything you'd rather not share.
+
+        If the window went blank or showed an error, the Diagnostics window also has **Show Problem Reports**: attach the crash reports in its `crashes` folder, if there are any.
       render: text
     validations:
       required: true
