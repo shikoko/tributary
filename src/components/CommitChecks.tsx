@@ -4,6 +4,7 @@ import { CiStatesContext } from "../lib/ciStates";
 import { anyRunning, checkTime } from "../lib/pullRequests";
 import { useNow } from "../lib/useNow";
 import { openInBrowser } from "../lib/weblinks";
+import { SlidingText } from "./SlidingText";
 import { ExternalLinkIcon, RefreshIcon } from "./Icons";
 
 type State = "failure" | "pending" | "success" | "cancelled" | "skipped";
@@ -104,7 +105,7 @@ function CheckLine({ check, time }: { check: RequestCheck; time: string | null }
     <>
       <span className="commit-check-dot" title={WORDS[state]} />
       <span className="commit-check-text">
-        <span className="commit-check-name">{check.name}</span>
+        <SlidingText className="commit-check-name" text={check.name} />
         {check.detail && <span className="commit-check-detail">{check.detail}</span>}
       </span>
       {time && <span className="commit-check-time">{time}</span>}

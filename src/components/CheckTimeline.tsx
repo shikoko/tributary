@@ -2,6 +2,7 @@ import type { RequestCheck } from "../api";
 import { relativeTime } from "../lib/format";
 import { checkKey, checkTime, checkTimeline, formatElapsed, groupChecks, startedLater, type CheckGroup } from "../lib/pullRequests";
 import { ExternalLinkIcon } from "./Icons";
+import { SlidingText } from "./SlidingText";
 
 const WORDS = { success: "Passed", failure: "Failed", pending: "Running", cancelled: "Cancelled", skipped: "Skipped" } as const;
 
@@ -58,7 +59,7 @@ export function CheckTimeline({
     const state = check.state ?? "skipped";
     const queued = check.state === "pending" && !check.startedAt;
     const bar = barOf(check);
-    const name = <span className="request-check-name">{check.name}</span>;
+    const name = <SlidingText className="request-check-name" text={check.name} />;
     return (
       <li
         key={`${check.name}-${index}`}
