@@ -6,6 +6,6 @@ describe("blend", () => {
     expect(blend([])).toBeNull();
     expect(blend(["success", "success"])).toBe("var(--success)");
     // Three green and one amber: a quarter amber in green.
-    expect(blend(["success", "success", "success", "pending"])).toBe("color-mix(in srgb, var(--warning) 25%, var(--success))");
+    expect(blend(["success", "success", "success", "pending"])).toBe("color-mix(in oklch, var(--warning) 25%, var(--success))");
   });
 });
