@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { RequestCheck } from "../api";
-import { checkKey, checksVerdict, checkTime, describeCheckProgress } from "../lib/pullRequests";
+import { checkKey, checkName, checksVerdict, checkTime, describeCheckProgress } from "../lib/pullRequests";
 import { ExternalLinkIcon } from "./Icons";
 
 type Props = {
@@ -277,7 +277,7 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
             const waiting = queued(check);
             const dry = confluence * DRY;
             const time = checkTime(check, now);
-            const title = `${check.name}: ${waiting ? "queued" : WORDS[state]}${time ? ` · ${time}` : ""}`;
+            const title = `${checkName(check.name)}: ${waiting ? "queued" : WORDS[state]}${time ? ` · ${time}` : ""}`;
             const was = settling.get(checkKey(check));
             const spotlit = checkKey(check) === lit;
             const open = () => check.url && openUrl(check.url);
@@ -338,7 +338,7 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
             <svg className="tributaries-caption-line" width={4} height={hang.length + 2}>
               <line x1={2} y1={1} x2={2} y2={hang.length + 1} />
             </svg>
-            <span className="tributaries-caption-name">{litCheck.name}</span>
+            <span className="tributaries-caption-name">{checkName(litCheck.name)}</span>
             <span className="tributaries-caption-state">
               <span className="tributaries-caption-word">{queued(litCheck) ? "queued" : WORDS[stateOf(litCheck)]}</span>
               {checkTime(litCheck, now) ? ` · ${checkTime(litCheck, now)}` : ""}

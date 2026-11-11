@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { commitChecks, rerunFailedChecks, type CommitChecks as Checks, type RequestCheck } from "../api";
 import { CiStatesContext } from "../lib/ciStates";
-import { anyRunning, checkTime } from "../lib/pullRequests";
+import { anyRunning, checkName, checkTime } from "../lib/pullRequests";
 import { useNow } from "../lib/useNow";
 import { openInBrowser } from "../lib/weblinks";
 import { SlidingText } from "./SlidingText";
@@ -105,7 +105,7 @@ function CheckLine({ check, time }: { check: RequestCheck; time: string | null }
     <>
       <span className="commit-check-dot" title={WORDS[state]} />
       <span className="commit-check-text">
-        <SlidingText className="commit-check-name" text={check.name} />
+        <SlidingText className="commit-check-name" text={checkName(check.name)} />
         {check.detail && <span className="commit-check-detail">{check.detail}</span>}
       </span>
       {time && <span className="commit-check-time">{time}</span>}
@@ -115,7 +115,7 @@ function CheckLine({ check, time }: { check: RequestCheck; time: string | null }
   return (
     <li className={`commit-check ${state}`}>
       {check.url ? (
-        <button className="commit-check-row" onClick={() => openInBrowser(check.url!)} data-url={check.url} title={`${check.name}: open its page`}>
+        <button className="commit-check-row" onClick={() => openInBrowser(check.url!)} data-url={check.url} title={`${checkName(check.name)}: open its page`}>
           {content}
         </button>
       ) : (

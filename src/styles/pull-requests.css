@@ -486,6 +486,28 @@ button.request-ref:hover {
   min-width: 4px;
   border-radius: 0 4px 4px 0;
   background: var(--text-faint);
+  /* When the clock steps up, bars glide to their new places; a running one grows smoothly. */
+  transition:
+    left 0.6s ease,
+    width 0.6s ease;
+}
+
+/* Where a bar starts on its track (set on the track), registered so it can glide too. */
+@property --from {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 0%;
+}
+
+.request-timeline-track {
+  transition: --from 0.6s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .request-timeline-bar,
+  .request-timeline-track {
+    transition: none;
+  }
 }
 
 .request-timeline-bar.first {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RequestCheck, RequestDetails } from "../api";
-import { anyRunning, byStart, checksVerdict, checkTime, checkTimeline, describeCheckProgress, describeMergeable, describeReviews, suggestRequest, formatElapsed, groupChecks, startedLater, summarizeChecks, titleFromBranch } from "./pullRequests";
+import { anyRunning, byStart, checkName, checksVerdict, checkTime, checkTimeline, formatSpan, runningScale, describeCheckProgress, describeMergeable, describeReviews, suggestRequest, formatElapsed, groupChecks, startedLater, summarizeChecks, titleFromBranch } from "./pullRequests";
 
 describe("suggestRequest", () => {
   it("uses a single commit's message", () => {
@@ -203,19 +203,26 @@ describe("checkTimeline", () => {
     finishedAt,
   });
 
-  it("puts every check on one clock, from the first start to the last end or now", () => {
-    const now = Date.parse("2026-11-10T10:10:00Z");
+  it("puts every check on one clock, from the first start to the last end", () => {
     const timeline = checkTimeline(
-      [
-        check("success", "2026-11-10T10:00:00Z", "2026-11-10T10:05:00Z"),
-        check("pending", "2026-11-10T10:05:00Z", null),
-        check("pending", null, null),
-      ],
-      now,
+      [check("success", "2026-11-10T10:00:00Z", "2026-11-10T10:05:00Z"), check("failure", "2026-11-10T10:05:00Z", "2026-11-10T10:10:00Z"), check("pending", null, null)],
+      Date.parse("2026-11-10T10:30:00Z"),
     );
     expect(timeline?.first).toBe(Date.parse("2026-11-10T10:00:00Z"));
-    expect(timeline?.last).toBe(now);
+    expect(timeline?.last).toBe(Date.parse("2026-11-10T10:10:00Z"));
+    expect(timeline?.running).toBe(false);
     expect(timeline?.bars).toEqual([{ from: 0, to: 0.5 }, { from: 0.5, to: 1 }, null]);
+  });
+
+  it("while one runs, gives the clock a round length, so starts stay put as it grows", () => {
+    const checks = [check("success", "2026-11-10T10:00:00Z", "2026-11-10T10:05:00Z"), check("pending", "2026-11-10T10:05:00Z", null)];
+    const at = (time: string) => checkTimeline(checks, Date.parse(time));
+    // 10 minutes in: a 15-minute clock.
+    expect(at("2026-11-10T10:10:00Z")?.length).toBe(15 * 60_000);
+    expect(at("2026-11-10T10:10:00Z")?.bars).toEqual([{ from: 0, to: 1 / 3 }, { from: 1 / 3, to: 2 / 3 }]);
+    // A minute later the running one has grown, and nothing else has moved.
+    expect(at("2026-11-10T10:11:00Z")?.bars).toEqual([{ from: 0, to: 1 / 3 }, { from: 1 / 3, to: 11 / 15 }]);
+    expect(at("2026-11-10T10:11:00Z")?.running).toBe(true);
   });
 
   it("has nothing to show when no check has times", () => {
@@ -255,5 +262,30 @@ describe("cancelled checks", () => {
     // A failure still decides.
     expect(checksVerdict([check("failure"), check("cancelled")]).tone).toBe("failure");
     expect(summarizeChecks([check("success"), check("cancelled")])).toBe("1 passed, 1 cancelled");
+  });
+});
+
+describe("runningScale", () => {
+  it("goes up in round lengths, with room to grow", () => {
+    expect(runningScale(10_000)).toBe(30_000);
+    expect(runningScale(39_000)).toBe(60_000);
+    expect(runningScale(55_000)).toBe(120_000);
+    expect(runningScale(25 * 60_000)).toBe(30 * 60_000);
+    expect(runningScale(30 * 3600_000)).toBe(2 * 86_400_000);
+  });
+
+  it("is said briefly", () => {
+    expect(formatSpan(60_000)).toBe("1m");
+    expect(formatSpan(5_400_000)).toBe("1h 30m");
+    expect(formatSpan(3_600_000)).toBe("1h");
+    expect(formatSpan(30_000)).toBe("30s");
+  });
+});
+
+describe("checkName", () => {
+  it("leaves out a skipped matrix job's unfilled template", () => {
+    expect(checkName("Rust (${{ matrix.name }})")).toBe("Rust");
+    expect(checkName("Build ${{ matrix.os }} app")).toBe("Build … app");
+    expect(checkName("Analyze (python)")).toBe("Analyze (python)");
   });
 });
