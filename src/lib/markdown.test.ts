@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { openable, parseInline, parseMarkdown, type Block } from "./markdown";
+import { openable, parseInline, parseMarkdown, withoutComments, type Block } from "./markdown";
 
 const kinds = (blocks: Block[]) => blocks.map((block) => block.kind);
 
@@ -51,6 +51,15 @@ describe("parseMarkdown", () => {
 
   it("leaves out HTML comments, like a template's hints", () => {
     expect(parseMarkdown("<!-- Describe it -->\nIt works.\n<!--\nmore\n-->")).toEqual([{ kind: "paragraph", content: [{ kind: "text", text: "It works." }] }]);
+  });
+
+  it("leaves no comment behind, even one made of the pieces of others, and one left open hides the rest", () => {
+    // Taking out the inner comment would leave "<!--" from what's around it.
+    expect(withoutComments("a <!<!---->-- b")).not.toContain("<!--");
+    expect(withoutComments("a <!<!-- x -->-- hidden --> b")).toBe("a  b");
+    // As on GitHub: a comment that's never closed hides everything after it.
+    expect(withoutComments("Shown.\n<!-- never closed\nhidden")).toBe("Shown.\n");
+    expect(parseMarkdown("Shown.\n<!-- never closed\nhidden")).toEqual([{ kind: "paragraph", content: [{ kind: "text", text: "Shown." }] }]);
   });
 });
 
