@@ -3,12 +3,19 @@ name: Checks
 # Every pull request into develop or main is checked, and can only be merged once the
 # checks pass (a ruleset makes them required). Pull requests from forks run without any
 # secrets, and nothing here needs one.
+#
+# Each merge into develop is checked again too, as merged: a pull request is merged
+# straight after it's rebased onto develop, without waiting for its checks to run again, so
+# this is what catches two pull requests that each passed but don't work together. A newer
+# merge cancels the run of the one before.
 on:
   pull_request:
     branches: [develop, main]
+  push:
+    branches: [develop]
 
 concurrency:
-  group: checks-${{ github.event.pull_request.number }}
+  group: checks-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -17,33 +24,44 @@ permissions:
 # Linux jobs name their Ubuntu (not ubuntu-latest), so a new one is a change made on
 # purpose, with its own run of the checks, rather than one that happens by itself.
 jobs:
-  # Whether anything but documentation changed: a pull request of only words and pictures
-  # (Markdown, docs/, the issue forms, the licence) doesn't need the app built and tested.
+  # What changed decides what runs. Only words and pictures (Markdown, docs/, the issue
+  # forms, the licence): nothing is built or tested. Nothing on the Rust side (src-tauri/,
+  # package.json, this workflow and its scripts): the Rust jobs on Linux, macOS and Windows
+  # are skipped, which are most of the wait; the smoke test still builds the Rust side on
+  # Linux.
   changes:
     name: What changed
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       code: ${{ steps.files.outputs.code }}
+      rust: ${{ steps.files.outputs.rust }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Only documentation?
+      - name: Which parts?
         id: files
         env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
+          # A pull request's changes, or a merge's (everything runs if they can't be told).
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          changed=$(git diff --name-only "$BASE...$HEAD")
+          changed=$(git diff --name-only "$BASE...$HEAD" 2>/dev/null || true)
           echo "$changed"
+          code=true
+          rust=true
           if [ -n "$changed" ] && ! grep -qvE '(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/)' <<<"$changed"; then
             echo "::notice::Only documentation changed: the app isn't built or tested."
-            echo "code=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "code=true" >> "$GITHUB_OUTPUT"
+            code=false
+            rust=false
+          elif [ -n "$changed" ] && ! grep -qE '^(src-tauri/|package\.json$|\.github/workflows/checks\.yml$|\.github/scripts/)' <<<"$changed"; then
+            echo "::notice::Nothing on the Rust side changed: its checks on Linux, macOS and Windows are skipped (the smoke test still builds it)."
+            rust=false
           fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "rust=$rust" >> "$GITHUB_OUTPUT"
 
   # The app's TypeScript: types, lint and unit tests.
   app:
@@ -73,7 +91,7 @@ jobs:
   rust:
     name: Rust (${{ matrix.name }})
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
