@@ -372,11 +372,11 @@ button.request-ref:hover {
   opacity: 1;
 }
 
-/* A request's checks on one clock (CheckTimeline): dot, name, a track with the check's bar
-   on it, and its time. Every row has the same columns, so the bars share one time axis,
+/* A request's checks on one clock (CheckTimeline): dot, name, how much later than its run it
+   started, a track with the check's bar on it, and its time. Every row has the same columns, so the bars share one time axis,
    and the axis under them uses the same columns to line up with the tracks. */
 .request-timeline {
-  --timeline-columns: 8px minmax(0, 170px) minmax(0, 1fr) 60px;
+  --timeline-columns: 8px minmax(0, 170px) 52px minmax(0, 1fr) 60px;
 }
 
 .request-timeline.untimed {
@@ -422,13 +422,33 @@ button.request-ref:hover {
   background: rgb(var(--overlay-rgb) / 0.06);
 }
 
+/* Cut square where it starts, flush against its run's line or the dotted wait; round at
+   both ends when it started the clock in a list without lines. */
 .request-timeline-bar {
   position: absolute;
   top: 0;
   bottom: 0;
   min-width: 4px;
-  border-radius: 4px;
+  border-radius: 0 4px 4px 0;
   background: var(--text-faint);
+}
+
+.request-timeline-bar.first {
+  border-radius: 4px;
+}
+
+/* Before a check started: a dotted line instead of the track. */
+.request-timeline-track.started {
+  background: linear-gradient(to right, transparent var(--from), rgb(var(--overlay-rgb) / 0.06) var(--from));
+}
+
+.request-timeline-before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: var(--from);
+  border-top: 2px dotted var(--border-strong);
+  transform: translateY(-50%);
 }
 
 .request-timeline-bar.success {
@@ -503,6 +523,17 @@ button.request-ref:hover {
   color: var(--text);
 }
 
+/* How much later than its run it started: "+15s". */
+.request-timeline-later {
+  overflow-x: visible;
+  text-box: trim-both cap alphabetic;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
 /* Why it failed, under its name. */
 .request-timeline-detail {
   grid-column: 2 / -1;
@@ -525,13 +556,138 @@ button.request-ref:hover {
 }
 
 .request-timeline-axis span {
-  grid-column: 3;
+  grid-column: 4;
   grid-row: 1;
   text-box: trim-both cap alphabetic;
 }
 
 .request-timeline-axis span:last-child {
   justify-self: end;
+}
+
+/* In groups by workflow run (or GitLab stage): a heading with what started it, when, and
+   how long it's taken, then its checks. On the same columns as the rows. */
+.request-timeline.grouped > .request-timeline-list {
+  gap: 22px;
+}
+
+.request-timeline-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.request-timeline-group > .request-timeline-list,
+.request-timeline-group-head {
+  position: relative;
+}
+
+.request-timeline-group-head {
+  display: grid;
+  grid-template-columns: var(--timeline-columns);
+  align-items: center;
+  column-gap: 12px;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.request-timeline-group-head > * {
+  grid-row: 1;
+}
+
+/* Over the dot, name and start columns, up to where its run's line can be. */
+.request-timeline-group-name {
+  grid-column: 1 / 4;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-timeline.untimed .request-timeline-group-name {
+  grid-column: 1 / -1;
+}
+
+.request-timeline-group-trigger {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.request-timeline-group-total {
+  grid-column: 5;
+  text-box: trim-both cap alphabetic;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* When its run started: a dot by the heading, with a dotted line down to its last row.
+   The line ends where the bars start, so they start flush against it. */
+.request-timeline-group-start {
+  grid-column: 4;
+  position: relative;
+  align-self: stretch;
+}
+
+.request-timeline-group-flag {
+  position: absolute;
+  top: 50%;
+  padding-left: 9px;
+  color: var(--text-muted);
+  text-box: trim-both cap alphabetic;
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+
+.request-timeline-group-flag::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transform: translate(-50%, -50%);
+}
+
+/* Near the end of the clock: the words go on the line's left. */
+.request-timeline-group-flag.flipped {
+  padding: 0 9px 0 0;
+  transform: translate(-100%, -50%);
+}
+
+.request-timeline-group-flag.flipped::before {
+  left: auto;
+  right: 1px;
+  transform: translate(50%, -50%);
+}
+
+.request-timeline-guide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: var(--timeline-columns);
+  column-gap: 12px;
+  pointer-events: none;
+}
+
+.request-timeline-guide > span {
+  grid-column: 4;
+  position: relative;
+}
+
+.request-timeline-guide > span > span {
+  position: absolute;
+  top: var(--group-head-middle, 4.5px);
+  bottom: 0;
+  border-left: 2px dotted var(--border-strong);
+  transform: translateX(-2px);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
 }
 
 /* How long a check has been running, or took. Figures of one width, so a ticking time
@@ -1149,3 +1305,4 @@ textarea.request-body.short {
   content: "·";
   margin-right: 8px;
 }
+

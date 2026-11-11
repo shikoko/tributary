@@ -102,7 +102,7 @@ pub struct Review {
 }
 
 /// One check (GitHub) or pipeline job (GitLab).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Check {
     pub name: String,
@@ -116,6 +116,14 @@ pub struct Check {
     pub started_at: Option<String>,
     /// When it finished (RFC 3339), if it has.
     pub finished_at: Option<String>,
+    /// What it's part of, to group it by: its GitHub workflow (or the app that ran it),
+    /// or its GitLab stage.
+    pub workflow: Option<String>,
+    /// What started that, in words, like "on push to develop".
+    pub trigger: Option<String>,
+    /// Its GitHub check suite, which tells which workflow run it's part of.
+    #[serde(skip)]
+    pub suite: Option<u64>,
 }
 
 /// One pull (or merge) request in full.
@@ -598,10 +606,7 @@ mod tests {
         let check = |name: &str, state| Check {
             name: name.into(),
             state,
-            url: None,
-            detail: None,
-            started_at: None,
-            finished_at: None,
+            ..Check::default()
         };
         let mut checks = vec![
             check("lint", Some(CheckState::Success)),

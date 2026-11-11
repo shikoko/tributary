@@ -848,6 +848,11 @@ export const STUDIO_PULL_REQUESTS = [
   { number: 14, title: "Make the door creak", url: "https://github.com/example/feast/pull/14", remote: "origin", branch: "fix/door", draft: false, author: "theo-park", checks: "failure", forge: "github" },
 ];
 
+// The workflow runs the studio's checks are part of, and what started them.
+const BUILD_RUN = { workflow: "Build", trigger: "on the pull request" };
+const ASSETS_RUN = { workflow: "Asset checks", trigger: "on the pull request" };
+const PREVIEW_RUN = { workflow: "Preview", trigger: "on the pull request" };
+
 /** The studio's pull requests in full, as the preview shows them (window.__PREVIEW__.pullRequestDetails). */
 const daysAgo = (days) => new Date(Date.now() - days * 86_400_000).toISOString();
 /** A check's times: started `from` seconds ago, finished `to` seconds ago (or still running). */
@@ -877,10 +882,10 @@ export const STUDIO_PULL_REQUEST_DETAILS = {
       { author: "sam-okafor", state: "requested" },
     ],
     checks: [
-      { name: "Build (Windows)", state: "success", url: "https://github.com/example/feast/actions/runs/1", detail: null, ...ran(7400, 6920) },
-      { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/2", detail: null, ...ran(7400, 6977) },
-      { name: "Asset sizes", state: "success", url: "https://github.com/example/feast/actions/runs/3", detail: null, ...ran(7400, 7352) },
-      { name: "Deploy preview", state: null, url: null, detail: "Skipped" },
+      { name: "Build (Windows)", state: "success", url: "https://github.com/example/feast/actions/runs/1", detail: null, ...ran(7400, 6920), ...BUILD_RUN },
+      { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/2", detail: null, ...ran(7400, 6977), ...BUILD_RUN },
+      { name: "Asset sizes", state: "success", url: "https://github.com/example/feast/actions/runs/3", detail: null, ...ran(7400, 7352), ...ASSETS_RUN },
+      { name: "Deploy preview", state: null, url: null, detail: "Skipped", ...PREVIEW_RUN },
     ],
     forge: "github",
     baseSha: null,
@@ -907,13 +912,13 @@ export const STUDIO_PULL_REQUEST_DETAILS = {
       { author: "maya-chen", state: "requested" },
     ],
     checks: [
-      { name: "Audio loudness", state: "failure", url: "https://github.com/example/feast/actions/runs/7", detail: "door_creak.wav peaks at -0.4 dB", ...ran(300, 262) },
-      { name: "Build (Windows)", state: "pending", url: "https://github.com/example/feast/actions/runs/8", detail: null, ...ran(252) },
-      { name: "Build (Linux)", state: "pending", url: "https://github.com/example/feast/actions/runs/10", detail: "Queued", startedAt: null, finishedAt: null },
-      { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/9", detail: null, ...ran(300, 103) },
-      { name: "Asset sizes", state: "success", url: "https://github.com/example/feast/actions/runs/11", detail: null, ...ran(300, 281) },
-      { name: "Lint", state: "success", url: "https://github.com/example/feast/actions/runs/12", detail: null, ...ran(298, 262) },
-      { name: "Deploy preview", state: null, url: "https://github.com/example/feast/actions/runs/13", detail: null, ...ran(250, 250) },
+      { name: "Audio loudness", state: "failure", url: "https://github.com/example/feast/actions/runs/7", detail: "door_creak.wav peaks at -0.4 dB", ...ran(300, 262), ...ASSETS_RUN },
+      { name: "Build (Windows)", state: "pending", url: "https://github.com/example/feast/actions/runs/8", detail: null, ...ran(252), ...BUILD_RUN },
+      { name: "Build (Linux)", state: "pending", url: "https://github.com/example/feast/actions/runs/10", detail: "Queued", startedAt: null, finishedAt: null, ...BUILD_RUN },
+      { name: "Build (macOS)", state: "success", url: "https://github.com/example/feast/actions/runs/9", detail: null, ...ran(300, 103), ...BUILD_RUN },
+      { name: "Asset sizes", state: "success", url: "https://github.com/example/feast/actions/runs/11", detail: null, ...ran(300, 281), ...ASSETS_RUN },
+      { name: "Lint", state: "success", url: "https://github.com/example/feast/actions/runs/12", detail: null, ...ran(298, 262), ...ASSETS_RUN },
+      { name: "Deploy preview", state: null, url: "https://github.com/example/feast/actions/runs/13", detail: null, ...ran(250, 250), ...PREVIEW_RUN },
     ],
     forge: "github",
     baseSha: null,

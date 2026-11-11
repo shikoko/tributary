@@ -209,9 +209,12 @@ pub(super) fn job_check(job: RawJob) -> Check {
         name: job.name,
         state,
         url: job.web_url,
+        // Grouped by stage, which run one after another.
+        workflow: job.stage.clone(),
         detail: job.stage,
         started_at: job.started_at,
         finished_at: job.finished_at,
+        ..Check::default()
     }
 }
 
