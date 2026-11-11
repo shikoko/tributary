@@ -1,6 +1,6 @@
 import type { RequestCheck } from "../api";
 import { relativeTime } from "../lib/format";
-import { checkTime, checkTimeline, formatElapsed, groupChecks, startedLater, type CheckGroup } from "../lib/pullRequests";
+import { checkKey, checkTime, checkTimeline, formatElapsed, groupChecks, startedLater, type CheckGroup } from "../lib/pullRequests";
 import { ExternalLinkIcon } from "./Icons";
 
 const WORDS = { success: "Passed", failure: "Failed", pending: "Running", cancelled: "Cancelled", skipped: "Skipped" } as const;
@@ -42,9 +42,9 @@ export function CheckTimeline({
   checks: RequestCheck[];
   now: number;
   openUrl: (url: string) => void;
-  /** The check in the spotlight (its wave above too), and a way to change it. */
+  /** The check in the spotlight (its wave above too, by its checkKey), and a way to change it. */
   lit?: string | null;
-  onLight?: (name: string | null) => void;
+  onLight?: (key: string | null) => void;
 }) {
   const groups = groupChecks(checks);
   const later = startedLater(groups);
@@ -63,8 +63,8 @@ export function CheckTimeline({
     return (
       <li
         key={`${check.name}-${index}`}
-        className={`request-check request-timeline-row ${state}${check.name === lit ? " lit" : ""}${check.url ? " opens" : ""}`}
-        onMouseEnter={() => onLight?.(check.name)}
+        className={`request-check request-timeline-row ${state}${checkKey(check) === lit ? " lit" : ""}${check.url ? " opens" : ""}`}
+        onMouseEnter={() => onLight?.(checkKey(check))}
         onMouseLeave={() => onLight?.(null)}
         // Anywhere on the row opens its page, as its wave above does; its name is the button
         // for the keyboard (its click comes here).

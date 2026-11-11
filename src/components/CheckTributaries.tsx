@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { RequestCheck } from "../api";
-import { checksVerdict, checkTime, describeCheckProgress } from "../lib/pullRequests";
+import { checkKey, checksVerdict, checkTime, describeCheckProgress } from "../lib/pullRequests";
 import { ExternalLinkIcon } from "./Icons";
 
 type Props = {
@@ -8,9 +8,9 @@ type Props = {
   now: number;
   gitlab: boolean;
   openUrl: (url: string) => void;
-  /** The check in the spotlight (its wave here, its row in the timeline), and a way to change it. */
+  /** The check in the spotlight (its wave here, its row in the timeline, by its checkKey), and a way to change it. */
   lit: string | null;
-  onLight: (name: string | null) => void;
+  onLight: (key: string | null) => void;
 };
 type Tone = "success" | "failure" | "pending" | "cancelled";
 
@@ -77,7 +77,7 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   const line = describeCheckProgress(checks, gitlab);
   // What each check looked like last time, so one that has just finished can settle into
   // its new look, and the moment the last one passes can be marked.
-  const looks = JSON.stringify(checks.map((check) => [check.name, queued(check) ? "queued" : stateOf(check)]));
+  const looks = JSON.stringify(checks.map((check) => [checkKey(check), queued(check) ? "queued" : stateOf(check)]));
   const before = useRef<Map<string, string> | null>(null);
   const toneBefore = useRef<Tone | null>(null);
   const [settling, setSettling] = useState<Map<string, string>>(new Map());
@@ -87,9 +87,9 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   useEffect(() => {
     const current = new Map(JSON.parse(looks) as [string, string][]);
     const changed = new Map<string, string>();
-    for (const [name, look] of current) {
-      const was = before.current?.get(name);
-      if (was && was !== look && (look === "success" || look === "failure" || look === "cancelled")) changed.set(name, was);
+    for (const [key, look] of current) {
+      const was = before.current?.get(key);
+      if (was && was !== look && (look === "success" || look === "failure" || look === "cancelled")) changed.set(key, was);
     }
     const passedNow = toneBefore.current !== null && toneBefore.current !== "success" && v.tone === "success";
     before.current = current;
@@ -144,12 +144,12 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   // It keeps their colour for a while, then turns into the verdict's through a bright middle
   // (mixed by how colours look, not through a muddy brown), before it fades.
   const from = arriving ?? "var(--river)";
-  const litIndex = lit === null ? -1 : checks.findIndex((check) => check.name === lit);
+  const litIndex = lit === null ? -1 : checks.findIndex((check) => checkKey(check) === lit);
   const litCheck = litIndex >= 0 ? checks[litIndex] : null;
   const labelX = Math.min(confluence - 40, Math.max(90, labelAt ?? width * 0.3));
   const across = (event: { clientX: number }) => event.clientX - (box.current?.getBoundingClientRect().left ?? 0);
-  const light = (name: string | null, x: number | null = null) => {
-    onLight(name);
+  const light = (key: string | null, x: number | null = null) => {
+    onLight(key);
     setLabelAt(x);
   };
   return (
@@ -193,10 +193,10 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
             const dry = confluence * 0.72;
             const time = checkTime(check, now);
             const title = `${check.name}: ${waiting ? "queued" : WORDS[state]}${time ? ` · ${time}` : ""}`;
-            const was = settling.get(check.name);
+            const was = settling.get(checkKey(check));
             const open = () => check.url && openUrl(check.url);
             return (
-              <g key={`${check.name}-${index}`} className={`tributaries-stream ${state}${waiting ? " queued" : ""}${was ? " settling" : ""}${check.name === lit ? " lit" : ""}`}>
+              <g key={`${check.name}-${index}`} className={`tributaries-stream ${state}${waiting ? " queued" : ""}${was ? " settling" : ""}${checkKey(check) === lit ? " lit" : ""}`}>
                 {was && <path className={`tributaries-stream-ghost ${was}`} d={d} pathLength={100} />}
                 <path className="tributaries-stream-line" d={d} pathLength={100} />
                 {state === "failure" && (
@@ -212,10 +212,10 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
                   role={check.url ? "link" : undefined}
                   tabIndex={check.url ? 0 : -1}
                   aria-label={check.url ? `${title}: open its page` : title}
-                  onMouseEnter={(event) => light(check.name, across(event))}
+                  onMouseEnter={(event) => light(checkKey(check), across(event))}
                   onMouseMove={(event) => setLabelAt(across(event))}
                   onMouseLeave={() => light(null)}
-                  onFocus={() => light(check.name)}
+                  onFocus={() => light(checkKey(check))}
                   onBlur={() => light(null)}
                   onClick={open}
                   onKeyDown={(event) => {

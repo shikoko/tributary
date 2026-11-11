@@ -100,6 +100,12 @@ export function checkTime(check: RequestCheck, now: number): string | null {
   return formatElapsed(end - start);
 }
 
+/**
+ * Which check this is, to light it up in both the tributaries and the timeline: its page,
+ * which is its own even when another check has the same name, or else its name.
+ */
+export const checkKey = (check: RequestCheck) => check.url ?? check.name;
+
 /** Checks that started within this long of each other count as starting together. */
 const TOGETHER_MS = 5_000;
 
