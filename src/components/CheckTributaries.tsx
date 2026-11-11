@@ -18,6 +18,26 @@ const stateOf = (check: RequestCheck): Tone => check.state ?? "success";
 const queued = (check: RequestCheck) => check.state === "pending" && !check.startedAt;
 const WORDS = { success: "passed", failure: "failed", pending: "running", cancelled: "cancelled" };
 
+const COLOURS: Record<Tone, string> = {
+  success: "var(--success)",
+  failure: "var(--danger)",
+  pending: "var(--warning)",
+  cancelled: "var(--text-faint)",
+};
+
+/** The colours of `states` mixed in proportion, as CSS (null for none). */
+export function blend(states: Tone[]): string | null {
+  let colour: string | null = null;
+  let total = 0;
+  for (const tone of ["success", "pending", "cancelled", "failure"] as Tone[]) {
+    const count = states.filter((state) => state === tone).length;
+    if (count === 0) continue;
+    total += count;
+    colour = colour ? `color-mix(in srgb, ${COLOURS[tone]} ${Math.round((count / total) * 100)}%, ${colour})` : COLOURS[tone];
+  }
+  return colour;
+}
+
 /** The width of an element, kept up to date. */
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
@@ -93,8 +113,21 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
       return start + (middle - start) * s + 7 * (1 - s) * Math.sin((2 * Math.PI * x) / 190 + phase);
     };
   };
-  // The river is wider the more tributaries feed it.
-  const riverWidth = Math.min(8, 3 + n * 0.5);
+  // The river starts as wide as a wave and widens gently on its way (more, the more waves feed it).
+  const riverEnd = width - 4;
+  const river = (() => {
+    const [from, to] = [2.5, Math.min(5.5, 2.5 + n * 0.35)];
+    const half = (x: number) => (from + (to - from) * smooth(Math.min(1, (x - confluence) / Math.max(1, riverEnd - confluence)))) / 2;
+    const xs: number[] = [];
+    for (let x = confluence; x < riverEnd; x += 6) xs.push(x);
+    xs.push(riverEnd);
+    const top = xs.map((x) => `${x} ${(middle - half(x)).toFixed(2)}`);
+    const bottom = [...xs].reverse().map((x) => `${x} ${(middle + half(x)).toFixed(2)}`);
+    return `M${top.join(" L")} A${to / 2} ${to / 2} 0 0 1 ${bottom[0]} L${bottom.join(" L")} Z`;
+  })();
+  // Where they meet, the river is the colours of the waves that reach it (a failed one runs
+  // dry first), and it turns into the verdict's colour on its way.
+  const arriving = blend(checks.filter((check) => check.state !== "failure").map((check) => (queued(check) ? "pending" : stateOf(check))));
   const litIndex = lit === null ? -1 : checks.findIndex((check) => check.name === lit);
   const litCheck = litIndex >= 0 ? checks[litIndex] : null;
   const labelX = Math.min(confluence - 40, Math.max(90, labelAt ?? width * 0.3));
@@ -107,9 +140,16 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
     <div className={`tributaries ${v.tone}${celebrating ? " celebrating" : ""}${litCheck ? " lit" : ""}`}>
       <div className="tributaries-streams" ref={box}>
         <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
-          <path className="tributaries-river" d={`M${confluence} ${middle} L${width - riverWidth} ${middle}`} style={{ strokeWidth: riverWidth }} />
+          <defs>
+            <linearGradient id="tributaries-confluence" gradientUnits="userSpaceOnUse" x1={confluence} y1={middle} x2={riverEnd} y2={middle}>
+              <stop offset="0" style={{ stopColor: arriving ?? "var(--river)" }} />
+              <stop offset="0.5" style={{ stopColor: "var(--river)" }} />
+            </linearGradient>
+          </defs>
+          <path className="tributaries-river" d={river} fill="url(#tributaries-confluence)" />
+          {v.tone === "pending" && <path className="tributaries-river-flow" d={`M${confluence} ${middle} L${riverEnd} ${middle}`} />}
           {celebrating && (
-            <path className="tributaries-river-sweep" d={`M${confluence} ${middle} L${width - riverWidth} ${middle}`} pathLength={100} style={{ animationDelay: `${1900 + n * 90}ms` }} />
+            <path className="tributaries-river-sweep" d={`M${confluence} ${middle} L${riverEnd} ${middle}`} pathLength={100} style={{ animationDelay: `${1900 + n * 90}ms` }} />
           )}
           {checks.map((check, index) => {
             const y = wave(index);

@@ -35,14 +35,16 @@
 }
 
 .tributaries-river {
-  fill: none;
-  stroke: var(--river);
-  stroke-linecap: round;
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--river) 45%, transparent));
 }
 
-.tributaries.pending .tributaries-river {
-  stroke-dasharray: 10 6;
+/* While something runs, the water moves along it. */
+.tributaries-river-flow {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.6);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-dasharray: 6 10;
   animation: tributaries-river-flow 1.2s linear infinite;
 }
 
@@ -52,7 +54,8 @@
   }
 }
 
-.tributaries.lit .tributaries-river {
+.tributaries.lit .tributaries-river,
+.tributaries.lit .tributaries-river-flow {
   opacity: 0.35;
 }
 
@@ -405,7 +408,7 @@
     display: none;
   }
 
-  .tributaries.pending .tributaries-river {
+  .tributaries-river-flow {
     animation: none;
   }
 
