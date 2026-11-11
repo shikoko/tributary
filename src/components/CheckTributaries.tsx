@@ -62,6 +62,9 @@ function useWidth<T extends HTMLElement>() {
  * timeline, or tabbing to it) puts it in the spotlight, with a label that follows the
  * pointer; clicking it, or Enter, opens its page.
  */
+/** How wide a wave is (its stroke, in the stylesheet too). */
+const WAVE_WIDTH = 2.5;
+
 export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onLight }: Props) {
   // Each check keeps its lane however it's doing, so a wave changes colour where it is.
   const checks = [...given].sort((a, b) => a.name.localeCompare(b.name));
@@ -105,25 +108,34 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   const smooth = (t: number) => t * t * (3 - 2 * t);
   // Where the tributaries meet: from there on they're one river, flowing into the verdict.
   const confluence = Math.round(width * 0.66);
+  // The river: a little wider the more waves feed it. The waves arrive side by side across
+  // it, so where they meet they're exactly as wide as the river, which keeps that width.
+  const wide = n === 1 ? WAVE_WIDTH : Math.min(5.5, WAVE_WIDTH + (n - 1) * 0.4);
+  const arrival = (index: number) => (n === 1 ? middle : middle - (wide - WAVE_WIDTH) / 2 + (index * (wide - WAVE_WIDTH)) / (n - 1));
   const wave = (index: number) => {
     const start = n === 1 ? middle : 12 + (index * (height - 24)) / (n - 1);
+    const end = arrival(index);
     const phase = index * 1.1;
     return (x: number) => {
       const s = smooth(Math.min(1, x / confluence));
-      return start + (middle - start) * s + 7 * (1 - s) * Math.sin((2 * Math.PI * x) / 190 + phase);
+      return start + (end - start) * s + 7 * (1 - s) * Math.sin((2 * Math.PI * x) / 190 + phase);
     };
   };
-  // The river starts as wide as a wave and widens gently on its way (more, the more waves feed it).
   const riverEnd = width - 4;
+  // Its second half narrows a little and fades into the verdict, so it has no head. It
+  // starts a little before the waves meet, under them, so its glow comes in gently.
+  const leadIn = 18;
   const river = (() => {
-    const [from, to] = [2.5, Math.min(5.5, 2.5 + n * 0.35)];
-    const half = (x: number) => (from + (to - from) * smooth(Math.min(1, (x - confluence) / Math.max(1, riverEnd - confluence)))) / 2;
+    const narrowFrom = confluence + (riverEnd - confluence) * 0.45;
+    const along = (x: number, from: number, to: number) => smooth(Math.max(0, Math.min(1, (x - from) / (to - from))));
+    const half = (x: number) =>
+      x < confluence ? (wide / 2) * along(x, confluence - leadIn, confluence) : (wide / 2) * (1 - 0.6 * along(x, narrowFrom, riverEnd));
     const xs: number[] = [];
-    for (let x = confluence; x < riverEnd; x += 6) xs.push(x);
+    for (let x = confluence - leadIn; x < riverEnd; x += 6) xs.push(x);
     xs.push(riverEnd);
     const top = xs.map((x) => `${x} ${(middle - half(x)).toFixed(2)}`);
     const bottom = [...xs].reverse().map((x) => `${x} ${(middle + half(x)).toFixed(2)}`);
-    return `M${top.join(" L")} A${to / 2} ${to / 2} 0 0 1 ${bottom[0]} L${bottom.join(" L")} Z`;
+    return `M${top.join(" L")} L${bottom.join(" L")} Z`;
   })();
   // Where they meet, the river is the colours of the waves that reach it (a failed one runs
   // dry first), and it turns into the verdict's colour on its way.
@@ -145,17 +157,26 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
               <stop offset="0" style={{ stopColor: arriving ?? "var(--river)" }} />
               <stop offset="0.5" style={{ stopColor: "var(--river)" }} />
             </linearGradient>
+            <linearGradient id="tributaries-mouth" gradientUnits="userSpaceOnUse" x1={confluence} y1={middle} x2={riverEnd} y2={middle}>
+              <stop offset="0.55" stopColor="#fff" />
+              <stop offset="1" stopColor="#fff" stopOpacity="0" />
+            </linearGradient>
+            <mask id="tributaries-fade" maskUnits="userSpaceOnUse" x={confluence - leadIn - 12} y={0} width={riverEnd - confluence + leadIn + 24} height={height}>
+              <rect x={confluence - leadIn - 12} y={0} width={riverEnd - confluence + leadIn + 24} height={height} fill="url(#tributaries-mouth)" />
+            </mask>
           </defs>
-          <path className="tributaries-river" d={river} fill="url(#tributaries-confluence)" />
-          {v.tone === "pending" && <path className="tributaries-river-flow" d={`M${confluence} ${middle} L${riverEnd} ${middle}`} />}
-          {celebrating && (
-            <path className="tributaries-river-sweep" d={`M${confluence} ${middle} L${riverEnd} ${middle}`} pathLength={100} style={{ animationDelay: `${1900 + n * 90}ms` }} />
-          )}
+          <g mask="url(#tributaries-fade)">
+            <path className="tributaries-river" d={river} fill="url(#tributaries-confluence)" />
+            {v.tone === "pending" && <path className="tributaries-river-flow" d={`M${confluence} ${middle} L${riverEnd} ${middle}`} />}
+            {celebrating && (
+              <path className="tributaries-river-sweep" d={`M${confluence} ${middle} L${riverEnd} ${middle}`} pathLength={100} style={{ animationDelay: `${1900 + n * 90}ms` }} />
+            )}
+          </g>
           {checks.map((check, index) => {
             const y = wave(index);
             let d = "";
             for (let x = 0; x < confluence; x += 4) d += `${x === 0 ? "M" : " L"}${x} ${y(x).toFixed(1)}`;
-            d += ` L${confluence} ${middle}`;
+            d += ` L${confluence} ${arrival(index).toFixed(2)}`;
             const state = stateOf(check);
             const waiting = queued(check);
             const dry = confluence * 0.72;
