@@ -3,7 +3,7 @@ import { branchVersions, pullRequestDetails, requestConversation, type MergeChec
 import { copyText } from "../lib/clipboard";
 import { plural, relativeTime } from "../lib/format";
 import { checkMerge, describeMergeCheck } from "../lib/mergeChecks";
-import { anyRunning, checkTime, describeCheckProgress, describeMergeable, describeReviews, requestNoun, requestNumber } from "../lib/pullRequests";
+import { anyRunning, describeMergeable, describeReviews, requestNoun, requestNumber } from "../lib/pullRequests";
 import { useNow } from "../lib/useNow";
 import { Avatar } from "./Avatar";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
@@ -27,6 +27,7 @@ import {
 } from "./Icons";
 import { Loader } from "./Loader";
 import { CheckTimeline } from "./CheckTimeline";
+import { CheckTributaries } from "./CheckTributaries";
 import { Markdown } from "./Markdown";
 import { AskForReview, useRequestChange } from "./RequestControls";
 import { ConversationList, MergeRequestDialog, ReviewBox } from "./RequestReview";
@@ -476,8 +477,8 @@ function StatusCard({
   const gitlab = details.forge === "gitlab";
   const settled = details.state === "merged" || details.state === "closed";
   const said = settled ? null : describeReviews(details.reviews);
-  const progress = describeCheckProgress(details.checks, gitlab);
   const checks = [...details.checks].sort((a, b) => CHECK_ORDER[checkState(a)] - CHECK_ORDER[checkState(b)]);
+  const ran = checks.filter((check) => check.state !== null);
   // Running checks count up to the second; otherwise the clock's ends ("5 minutes ago") still move.
   const now = useNow(anyRunning(checks) ? 1000 : 30_000);
   return (
@@ -498,50 +499,12 @@ function StatusCard({
         <>
           <div className="request-checks-head">
             <span className="request-checks-title">{gitlab ? "Pipeline" : "Checks"}</span>
-            {progress && <span>{progress}</span>}
           </div>
-          <CheckBar checks={checks} now={now} label={progress ?? "Checks"} openUrl={openUrl} />
+          {ran.length > 0 && <CheckTributaries key={details.number} checks={ran} now={now} gitlab={gitlab} openUrl={openUrl} />}
           <CheckTimeline checks={checks} now={now} openUrl={openUrl} />
         </>
       )}
     </section>
-  );
-}
-
-/**
- * A block for each check that ran (skipped ones are only in the list), coloured by how it
- * went, with its name and time inside; clicking one opens that check's page. Blocks are as
- * wide as their names, fill the row, and wrap onto more rows when there are many.
- */
-function CheckBar({ checks, now, label, openUrl }: { checks: RequestCheck[]; now: number; label: string; openUrl: (url: string) => void }) {
-  const words = { success: "passed", failure: "failed", pending: "running", skipped: "skipped" };
-  const ran = checks.filter((check) => check.state !== null);
-  if (ran.length === 0) return null;
-  return (
-    <div className="request-check-bar" role="group" aria-label={label}>
-      {ran.map((check, index) => {
-        const state = checkState(check);
-        const queued = check.state === "pending" && !check.startedAt;
-        const time = checkTime(check, now);
-        const said = `${check.name}: ${queued ? "queued" : words[state]}${time ? ` · ${time}` : ""}`;
-        const inside = (
-          <>
-            <span className="request-check-bar-name">{check.name}</span>
-            <span className="request-check-bar-time">{queued ? "Queued" : time}</span>
-          </>
-        );
-        const look = `${state}${queued ? " queued" : ""}`;
-        return check.url ? (
-          <button key={`${check.name}-${index}`} className={look} onClick={() => openUrl(check.url!)} title={`${said} · open its page`} aria-label={said}>
-            {inside}
-          </button>
-        ) : (
-          <span key={`${check.name}-${index}`} className={look} title={said}>
-            {inside}
-          </span>
-        );
-      })}
-    </div>
   );
 }
 
