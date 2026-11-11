@@ -16,6 +16,11 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/shikoko/tributary/releases/latest"><img src="https://img.shields.io/github/v/release/shikoko/tributary?label=release" alt="The latest release"></a>
+  <a href="https://github.com/shikoko/tributary/actions/workflows/build.yml?query=branch%3Amain"><img src="https://github.com/shikoko/tributary/actions/workflows/build.yml/badge.svg?branch=main" alt="Whether the release build of main passes"></a>
+</p>
+
+<p align="center">
   Tributary is free and open source, with no ads and no tracking, made by one person in their spare time.<br>
   Your support means a lot, and helps keep it going.<br><br>
   <a href="https://github.com/sponsors/shikoko"><img src="docs/images/support.svg" alt="Support Tributary on GitHub Sponsors" height="44"></a>
