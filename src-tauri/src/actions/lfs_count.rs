@@ -12,7 +12,7 @@ use std::path::Path;
 use super::support::{LITERAL, in_batches};
 use crate::error::Error;
 use crate::git::lfs_progress::format_bytes;
-use crate::git::{ExpectedFiles, Git, Progress};
+use crate::git::{ExpectedFiles, FileCount, Git, Progress};
 
 /// Room kept free besides what the files take: git needs some for itself.
 const SPARE_SPACE: u64 = 256 * 1024 * 1024;
@@ -139,7 +139,34 @@ pub(super) fn prefetch(
         &expected,
     ) {
         Err(Error::Cancelled) => Err(Error::Cancelled),
-        _ => Ok(()),
+        Err(_) => Ok(()),
+        Ok(_) => {
+            // Git LFS writes its progress log at most every 200 ms (since 3.5), so a quick
+            // fetch can end before it has logged a line, leaving the count at its own first
+            // "0 of 1". Count what's here now instead: those still missing weren't fetched.
+            let missing = lfs_downloads(git, common_dir, range, to, &HashSet::new())
+                .map_or(0, |left| left.len());
+            on_progress(fetched(files.len(), missing));
+            Ok(())
+        }
+    }
+}
+
+/// The last word on a fetch of `total` Git LFS files, `missing` of which still aren't here.
+fn fetched(total: usize, missing: usize) -> Progress {
+    let total = u32::try_from(total).unwrap_or(u32::MAX);
+    let done = total.saturating_sub(u32::try_from(missing).unwrap_or(u32::MAX));
+    let percent = if total == 0 {
+        100
+    } else {
+        u8::try_from(u64::from(done) * 100 / u64::from(total)).unwrap_or(100)
+    };
+    Progress {
+        phase: "Downloading LFS files".into(),
+        percent: Some(percent),
+        detail: Some(format!("{done} of {total} files")),
+        files: Some(FileCount { done, total }),
+        ..Progress::default()
     }
 }
 
@@ -298,6 +325,18 @@ fn lfs_object(common_dir: &Path, oid: &str) -> std::path::PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn counts_a_fetch_by_what_arrived() {
+        // A quick fetch can end before Git LFS logs anything: the count comes from what's here.
+        let all = fetched(3, 0);
+        assert_eq!(all.files, Some(FileCount { done: 3, total: 3 }));
+        assert_eq!(all.percent, Some(100));
+        assert_eq!(all.detail.as_deref(), Some("3 of 3 files"));
+        let some = fetched(3, 1);
+        assert_eq!(some.files, Some(FileCount { done: 2, total: 3 }));
+        assert_eq!(some.percent, Some(66));
+    }
 
     #[test]
     fn needs_room_for_both_copies_of_each_file() {
