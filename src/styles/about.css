@@ -46,19 +46,11 @@
    it sits in the middle however the font's line box falls, and a pixel up, level with the
    middle of the number's letters rather than its line. */
 .about-beta {
+  /* Its middle on the version's letters, which sit a pixel above the line's middle. */
   position: relative;
   top: -1px;
-  display: inline-flex;
-  align-items: center;
-  height: 18px;
-  padding: 0 7px;
-  line-height: 1;
-  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--accent);
-  font-size: var(--type-xs);
-  font-weight: 600;
-  letter-spacing: 0.02em;
 }
 
 .about-tagline {

@@ -40,8 +40,6 @@
 .team-branch-chip {
   max-width: 100%;
   overflow: hidden;
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
   background: var(--bg-raised);
   color: var(--text-secondary);
   text-overflow: ellipsis;

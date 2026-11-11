@@ -170,7 +170,8 @@ function Page({ theme }: { theme: "dark" | "light" }) {
         </div>
       </Section>
 
-      <Section title="Chips" note="<Chip>: an icon (if any), then text trimmed to its letters so it sits in the middle. Each kind's look is its own for now.">
+      <Section title="Chips" note="<Chip>: an icon (if any), then text trimmed to its letters so it sits in the middle.">
+        <h3>States</h3>
         <div className="catalogue-wrap">
           <Chip className="request-state open" icon={<Icons.PullRequestIcon size={13} />}>
             Open
@@ -184,26 +185,46 @@ function Page({ theme }: { theme: "dark" | "light" }) {
           <Chip className="request-state closed" icon={<Icons.CloseIcon size={12} />}>
             Closed
           </Chip>
-        </div>
-        <div className="catalogue-wrap">
           <Chip className="request-review approved">Approved</Chip>
           <Chip className="request-review changesRequested">Asked for changes</Chip>
           <Chip className="request-review commented">Reviewed</Chip>
-          <Chip className="request-ref">feature/tavern-door</Chip>
-          <span className="about-beta">Beta</span>
+          <Chip className="about-beta">Beta</Chip>
         </div>
         <div className="catalogue-wrap">
-          <span className="pr-badge success">#12</span>
-          <span className="pr-badge failure">#14</span>
-          <span className="pr-badge pending">#19</span>
-          <span className="pr-badge draft">#21</span>
-          <span className="recent-chip changes">3 changes</span>
-          <span className="recent-chip conflicts">1 conflict</span>
-          <span className="recent-chip sync">
+          <Chip className="recent-chip changes">3 changes</Chip>
+          <Chip className="recent-chip conflicts">1 conflict</Chip>
+          <Chip className="recent-chip sync">
             <span>↑2</span>
             <span>↓1</span>
+          </Chip>
+          <Chip className="recent-chip missing">Folder not found</Chip>
+        </div>
+        <h3>Names</h3>
+        <div className="catalogue-wrap">
+          <span className="head-chip" title="Checked out branch">
+            <Icons.BranchIcon size={14} />
+            <span className="head-chip-name chip-text">feature/tavern-door</span>
           </span>
-          <span className="recent-chip missing">Folder not found</span>
+          <Chip className="request-ref">feature/tavern-door</Chip>
+          <span className="name-chip">
+            <span className="chip-text">main</span>
+            <button aria-label="Remove main" title="Remove main">
+              <Icons.CloseIcon size={10} />
+            </button>
+          </span>
+          <Chip className="team-branch-chip">art/barber-v2</Chip>
+          <span className="pr-badge success">
+            <span className="pr-number chip-text">#12</span>
+          </span>
+          <span className="pr-badge failure">
+            <span className="pr-number chip-text">#14</span>
+          </span>
+          <span className="pr-badge pending">
+            <span className="pr-number chip-text">#19</span>
+          </span>
+          <span className="pr-badge draft">
+            <span className="pr-number chip-text">#21</span>
+          </span>
         </div>
       </Section>
 

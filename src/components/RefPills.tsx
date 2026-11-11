@@ -177,7 +177,7 @@ export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (pr:
         onOpen(pr);
       }}
     >
-      <span className="pr-number">{requestNumber(pr)}</span>
+      <span className="pr-number chip-text">{requestNumber(pr)}</span>
     </span>
   );
 }

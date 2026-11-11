@@ -23,6 +23,7 @@
 @import "./styles/branches-and-locks.css";
 @import "./styles/settings.css";
 @import "./styles/notices.css";
+@import "./styles/chips.css";
 @import "./styles/diff.css";
 @import "./styles/submodules-and-repo-settings.css";
 @import "./styles/media-and-files.css";

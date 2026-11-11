@@ -7,6 +7,7 @@ import { Dialog } from "./Dialog";
 import { CheckIcon, DownloadIcon, ExternalLinkIcon, InfoIcon, Logo, NotesIcon, RefreshIcon, SparkleIcon, WarningIcon } from "./Icons";
 import { Button } from "./ui/Button";
 import { Switch } from "./ui/Switch";
+import { Chip } from "./ui/Chip";
 
 const SOURCE = "https://github.com/shikoko/tributary";
 /** Opening About checks again when the last check is older than this. */
@@ -157,7 +158,7 @@ export function AboutDialog({ version, updates, auto, setAuto, beta, setBeta, on
         <span className="about-name">Tributary</span>
         <span className="about-version">
           {version ? `Version ${version}` : "Version unknown"}
-          {isBeta(version) && <span className="about-beta">Beta</span>}
+          {isBeta(version) && <Chip className="about-beta">Beta</Chip>}
         </span>
         <span className="about-tagline">A fast, friendly git client.</span>
       </div>

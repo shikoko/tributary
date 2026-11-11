@@ -96,15 +96,7 @@ textarea.request-body {
 }
 
 .request-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   flex: none;
-  height: 26px;
-  padding: 0 11px 0 9px;
-  border-radius: var(--radius-pill);
-  font-size: var(--type-base);
-  font-weight: 600;
 }
 
 .request-state.open {
@@ -128,17 +120,10 @@ textarea.request-body {
 }
 
 .request-ref {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
   max-width: 280px;
-  padding: 0 8px;
   border: none;
-  border-radius: var(--radius-md);
   background: rgb(var(--overlay-rgb) / 0.12);
   color: var(--text);
-  font-family: var(--mono);
-  font-size: var(--type-sm);
 }
 
 button.request-ref {
