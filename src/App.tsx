@@ -26,6 +26,7 @@ import { RepositoryView } from "./app/RepositoryView";
 import { StartView } from "./app/StartView";
 import { useAccounts } from "./app/useAccounts";
 import { useLeftOpen } from "./app/useLeftOpen";
+import { useUpdateNotice } from "./app/useUpdateNotice";
 import { useViewFade } from "./app/useViewFade";
 import { useGitInstall } from "./app/useGitInstall";
 import { GitNeededBanner } from "./components/GitNeeded";
@@ -296,6 +297,9 @@ export default function App() {
   });
   // A pull request merged or closed on the site moved the remote's branches: fetch now.
   const prLeftOpen = useLeftOpen(repoPath, prs.list);
+  // A new version: said once it's ready to install (or if it couldn't be downloaded).
+  const showUpdate = useCallback(() => showOverlay("update"), [showOverlay]);
+  useUpdateNotice(updates, setToast, showUpdate);
   const tabNews = useBackgroundFetch({
     nudge: prLeftOpen,
     snapshot,

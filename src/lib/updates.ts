@@ -19,7 +19,7 @@ export interface UpdateProgress {
 }
 
 /** The first check after launching, and how often to check after that. */
-const FIRST_CHECK = 15_000;
+const FIRST_CHECK = 5_000;
 const CHECK_EVERY = 6 * 60 * 60 * 1000;
 
 /** A newer version, if there is one: a beta too, if `beta`. */
