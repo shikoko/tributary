@@ -24,6 +24,11 @@ interface Options {
   pull: () => void;
   show: (commitId: string) => void;
   switchTab: (path: string) => void;
+  /**
+   * Changes when something else learns the remote moved (a pull request was merged or
+   * closed): the open repository is fetched then, instead of at the next scheduled fetch.
+   */
+  nudge?: string;
 }
 
 /**
@@ -43,6 +48,8 @@ export function useBackgroundFetch(options: Options): Record<string, string> {
 
   // The open repository. Its news is worked out from the next snapshot.
   const pending = useRef<{ path: string; before: Map<string, string>; known: Set<string> } | null>(null);
+  // The open repository's fetch, for a nudge to run early.
+  const fetchOpen = useRef<(() => Promise<void>) | null>(null);
   useEffect(() => {
     if (!repoPath || !canFetch || !enabled) return;
     let stopped = false;
@@ -63,14 +70,21 @@ export function useBackgroundFetch(options: Options): Record<string, string> {
         stopped = true;
       }
     };
+    fetchOpen.current = fetchNow;
     const first = setTimeout(fetchNow, FIRST_AUTO_FETCH_DELAY);
     const timer = setInterval(fetchNow, every);
     return () => {
       stopped = true;
+      fetchOpen.current = null;
       clearTimeout(first);
       clearInterval(timer);
     };
   }, [repoPath, canFetch, enabled, every, whileHidden]);
+
+  // A pull request was merged or closed: fetch now (if fetching in the background at all).
+  useEffect(() => {
+    if (options.nudge) void fetchOpen.current?.();
+  }, [options.nudge]);
 
   useEffect(() => {
     const waiting = pending.current;
