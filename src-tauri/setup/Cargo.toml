@@ -18,7 +18,7 @@ serde = { version = "1", features = ["derive"] }
 
 # Where Tributary is installed already, from its uninstall entry.
 [target.'cfg(windows)'.dependencies]
-windows-registry = "0.6"
+windows-registry = "0.100"
 
 [features]
 # The window's page built into the program (as in a release), rather than from a dev server:
