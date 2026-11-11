@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RequestCheck, RequestDetails } from "../api";
-import { anyRunning, checksVerdict, checkTime, checkTimeline, describeCheckProgress, describeMergeable, describeReviews, suggestRequest, formatElapsed, summarizeChecks, titleFromBranch } from "./pullRequests";
+import { anyRunning, byStart, checksVerdict, checkTime, checkTimeline, describeCheckProgress, describeMergeable, describeReviews, suggestRequest, formatElapsed, groupChecks, summarizeChecks, titleFromBranch } from "./pullRequests";
 
 describe("suggestRequest", () => {
   it("uses a single commit's message", () => {
@@ -125,6 +125,51 @@ describe("check times", () => {
     expect(checkTime(check(null, start, start), Date.now())).toBeNull();
     expect(anyRunning([check("success", start, "2026-11-10T10:02:13Z"), check("pending", null, null)])).toBe(false);
     expect(anyRunning([check("pending", start, null)])).toBe(true);
+  });
+});
+
+describe("groupChecks", () => {
+  const at = (seconds: number) => new Date(Date.UTC(2026, 10, 10, 10, 0, seconds)).toISOString();
+  const check = (name: string, start: number | null, workflow: string | null = null, trigger: string | null = null, state: RequestCheck["state"] = "success"): RequestCheck => ({
+    name,
+    state,
+    url: null,
+    detail: null,
+    startedAt: start === null ? null : at(start),
+    finishedAt: null,
+    workflow,
+    trigger,
+  });
+
+  it("orders checks by when they started, ones starting together A to Z", () => {
+    const order = byStart([check("Windows", 10), check("skipped", null, null, null, null), check("macOS", 12), check("queued", null, null, null, "pending"), check("Version", 0)]);
+    expect(order.map((c) => c.name)).toEqual(["Version", "macOS", "Windows", "queued", "skipped"]);
+    // Twenty seconds apart isn't together.
+    expect(byStart([check("b", 30), check("a", 50)]).map((c) => c.name)).toEqual(["b", "a"]);
+  });
+
+  it("groups them by workflow run, the earliest run first", () => {
+    const groups = groupChecks([
+      check("App", 540, "Checks", "on the pull request"),
+      check("Windows", 0, "Build", "on push to develop"),
+      check("footer", 541, "Tidy", "on the pull request"),
+      check("Rust (Linux)", 540, "Checks", "on the pull request"),
+      check("Version", 0, "Build", "on push to develop"),
+    ]);
+    expect(groups.map((g) => [g.name, g.trigger, g.checks.map((c) => c.name)])).toEqual([
+      ["Build", "on push to develop", ["Version", "Windows"]],
+      ["Checks", "on the pull request", ["App", "Rust (Linux)"]],
+      ["Tidy", "on the pull request", ["footer"]],
+    ]);
+  });
+
+  it("keeps runs of one workflow with different triggers apart, and checks without one together", () => {
+    const groups = groupChecks([check("a", 0, "Checks", "on push to develop"), check("b", 0, "Checks", "on the pull request"), check("ci/jenkins", 3)]);
+    expect(groups.map((g) => [g.name, g.trigger])).toEqual([
+      ["Checks", "on push to develop"],
+      ["Checks", "on the pull request"],
+      [null, null],
+    ]);
   });
 });
 

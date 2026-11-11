@@ -219,10 +219,7 @@ mod tests {
         Check {
             name: "build".into(),
             state,
-            url: None,
-            detail: None,
-            started_at: None,
-            finished_at: None,
+            ..Check::default()
         }
     }
 

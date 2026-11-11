@@ -118,6 +118,10 @@ export interface RequestCheck {
   startedAt?: string | null;
   /** When it finished, if it has. */
   finishedAt?: string | null;
+  /** What it's part of: its GitHub workflow (or the app that ran it), or its GitLab stage. */
+  workflow?: string | null;
+  /** What started that, in words, like "on push to develop". */
+  trigger?: string | null;
 }
 
 export interface RequestReview {

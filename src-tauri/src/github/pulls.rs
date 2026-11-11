@@ -196,6 +196,32 @@ struct RawCheckRun {
     details_url: Option<String>,
     started_at: Option<String>,
     completed_at: Option<String>,
+    check_suite: Option<RawSuite>,
+    app: Option<RawApp>,
+}
+
+#[derive(Deserialize)]
+struct RawSuite {
+    id: u64,
+}
+
+#[derive(Deserialize)]
+struct RawApp {
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct RawWorkflowRuns {
+    #[serde(default)]
+    workflow_runs: Vec<RawWorkflowRun>,
+}
+
+#[derive(Deserialize)]
+struct RawWorkflowRun {
+    name: Option<String>,
+    event: String,
+    head_branch: Option<String>,
+    check_suite_id: u64,
 }
 
 #[derive(Deserialize)]
@@ -276,6 +302,64 @@ fn run_check(run: RawCheckRun) -> Check {
         detail: queued.then(|| "Queued".to_string()),
         started_at: run.started_at.filter(|_| !queued),
         finished_at: run.completed_at,
+        // The app that ran it, until its workflow run is known (name_workflows).
+        workflow: run.app.map(|app| app.name),
+        trigger: None,
+        suite: run.check_suite.map(|suite| suite.id),
+    }
+}
+
+/// What started a workflow run, in words: "on push to develop", "on the pull request".
+fn trigger(event: &str, branch: Option<&str>) -> String {
+    match (event, branch) {
+        ("push", Some(branch)) => format!("on push to {branch}"),
+        ("push", None) => "on push".into(),
+        ("pull_request" | "pull_request_target", _) => "on the pull request".into(),
+        ("workflow_dispatch", _) => "run by hand".into(),
+        ("schedule", _) => "on a schedule".into(),
+        ("merge_group", _) => "in the merge queue".into(),
+        ("release", _) => "on a release".into(),
+        ("workflow_run", _) => "after another workflow".into(),
+        (event, _) => format!("on {}", event.replace('_', " ")),
+    }
+}
+
+/// Each GitHub Actions check's workflow and what started its run, from the runs for `sha`.
+fn name_runs(checks: &mut [Check], runs: Vec<RawWorkflowRun>) {
+    for check in checks {
+        let Some(run) = runs
+            .iter()
+            .find(|run| Some(run.check_suite_id) == check.suite)
+        else {
+            continue;
+        };
+        if let Some(name) = &run.name {
+            check.workflow = Some(name.clone());
+        }
+        check.trigger = Some(trigger(&run.event, run.head_branch.as_deref()));
+    }
+}
+
+/// Names the workflow of each check of `sha` that GitHub Actions ran, and what started it,
+/// so the checks can be grouped by run. One request; without it they keep the app's name.
+async fn name_workflows(
+    client: &reqwest::Client,
+    full_name: &str,
+    token: Option<&str>,
+    sha: &str,
+    checks: &mut [Check],
+) {
+    if checks.iter().all(|check| check.suite.is_none()) {
+        return;
+    }
+    let url = format!(
+        "https://api.github.com/repos/{full_name}/actions/runs?head_sha={sha}&per_page=100"
+    );
+    if let Ok(answer) = api_request(client, url, token).send().await
+        && answer.status().is_success()
+        && let Ok(runs) = answer.json::<RawWorkflowRuns>().await
+    {
+        name_runs(checks, runs.workflow_runs);
     }
 }
 
@@ -295,6 +379,7 @@ fn status_check(status: RawStatus) -> Check {
         detail: status.description.filter(|text| !text.is_empty()),
         started_at: status.created_at,
         finished_at: status.updated_at.filter(|_| finished),
+        ..Check::default()
     }
 }
 
@@ -374,7 +459,8 @@ pub(crate) async fn details(
         .chain(pull.requested_teams.into_iter().map(|team| team.name))
         .collect();
 
-    let checks = commit_checks(&client, full_name, token, &pull.head.sha).await;
+    let mut checks = commit_checks(&client, full_name, token, &pull.head.sha).await;
+    name_workflows(&client, full_name, token, &pull.head.sha, &mut checks).await;
 
     let (base_sha, head_sha) = (Some(pull.base.sha.clone()), Some(pull.head.sha.clone()));
     let state = if pull.merged {
@@ -513,6 +599,45 @@ mod tests {
         assert_eq!(status.state, Some(CheckState::Failure));
         assert_eq!(status.url, None);
         assert_eq!(status.detail.as_deref(), Some("Build broke"));
+    }
+
+    #[test]
+    fn groups_checks_by_their_workflow_run() {
+        let runs: RawCheckRuns = serde_json::from_str(
+            r#"{"check_runs": [
+              {"name": "macOS", "status": "in_progress", "check_suite": {"id": 11}, "app": {"name": "GitHub Actions"}},
+              {"name": "Rust (Linux)", "status": "in_progress", "check_suite": {"id": 12}, "app": {"name": "GitHub Actions"}},
+              {"name": "Preview", "status": "completed", "conclusion": "success", "check_suite": {"id": 13}, "app": {"name": "Vercel"}}
+            ]}"#,
+        )
+        .unwrap();
+        let mut checks: Vec<Check> = runs.check_runs.into_iter().map(run_check).collect();
+        let found: RawWorkflowRuns = serde_json::from_str(
+            r#"{"workflow_runs": [
+              {"name": "Build", "event": "push", "head_branch": "develop", "check_suite_id": 11},
+              {"name": "Checks", "event": "pull_request", "head_branch": "develop", "check_suite_id": 12}
+            ]}"#,
+        )
+        .unwrap();
+        name_runs(&mut checks, found.workflow_runs);
+        let groups: Vec<(Option<&str>, Option<&str>)> = checks
+            .iter()
+            .map(|check| (check.workflow.as_deref(), check.trigger.as_deref()))
+            .collect();
+        assert_eq!(
+            groups,
+            [
+                (Some("Build"), Some("on push to develop")),
+                (Some("Checks"), Some("on the pull request")),
+                // Not a GitHub Actions run: the app that ran it.
+                (Some("Vercel"), None),
+            ]
+        );
+        assert_eq!(trigger("workflow_dispatch", Some("main")), "run by hand");
+        assert_eq!(
+            trigger("repository_dispatch", None),
+            "on repository dispatch"
+        );
     }
 
     #[test]

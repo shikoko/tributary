@@ -100,6 +100,53 @@ export function checkTime(check: RequestCheck, now: number): string | null {
   return formatElapsed(end - start);
 }
 
+/** Checks that started within this long of each other count as starting together. */
+const TOGETHER_MS = 5_000;
+
+/** Started ones by when they started, then queued ones, then skipped ones. */
+function startKey(check: RequestCheck): [number, number] {
+  if (check.state === null) return [2, 0];
+  const start = check.startedAt ? Date.parse(check.startedAt) : NaN;
+  return Number.isNaN(start) ? [1, 0] : [0, start];
+}
+
+/**
+ * The checks in the order they started. Ones that started within a few seconds of each
+ * other (the jobs of one run, given to runners one by one) count as starting together and
+ * go A to Z; then the queued ones, then the skipped ones, A to Z.
+ */
+export function byStart(checks: RequestCheck[]): RequestCheck[] {
+  const keyed = checks.map((check) => ({ check, key: startKey(check) }));
+  keyed.sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1]);
+  const together: { key: [number, number]; checks: RequestCheck[] }[] = [];
+  for (const { check, key } of keyed) {
+    const last = together[together.length - 1];
+    if (last && last.key[0] === key[0] && key[1] - last.key[1] <= TOGETHER_MS) last.checks.push(check);
+    else together.push({ key, checks: [check] });
+  }
+  return together.flatMap((group) => group.checks.sort((a, b) => a.name.localeCompare(b.name)));
+}
+
+/** Checks that ran together: one GitHub workflow run (or app), or one GitLab stage. */
+export interface CheckGroup {
+  /** Null for checks that don't say what they're part of. */
+  name: string | null;
+  trigger: string | null;
+  checks: RequestCheck[];
+}
+
+/** The checks in groups by what they're part of, each in the order they started, the earliest group first. */
+export function groupChecks(checks: RequestCheck[]): CheckGroup[] {
+  const groups: CheckGroup[] = [];
+  for (const check of byStart(checks)) {
+    const [name, trigger] = [check.workflow ?? null, check.trigger ?? null];
+    const group = groups.find((each) => each.name === name && each.trigger === trigger);
+    if (group) group.checks.push(check);
+    else groups.push({ name, trigger, checks: [check] });
+  }
+  return groups;
+}
+
 /** One clock for a request's checks: where each one's bar starts and ends on it, from 0 to 1. */
 export interface CheckTimeline {
   /** A bar for each check, in order, or null for one that hasn't started (or has no times). */
