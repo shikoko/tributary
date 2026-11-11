@@ -17,7 +17,20 @@ const ago = (ms: number, now: number) => {
  * The time beside each says how long it took or has been running. Without times from the
  * site, just the names and how they went.
  */
-export function CheckTimeline({ checks, now, openUrl }: { checks: RequestCheck[]; now: number; openUrl: (url: string) => void }) {
+export function CheckTimeline({
+  checks,
+  now,
+  openUrl,
+  lit = null,
+  onLight,
+}: {
+  checks: RequestCheck[];
+  now: number;
+  openUrl: (url: string) => void;
+  /** The check in the spotlight (its wave above too), and a way to change it. */
+  lit?: string | null;
+  onLight?: (name: string | null) => void;
+}) {
   const timeline = checkTimeline(checks, now);
   const running = checks.some((check) => check.state === "pending" && check.startedAt && !check.finishedAt);
   return (
@@ -31,7 +44,9 @@ export function CheckTimeline({ checks, now, openUrl }: { checks: RequestCheck[]
           return (
             <li
               key={`${check.name}-${index}`}
-              className={`request-check request-timeline-row ${state}`}
+              className={`request-check request-timeline-row ${state}${check.name === lit ? " lit" : ""}`}
+              onMouseEnter={() => onLight?.(check.name)}
+              onMouseLeave={() => onLight?.(null)}
               title={check.detail && check.detail !== "Queued" ? `${check.name}: ${check.detail}` : undefined}
             >
               <span className="request-check-dot" aria-hidden />

@@ -1,0 +1,351 @@
+/* Where a request's checks stand, as tributaries (CheckTributaries): a wave for each check
+   that ran, braiding into the verdict. */
+.tributaries {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  align-items: center;
+  gap: 22px;
+}
+
+.tributaries-streams {
+  position: relative;
+  min-width: 0;
+}
+
+.tributaries-streams svg {
+  display: block;
+  overflow: visible;
+}
+
+.tributaries-stream-line {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke-width 0.12s ease;
+}
+
+.tributaries-stream.success .tributaries-stream-line {
+  stroke: var(--success);
+  opacity: 0.85;
+}
+
+/* A failed one runs dry before the end. */
+.tributaries-stream.failure .tributaries-stream-line {
+  stroke: var(--danger);
+  stroke-dasharray: 70 100;
+}
+
+.tributaries-stream-end {
+  fill: var(--danger);
+}
+
+.tributaries-stream.pending .tributaries-stream-line {
+  stroke: var(--warning);
+  stroke-dasharray: 2.4 1.4;
+  animation: tributaries-flow 1.4s linear infinite;
+}
+
+.tributaries-stream.queued .tributaries-stream-line {
+  stroke-dasharray: 0.6 2.4;
+  opacity: 0.55;
+  animation: none;
+}
+
+@keyframes tributaries-flow {
+  to {
+    stroke-dashoffset: -7.6;
+  }
+}
+
+/* A check that has just finished: its wave refills in its new colour from where it starts,
+   while its old look fades. */
+.tributaries-stream-ghost {
+  fill: none;
+  stroke: var(--warning);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  animation: tributaries-ghost 1.1s ease both;
+}
+
+.tributaries-stream-ghost.pending {
+  stroke-dasharray: 2.4 1.4;
+}
+
+.tributaries-stream-ghost.queued {
+  stroke-dasharray: 0.6 2.4;
+  opacity: 0.55;
+}
+
+@keyframes tributaries-ghost {
+  to {
+    opacity: 0;
+  }
+}
+
+.tributaries-stream.settling.success .tributaries-stream-line {
+  stroke-dasharray: 100 100;
+  animation: tributaries-fill-whole 1s cubic-bezier(0.45, 0, 0.2, 1) both;
+}
+
+@keyframes tributaries-fill-whole {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.tributaries-stream.settling.failure .tributaries-stream-line {
+  animation: tributaries-fill-dry 0.9s cubic-bezier(0.45, 0, 0.2, 1) both;
+}
+
+@keyframes tributaries-fill-dry {
+  from {
+    stroke-dashoffset: 70;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Where a failed one runs dry: a dot, sending out ripples. */
+.tributaries-stream-end,
+.tributaries-stream-ripple {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.tributaries-stream.settling .tributaries-stream-end {
+  animation: tributaries-dot-in 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) 0.85s both;
+}
+
+@keyframes tributaries-dot-in {
+  from {
+    transform: scale(0);
+  }
+}
+
+.tributaries-stream-ripple {
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 1.5;
+  animation: tributaries-ripple 2.4s ease-out infinite;
+}
+
+.tributaries-stream.settling .tributaries-stream-ripple {
+  animation-delay: 1.2s;
+}
+
+@keyframes tributaries-ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  70%,
+  100% {
+    transform: scale(3.4);
+    opacity: 0;
+  }
+}
+
+/* All passed: a light runs along every wave into the braid, which glows, and the word with it. */
+.tributaries-stream-sweep {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 9 120;
+  stroke-dashoffset: 9;
+  filter: drop-shadow(0 0 4px var(--success));
+  animation: tributaries-sweep 1.3s cubic-bezier(0.5, 0, 0.3, 1) both;
+}
+
+@keyframes tributaries-sweep {
+  from {
+    stroke-dashoffset: 9;
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  to {
+    stroke-dashoffset: -100;
+    opacity: 0;
+  }
+}
+
+.tributaries.celebrating .tributaries-stream.success {
+  animation: tributaries-glow 1.6s ease 1.6s both;
+}
+
+@keyframes tributaries-glow {
+  40% {
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--success) 80%, transparent));
+  }
+}
+
+.tributaries.celebrating .tributaries-word {
+  animation: tributaries-word 1.2s ease 1.7s both;
+}
+
+@keyframes tributaries-word {
+  40% {
+    transform: scale(1.06);
+    text-shadow: 0 0 14px color-mix(in srgb, var(--success) 70%, transparent);
+  }
+}
+
+.tributaries .tributaries-word {
+  transform-origin: left center;
+}
+
+.tributaries-stream-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+/* The check in the spotlight: its wave bold and glowing, the others faded back. */
+.tributaries-stream {
+  transition: opacity 0.18s ease;
+}
+
+.tributaries-stream.success {
+  --wave: var(--success);
+}
+
+.tributaries-stream.failure {
+  --wave: var(--danger);
+}
+
+.tributaries-stream.pending {
+  --wave: var(--warning);
+}
+
+.tributaries.lit .tributaries-stream:not(.lit) {
+  opacity: 0.2;
+}
+
+.tributaries-stream.lit .tributaries-stream-line {
+  stroke-width: 4;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--wave) 70%, transparent));
+}
+
+.tributaries-stream-hit:focus {
+  outline: none;
+}
+
+/* Its name, how it went and how long, following the pointer along the wave. */
+.tributaries-label {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  box-shadow: 0 8px 22px var(--shadow);
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 12px));
+}
+
+.tributaries-label.below {
+  transform: translate(-50%, 12px);
+}
+
+.tributaries-label.success {
+  --wave: var(--success);
+}
+
+.tributaries-label.failure {
+  --wave: var(--danger);
+}
+
+.tributaries-label.pending {
+  --wave: var(--warning);
+}
+
+.tributaries-label-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--wave);
+}
+
+.tributaries-label-name,
+.tributaries-label-state {
+  text-box: trim-both cap alphabetic;
+}
+
+.tributaries-label-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tributaries-label-state {
+  font-variant-numeric: tabular-nums;
+}
+
+.tributaries-label svg {
+  flex: none;
+}
+
+.tributaries-verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.tributaries-word {
+  text-box: trim-both cap alphabetic;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.tributaries-verdict.success .tributaries-word {
+  color: var(--success);
+}
+
+.tributaries-verdict.failure .tributaries-word {
+  color: var(--danger);
+}
+
+.tributaries-verdict.pending .tributaries-word {
+  color: var(--warning);
+}
+
+.tributaries-line {
+  text-box: trim-both cap alphabetic;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .tributaries-stream-sweep,
+  .tributaries-stream-ripple {
+    display: none;
+  }
+
+  .tributaries-stream-ghost,
+  .tributaries-stream.settling .tributaries-stream-line,
+  .tributaries-stream.settling .tributaries-stream-end,
+  .tributaries.celebrating .tributaries-stream.success,
+  .tributaries.celebrating .tributaries-word,
+  .tributaries-stream.pending .tributaries-stream-line {
+    animation: none;
+  }
+}

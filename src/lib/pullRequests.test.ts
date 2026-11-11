@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RequestCheck, RequestDetails } from "../api";
-import { anyRunning, checkTime, checkTimeline, describeCheckProgress, describeMergeable, describeReviews, suggestRequest, formatElapsed, summarizeChecks, titleFromBranch } from "./pullRequests";
+import { anyRunning, checksVerdict, checkTime, checkTimeline, describeCheckProgress, describeMergeable, describeReviews, suggestRequest, formatElapsed, summarizeChecks, titleFromBranch } from "./pullRequests";
 
 describe("suggestRequest", () => {
   it("uses a single commit's message", () => {
@@ -160,5 +160,23 @@ describe("checkTimeline", () => {
   it("keeps a bar when the clock here is behind the site's", () => {
     const timeline = checkTimeline([check("pending", "2026-11-10T10:00:05Z", null)], Date.parse("2026-11-10T10:00:00Z"));
     expect(timeline?.bars).toEqual([{ from: 0, to: 0 }]);
+  });
+});
+
+describe("describeCheckProgress for one check", () => {
+  const check = (state: RequestCheck["state"]): RequestCheck => ({ name: "Build", state, url: null, detail: null });
+  it("speaks of the check, not of counts", () => {
+    expect(describeCheckProgress([check("pending")])).toBe("The check is still running");
+    expect(describeCheckProgress([check("failure")])).toBe("The check failed");
+    expect(describeCheckProgress([check("success")], true)).toBe("The job passed");
+  });
+});
+
+describe("checksVerdict", () => {
+  const check = (state: RequestCheck["state"]): RequestCheck => ({ name: "Build", state, url: null, detail: null });
+  it("fails if any failed, runs while any run, and passes once all have", () => {
+    expect(checksVerdict([check("success"), check("pending"), check("failure")])).toEqual({ tone: "failure", word: "Failing" });
+    expect(checksVerdict([check("success"), check("pending")])).toEqual({ tone: "pending", word: "Running" });
+    expect(checksVerdict([check("success"), check("success")])).toEqual({ tone: "success", word: "Passing" });
   });
 });

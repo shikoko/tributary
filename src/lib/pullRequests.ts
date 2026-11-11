@@ -160,10 +160,18 @@ export function describeCheckProgress(checks: RequestCheck[], gitlab = false): s
   const what = gitlab ? "jobs" : "checks";
   const count = (state: RequestCheck["state"]) => counted.filter((check) => check.state === state).length;
   const [failed, running, passed] = [count("failure"), count("pending"), count("success")];
+  if (counted.length === 1) return `The ${what.slice(0, -1)} ${failed ? "failed" : running ? "is still running" : "passed"}`;
   const still = running > 0 ? `, ${running} still running` : "";
   if (failed > 0) return `${failed} of ${counted.length} ${what} failed${still}`;
   if (running > 0) return `${passed} of ${counted.length} ${what} passed${still}`;
   return counted.length === 1 ? `The ${what.slice(0, -1)} passed` : `All ${counted.length} ${what} passed`;
+}
+
+/** How a request's checks went, in a word: failing if any failed, running if any still are, passing once all have passed. */
+export function checksVerdict(checks: RequestCheck[]): { tone: "success" | "failure" | "pending"; word: string } {
+  if (checks.some((check) => check.state === "failure")) return { tone: "failure", word: "Failing" };
+  if (checks.some((check) => check.state === "pending")) return { tone: "pending", word: "Running" };
+  return { tone: "success", word: "Passing" };
 }
 
 /** Whether a request can be merged, in words, and how it looks: good, bad or waiting. */
