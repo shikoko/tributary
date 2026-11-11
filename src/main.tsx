@@ -9,11 +9,16 @@ import "@fontsource-variable/jetbrains-mono/wght-italic.css";
 import "./styles.css";
 import { isMac } from "./lib/platform";
 import { applyStoredAppearance } from "./app/useAppearance";
+import { ErrorBoundary } from "./components/ErrorScreen";
+import { watchForProblems } from "./lib/problems";
 
 // On macOS the window has no title bar: the tab bar makes room for the window buttons.
 if (isMac) document.documentElement.classList.add("mac");
 // The remembered theme and accent, before anything is drawn.
 applyStoredAppearance();
+
+// Errors nothing else caught go in the problems log, to send with a report later.
+watchForProblems();
 
 // The webview's own context menu (reload, inspect, …) doesn't belong in the app.
 // Keep it only when text is selected, so copying still works.
@@ -25,6 +30,9 @@ if (!import.meta.env.DEV) {
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    {/* An error that stops the interface shows what happened, instead of an empty window. */}
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 );
