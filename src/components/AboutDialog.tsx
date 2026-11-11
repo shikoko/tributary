@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import type { Updates } from "../lib/updates";
+import { isBeta, type Updates } from "../lib/updates";
 import { relativeTime } from "../lib/format";
 import { useNow } from "../lib/useNow";
 import { openInBrowser } from "../lib/weblinks";
@@ -15,6 +15,9 @@ interface Props {
   updates: Updates;
   auto: boolean;
   setAuto: (auto: boolean) => void;
+  /** Betas too: a version of what's coming, from each change merged. */
+  beta: boolean;
+  setBeta: (beta: boolean) => void;
   /** The newer version's notes, and Restart now. */
   onInstall: () => void;
   onWhatsNew: () => void;
@@ -113,11 +116,26 @@ function UpdateStatus({ updates, onInstall }: Pick<Props, "updates" | "onInstall
   );
 }
 
+/** A setting's switch, with what it does under its name. */
+function Toggle({ label, hint, on, set }: { label: string; hint: string; on: boolean; set: (on: boolean) => void }) {
+  return (
+    <div className="about-auto">
+      <span className="about-auto-text">
+        <span>{label}</span>
+        <span className="settings-hint">{hint}</span>
+      </span>
+      <button role="switch" aria-checked={on} aria-label={label} className={`switch${on ? " on" : ""}`} onClick={() => set(!on)}>
+        <span className="switch-knob" />
+      </button>
+    </div>
+  );
+}
+
 /**
  * About Tributary: the version, whether there's a newer one (checked when the window opens,
- * unless it was just checked), the automatic check, and what's new.
+ * unless it was just checked), the automatic check, betas, and what's new.
  */
-export function AboutDialog({ version, updates, auto, setAuto, onInstall, onWhatsNew, onLicences, onClose }: Props) {
+export function AboutDialog({ version, updates, auto, setAuto, beta, setBeta, onInstall, onWhatsNew, onLicences, onClose }: Props) {
   const { check, checkedAt, checking } = updates;
   // Once, as the window opens.
   const opening = useRef(true);
@@ -137,20 +155,25 @@ export function AboutDialog({ version, updates, auto, setAuto, onInstall, onWhat
       <div className="about-hero">
         <Logo size={76} tile />
         <span className="about-name">Tributary</span>
-        <span className="about-version">{version ? `Version ${version}` : "Version unknown"}</span>
+        <span className="about-version">
+          {version ? `Version ${version}` : "Version unknown"}
+          {isBeta(version) && <span className="about-beta">Beta</span>}
+        </span>
         <span className="about-tagline">A fast, friendly git client.</span>
       </div>
       <section className="about-updates" aria-label="Updates">
         <UpdateStatus updates={updates} onInstall={onInstall} />
-        <div className="about-auto">
-          <span className="about-auto-text">
-            <span>Check for updates automatically</span>
-            <span className="settings-hint">Shortly after Tributary starts, and every six hours.</span>
-          </span>
-          <button role="switch" aria-checked={auto} aria-label="Check for updates automatically" className={`switch${auto ? " on" : ""}`} onClick={() => setAuto(!auto)}>
-            <span className="switch-knob" />
-          </button>
-        </div>
+        <Toggle label="Check for updates automatically" hint="Shortly after Tributary starts, and every six hours." on={auto} set={setAuto} />
+        <Toggle
+          label="Get beta versions"
+          hint={
+            beta
+              ? "A new version with each change, before it's released. Turning this off keeps the version you have until a release is newer."
+              : "Try what's coming: a new version with each change, before it's released. It may have rough edges."
+          }
+          on={beta}
+          set={setBeta}
+        />
       </section>
       <nav className="about-links" aria-label="More about Tributary">
         <button className="about-link" onClick={onWhatsNew}>
@@ -161,7 +184,7 @@ export function AboutDialog({ version, updates, auto, setAuto, onInstall, onWhat
           <NotesIcon size={14} />
           Licences
         </button>
-        <button className="about-link" onClick={() => openInBrowser(SOURCE)}>
+        <button className="about-link" onClick={() => openInBrowser(SOURCE)} data-url={SOURCE}>
           <ExternalLinkIcon size={14} />
           Source code
         </button>

@@ -1,7 +1,8 @@
 import type { RequestCheck } from "../api";
 import { relativeTime } from "../lib/format";
-import { checkKey, checkTime, checkTimeline, formatElapsed, groupChecks, startedLater, type CheckGroup } from "../lib/pullRequests";
+import { checkKey, checkName, checkTime, checkTimeline, formatElapsed, formatSpan, groupChecks, startedLater, type CheckGroup } from "../lib/pullRequests";
 import { ExternalLinkIcon } from "./Icons";
+import { SlidingText } from "./SlidingText";
 
 const WORDS = { success: "Passed", failure: "Failed", pending: "Running", cancelled: "Cancelled", skipped: "Skipped" } as const;
 
@@ -58,7 +59,7 @@ export function CheckTimeline({
     const state = check.state ?? "skipped";
     const queued = check.state === "pending" && !check.startedAt;
     const bar = barOf(check);
-    const name = <span className="request-check-name">{check.name}</span>;
+    const name = <SlidingText className="request-check-name" text={checkName(check.name)} />;
     return (
       <li
         key={`${check.name}-${index}`}
@@ -68,7 +69,8 @@ export function CheckTimeline({
         // Anywhere on the row opens its page, as its wave above does; its name is the button
         // for the keyboard (its click comes here).
         onClick={check.url ? () => openUrl(check.url!) : undefined}
-        title={check.detail && check.detail !== "Queued" ? `${check.name}: ${check.detail}` : check.url ? `See ${check.name} on its page` : undefined}
+        data-url={check.url ?? undefined}
+        title={check.detail && check.detail !== "Queued" ? `${checkName(check.name)}: ${check.detail}` : check.url ? `See ${checkName(check.name)} on its page` : undefined}
       >
         <span className="request-check-dot" aria-hidden />
         {check.url ? (
@@ -77,7 +79,7 @@ export function CheckTimeline({
             <ExternalLinkIcon size={11} />
           </button>
         ) : (
-          <span className="request-timeline-name" title={check.name}>
+          <span className="request-timeline-name" title={checkName(check.name)}>
             {name}
           </span>
         )}
@@ -151,7 +153,8 @@ export function CheckTimeline({
       {timeline && (
         <div className="request-timeline-axis" aria-hidden>
           <span>{headed ? null : ago(timeline.first, now)}</span>
-          <span>{ordered.some(isRunning) ? "Now" : ago(timeline.last, now)}</span>
+          {/* While they run, how long the clock is (it grows now and then, in round steps). */}
+          <span>{timeline.running ? `+${formatSpan(timeline.length)}` : ago(timeline.last, now)}</span>
         </div>
       )}
     </div>

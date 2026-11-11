@@ -96,7 +96,7 @@ export function commitMenu(ctx: MenuContext, commit: CommitRow): MenuItem[] {
   const remote = webRemote(snapshot);
   const page = remote && commitUrl(remote, commit.id);
   if (page && remote) {
-    items.push({ label: `Open on ${siteName(remote)}`, icon: <ExternalLinkIcon />, onSelect: () => ctx.openUrl(page) });
+    items.push({ label: `Open on ${siteName(remote)}`, icon: <ExternalLinkIcon />, url: page, onSelect: () => ctx.openUrl(page) });
   }
 
   const checkouts: MenuItem[] = [];

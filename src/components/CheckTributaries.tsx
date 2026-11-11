@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { RequestCheck } from "../api";
-import { checkKey, checksVerdict, checkTime, describeCheckProgress } from "../lib/pullRequests";
+import { checkKey, checkName, checksVerdict, checkTime, describeCheckProgress } from "../lib/pullRequests";
 import { ExternalLinkIcon } from "./Icons";
 
 type Props = {
@@ -25,6 +25,14 @@ const COLOURS: Record<Tone, string> = {
   cancelled: "var(--text-faint)",
 };
 
+/**
+ * How to mix a colour with `tone`'s: by how they look, going round the hues (so green to red
+ * passes a bright amber, not a muddy brown), but straight towards cancelled's grey, which has
+ * no hue to go round to. Its grey is a little blue, and going round to that would pass a
+ * bright cyan that no check is.
+ */
+const mixing = (tone: Tone) => (tone === "cancelled" ? "oklab" : "oklch");
+
 /** The colours of `states` mixed in proportion, as CSS (null for none). */
 export function blend(states: Tone[]): string | null {
   let colour: string | null = null;
@@ -33,7 +41,7 @@ export function blend(states: Tone[]): string | null {
     const count = states.filter((state) => state === tone).length;
     if (count === 0) continue;
     total += count;
-    colour = colour ? `color-mix(in oklch, ${COLOURS[tone]} ${Math.round((count / total) * 100)}%, ${colour})` : COLOURS[tone];
+    colour = colour ? `color-mix(in ${mixing(tone)}, ${COLOURS[tone]} ${Math.round((count / total) * 100)}%, ${colour})` : COLOURS[tone];
   }
   return colour;
 }
@@ -132,45 +140,61 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   const leadIn = 18;
   const narrowFrom = confluence + (riverEnd - confluence) * 0.45;
   const along = (x: number, from: number, to: number) => smooth(Math.max(0, Math.min(1, (x - from) / (to - from))));
+  // The waves that reach the river (a failed one runs dry first).
+  const reaching = checks.flatMap((check, index) => (check.state === "failure" ? [] : [index]));
   const river = (() => {
     const half = (x: number) =>
       x < confluence ? (wide / 2) * along(x, confluence - leadIn, confluence) : (wide / 2) * (1 - 0.6 * along(x, narrowFrom, riverEnd));
+    // Before they meet, it's as wide as the waves that reach it, edge to edge, and it comes
+    // to its own width where they meet, so they flow into it without a narrow waist or a
+    // step where it starts.
+    const edges = (x: number): [number, number] => {
+      if (x >= confluence || reaching.length === 0) return [middle - half(x), middle + half(x)];
+      const ys = reaching.map((index) => wave(index)(x));
+      const k = along(x, confluence - leadIn, confluence);
+      const top = Math.min(...ys) - WAVE_WIDTH / 2;
+      const bottom = Math.max(...ys) + WAVE_WIDTH / 2;
+      return [top + (middle - wide / 2 - top) * k, bottom + (middle + wide / 2 - bottom) * k];
+    };
     const xs: number[] = [];
-    for (let x = confluence - leadIn; x < riverEnd; x += 6) xs.push(x);
+    for (let x = confluence - leadIn; x < confluence; x += 2) xs.push(x);
+    for (let x = confluence; x < riverEnd; x += 6) xs.push(x);
     xs.push(riverEnd);
-    const top = xs.map((x) => `${x} ${(middle - half(x)).toFixed(2)}`);
-    const bottom = [...xs].reverse().map((x) => `${x} ${(middle + half(x)).toFixed(2)}`);
+    const top = xs.map((x) => `${x} ${edges(x)[0].toFixed(2)}`);
+    const bottom = [...xs].reverse().map((x) => `${x} ${edges(x)[1].toFixed(2)}`);
     return `M${top.join(" L")} L${bottom.join(" L")} Z`;
   })();
   // Where they meet, the river is the colours of the waves that reach it (a failed one runs
   // dry first), and it turns into the verdict's colour on its way.
   const arriving = blend(checks.filter((check) => check.state !== "failure").map((check) => (queued(check) ? "pending" : stateOf(check))));
-  // It keeps their colour for a while, then turns into the verdict's through a bright middle
-  // (mixed by how colours look, not through a muddy brown), before it fades.
+  // It keeps their colour for a while, then turns into the verdict's (mixed as `mixing`
+  // says), before it fades.
   const from = arriving ?? "var(--river)";
+  // On their last stretch, the waves take on the river's colour, so where they meet there's
+  // no change of colour to see either.
+  const taking = Math.round(confluence * 0.3);
   const litIndex = lit === null ? -1 : checks.findIndex((check) => checkKey(check) === lit);
   const litCheck = litIndex >= 0 ? checks[litIndex] : null;
-  // A wave in the spotlight carries on along the river (where it ran, as the river narrows)
-  // and fades out with it, instead of stopping where the waves meet. A failed one ran dry.
-  const onward = (() => {
-    if (!litCheck || stateOf(litCheck) === "failure") return null;
-    const xs: number[] = [];
-    for (let x = confluence; x < riverEnd; x += 6) xs.push(x);
-    xs.push(riverEnd);
-    const y = (x: number) => middle + (arrival(litIndex) - middle) * (1 - along(x, narrowFrom, riverEnd));
-    // Its dashes as long as the wave's, which are measured along the wave (pathLength 100).
-    const wavePoints: [number, number][] = [];
-    const y0 = wave(litIndex);
-    for (let x = 0; x < confluence; x += 4) wavePoints.push([x, y0(x)]);
-    wavePoints.push([confluence, arrival(litIndex)]);
-    const waveLength = wavePoints.slice(1).reduce((sum, [x, yy], i) => sum + Math.hypot(x - wavePoints[i][0], yy - wavePoints[i][1]), 0);
-    return {
-      d: `M${xs.map((x) => `${x} ${y(x).toFixed(2)}`).join(" L")}`,
-      pathLength: (100 * (riverEnd - confluence)) / Math.max(1, waveLength),
-      state: stateOf(litCheck),
-      waiting: queued(litCheck),
-    };
-  })();
+  // Each wave that reaches the river runs on through it to the end, one line all the way
+  // (where it ran, as the river narrows), so nothing changes where they meet, and the one in
+  // the spotlight carries on in its own colour. Its length is measured along the wave
+  // (pathLength), so a running one's dashes are the same size all the way. A failed one ran
+  // dry before the river.
+  const course = (index: number) => {
+    const y = wave(index);
+    const points: [number, number][] = [];
+    for (let x = 0; x < confluence; x += 4) points.push([x, y(x)]);
+    points.push([confluence, arrival(index)]);
+    const length = (from: number) => points.slice(from + 1).reduce((sum, [x, yy], i) => sum + Math.hypot(x - points[from + i][0], yy - points[from + i][1]), 0);
+    const waveLength = Math.max(1, length(0));
+    const toWave = (list: [number, number][]) => list.map(([x, yy], i) => `${i === 0 ? "M" : "L"}${x} ${yy.toFixed(2)}`).join(" ");
+    const shore = toWave(points);
+    const onward = (x: number) => middle + (arrival(index) - middle) * (1 - along(x, narrowFrom, riverEnd));
+    const before = points.length;
+    for (let x = confluence + 6; x < riverEnd; x += 6) points.push([x, onward(x)]);
+    points.push([riverEnd, onward(riverEnd)]);
+    return { shore, whole: toWave(points), length: (100 * (waveLength + length(before - 1))) / waveLength };
+  };
   // The check in the spotlight is named under its wave, hanging from it on a dotted line:
   // from where it ran dry if it failed, or else from the river where they all meet.
   const hang = (() => {
@@ -191,7 +215,7 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
             <linearGradient id="tributaries-confluence" gradientUnits="userSpaceOnUse" x1={confluence} y1={middle} x2={riverEnd} y2={middle}>
               <stop offset="0" style={{ stopColor: from }} />
               <stop offset="0.12" style={{ stopColor: from }} />
-              <stop offset="0.24" style={{ stopColor: `color-mix(in oklch, ${from}, var(--river))` }} />
+              <stop offset="0.24" style={{ stopColor: `color-mix(in ${mixing(v.tone)}, ${from}, var(--river))` }} />
               <stop offset="0.36" style={{ stopColor: "var(--river)" }} />
             </linearGradient>
             <linearGradient id="tributaries-mouth" gradientUnits="userSpaceOnUse" x1={confluence} y1={middle} x2={riverEnd} y2={middle}>
@@ -203,59 +227,86 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
               <stop offset="0.8" stopColor="#fff" stopOpacity="0.07" />
               <stop offset="0.9" stopColor="#fff" stopOpacity="0" />
             </linearGradient>
-            {/* The waves fade into the river as it fades in under them, so where they meet has
-                no seam: no brighter stretch where they lie on top of each other, no round ends. */}
-            <linearGradient id="tributaries-joining" gradientUnits="userSpaceOnUse" x1={confluence - leadIn} y1={0} x2={confluence} y2={0}>
-              <stop offset="0" stopColor="#fff" />
-              <stop offset="1" stopColor="#fff" stopOpacity="0" />
+            <linearGradient id="tributaries-rising" gradientUnits="userSpaceOnUse" x1={confluence - leadIn} y1={0} x2={confluence} y2={0}>
+              <stop offset="0" stopColor="#fff" stopOpacity="0" />
+              <stop offset="0.5" stopColor="#fff" />
             </linearGradient>
-            <mask id="tributaries-join" maskUnits="userSpaceOnUse" x={-8} y={-8} width={confluence + 16} height={height + 16}>
-              <rect x={-8} y={-8} width={confluence + 16} height={height + 16} fill="url(#tributaries-joining)" />
+            <mask id="tributaries-rise" maskUnits="userSpaceOnUse" x={confluence - leadIn - 8} y={-8} width={riverEnd - confluence + leadIn + 16} height={height + 16}>
+              <rect x={confluence - leadIn - 8} y={-8} width={riverEnd - confluence + leadIn + 16} height={height + 16} fill="url(#tributaries-rising)" />
             </mask>
+            {/* The waves fade out with the river, the same way (the gradient keeps its first
+                stop's white before the river, so they're whole up to there). */}
+            <mask id="tributaries-flowing" maskUnits="userSpaceOnUse" x={-8} y={-8} width={width + 16} height={height + 16}>
+              <rect x={-8} y={-8} width={width + 16} height={height + 16} fill="url(#tributaries-mouth)" />
+            </mask>
+            {/* A wave's colour: its own, then the river's where they meet, changing along the
+                river just as the river does, so a wave in it can't be told from it. */}
+            {checks.map((check, index) => {
+              const at = (x: number) => Math.max(0, Math.min(1, x / riverEnd));
+              const along = (offset: number) => at(confluence + (riverEnd - confluence) * offset);
+              return (
+                <linearGradient key={index} id={`tributaries-wave-${index}`} gradientUnits="userSpaceOnUse" x1={0} y1={0} x2={riverEnd} y2={0}>
+                  <stop offset={at(confluence - taking)} style={{ stopColor: COLOURS[queued(check) ? "pending" : stateOf(check)] }} />
+                  <stop offset={at(confluence)} style={{ stopColor: from }} />
+                  <stop offset={along(0.12)} style={{ stopColor: from }} />
+                  <stop offset={along(0.24)} style={{ stopColor: `color-mix(in ${mixing(v.tone)}, ${from}, var(--river))` }} />
+                  <stop offset={along(0.36)} style={{ stopColor: "var(--river)" }} />
+                </linearGradient>
+              );
+            })}
             <mask id="tributaries-fade" maskUnits="userSpaceOnUse" x={confluence - leadIn - 12} y={0} width={riverEnd - confluence + leadIn + 24} height={height}>
               <rect x={confluence - leadIn - 12} y={0} width={riverEnd - confluence + leadIn + 24} height={height} fill="url(#tributaries-mouth)" />
             </mask>
           </defs>
           <g mask="url(#tributaries-fade)">
-            <path className="tributaries-river" d={river} fill="url(#tributaries-confluence)" />
+            <path className="tributaries-river" d={river} fill="url(#tributaries-confluence)" mask="url(#tributaries-rise)" />
             {v.tone === "pending" && <path className="tributaries-river-flow" d={`M${confluence} ${middle} L${riverEnd} ${middle}`} />}
-            {onward && (
-              <g className={`tributaries-stream lit onward ${onward.state}${onward.waiting ? " queued" : ""}`} aria-hidden>
-                <path className="tributaries-stream-line" d={onward.d} pathLength={onward.pathLength} />
-              </g>
-            )}
             {celebrating && (
               <path className="tributaries-river-sweep" d={`M${confluence} ${middle} L${riverEnd} ${middle}`} pathLength={100} style={{ animationDelay: `${1900 + n * 90}ms` }} />
             )}
           </g>
           {checks.map((check, index) => {
             const y = wave(index);
-            let d = "";
-            for (let x = 0; x < confluence; x += 4) d += `${x === 0 ? "M" : " L"}${x} ${y(x).toFixed(1)}`;
-            d += ` L${confluence} ${arrival(index).toFixed(2)}`;
             const state = stateOf(check);
+            const { shore, whole, length } = course(index);
+            const runsOn = state !== "failure";
+            // The line: all the way through the river, unless it ran dry.
+            const d = runsOn ? whole : shore;
+            const pathLength = runsOn ? length : 100;
+            const flowing = runsOn ? "url(#tributaries-flowing)" : undefined;
             const waiting = queued(check);
             const dry = confluence * DRY;
             const time = checkTime(check, now);
-            const title = `${check.name}: ${waiting ? "queued" : WORDS[state]}${time ? ` · ${time}` : ""}`;
+            const title = `${checkName(check.name)}: ${waiting ? "queued" : WORDS[state]}${time ? ` · ${time}` : ""}`;
             const was = settling.get(checkKey(check));
-            // The one in the spotlight carries on along the river instead.
-            const joining = checkKey(check) === lit ? undefined : "url(#tributaries-join)";
+            const spotlit = checkKey(check) === lit;
             const open = () => check.url && openUrl(check.url);
             return (
-              <g key={`${check.name}-${index}`} className={`tributaries-stream ${state}${waiting ? " queued" : ""}${was ? " settling" : ""}${checkKey(check) === lit ? " lit" : ""}`}>
-                {was && <path className={`tributaries-stream-ghost ${was}`} d={d} pathLength={100} mask={joining} />}
-                <path className="tributaries-stream-line" d={d} pathLength={100} mask={joining} />
+              <g
+                key={`${check.name}-${index}`}
+                className={`tributaries-stream ${state}${waiting ? " queued" : ""}${was ? " settling" : ""}${spotlit ? " lit" : ""}`}
+                style={{ "--length": pathLength } as React.CSSProperties}
+              >
+                {was && <path className={`tributaries-stream-ghost ${was}`} d={d} pathLength={pathLength} mask={flowing} />}
+                <path
+                  className="tributaries-stream-line"
+                  d={d}
+                  pathLength={pathLength}
+                  mask={flowing}
+                  // Into the river's colours, unless it ran dry, or it's in the spotlight.
+                  style={runsOn && !spotlit ? { stroke: `url(#tributaries-wave-${index})` } : undefined}
+                />
                 {state === "failure" && (
                   <>
                     <circle className="tributaries-stream-ripple" cx={dry} cy={y(dry)} r={3.5} />
                     <circle className="tributaries-stream-end" cx={dry} cy={y(dry)} r={3.5} />
                   </>
                 )}
-                {celebrating && <path className="tributaries-stream-sweep" d={d} pathLength={100} mask={joining} style={{ animationDelay: `${900 + index * 90}ms` }} />}
+                {celebrating && <path className="tributaries-stream-sweep" d={shore} pathLength={100} style={{ animationDelay: `${900 + index * 90}ms` }} />}
                 <path
                   className="tributaries-stream-hit"
-                  d={d}
+                  data-url={check.url ?? undefined}
+                  d={shore}
                   role={check.url ? "link" : undefined}
                   tabIndex={check.url ? 0 : -1}
                   aria-label={check.url ? `${title}: open its page` : title}
@@ -287,7 +338,7 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
             <svg className="tributaries-caption-line" width={4} height={hang.length + 2}>
               <line x1={2} y1={1} x2={2} y2={hang.length + 1} />
             </svg>
-            <span className="tributaries-caption-name">{litCheck.name}</span>
+            <span className="tributaries-caption-name">{checkName(litCheck.name)}</span>
             <span className="tributaries-caption-state">
               <span className="tributaries-caption-word">{queued(litCheck) ? "queued" : WORDS[stateOf(litCheck)]}</span>
               {checkTime(litCheck, now) ? ` · ${checkTime(litCheck, now)}` : ""}

@@ -149,6 +149,29 @@ button.request-ref:hover {
   background: rgb(var(--overlay-rgb) / 0.2);
 }
 
+/* Copies its name: the icon turns into a tick once copied. */
+.request-ref.copies {
+  gap: 6px;
+}
+
+/* The copy mark always shows, faintly, so it's clear a click copies (like the SHA in Details). */
+.request-ref.copies svg {
+  flex: none;
+  color: var(--text-muted);
+  opacity: 0.55;
+  transition: opacity 0.12s ease;
+}
+
+.request-ref.copies:hover svg,
+.request-ref.copies:focus-visible svg,
+.request-ref.copies.copied svg {
+  opacity: 1;
+}
+
+.request-ref.copies.copied svg {
+  color: var(--success-text);
+}
+
 .request-into {
   display: inline-flex;
   color: var(--text-muted);
@@ -463,6 +486,28 @@ button.request-ref:hover {
   min-width: 4px;
   border-radius: 0 4px 4px 0;
   background: var(--text-faint);
+  /* When the clock steps up, bars glide to their new places; a running one grows smoothly. */
+  transition:
+    left 0.6s ease,
+    width 0.6s ease;
+}
+
+/* Where a bar starts on its track (set on the track), registered so it can glide too. */
+@property --from {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 0%;
+}
+
+.request-timeline-track {
+  transition: --from 0.6s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .request-timeline-bar,
+  .request-timeline-track {
+    transition: none;
+  }
 }
 
 .request-timeline-bar.first {
@@ -1352,3 +1397,81 @@ textarea.request-body.short {
   margin-right: 8px;
 }
 
+
+/* A name that slides along to show the rest while its row is pointed at (SlidingText). At
+   rest it's cut short with an ellipsis, as before; sliding, it's whole, moved along by
+   --slide, and rests at either end to be read. */
+/* The end with more of the name past it fades, so letters slide in and out softly: the right
+   end at first, the left one once it has slid along. */
+@property --fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 14px;
+}
+
+.sliding-text.sliding {
+  /* Room above and below for the letters' tails and an underline, which the fade would
+     otherwise cut off where the box is trimmed to the letters (the margins keep it in place). */
+  padding-block: 4px;
+  margin-block: -4px;
+  text-overflow: clip;
+  mask-image: linear-gradient(90deg, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent);
+  animation: sliding-text-fade var(--slide-time, 4s) ease-in-out 0.35s infinite;
+}
+
+@keyframes sliding-text-fade {
+  0%,
+  18% {
+    --fade-start: 0px;
+    --fade-end: 14px;
+  }
+  50%,
+  68% {
+    --fade-start: 14px;
+    --fade-end: 0px;
+  }
+  100% {
+    --fade-start: 0px;
+    --fade-end: 14px;
+  }
+}
+
+.sliding-text.sliding > .sliding-text-inner {
+  display: inline-block;
+  /* An underline of the row's carries on (an inline block doesn't take it by itself). */
+  text-decoration: inherit;
+  animation: sliding-text var(--slide-time, 4s) ease-in-out 0.35s infinite;
+}
+
+@keyframes sliding-text {
+  0%,
+  18% {
+    transform: translateX(0);
+  }
+  50%,
+  68% {
+    transform: translateX(var(--slide, 0));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sliding-text.sliding {
+    text-overflow: ellipsis;
+    mask-image: none;
+    animation: none;
+  }
+
+  .sliding-text.sliding > .sliding-text-inner {
+    display: inline;
+    animation: none;
+  }
+}

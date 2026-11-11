@@ -147,14 +147,42 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px 20px 28px;
+}
+
+/* The parts after the message, each under a small heading, set apart by room, not boxes. */
+.details-section {
+  margin-top: 30px;
+}
+
+.details-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  margin-bottom: 12px;
+}
+
+.details .details-section-head h3 {
+  display: block;
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.details-section-note {
+  color: var(--text-faint);
+  font-size: 12px;
 }
 
 .details-summary {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 650;
-  line-height: 1.35;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
@@ -165,7 +193,7 @@
   gap: 8px;
   margin: 12px 0 0;
   color: var(--text-secondary);
-  line-height: 1.55;
+  line-height: 1.6;
   overflow-wrap: anywhere;
 }
 
@@ -200,7 +228,7 @@
 }
 
 .details-refs {
-  margin-top: 12px;
+  margin-bottom: 12px;
 }
 
 .details-refs .ref-pills {
@@ -211,16 +239,13 @@
 .people {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
+  gap: 18px;
 }
 
 .person {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -255,6 +280,7 @@
 }
 
 .person-when {
+  margin-top: 3px;
   color: var(--text-muted);
   font-size: 12px;
 }
@@ -262,10 +288,9 @@
 .meta {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 8px 14px;
-  margin: 16px 0 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
+  align-items: baseline;
+  gap: 12px 18px;
+  margin: 0;
 }
 
 .meta dt {
@@ -278,7 +303,7 @@
   overflow-wrap: anywhere;
 }
 
-/* The full SHA copies itself when clicked: plain text until hovered. */
+/* The full SHA copies itself when clicked, as its icon says. */
 .meta .full-sha {
   display: inline-flex;
   align-items: flex-start;
@@ -304,8 +329,7 @@
   flex: none;
   margin-top: 1px;
   color: var(--text-faint);
-  opacity: 0;
-  transition: opacity 120ms;
+  transition: color 120ms;
 }
 
 .meta .full-sha:hover {
@@ -313,9 +337,8 @@
 }
 
 .meta .full-sha:hover > svg,
-.meta .full-sha:focus-visible > svg,
-.meta .full-sha.copied > svg {
-  opacity: 1;
+.meta .full-sha:focus-visible > svg {
+  color: var(--text-secondary);
 }
 
 .meta .full-sha.copied > svg {
@@ -355,6 +378,16 @@
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+}
+
+.details .details-section.files {
+  margin-top: 30px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.details-section .details-actions {
+  margin-top: 18px;
 }
 
 .files h3 {
@@ -441,8 +474,8 @@
 .mentioned-issues {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin: 12px 0 0;
+  gap: 6px;
+  margin: 14px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -487,23 +520,211 @@
   font-size: 12px;
 }
 
-/* A commit's CI. */
-.commit-checks {
-  display: flex;
-  flex-direction: column;
+/* A commit's CI: how many passed and failed, as words and a bar, then the ones to look at. */
+.commit-checks-rerun {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  margin: 10px 0 4px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
-.commit-checks-head {
+.commit-checks-rerun:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.commit-checks-rerun:disabled {
+  opacity: 0.6;
+}
+
+.commit-checks-summary {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.commit-checks-count strong {
+  color: var(--text);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.commit-checks-count.failure strong {
+  color: var(--danger-text);
+}
+
+.commit-checks-count.pending strong {
+  color: var(--warning-text);
+}
+
+.commit-checks-count.success strong {
+  color: var(--success-text);
+}
+
+.commit-checks-bar {
+  display: flex;
+  gap: 2px;
+  height: 4px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.commit-checks-bar > span {
+  min-width: 4px;
+  background: var(--text-faint);
+}
+
+.commit-checks-bar > .success {
+  background: var(--success);
+}
+
+.commit-checks-bar > .failure {
+  background: var(--danger);
+}
+
+.commit-checks-bar > .pending {
+  background: var(--warning);
+}
+
+.commit-checks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 12px -8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.commit-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+
+button.commit-check-row {
+  cursor: pointer;
+}
+
+button.commit-check-row:hover {
+  background: var(--bg-hover);
+}
+
+/* The dot, time and icon line up with the check's name, above what it said. */
+.commit-check-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.commit-check.success .commit-check-dot {
+  background: var(--success);
+}
+
+.commit-check.failure .commit-check-dot {
+  background: var(--danger);
+}
+
+.commit-check.pending .commit-check-dot {
+  background: var(--warning);
+  animation: request-pending 1.4s ease-in-out infinite;
+}
+
+.commit-check-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.commit-check-name {
+  line-height: 20px;
+}
+
+.commit-check-name,
+.commit-check-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commit-check-detail {
+  color: var(--text-muted);
   font-size: 12px;
+}
+
+.commit-check.failure .commit-check-detail {
+  color: var(--danger-text);
+}
+
+.commit-check-time {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.commit-check-row svg {
+  flex: none;
+  margin-top: 4px;
+  color: var(--text-faint);
+}
+
+button.commit-check-row:hover svg {
   color: var(--text-secondary);
 }
 
-.commit-checks-head .outline-button.small {
-  height: 24px;
+.commit-checks-more {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+/* Shows a pull request the commit mentions in the app, beside its link to the site. */
+.mentioned-issue-show {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
   margin-left: auto;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+}
+
+.mentioned-issue-status + .mentioned-issue-show {
+  margin-left: 0;
+}
+
+.mentioned-issue-show:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
+  color: var(--text);
 }

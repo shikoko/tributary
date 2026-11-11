@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { commitDetails, type CommitDetails, type CommitRow, type CommitSignature, type FileChange, type Lock, type Person, type WebRemote } from "../api";
 import { useThemeColors } from "../app/useAppearance";
 import { laneColor } from "../lib/colors";
-import { dateInZone, fullDate, plural, shortId, utcOffset } from "../lib/format";
+import { dateInZone, fullDate, shortId, utcOffset } from "../lib/format";
 import { copyText } from "../lib/clipboard";
 import { coAuthors } from "../lib/weblinks";
 import { Avatar } from "./Avatar";
@@ -110,12 +110,19 @@ export function CommitDetailsPanel(props: Props) {
     committer &&
     (committer.name !== author.name || committer.email !== author.email || Math.abs(committer.time - author.time) > 60);
 
+  const people = [
+    <PersonLine key="author" role="authored" person={author} exact={Boolean(details)} />,
+    ...(showCommitter ? [<PersonLine key="committer" role="committed" person={committer} exact />] : []),
+    ...(details ? coAuthors(details.body).map((person) => <PersonLine key={person.email} role="co-authored" person={{ ...person, time: 0, offset: 0 }} exact={false} />) : []),
+  ];
+
+  // In parts, each with a small heading: the message, its checks, who made it, the
+  // commit's own details, and what changed.
   return (
     <ActorNames.Provider value={actors}>
       <aside className="details" aria-label="Commit details">
         <header className="details-header">
           <span className="details-label">{commit.kind === "stash" ? "Stash" : "Commit"}</span>
-          <CopyButton text={commit.id} label={shortId(commit.id)} />
           <span className="spacer" />
           <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close details">
             <CloseIcon />
@@ -123,98 +130,98 @@ export function CommitDetailsPanel(props: Props) {
         </header>
 
         <div className="details-scroll">
-          <h2 className="details-summary">
-            <MessageText
-              text={details?.summary ?? commit.summary}
-              remote={remote}
-              resolveCommit={resolveCommit}
-              onSelectCommit={onSelect}
-            />
-          </h2>
-          {details?.body && (
-            <div className="details-body">
-              {reflowBody(details.body).map((block, index) => {
-                const text = <MessageText text={block.text} remote={remote} resolveCommit={resolveCommit} onSelectCommit={onSelect} />;
-                if (block.kind === "code") return <pre key={index} className="body-code">{text}</pre>;
-                if (block.kind === "paragraph") return <p key={index} className="body-paragraph">{text}</p>;
-                return (
-                  <div key={index} className="body-item" style={{ paddingLeft: block.depth * 16 }}>
-                    <span className="body-marker">{block.marker}</span>
-                    <span>{text}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          <MentionedIssues text={`${details?.summary ?? commit.summary}\n${details?.body ?? ""}\n${commit.refs.map((ref) => ref.name).join("\n")}`} />
+          <section className="details-message">
+            {commit.refs.length > 0 && (
+              <div className="details-refs">
+                <RefPills refs={commit.refs} color={laneColor(commit.graph.column, colors.lanes)} />
+              </div>
+            )}
+            <h2 className="details-summary">
+              <MessageText text={details?.summary ?? commit.summary} remote={remote} resolveCommit={resolveCommit} onSelectCommit={onSelect} />
+            </h2>
+            {details?.body && (
+              <div className="details-body">
+                {reflowBody(details.body).map((block, index) => {
+                  const text = <MessageText text={block.text} remote={remote} resolveCommit={resolveCommit} onSelectCommit={onSelect} />;
+                  if (block.kind === "code") return <pre key={index} className="body-code">{text}</pre>;
+                  if (block.kind === "paragraph") return <p key={index} className="body-paragraph">{text}</p>;
+                  return (
+                    <div key={index} className="body-item" style={{ paddingLeft: block.depth * 16 }}>
+                      <span className="body-marker">{block.marker}</span>
+                      <span>{text}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <MentionedIssues text={`${details?.summary ?? commit.summary}\n${details?.body ?? ""}\n${commit.refs.map((ref) => ref.name).join("\n")}`} />
+          </section>
+
           {props.notify && <CommitChecks repoPath={repoPath} id={commit.id} notify={props.notify} />}
 
-          {commit.refs.length > 0 && (
-            <div className="details-refs">
-              <RefPills refs={commit.refs} color={laneColor(commit.graph.column, colors.lanes)} />
+          <section className="details-section">
+            <div className="details-section-head">
+              <h3>{people.length > 1 ? "People" : "Author"}</h3>
             </div>
-          )}
+            <div className="people">{people}</div>
+          </section>
 
-          <div className="people">
-            <PersonLine role="authored" person={author} exact={Boolean(details)} />
-            {showCommitter && <PersonLine role="committed" person={committer} exact />}
-            {details &&
-              coAuthors(details.body).map((person) => (
-                <PersonLine key={person.email} role="co-authored" person={{ ...person, time: 0, offset: 0 }} exact={false} />
-              ))}
-          </div>
-
-          <dl className="meta">
-            <dt>SHA</dt>
-            <dd>
-              <ShaButton sha={commit.id} />
-            </dd>
-            {details?.signature && (
-              <>
-                <dt>Signed</dt>
-                <dd>
-                  <SignatureMark signature={details.signature} />
-                </dd>
-              </>
+          <section className="details-section">
+            <div className="details-section-head">
+              <h3>Details</h3>
+            </div>
+            <dl className="meta">
+              <dt>SHA</dt>
+              <dd>
+                <ShaButton sha={commit.id} />
+              </dd>
+              {details?.signature && (
+                <>
+                  <dt>Signed</dt>
+                  <dd>
+                    <SignatureMark signature={details.signature} />
+                  </dd>
+                </>
+              )}
+              <dt>{commit.parents.length === 1 ? "Parent" : "Parents"}</dt>
+              <dd className="parents">
+                {commit.parents.length === 0 && <span className="muted">None (first commit)</span>}
+                {commit.parents.map((parent) => (
+                  <button
+                    key={parent}
+                    className="sha-link"
+                    onClick={() => onSelect(parent)}
+                    disabled={!hasCommit(parent)}
+                    title={hasCommit(parent) ? "Go to parent" : "Not loaded"}
+                  >
+                    {shortId(parent)}
+                  </button>
+                ))}
+              </dd>
+            </dl>
+            {actions.length > 0 && (
+              <div className="details-actions">
+                {actions.map((action) => (
+                  <button
+                    key={action.label}
+                    className={action.danger ? "danger-outline-button" : "outline-button"}
+                    onClick={action.onClick}
+                    title={action.label}
+                  >
+                    {action.icon}
+                    <span className="button-label">{action.label}</span>
+                  </button>
+                ))}
+              </div>
             )}
-            <dt>{commit.parents.length === 1 ? "Parent" : "Parents"}</dt>
-            <dd className="parents">
-              {commit.parents.length === 0 && <span className="muted">None (first commit)</span>}
-              {commit.parents.map((parent) => (
-                <button
-                  key={parent}
-                  className="sha-link"
-                  onClick={() => onSelect(parent)}
-                  disabled={!hasCommit(parent)}
-                  title={hasCommit(parent) ? "Go to parent" : "Not loaded"}
-                >
-                  {shortId(parent)}
-                </button>
-              ))}
-            </dd>
-          </dl>
+          </section>
 
-          {actions.length > 0 && (
-            <div className="details-actions">
-              {actions.map((action) => (
-                <button
-                  key={action.label}
-                  className={action.danger ? "danger-outline-button" : "outline-button"}
-                  onClick={action.onClick}
-                  title={action.label}
-                >
-                  {action.icon}
-                  <span className="button-label">{action.label}</span>
-                </button>
-              ))}
+          <section className="details-section files">
+            <div className="details-section-head">
+              <h3>Changed files</h3>
+              {details && <span className="details-section-note">{details.files.length.toLocaleString()}</span>}
+              {commit.parents.length > 1 && <span className="details-section-note">· compared to the first parent</span>}
             </div>
-          )}
-
-          <section className="files">
-            <h3>
-              {details ? plural(details.files.length, "changed file") : "Changed files"}
-              {commit.parents.length > 1 && <span className="hint">compared to the first parent</span>}
-            </h3>
             {current.error ? (
               <div className="details-error">{current.error}</div>
             ) : !details ? (
@@ -281,16 +288,6 @@ function useCopy(text: string): [boolean, () => void] {
   }, [copied]);
   const copy = () => void copyText(text).then(() => setCopied(true));
   return [copied, copy];
-}
-
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [copied, copy] = useCopy(text);
-  return (
-    <button className="copy-button" onClick={copy} title="Copy the full SHA">
-      <span className="mono">{label}</span>
-      {copied ? <CheckIcon size={13} /> : <CopyIcon size={13} />}
-    </button>
-  );
 }
 
 /** The full SHA: clicking it copies it. */

@@ -115,8 +115,12 @@ try {
   });
 
   await step("shows a commit's details", async () => {
+    // It's near the end, which isn't drawn until it's scrolled to: how near depends on how
+    // many days the commits cross, which depends on the time of day the demo is made.
+    await scrollList("end");
     await row("Add the note model").click();
     await page.locator(".details", { hasText: "Sam Okafor" }).waitFor({ timeout: 5000 });
+    await scrollList("top");
   });
 
   await step("searches commits", async () => {
@@ -335,13 +339,14 @@ try {
     const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" }).trim();
     const head = git("rev-parse", "HEAD");
     // Bisecting checks out older commits: the demo's changes go aside meanwhile. (The app
-    // may be reading the repository right then, holding git's lock for a moment.)
+    // may be reading the repository right then, holding one of git's locks for a moment, so
+    // it's tried again for a few seconds whatever went wrong.)
     for (let tries = 0; ; tries++) {
       try {
         git("stash", "push", "-q", "--include-untracked", "-m", "smoke: bisect");
         break;
       } catch (e) {
-        if (tries >= 20 || !String(e).includes("index.lock")) throw e;
+        if (tries >= 20) throw e;
         await page.waitForTimeout(150);
       }
     }
@@ -671,7 +676,7 @@ try {
   await step("lists every file of a huge commit, and filters them", async () => {
     await row("Import the generated level instances").click();
     const files = page.locator(".details .files");
-    await files.locator("h3", { hasText: "2,400 changed files" }).waitFor({ timeout: 10_000 });
+    await files.locator(".details-section-head", { hasText: "Changed files" }).filter({ hasText: "2,400" }).waitFor({ timeout: 10_000 });
     // Only the rows on screen are drawn, but the last file is there to scroll to.
     const drawn = await files.locator(".file").count();
     expect(drawn < 400, `${drawn} rows drawn`);
@@ -1005,6 +1010,13 @@ try {
     await auto.click();
     expect((await auto.getAttribute("aria-checked")) !== before, "the automatic check didn't change");
     await auto.click();
+    // Betas: off to begin with; turning them on looks again, and they're turned off again.
+    const beta = about.getByRole("switch", { name: "Get beta versions" });
+    expect((await beta.getAttribute("aria-checked")) === "false", "betas are on to begin with");
+    await beta.click();
+    expect((await beta.getAttribute("aria-checked")) === "true", "betas didn't turn on");
+    await about.locator(".about-status.current").waitFor({ timeout: 10_000 });
+    await beta.click();
     await about.getByRole("button", { name: "Check again" }).click();
     await about.locator(".about-status.current").waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");
@@ -1031,6 +1043,10 @@ try {
     expect(!(await page.evaluate(() => window.__PREVIEW__.installed)), "installed while git was busy");
     await page.keyboard.press("Escape");
     await about.waitFor({ state: "detached", timeout: 5000 });
+    // It said so too, once ready, with Restart.
+    const notice = await toast();
+    expect(/Tributary 9\.9\.0 is ready/.test(notice), `toast "${notice}"`);
+    await dismissToast();
   });
 
   await step("keeps a local history snapshot and puts a file back from it", async () => {

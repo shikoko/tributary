@@ -25,7 +25,6 @@ export function MessageText({ text, remote, resolveCommit, onSelectCommit }: Pro
             key={index}
             href={part.url}
             className="message-link"
-            title={part.url}
             onClick={(event) => {
               event.preventDefault();
               openInBrowser(part.url);

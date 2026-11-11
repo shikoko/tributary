@@ -14,6 +14,7 @@ import type { OpenDialog } from "./menus";
 import { ProfilePictures } from "./components/Avatar";
 import { DownloadIcon } from "./components/Icons";
 import { TabBar } from "./components/TabBar";
+import { LinkPreview } from "./components/LinkPreview";
 import type { ToastMessage } from "./components/Toast";
 import { menuItems, shortcutLabel } from "./app/appCommand";
 import { aboutCommandsFor, appMenus, helpCommandsFor, settingsCommand, startCommands, type MenuBarContext } from "./app/appMenus";
@@ -24,6 +25,8 @@ import { paletteCommands } from "./app/paletteCommands";
 import { RepositoryView } from "./app/RepositoryView";
 import { StartView } from "./app/StartView";
 import { useAccounts } from "./app/useAccounts";
+import { useLeftOpen } from "./app/useLeftOpen";
+import { useUpdateNotice } from "./app/useUpdateNotice";
 import { useViewFade } from "./app/useViewFade";
 import { useGitInstall } from "./app/useGitInstall";
 import { GitNeededBanner } from "./components/GitNeeded";
@@ -70,7 +73,7 @@ import { DEFAULT_COLUMNS } from "./components/CommitList";
 export default function App() {
   const preferences = usePreferences();
   const { tabs, setTabs, setActiveTab, firstParentOnly } = preferences;
-  const updates = useUpdates(preferences.autoUpdate);
+  const updates = useUpdates(preferences.autoUpdate, preferences.betaUpdates);
   const theme = useAppearance(preferences.appearance);
   const overlays = useOverlays();
   const openSettings = (section?: string) => {
@@ -292,7 +295,13 @@ export default function App() {
     fetchActive: async () => Boolean(await act({ kind: "fetchLatest" }, "fetch")),
     notify: setToast,
   });
+  // A pull request merged or closed on the site moved the remote's branches: fetch now.
+  const prLeftOpen = useLeftOpen(repoPath, prs.list);
+  // A new version: said once it's ready to install (or if it couldn't be downloaded).
+  const showUpdate = useCallback(() => showOverlay("update"), [showOverlay]);
+  useUpdateNotice(updates, setToast, showUpdate);
   const tabNews = useBackgroundFetch({
+    nudge: prLeftOpen,
     snapshot,
     tabs,
     enabled: preferences.autoFetch,
@@ -432,7 +441,7 @@ export default function App() {
     <BisectMarksContext.Provider value={marks}>
     <CiStatesContext.Provider value={ciStates}>
     <ProfilePictures.Provider value={preferences.profilePictures ? repoPath : null}>
-      <PullRequestsContext.Provider value={prs.list.length > 0 ? prLookup : null}>
+      <PullRequestsContext.Provider value={prLookup}>
         <div className="app">
           {showTabBar && (
             <TabBar
@@ -550,6 +559,8 @@ export default function App() {
             hideToast={hideToast}
             dropping={dropping}
           />
+          {/* With a repository open, its status bar says where a link goes. */}
+          {!snapshot && <LinkPreview />}
         </div>
       </PullRequestsContext.Provider>
     </ProfilePictures.Provider>

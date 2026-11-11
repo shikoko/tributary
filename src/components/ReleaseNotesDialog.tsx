@@ -91,7 +91,7 @@ export function ReleaseNotesDialog({
           </button>
           {site &&
             (published ? (
-              <button className="primary-small-button" onClick={() => openUrl(published)}>
+              <button className="primary-small-button" onClick={() => openUrl(published)} data-url={published}>
                 Open on {site}
               </button>
             ) : (

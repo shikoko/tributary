@@ -865,10 +865,13 @@ pub async fn commits_between(path: String, from: String, to: String) -> Result<r
     blocking(move || repo::commits_between(&PathBuf::from(path), &from, &to)).await
 }
 
-/// A newer version of Tributary, if there is one.
+/// A newer version of Tributary, if there is one (a beta too, if `beta`).
 #[tauri::command]
-pub async fn check_for_update(app: AppHandle) -> Result<Option<updates::UpdateInfo>> {
-    updates::check(&app).await
+pub async fn check_for_update(
+    app: AppHandle,
+    beta: Option<bool>,
+) -> Result<Option<updates::UpdateInfo>> {
+    updates::check(&app, beta.unwrap_or(false)).await
 }
 
 /// Download the update found by `check_for_update`, without installing it. Reports the

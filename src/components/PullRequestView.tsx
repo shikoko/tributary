@@ -17,6 +17,7 @@ import {
   CopyIcon,
   ExternalLinkIcon,
   EyeIcon,
+  HistoryIcon,
   MergeIcon,
   PencilIcon,
   PullRequestIcon,
@@ -239,7 +240,7 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
         >
           <RefreshIcon size={14} />
         </button>
-        <button className="outline-button" onClick={() => openUrl(details?.url ?? request.url)} title={`Open it on ${site}`}>
+        <button className="outline-button" onClick={() => openUrl(details?.url ?? request.url)} title={`Open it on ${site}`} data-url={details?.url ?? request.url}>
           <ExternalLinkIcon size={13} />
           <span className="button-label">Open on {site}</span>
         </button>
@@ -265,15 +266,26 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
               <span className="request-who chip-text">
                 <strong>{details.author}</strong> wants to merge
               </span>
-              <button className="request-ref" onClick={() => onShowBranch(details.branch)} title={`Highlight ${details.branch}'s history`}>
-                <span className="chip-text">{details.branch}</span>
-              </button>
+              <BranchChip
+                name={details.branch}
+                onMenu={(x, y) =>
+                  setMenu({
+                    x,
+                    y,
+                    items: [
+                      { label: "Copy name", icon: <CopyIcon />, onSelect: () => void copyText(details.branch) },
+                      { label: `Highlight ${details.branch}'s history`, icon: <HistoryIcon />, onSelect: () => onShowBranch(details.branch) },
+                    ],
+                  })
+                }
+              />
               <span className="request-into" aria-label="into">
                 <ChevronRightIcon size={14} />
               </span>
-              <span className="request-ref">
-                <span className="chip-text">{details.base}</span>
-              </span>
+              <BranchChip
+                name={details.base}
+                onMenu={(x, y) => setMenu({ x, y, items: [{ label: "Copy name", icon: <CopyIcon />, onSelect: () => void copyText(details.base) }] })}
+              />
               {Number.isFinite(created) && <span className="request-when chip-text">opened {relativeTime(created)}</span>}
             </div>
             <div className="request-facts">
@@ -531,10 +543,34 @@ export function CheckRow({ check, time, openUrl }: { check: RequestCheck; time: 
       {check.detail && <span className="request-check-detail">{check.detail}</span>}
       {time && <CheckTime check={check} time={time} />}
       {check.url && (
-        <button className="link-button request-check-link" onClick={() => openUrl(check.url!)}>
+        <button className="link-button request-check-link" onClick={() => openUrl(check.url!)} data-url={check.url}>
           Details
         </button>
       )}
     </li>
+  );
+}
+
+/** A branch the request is from or into: clicking it copies its name (right-click for more). */
+function BranchChip({ name, onMenu }: { name: string; onMenu: (x: number, y: number) => void }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1200);
+    return () => clearTimeout(timer);
+  }, [copied]);
+  return (
+    <button
+      className={`request-ref copies${copied ? " copied" : ""}`}
+      onClick={() => void copyText(name).then(() => setCopied(true))}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onMenu(event.clientX, event.clientY);
+      }}
+      title={copied ? "Copied" : `Copy ${name} (right-click for more)`}
+    >
+      <span className="chip-text">{name}</span>
+      {copied ? <CheckIcon size={12} /> : <CopyIcon size={12} />}
+    </button>
   );
 }

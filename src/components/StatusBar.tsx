@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import type { RepoSnapshot } from "../api";
 import { plural, relativeTime } from "../lib/format";
 import { isMac } from "../lib/platform";
-import { ActivityIcon, BranchIcon, BroomIcon, CloseIcon, CloudIcon, CommitIcon, EyeOffIcon, FolderIcon, TeamIcon } from "./Icons";
+import { useLinkUrl } from "../lib/linkPreview";
+import { ActivityIcon, BranchIcon, BroomIcon, CloseIcon, CloudIcon, CommitIcon, ExternalLinkIcon, EyeOffIcon, FolderIcon, TeamIcon } from "./Icons";
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -44,10 +45,18 @@ export function StatusBar(props: Props) {
     return () => clearInterval(timer);
   }, []);
 
+  // While a link is pointed at, the page it opens, in place of the rest, as browsers show it.
+  const link = useLinkUrl();
   const commits = snapshot.commits.filter((commit) => commit.kind === "commit").length;
   const fetched = snapshot.lastFetched ? `Fetched ${relativeTime(snapshot.lastFetched)}` : "Never fetched";
   return (
-    <footer className="status-bar">
+    <footer className={`status-bar${link ? " showing-link" : ""}`}>
+      {link && (
+        <span className="status-link" aria-hidden>
+          <ExternalLinkIcon size={12} />
+          <span>{link}</span>
+        </span>
+      )}
       <span className="status-item strong" title={snapshot.headBranch ? `On ${snapshot.headBranch}` : "Detached HEAD"}>
         {snapshot.headBranch ? <BranchIcon size={12} /> : <CommitIcon size={12} />}
         {snapshot.headBranch ?? `HEAD at ${snapshot.headCommit?.slice(0, 7) ?? "nothing"}`}

@@ -14,6 +14,8 @@ export interface MenuItem {
   checked?: boolean;
   /** A keyboard shortcut to show on the right, like "⌘B". */
   shortcut?: string;
+  /** The page it opens in the browser: shown at the bottom left while it's pointed at. */
+  url?: string;
   /** A second, smaller line under the label (like whether a merge would conflict). */
   detail?: ReactNode;
   /** Opens these beside it, instead of doing something itself. */
@@ -164,6 +166,7 @@ function MenuPanel({ x, y, flipX, items, onClose, onSideways, onBack, focusFirst
               aria-haspopup={item.submenu ? "menu" : undefined}
               aria-expanded={item.submenu ? open?.index === index : undefined}
               disabled={item.disabled}
+              data-url={item.url}
               onMouseEnter={(event) => {
                 window.clearTimeout(hover.current);
                 const button = event.currentTarget;

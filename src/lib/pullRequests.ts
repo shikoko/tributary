@@ -15,6 +15,8 @@ export interface PullRequestLookup {
    * `upstream` is the remote branch a local branch tracks, when it's known.
    */
   find(name: string, local: boolean, remotes: string[], upstream?: string): PullRequest | undefined;
+  /** An open one by its number. */
+  byNumber(number: number): PullRequest | undefined;
   /** Show it in the app. */
   open(pr: PullRequest): void;
 }
@@ -23,7 +25,9 @@ export const PullRequestsContext = createContext<PullRequestLookup | null>(null)
 
 export function makeLookup(list: PullRequest[], open: (pr: PullRequest) => void): PullRequestLookup {
   const byRemoteBranch = new Map(list.map((pr) => [`${pr.remote}/${pr.branch}`, pr]));
+  const byNumber = new Map(list.map((pr) => [pr.number, pr]));
   return {
+    byNumber: (number) => byNumber.get(number),
     find(name, local, remotes, upstream) {
       if (!local) return byRemoteBranch.get(name);
       if (upstream && byRemoteBranch.has(upstream)) return byRemoteBranch.get(upstream);
@@ -178,6 +182,36 @@ export interface CheckTimeline {
   /** When the first one started and the last one ended (or now, if one is running), in ms. */
   first: number;
   last: number;
+  /** How long the clock is, from the first start: the next round length while any runs. */
+  length: number;
+  /** Whether any is still running. */
+  running: boolean;
+}
+
+/**
+ * How long the clock is while checks are still running, for the `elapsed` time since the
+ * first started: the next of a few round lengths with room to grow, so the clock changes now
+ * and then, not every second. Between changes, every bar's start stays where it is, and a
+ * running one grows to the right.
+ */
+export function runningScale(elapsed: number): number {
+  const wanted = elapsed * 1.15;
+  const steps = [30, 60, 120, 180, 300, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200, 10800, 14400, 21600, 43200, 86400];
+  const step = steps.find((seconds) => seconds * 1000 >= wanted);
+  return step ? step * 1000 : Math.ceil(wanted / 86_400_000) * 86_400_000;
+}
+
+/** A length of time as briefly as it can be said, like "2m", "1h 30m" or "45s". */
+export function formatSpan(ms: number): string {
+  return formatElapsed(ms).replace(/ 0[sm]$/, "");
+}
+
+/**
+ * A check's name to show. GitHub names a matrix job that was skipped after its template,
+ * like "Rust (${{ matrix.name }})", since it never got its values: that part is left out.
+ */
+export function checkName(name: string): string {
+  return name.replace(/\s*\(\s*\$\{\{[^}]*\}\}\s*\)/g, "").replace(/\$\{\{[^}]*\}\}/g, "…").trim() || name;
 }
 
 /** Lays the checks out on one clock, or null when none of them has times to show. */
@@ -194,11 +228,16 @@ export function checkTimeline(checks: RequestCheck[], now: number): CheckTimelin
   if (known.length === 0) return null;
   const first = Math.min(...known.map((span) => span.start));
   const last = Math.max(...known.map((span) => span.end));
-  const length = Math.max(last - first, 1);
+  // While any runs, the clock goes up in steps (so bars stay put); once all are done, it
+  // fits them exactly.
+  const running = checks.some((check) => check.state === "pending" && check.startedAt && !check.finishedAt);
+  const length = running ? runningScale(last - first) : Math.max(last - first, 1);
   return {
     bars: spans.map((span) => span && { from: (span.start - first) / length, to: (span.end - first) / length }),
     first,
     last,
+    length,
+    running,
   };
 }
 
