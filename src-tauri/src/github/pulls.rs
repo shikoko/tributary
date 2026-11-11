@@ -340,14 +340,36 @@ fn name_runs(checks: &mut [Check], runs: Vec<RawWorkflowRun>) {
     }
 }
 
+/// When a workflow ran more than once for the commit for the same reason (a pull request's
+/// description edited after it was opened, say), only its latest run's jobs are kept: the
+/// earlier runs' are out of date, and GitHub goes by the latest too.
+fn keep_latest_runs(checks: &mut Vec<Check>) {
+    let same = |a: &Check, b: &Check| {
+        a.workflow == b.workflow && a.trigger == b.trigger && a.name == b.name
+    };
+    let latest: Vec<bool> = checks
+        .iter()
+        .map(|check| {
+            check.trigger.is_none()
+                || checks
+                    .iter()
+                    .filter(|other| other.trigger.is_some() && same(check, other))
+                    .all(|other| other.suite <= check.suite)
+        })
+        .collect();
+    let mut keep = latest.into_iter();
+    checks.retain(|_| keep.next().unwrap_or(true));
+}
+
 /// Names the workflow of each check of `sha` that GitHub Actions ran, and what started it,
-/// so the checks can be grouped by run. One request; without it they keep the app's name.
+/// so the checks can be grouped by run, keeping each workflow's latest run. One request;
+/// without it they keep the app's name.
 async fn name_workflows(
     client: &reqwest::Client,
     full_name: &str,
     token: Option<&str>,
     sha: &str,
-    checks: &mut [Check],
+    checks: &mut Vec<Check>,
 ) {
     if checks.iter().all(|check| check.suite.is_none()) {
         return;
@@ -360,6 +382,7 @@ async fn name_workflows(
         && let Ok(runs) = answer.json::<RawWorkflowRuns>().await
     {
         name_runs(checks, runs.workflow_runs);
+        keep_latest_runs(checks);
     }
 }
 
@@ -634,6 +657,38 @@ mod tests {
             ]
         );
         assert_eq!(trigger("workflow_dispatch", Some("main")), "run by hand");
+
+        // The same workflow run twice on the pull request (opened, then its description
+        // edited): only the later run's job is kept; a run on push is something else.
+        let footer = |suite: u64, trigger: &str| Check {
+            name: "footer".into(),
+            workflow: Some("Tidy pull requests".into()),
+            trigger: Some(trigger.into()),
+            suite: Some(suite),
+            ..Check::default()
+        };
+        let mut twice = vec![
+            footer(20, "on the pull request"),
+            footer(31, "on the pull request"),
+            footer(25, "on push to develop"),
+            Check {
+                name: "ci/jenkins".into(),
+                ..Check::default()
+            },
+        ];
+        keep_latest_runs(&mut twice);
+        let kept: Vec<(Option<u64>, &str)> = twice
+            .iter()
+            .map(|check| (check.suite, check.name.as_str()))
+            .collect();
+        assert_eq!(
+            kept,
+            [
+                (Some(31), "footer"),
+                (Some(25), "footer"),
+                (None, "ci/jenkins")
+            ]
+        );
         assert_eq!(
             trigger("repository_dispatch", None),
             "on repository dispatch"
