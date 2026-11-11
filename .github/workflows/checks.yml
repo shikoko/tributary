@@ -6,16 +6,18 @@ name: Checks
 #
 # Each merge into develop is checked again too, as merged: a pull request is merged
 # straight after it's rebased onto develop, without waiting for its checks to run again, so
-# this is what catches two pull requests that each passed but don't work together. A newer
-# merge cancels the run of the one before.
+# this is what catches two pull requests that each passed but don't work together. Each
+# merge has its own run, never cancelled by the next: a merge of only documentation right
+# after one of code would otherwise cancel the code's run and then skip everything itself.
 on:
   pull_request:
     branches: [develop, main]
   push:
     branches: [develop]
 
+# A pull request's newer push cancels the run of the one before; a merge's run is its own.
 concurrency:
-  group: checks-${{ github.event.pull_request.number || github.ref }}
+  group: checks-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 permissions:
