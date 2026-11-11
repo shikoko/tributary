@@ -95,6 +95,9 @@ pub enum CheckState {
     Success,
     Failure,
     Pending,
+    /// Stopped before it finished, like a build replaced by a newer one: neither passed nor
+    /// failed (GitHub shows it grey).
+    Cancelled,
 }
 
 #[derive(Deserialize)]
@@ -166,7 +169,8 @@ pub(crate) fn github_repository(path: &Path) -> Result<Option<(String, String)>,
     }))
 }
 
-/// Combine the results of a commit's checks: any failure fails, anything still running is pending.
+/// Combine the results of a commit's checks: any failure fails, anything still running is
+/// pending, and one stopped before it finished (with no failures) makes it cancelled.
 fn summarize(runs: &[CheckRun]) -> Option<CheckState> {
     if runs.is_empty() {
         return None;
@@ -174,14 +178,19 @@ fn summarize(runs: &[CheckRun]) -> Option<CheckState> {
     let failed = runs.iter().any(|run| {
         matches!(
             run.conclusion.as_deref(),
-            Some("failure" | "timed_out" | "cancelled" | "action_required" | "startup_failure")
+            Some("failure" | "timed_out" | "action_required" | "startup_failure")
         )
     });
     let running = runs.iter().any(|run| run.status != "completed");
+    let cancelled = runs
+        .iter()
+        .any(|run| run.conclusion.as_deref() == Some("cancelled"));
     Some(if failed {
         CheckState::Failure
     } else if running {
         CheckState::Pending
+    } else if cancelled {
+        CheckState::Cancelled
     } else {
         CheckState::Success
     })

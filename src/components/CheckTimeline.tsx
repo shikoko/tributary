@@ -3,7 +3,7 @@ import { relativeTime } from "../lib/format";
 import { checkTime, checkTimeline } from "../lib/pullRequests";
 import { ExternalLinkIcon } from "./Icons";
 
-const WORDS = { success: "Passed", failure: "Failed", pending: "Running", skipped: "Skipped" } as const;
+const WORDS = { success: "Passed", failure: "Failed", pending: "Running", cancelled: "Cancelled", skipped: "Skipped" } as const;
 
 /** "5 minutes ago" with a capital, for the ends of the clock. */
 const ago = (ms: number, now: number) => {
@@ -70,7 +70,7 @@ export function CheckTimeline({
                 </span>
               )}
               <span className="request-timeline-time" title={queued ? "Waiting for a runner" : undefined}>
-                {queued ? "Queued" : (checkTime(check, now) ?? WORDS[state])}
+                {queued ? "Queued" : state === "cancelled" ? "Cancelled" : (checkTime(check, now) ?? WORDS[state])}
               </span>
               {state === "failure" && check.detail && <span className="request-timeline-detail">{check.detail}</span>}
             </li>

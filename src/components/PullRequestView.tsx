@@ -75,7 +75,7 @@ const TONE_ICONS: Record<Tone, ReactNode> = {
 };
 
 /** Failed first, then running, passed, and skipped last. */
-const CHECK_ORDER: Record<string, number> = { failure: 0, pending: 1, success: 2, skipped: 3 };
+const CHECK_ORDER: Record<string, number> = { failure: 0, pending: 1, success: 2, cancelled: 3, skipped: 4 };
 const checkState = (check: RequestCheck) => check.state ?? "skipped";
 
 /**
@@ -523,7 +523,7 @@ function CheckTime({ check, time }: { check: RequestCheck; time: string }) {
 /** A check in a commit's details: its state, its name, how long it took, and its page. */
 export function CheckRow({ check, time, openUrl }: { check: RequestCheck; time: string | null; openUrl: (url: string) => void }) {
   const state = checkState(check);
-  const words = { success: "Passed", failure: "Failed", pending: "Running", skipped: "Skipped" }[state];
+  const words = { success: "Passed", failure: "Failed", pending: "Running", cancelled: "Cancelled", skipped: "Skipped" }[state];
   return (
     <li className={`request-check ${state}`}>
       <span className="request-check-dot" aria-label={words} title={words} />

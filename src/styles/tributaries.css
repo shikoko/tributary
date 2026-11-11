@@ -29,6 +29,11 @@
   opacity: 0.85;
 }
 
+/* A cancelled one (replaced by a newer run, say): grey, neither passed nor failed. */
+.tributaries-stream.cancelled .tributaries-stream-line {
+  stroke: var(--text-faint);
+}
+
 /* A failed one runs dry before the end. */
 .tributaries-stream.failure .tributaries-stream-line {
   stroke: var(--danger);
@@ -225,6 +230,11 @@
   --wave: var(--warning);
 }
 
+.tributaries-stream.cancelled,
+.tributaries-label.cancelled {
+  --wave: var(--text-faint);
+}
+
 .tributaries.lit .tributaries-stream:not(.lit) {
   opacity: 0.2;
 }
@@ -316,6 +326,10 @@
 
 .tributaries-verdict.success .tributaries-word {
   color: var(--success);
+}
+
+.tributaries-verdict.cancelled .tributaries-word {
+  color: var(--text-muted);
 }
 
 .tributaries-verdict.failure .tributaries-word {

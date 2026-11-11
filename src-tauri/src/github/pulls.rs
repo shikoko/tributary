@@ -262,7 +262,8 @@ fn run_check(run: RawCheckRun) -> Check {
     } else {
         match run.conclusion.as_deref() {
             Some("success") => Some(CheckState::Success),
-            Some("failure" | "timed_out" | "cancelled" | "action_required" | "startup_failure") => {
+            Some("cancelled") => Some(CheckState::Cancelled),
+            Some("failure" | "timed_out" | "action_required" | "startup_failure") => {
                 Some(CheckState::Failure)
             }
             _ => None,

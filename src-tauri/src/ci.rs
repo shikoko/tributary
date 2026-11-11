@@ -30,7 +30,8 @@ fn holds_for(state: Option<CheckState>) -> Duration {
     match state {
         Some(CheckState::Pending) => Duration::from_secs(45),
         Some(CheckState::Failure) => Duration::from_secs(60),
-        Some(CheckState::Success) => Duration::from_secs(15 * 60),
+        // A cancelled one was mostly replaced by a newer run: it stays as it is.
+        Some(CheckState::Success | CheckState::Cancelled) => Duration::from_secs(15 * 60),
         None => Duration::from_secs(5 * 60),
     }
 }
@@ -121,6 +122,8 @@ fn summary(checks: &[Check]) -> Option<CheckState> {
         Some(CheckState::Failure)
     } else if states.contains(&CheckState::Pending) {
         Some(CheckState::Pending)
+    } else if states.contains(&CheckState::Cancelled) {
+        Some(CheckState::Cancelled)
     } else {
         Some(CheckState::Success)
     }
@@ -156,9 +159,12 @@ pub async fn commit_checks(path: &Path, id: String) -> Result<CommitChecks> {
         );
     }
     let can_rerun = signed_in
-        && checks
-            .iter()
-            .any(|check| check.state == Some(CheckState::Failure));
+        && checks.iter().any(|check| {
+            matches!(
+                check.state,
+                Some(CheckState::Failure | CheckState::Cancelled)
+            )
+        });
     Ok(CommitChecks {
         checks,
         can_rerun,

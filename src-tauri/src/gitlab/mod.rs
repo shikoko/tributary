@@ -107,7 +107,8 @@ pub(crate) fn encode_path(path: &str) -> String {
 pub(super) fn pipeline_state(status: &str) -> Option<CheckState> {
     match status {
         "success" => Some(CheckState::Success),
-        "failed" | "canceled" => Some(CheckState::Failure),
+        "failed" => Some(CheckState::Failure),
+        "canceled" => Some(CheckState::Cancelled),
         "created" | "waiting_for_resource" | "preparing" | "pending" | "running" | "scheduled" => {
             Some(CheckState::Pending)
         }

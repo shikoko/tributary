@@ -2,7 +2,7 @@
 import { createContext, useEffect, useState } from "react";
 import { commitStates, type RepoSnapshot } from "../api";
 
-export type CiState = "success" | "failure" | "pending";
+export type CiState = "success" | "failure" | "pending" | "cancelled";
 
 /** Each commit's CI state (those with one), by full id. */
 export const CiStatesContext = createContext<Map<string, CiState>>(new Map());
@@ -26,7 +26,7 @@ export function askAgainIn(states: Iterable<CiState>): number | null {
 
 /** "Checks passed", for a dot's tooltip. */
 export function describeCiState(state: CiState): string {
-  return { success: "Checks passed", failure: "Checks failed", pending: "Checks running" }[state];
+  return { success: "Checks passed", failure: "Checks failed", pending: "Checks running", cancelled: "Checks cancelled" }[state];
 }
 
 /**
