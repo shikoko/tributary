@@ -154,20 +154,20 @@ export function groupChecks(checks: RequestCheck[]): CheckGroup[] {
 }
 
 /**
- * How much later than its group's first check each check started, in ms, for the ones that
- * started more than a few seconds later (waiting for another job, or for a runner).
+ * For each check that started more than a few seconds after the first check of all (waiting
+ * for another job, for a runner, or in a run that started later): how long after, in ms.
+ * One start for everything.
  */
 export function startedLater(groups: CheckGroup[]): Map<RequestCheck, number> {
   const later = new Map<RequestCheck, number>();
-  for (const group of groups) {
-    const starts = group.checks.map((check) => (check.state !== null && check.startedAt ? Date.parse(check.startedAt) : NaN));
-    const known = starts.filter((start) => !Number.isNaN(start));
-    if (known.length === 0) continue;
-    const first = Math.min(...known);
-    group.checks.forEach((check, index) => {
-      if (starts[index] - first > TOGETHER_MS) later.set(check, starts[index] - first);
-    });
-  }
+  const checks = groups.flatMap((group) => group.checks);
+  const starts = checks.map((check) => (check.state !== null && check.startedAt ? Date.parse(check.startedAt) : NaN));
+  const known = starts.filter((start) => !Number.isNaN(start));
+  if (known.length === 0) return later;
+  const first = Math.min(...known);
+  checks.forEach((check, index) => {
+    if (starts[index] - first > TOGETHER_MS) later.set(check, starts[index] - first);
+  });
   return later;
 }
 
