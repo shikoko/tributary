@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { activityLog, diagnostics } from "../api";
 import { copyText } from "../lib/clipboard";
 import { formatDiagnostics } from "../lib/diagnostics";
@@ -17,11 +18,18 @@ interface Props {
 export function DiagnosticsDialog({ repoPath, extra, onCopied, onClose }: Props) {
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** The folder with the problems log and the saved crash reports, when there are some. */
+  const [reports, setReports] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
     Promise.all([diagnostics(repoPath), activityLog().catch(() => [])])
-      .then(([info, activity]) => live && setText(formatDiagnostics(info, activity, extra)))
+      .then(([info, activity]) => {
+        if (!live) return;
+        setText(formatDiagnostics(info, activity, extra));
+        const { folder, recent, crashReports } = info.problems;
+        setReports(folder && (recent.length || crashReports.length) ? folder : null);
+      })
       .catch((e) => live && setError(String(e)));
     return () => {
       live = false;
@@ -45,6 +53,11 @@ export function DiagnosticsDialog({ repoPath, extra, onCopied, onClose }: Props)
       buttons={
         <>
           <span className="dialog-note">Passwords and tokens in addresses are left out.</span>
+          {reports && (
+            <button className="secondary-button" onClick={() => void revealItemInDir(reports).catch((e) => setError(String(e)))}>
+              Show Problem Reports
+            </button>
+          )}
           <button className="secondary-button" onClick={onClose}>
             Close
           </button>

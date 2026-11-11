@@ -24,6 +24,8 @@ pub struct Diagnostics {
     /// `git lfs version`, if Git LFS is installed.
     pub git_lfs: Option<String>,
     pub repository: Option<RepositoryInfo>,
+    /// What went wrong in the window lately, and the crash reports saved for sending.
+    pub problems: crate::problems::Summary,
 }
 
 /// How a repository is set up.
@@ -74,6 +76,7 @@ pub fn diagnostics(path: Option<&Path>) -> Diagnostics {
         git_path,
         git_lfs,
         repository: path.map(repository_info),
+        problems: crate::problems::summary(),
     }
 }
 

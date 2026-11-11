@@ -45,6 +45,16 @@ export function formatDiagnostics(info: Diagnostics, activity: LogEntry[], extra
       }
     }
   }
+  const problems = info.problems;
+  if (problems.recent.length) {
+    lines.push("", "Problems noted in the window:");
+    for (const line of problems.recent) lines.push(`  ${line}`);
+  }
+  if (problems.crashReports.length) {
+    const count = problems.crashReports.length;
+    lines.push("", `Crash reports saved: ${count} (to send them, attach the files in ${problems.folder}/crashes)`);
+    for (const name of problems.crashReports) lines.push(`  ${name}`);
+  }
   const failures = activity.filter((entry) => !entry.success && (!repo || entry.folder === repo.path)).slice(-FAILURES);
   if (failures.length) {
     lines.push("", "Recent failed git commands:");

@@ -921,6 +921,22 @@ pub struct Notices {
     pub license: Option<String>,
 }
 
+/// Something that went wrong in the interface (an error that stopped it), kept in the
+/// problems log. Returns where the log is.
+#[tauri::command]
+pub fn report_problem(what: String) -> Option<String> {
+    // Bounded, so a runaway error can't fill the log in one go.
+    let what: String = what.chars().take(4000).collect();
+    crate::problems::note(&format!("interface: {what}"));
+    crate::problems::log_file().map(|file| file.display().to_string())
+}
+
+/// Why the window was loaded again (its web content process stopped), once, if it was.
+#[tauri::command]
+pub fn take_recovery_note() -> Option<String> {
+    crate::problems::take_recovery()
+}
+
 /// Versions, the platform, and how the repository at `path` (if any) is set up, for
 /// reporting a problem.
 #[tauri::command]

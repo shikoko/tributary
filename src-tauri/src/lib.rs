@@ -19,6 +19,7 @@ pub mod graph;
 pub mod issues;
 pub mod links;
 pub mod locks;
+pub mod problems;
 pub mod repo;
 pub mod requests;
 pub mod reviews;
@@ -32,7 +33,19 @@ use tauri::Emitter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // On macOS, WebKit's web content process can stop (out of memory, or a crash in WebKit),
+    // which empties the window. Like Tauri does by default, it's loaded again, and also noted
+    // in the problems log, said once it's back, and left alone if it keeps happening.
+    #[cfg(target_os = "macos")]
+    let builder = builder.on_web_content_process_terminate(|webview| {
+        if problems::web_content_stopped()
+            && let Err(error) = webview.reload()
+        {
+            problems::note(&format!("couldn't load the window again: {error}"));
+        }
+    });
+    let app = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
@@ -45,6 +58,12 @@ pub fn run() {
                 let _ = handle.emit("activity", entry);
             });
             app_icon::restore(app.handle());
+            // What goes wrong in the window is kept in a small log in the app's log folder.
+            if let Ok(folder) = tauri::Manager::path(app).app_log_dir() {
+                problems::keep_in(folder);
+                // Crash reports from before this start (the window going blank last time).
+                std::thread::spawn(problems::save_crash_reports);
+            }
             // Authors' pictures are kept between sessions, to show at once.
             if let Ok(folder) = tauri::Manager::path(app).app_cache_dir() {
                 avatars::keep_in(folder.join("avatars"));
@@ -117,6 +136,8 @@ pub fn run() {
             commands::lfs_storage,
             commands::lfs_health,
             commands::diagnostics,
+            commands::report_problem,
+            commands::take_recovery_note,
             commands::pull_requests,
             commands::new_request_info,
             commands::create_pull_request,

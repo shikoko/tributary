@@ -199,6 +199,7 @@ npm run notices
 | `src-tauri/src/unreal.rs` | Names Unreal actors saved in their own files, from their asset registry tags |
 | `src-tauri/src/locks.rs` | Lists Git LFS file locks, telling yours from everyone else's |
 | `src-tauri/src/diagnostics.rs` | What **Copy Diagnostics** shows |
+| `src-tauri/src/problems.rs` | The problems log (the window's errors, WebKit's web content process stopping), loading the window again when it stops, and copies of macOS's crash reports |
 | `src-tauri/src/links.rs` | Turns remote addresses into web pages (GitHub, GitLab, …) |
 | `src-tauri/src/updates.rs` | Finds, downloads and installs new versions from the GitHub releases |
 | `src-tauri/tests/` | Integration tests, one file per area, on throwaway repositories |

@@ -20,10 +20,32 @@ export interface Diagnostics {
     lfs: LfsHealth | null;
     error: string | null;
   } | null;
+  /** What went wrong in the window lately, and the crash reports saved for sending. */
+  problems: {
+    /** The folder with the problems log and the saved crash reports (in "crashes"). */
+    folder: string | null;
+    /** The log's last few lines, oldest first. */
+    recent: string[];
+    /** The saved crash reports' names, newest first (macOS only). */
+    crashReports: string[];
+  };
 }
 
 export function diagnostics(path: string | null): Promise<Diagnostics> {
   return invoke<Diagnostics>("diagnostics", { path });
+}
+
+/**
+ * Keep a problem with the interface (an error that stopped it) in the problems log, to send
+ * with a report later. Where the log is, once the app knows.
+ */
+export function reportProblem(what: string): Promise<string | null> {
+  return invoke<string | null>("report_problem", { what });
+}
+
+/** Why the window was loaded again (WebKit's web content process stopped), once, if it was. */
+export function takeRecoveryNote(): Promise<string | null> {
+  return invoke<string | null>("take_recovery_note");
 }
 
 /** The licences of the software Tributary is made with, and Tributary's own. */

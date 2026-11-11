@@ -816,3 +816,61 @@ code {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Instead of the interface, when an error stopped it (ErrorScreen.tsx). */
+.error-screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.error-screen-card {
+  width: min(520px, 100%);
+  padding: 22px 24px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-panel);
+}
+
+.error-screen-card h1 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.error-screen-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.error-screen-details {
+  margin: 14px 0 10px;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--danger-text);
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.error-screen-card .error-screen-note {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.error-screen-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}

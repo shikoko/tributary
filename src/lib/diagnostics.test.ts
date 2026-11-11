@@ -19,6 +19,7 @@ const info: Diagnostics = {
     lfs: { notInstalled: false, notSetUp: false, pointers: 3, examples: [] },
     error: null,
   },
+  problems: { folder: null, recent: [], crashReports: [] },
 };
 
 const entry = (extra: Partial<LogEntry>): LogEntry => ({
@@ -63,5 +64,18 @@ describe("formatDiagnostics", () => {
     expect(text).not.toContain("secret");
     expect(text).not.toContain("other");
     expect(text).not.toContain("git status");
+  });
+
+  it("includes the problems noted in the window and the saved crash reports", () => {
+    expect(formatDiagnostics(info, [])).not.toContain("Problems");
+    const problems = {
+      folder: "/Users/maya/Library/Logs/io.github.shikoko.tributary",
+      recent: ["2026-11-11 11:30:09 UTC Tributary 0.2.0: the window's web content process stopped (WebKit)"],
+      crashReports: ["com.apple.WebKit.WebContent-2026-11-11-113009.ips"],
+    };
+    const text = formatDiagnostics({ ...info, problems }, []);
+    expect(text).toContain("Problems noted in the window:\n  2026-11-11 11:30:09 UTC Tributary 0.2.0: the window's");
+    expect(text).toContain("Crash reports saved: 1 (to send them, attach the files in /Users/maya/Library/Logs/io.github.shikoko.tributary/crashes)");
+    expect(text).toContain("  com.apple.WebKit.WebContent-2026-11-11-113009.ips");
   });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { forgetAvatars, openInApp, WORKTREE_ID, type Action, type PullRequest } from "./api";
+import { forgetAvatars, openInApp, takeRecoveryNote, WORKTREE_ID, type Action, type PullRequest } from "./api";
 import { useOpenApps } from "./lib/apps";
 import { useLfsLocks } from "./lib/locks";
 import { isPatchFile } from "./lib/patches";
@@ -82,6 +82,14 @@ export default function App() {
   const notify = useCallback((text: string) => setToast({ text }), []);
   // Stable, so the message's timer doesn't start over when the app re-renders.
   const hideToast = useCallback(() => setToast(null), []);
+  const showOverlay = overlays.show;
+  // When the window was loaded again because WebKit's web content process stopped (macOS),
+  // say so once it's back, with the way to the saved problem reports.
+  useEffect(() => {
+    takeRecoveryNote()
+      .then((note) => note && setToast({ text: note, action: { label: "Diagnostics", onClick: () => showOverlay("diagnostics") } }))
+      .catch(() => {});
+  }, [showOverlay]);
   /** The repository dialog that's open (the clone dialog shows on the start screen too). */
   const [dialog, setDialog] = useState<OpenDialog>(null);
   /** The team activity view, over the commit list. */
