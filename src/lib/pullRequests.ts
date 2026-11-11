@@ -15,6 +15,8 @@ export interface PullRequestLookup {
    * `upstream` is the remote branch a local branch tracks, when it's known.
    */
   find(name: string, local: boolean, remotes: string[], upstream?: string): PullRequest | undefined;
+  /** An open one by its number. */
+  byNumber(number: number): PullRequest | undefined;
   /** Show it in the app. */
   open(pr: PullRequest): void;
 }
@@ -23,7 +25,9 @@ export const PullRequestsContext = createContext<PullRequestLookup | null>(null)
 
 export function makeLookup(list: PullRequest[], open: (pr: PullRequest) => void): PullRequestLookup {
   const byRemoteBranch = new Map(list.map((pr) => [`${pr.remote}/${pr.branch}`, pr]));
+  const byNumber = new Map(list.map((pr) => [pr.number, pr]));
   return {
+    byNumber: (number) => byNumber.get(number),
     find(name, local, remotes, upstream) {
       if (!local) return byRemoteBranch.get(name);
       if (upstream && byRemoteBranch.has(upstream)) return byRemoteBranch.get(upstream);

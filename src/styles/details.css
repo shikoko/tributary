@@ -702,3 +702,29 @@ button.commit-check-row:hover svg {
   margin-top: 8px;
   font-size: 12px;
 }
+
+/* Shows a pull request the commit mentions in the app, beside its link to the site. */
+.mentioned-issue-show {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  margin-left: auto;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+}
+
+.mentioned-issue-status + .mentioned-issue-show {
+  margin-left: 0;
+}
+
+.mentioned-issue-show:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
+  color: var(--text);
+}
