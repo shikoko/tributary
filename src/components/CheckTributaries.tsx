@@ -123,12 +123,12 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   };
   const riverEnd = width - 4;
   // Its second half narrows a little and it fades out well before the verdict, so it has no
-  // head and no end to see. It
-  // starts a little before the waves meet, under them, so its glow comes in gently.
+  // head and no end to see. It starts a little before the waves meet, under them, so its
+  // glow comes in gently.
   const leadIn = 18;
+  const narrowFrom = confluence + (riverEnd - confluence) * 0.45;
+  const along = (x: number, from: number, to: number) => smooth(Math.max(0, Math.min(1, (x - from) / (to - from))));
   const river = (() => {
-    const narrowFrom = confluence + (riverEnd - confluence) * 0.45;
-    const along = (x: number, from: number, to: number) => smooth(Math.max(0, Math.min(1, (x - from) / (to - from))));
     const half = (x: number) =>
       x < confluence ? (wide / 2) * along(x, confluence - leadIn, confluence) : (wide / 2) * (1 - 0.6 * along(x, narrowFrom, riverEnd));
     const xs: number[] = [];
@@ -146,6 +146,27 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   const from = arriving ?? "var(--river)";
   const litIndex = lit === null ? -1 : checks.findIndex((check) => checkKey(check) === lit);
   const litCheck = litIndex >= 0 ? checks[litIndex] : null;
+  // A wave in the spotlight carries on along the river (where it ran, as the river narrows)
+  // and fades out with it, instead of stopping where the waves meet. A failed one ran dry.
+  const onward = (() => {
+    if (!litCheck || stateOf(litCheck) === "failure") return null;
+    const xs: number[] = [];
+    for (let x = confluence; x < riverEnd; x += 6) xs.push(x);
+    xs.push(riverEnd);
+    const y = (x: number) => middle + (arrival(litIndex) - middle) * (1 - along(x, narrowFrom, riverEnd));
+    // Its dashes as long as the wave's, which are measured along the wave (pathLength 100).
+    const wavePoints: [number, number][] = [];
+    const y0 = wave(litIndex);
+    for (let x = 0; x < confluence; x += 4) wavePoints.push([x, y0(x)]);
+    wavePoints.push([confluence, arrival(litIndex)]);
+    const waveLength = wavePoints.slice(1).reduce((sum, [x, yy], i) => sum + Math.hypot(x - wavePoints[i][0], yy - wavePoints[i][1]), 0);
+    return {
+      d: `M${xs.map((x) => `${x} ${y(x).toFixed(2)}`).join(" L")}`,
+      pathLength: (100 * (riverEnd - confluence)) / Math.max(1, waveLength),
+      state: stateOf(litCheck),
+      waiting: queued(litCheck),
+    };
+  })();
   const labelX = Math.min(confluence - 40, Math.max(90, labelAt ?? width * 0.3));
   const across = (event: { clientX: number }) => event.clientX - (box.current?.getBoundingClientRect().left ?? 0);
   const light = (key: string | null, x: number | null = null) => {
@@ -179,6 +200,11 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
           <g mask="url(#tributaries-fade)">
             <path className="tributaries-river" d={river} fill="url(#tributaries-confluence)" />
             {v.tone === "pending" && <path className="tributaries-river-flow" d={`M${confluence} ${middle} L${riverEnd} ${middle}`} />}
+            {onward && (
+              <g className={`tributaries-stream lit onward ${onward.state}${onward.waiting ? " queued" : ""}`} aria-hidden>
+                <path className="tributaries-stream-line" d={onward.d} pathLength={onward.pathLength} />
+              </g>
+            )}
             {celebrating && (
               <path className="tributaries-river-sweep" d={`M${confluence} ${middle} L${riverEnd} ${middle}`} pathLength={100} style={{ animationDelay: `${1900 + n * 90}ms` }} />
             )}
