@@ -28,7 +28,8 @@ const AT_THE_START = 0.002;
  * and the time before a check started is dotted on its track. A bar is cut square where it
  * starts, flush against its run's line or the dots, except one that started the clock in a
  * list without lines, which is round at both ends. Beside its name, how much later than its
- * run a check started ("+15s"), when it waited for another job or a runner. Without times from the
+ * run a check started ("+15s"), when it waited for another job or a runner. Clicking a row
+ * opens the check's page, as clicking its wave does. Without times from the
  * site, just the names and how they went.
  */
 export function CheckTimeline({
@@ -62,14 +63,17 @@ export function CheckTimeline({
     return (
       <li
         key={`${check.name}-${index}`}
-        className={`request-check request-timeline-row ${state}${check.name === lit ? " lit" : ""}`}
+        className={`request-check request-timeline-row ${state}${check.name === lit ? " lit" : ""}${check.url ? " opens" : ""}`}
         onMouseEnter={() => onLight?.(check.name)}
         onMouseLeave={() => onLight?.(null)}
-        title={check.detail && check.detail !== "Queued" ? `${check.name}: ${check.detail}` : undefined}
+        // Anywhere on the row opens its page, as its wave above does; its name is the button
+        // for the keyboard (its click comes here).
+        onClick={check.url ? () => openUrl(check.url!) : undefined}
+        title={check.detail && check.detail !== "Queued" ? `${check.name}: ${check.detail}` : check.url ? `See ${check.name} on its page` : undefined}
       >
         <span className="request-check-dot" aria-hidden />
         {check.url ? (
-          <button className="request-check-open" onClick={() => openUrl(check.url!)} title={`See ${check.name} on its page`}>
+          <button className="request-check-open">
             {name}
             <ExternalLinkIcon size={11} />
           </button>
