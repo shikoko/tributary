@@ -6,7 +6,7 @@
   padding: 0;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   list-style: none;
 }
 
@@ -59,8 +59,8 @@
 
 .prune-tag {
   padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 11px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
   white-space: nowrap;
 }
 
@@ -82,14 +82,14 @@
 .prune-summary {
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .prune-when {
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--text-sm);
   white-space: nowrap;
   flex: none;
 }
@@ -97,7 +97,7 @@
 .dialog-note-line {
   margin: 8px 0 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 /* A small button at the end of a sidebar heading (prune branches). */
@@ -120,7 +120,7 @@
   height: 20px;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-faint);
   opacity: 0;
@@ -150,7 +150,7 @@
   height: 20px;
   padding: 0 6px;
   border: none;
-  border-radius: 4px 0 0 4px;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
   background: rgb(var(--warning-rgb) / 0.1);
   color: inherit;
   font: inherit;
@@ -170,7 +170,7 @@
   height: 20px;
   padding: 0;
   border: none;
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: rgb(var(--warning-rgb) / 0.1);
   color: inherit;
   opacity: 0.7;
@@ -196,7 +196,7 @@
   gap: 6px;
   margin-top: 14px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .type-to-confirm strong {
@@ -206,10 +206,10 @@
 .safe-note {
   margin: 10px 0 0;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: rgb(var(--safe-rgb) / 0.08);
   color: var(--safe-text);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .lost-commits p {
@@ -238,7 +238,7 @@
   padding: 0;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   list-style: none;
 }
 
@@ -276,10 +276,10 @@
 
 .restore-event {
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-raised);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-xs);
   white-space: nowrap;
 }
 
@@ -299,21 +299,21 @@
 .restore-when {
   margin-left: auto;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--text-sm);
   white-space: nowrap;
 }
 
 .restore-commit {
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .restore-outcome {
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .restore-remove {
@@ -328,7 +328,7 @@
   gap: 3px;
   min-width: 0;
   flex: none;
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 
 .file-lock.mine {
@@ -351,10 +351,10 @@
   gap: 8px;
   margin: 4px 0 10px;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: rgb(var(--warning-rgb) / 0.1);
   color: var(--warning-soft-text);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.45;
 }
 
@@ -380,7 +380,7 @@
   margin-left: auto;
   overflow: hidden;
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: var(--text-xs);
   text-overflow: ellipsis;
   flex: none;
 }
@@ -398,7 +398,7 @@
 .conflict-help {
   margin: -2px 0 6px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.45;
 }
 
@@ -417,10 +417,10 @@
   height: 20px;
   padding: 0 7px;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: var(--bg-panel);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 
 .file-choice:hover:not(:disabled) {
@@ -448,7 +448,7 @@
   align-items: center;
   gap: 2px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .banner-steps .icon-button {

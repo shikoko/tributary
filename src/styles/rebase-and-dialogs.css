@@ -11,13 +11,13 @@
   gap: 8px;
   height: 40px;
   padding: 0 16px;
-  font-size: 14px;
+  font-size: var(--text-md);
 }
 
 .welcome-hint {
   margin: -4px 0 0;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .recent-heading {
@@ -34,7 +34,7 @@
   padding: 0 8px;
   height: 26px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-muted);
 }
 
@@ -45,7 +45,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .recent-text {
@@ -67,13 +67,13 @@
   align-items: center;
   gap: 4px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 400;
 }
 
 .recent-when {
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--text-sm);
   white-space: nowrap;
   flex: none;
 }
@@ -125,29 +125,29 @@
 .details .hint {
   margin: 10px 0 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .dialog-note {
   margin-right: auto;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .dialog-warning {
   margin-top: 10px;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: rgb(var(--warning-rgb) / 0.1);
   color: var(--warning-soft-text);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .clone-progress {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 textarea.text-input {
@@ -165,7 +165,7 @@ textarea.text-input {
   overflow-y: auto;
   list-style: none;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .rebase-row {
@@ -212,16 +212,16 @@ textarea.text-input {
   height: 26px;
   padding: 0 6px;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: var(--bg-raised);
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .rebase-sha {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .rebase-summary {
@@ -265,7 +265,7 @@ textarea.text-input {
   align-items: center;
   gap: 8px;
   height: 28px;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .selected-commits .mono {
@@ -315,7 +315,7 @@ textarea.text-input {
   padding: 0;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   list-style: none;
 }
 
@@ -361,7 +361,7 @@ textarea.text-input {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 
 .setup-text > span {
@@ -373,7 +373,7 @@ textarea.text-input {
   margin: 2px 0 0;
   padding: 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   list-style: none;
 }
 

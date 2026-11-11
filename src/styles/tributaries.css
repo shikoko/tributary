@@ -320,7 +320,7 @@
   gap: 8px;
   height: 20px;
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: var(--text-base);
   white-space: nowrap;
   transform: translateX(-50%);
   animation: tributaries-caption 0.12s ease both;
@@ -367,7 +367,7 @@
 
 .tributaries-caption-name {
   color: var(--text);
-  font-size: 13.5px;
+  font-size: var(--text-md);
   font-weight: 600;
 }
 
@@ -393,7 +393,7 @@
 
 .tributaries-word {
   text-box: trim-both cap alphabetic;
-  font-size: 22px;
+  font-size: var(--text-2xl);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
@@ -417,7 +417,7 @@
 .tributaries-line {
   text-box: trim-both cap alphabetic;
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: var(--text-base);
   white-space: nowrap;
 }
 

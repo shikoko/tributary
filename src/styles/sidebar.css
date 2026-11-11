@@ -17,7 +17,7 @@
   padding: 0 8px;
   height: 28px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--bg);
   color: var(--text-faint);
   flex: none;
@@ -35,7 +35,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .sidebar-scroll {
@@ -57,10 +57,10 @@
   height: 26px;
   padding: 0 6px;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -95,7 +95,7 @@
   height: 26px;
   padding: 0 8px 0 22px;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   text-align: left;
@@ -138,7 +138,7 @@
 .sidebar-group-name {
   padding: 4px 8px 2px 22px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   line-height: 16px;
 }
@@ -150,7 +150,7 @@
 .sidebar-empty {
   padding: 2px 8px 4px 22px;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 16px;
 }
 
@@ -166,7 +166,7 @@
 .menu-shortcut {
   margin-left: 16px;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--text-sm);
   white-space: nowrap;
 }
 
@@ -176,7 +176,7 @@
   margin-left: 6px;
   padding: 3px 10px;
   border: 1px solid rgb(var(--success-rgb) / 0.4);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--success-strong-text);
   font-weight: 600;
@@ -191,7 +191,7 @@
   margin-left: 8px;
   padding: 4px 10px;
   border: 1px solid rgb(var(--danger-rgb) / 0.5);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: rgb(var(--danger-rgb) / 0.15);
   color: var(--danger-bright-text);
   font-weight: 600;
@@ -225,7 +225,7 @@
   height: 28px;
   padding: 0 10px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
 }
@@ -240,7 +240,7 @@
   border: none;
   background: transparent;
   color: var(--accent-ink);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 500;
 }
 
@@ -269,7 +269,7 @@
   margin-left: auto;
   padding: 0;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: var(--bg-panel);
   color: var(--text-secondary);
   flex: none;
@@ -293,7 +293,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 
 .sidebar-stack.moved {

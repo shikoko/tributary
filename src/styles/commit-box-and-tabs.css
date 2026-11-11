@@ -32,7 +32,7 @@
 }
 
 .commit-row-controls .checkbox {
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .details-scroll.worktree .files:first-child {
@@ -89,7 +89,7 @@
   padding: 0 6px 0 12px;
   border: 1px solid transparent;
   border-bottom: none;
-  border-radius: 7px 7px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   color: var(--text-muted);
   cursor: default;
 }
@@ -144,7 +144,7 @@
   height: 20px;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-faint);
   opacity: 0;
@@ -172,7 +172,7 @@
   margin-left: 2px;
   padding: 0;
   border: none;
-  border-radius: 7px 7px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--chrome-raised);
   color: var(--text-secondary);
   flex: none;
