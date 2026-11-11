@@ -14,6 +14,8 @@ describe("appearance", () => {
     expect(normalizeAppearance(undefined)).toEqual(DEFAULT_APPEARANCE);
     expect(normalizeAppearance({ theme: "light", accent: "#ABC" })).toEqual({ ...DEFAULT_APPEARANCE, theme: "light", accent: "#aabbcc" });
     expect(normalizeAppearance({ accent: "red", lanes: "neon" as never, diffColors: "purple" as never })).toEqual(DEFAULT_APPEARANCE);
+    expect(normalizeAppearance({ ciDots: "halo" }).ciDots).toBe("halo");
+    expect(normalizeAppearance({ ciDots: "sparkly" as never }).ciDots).toBe("ringed");
   });
 
   it("follows the system only when asked", () => {

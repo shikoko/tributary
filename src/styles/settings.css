@@ -195,6 +195,49 @@
   color: var(--text);
 }
 
+/* Checks on dots: a little merge in the graph's colours, its dot showing its checks. */
+.ci-dot-sample {
+  /* The lane a little left of the middle, so the lane and the merged one are centred. */
+  --sample-x: calc(50% - 7px);
+  position: relative;
+  width: 58px;
+  height: 36px;
+  overflow: hidden;
+}
+
+.ci-dot-sample-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--sample-x);
+  width: 2px;
+  background: var(--lane);
+  transform: translateX(-50%);
+}
+
+/* The merged branch, coming up from below on the right. */
+.ci-dot-sample-branch {
+  position: absolute;
+  top: calc(50% - 1px);
+  bottom: -2px;
+  left: var(--sample-x);
+  width: 14px;
+  border-top: 2px solid var(--lane-2);
+  border-right: 2px solid var(--lane-2);
+  border-top-right-radius: 9px;
+}
+
+.ci-dot-sample-node {
+  position: absolute;
+  top: 50%;
+  left: var(--sample-x);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lane);
+  transform: translate(-50%, -50%);
+}
+
 /* A tiny window: a sidebar and a few rows, in each theme's colours. */
 .theme-sample {
   display: flex;

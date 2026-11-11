@@ -10,6 +10,7 @@ const BISECT_TITLES: Record<BisectMark, string> = {
 };
 import type { CommitRow } from "../../api";
 import type { ChangeCounts as Counts } from "../../lib/changes";
+import type { CiDots } from "../../lib/appearance";
 import { laneColor } from "../../lib/colors";
 import { compactTime, fullDate, shortId } from "../../lib/format";
 import type { RefPill } from "../../lib/refs";
@@ -42,6 +43,8 @@ interface RowProps {
   lanes: string[];
   visible: VisibleColumns;
   options: ColumnOptions;
+  /** How a dot on the graph shows its checks (a node with its author's picture has them beside it). */
+  ciDots: CiDots;
   /** For the uncommitted changes row: how many files changed. */
   changes?: Counts;
   narrow: boolean;
@@ -64,13 +67,15 @@ interface RowProps {
  * width doesn't re-render the rows, and a row re-renders only when what it shows changes.
  */
 export const ListRow = memo(function ListRow(props: RowProps) {
-  const { commit, top, height, metrics, lanes, visible, options, changes, narrow, dense, handlers } = props;
+  const { commit, top, height, metrics, lanes, visible, options, ciDots, changes, narrow, dense, handlers } = props;
   const { selected, primary, dimmed, authorNode, head } = props;
   const bisectMark = useContext(BisectMarksContext).get(commit.id);
   const ci = useContext(CiStatesContext).get(commit.id);
   const on = () => handlers.current!;
   const onSelect = (id: string, how?: SelectHow) => on().onSelect(id, how);
   const color = laneColor(commit.graph.column, lanes);
+  // A dot on the graph (not an author's picture) can show its checks itself.
+  const onDot = !authorNode && ciDots !== "beside";
   // A line from the label to the commit's node in the graph (which can be narrower than its lane).
   const lane = laneX(commit.graph.column, metrics);
   const time = options.dateKind === "committed" ? commit.commitTime : commit.time;
@@ -148,8 +153,12 @@ export const ListRow = memo(function ListRow(props: RowProps) {
         )}
         {ci && options.checks !== false && commit.kind === "commit" && (
           <span
-            className={`graph-ci ${ci}`}
-            style={{ left: lane, ["--ci-offset" as string]: `${ciOffset({ avatar: authorNode, dense, head, merge: commit.parents.length > 1 })}px` }}
+            className={`graph-ci ${ci}${onDot ? ` on-dot ${ciDots}` : ""}`}
+            style={{
+              left: lane,
+              ["--lane" as string]: color,
+              ["--ci-offset" as string]: onDot ? "0px" : `${ciOffset({ avatar: authorNode, dense, head, merge: commit.parents.length > 1 })}px`,
+            }}
             title={describeCiState(ci)}
             aria-label={describeCiState(ci)}
           />

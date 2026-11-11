@@ -16,6 +16,14 @@ export type CurveStyle = "mixed" | "round" | "smooth" | "tight" | "sweep";
 export const CURVE_STYLES: CurveStyle[] = ["mixed", "round", "smooth", "tight", "sweep"];
 /** Commits in the graph: their authors' pictures (or initials), or dots. Merges are dots either way. */
 export type GraphNodes = "authors" | "dots";
+/**
+ * How a dot on the graph (a merge, or any commit when the graph shows dots) shows its
+ * checks: a small dot beside it, or the dot itself in the checks' colour, ringed in its
+ * lane's colour ("ringed"), in its lane's colour with a ring of the checks' colour ("halo"),
+ * or in the checks' colour alone ("filled").
+ */
+export type CiDots = "beside" | "ringed" | "halo" | "filled";
+export const CI_DOTS: CiDots[] = ["beside", "ringed", "halo", "filled"];
 
 export interface Appearance {
   theme: ThemeChoice;
@@ -27,6 +35,7 @@ export interface Appearance {
   diffColors: DiffColors;
   curves: CurveStyle;
   nodes: GraphNodes;
+  ciDots: CiDots;
 }
 
 export const DEFAULT_ACCENT = "#1fb5ff";
@@ -39,6 +48,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   diffColors: "green-red",
   curves: "mixed",
   nodes: "authors",
+  ciDots: "ringed",
 };
 
 /** Your own lane colours: from two to this many. */
@@ -207,7 +217,8 @@ export function normalizeAppearance(value: Partial<Appearance> | null | undefine
   const diffColors = value?.diffColors === "blue-orange" ? "blue-orange" : "green-red";
   const curves = value?.curves && CURVE_STYLES.includes(value.curves) ? value.curves : "mixed";
   const nodes = value?.nodes === "dots" ? "dots" : "authors";
-  return { theme, accent, lanes, customLanes, diffColors, curves, nodes };
+  const ciDots = value?.ciDots && CI_DOTS.includes(value.ciDots) ? value.ciDots : "ringed";
+  return { theme, accent, lanes, customLanes, diffColors, curves, nodes, ciDots };
 }
 
 /** The lane colours in use: a built-in palette for the theme, or your own. */
