@@ -248,8 +248,9 @@
   opacity: 0.35;
 }
 
-/* A commit's CI, half outside its node's lower right: passed, failed or running. A ring in
-   the row's colour cuts it out of the node. */
+/* A commit's CI, half outside its node's lower right: passed, failed or running. It's cut
+   out of the node: it sits in a disc of the row's colour, a little wider than it, that stays
+   put while the dot itself pulses (or the picture under it would show through). */
 .graph-ci {
   --ci-ring: var(--bg);
   position: absolute;
@@ -289,6 +290,27 @@
 
 .graph-ci.pending {
   background: var(--warning);
+  animation: request-pending 1.4s ease-in-out infinite;
+}
+
+/* Beside a node or on an author's picture, only the dot pulses, over the cut-out disc. */
+.graph-ci:not(.on-dot) {
+  background: var(--ci-ring);
+}
+
+.graph-ci:not(.on-dot)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--ci);
+}
+
+.graph-ci.pending:not(.on-dot) {
+  animation: none;
+}
+
+.graph-ci.pending:not(.on-dot)::after {
   animation: request-pending 1.4s ease-in-out infinite;
 }
 
