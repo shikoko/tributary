@@ -58,6 +58,9 @@ pub fn run() {
                 let _ = handle.emit("activity", entry);
             });
             app_icon::restore(app.handle());
+            // The version it was built as (a release's, not Cargo.toml's), for the log and
+            // Diagnostics.
+            diagnostics::set_app_version(app.package_info().version.to_string());
             // What goes wrong in the window is kept in a small log in the app's log folder.
             if let Ok(folder) = tauri::Manager::path(app).app_log_dir() {
                 problems::keep_in(folder);

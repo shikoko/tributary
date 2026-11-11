@@ -168,20 +168,31 @@ export function fitColumns(input: {
   return { ...sizes(), graphWidth };
 }
 
+/**
+ * The rows on screen, and the ones to render (a few more on each side), for a list of
+ * `count` rows scrolled to `scrollTop`. On macOS the list bounces past its ends, where
+ * `scrollTop` goes below 0 or past the last row: that counts as the end it's past, so no
+ * row outside the list is ever asked for.
+ */
+export function rowRange(scrollTop: number, rowHeight: number, height: number, count: number) {
+  const top = Math.max(0, scrollTop);
+  const firstOnScreen = Math.min(count, Math.floor(top / rowHeight));
+  const lastOnScreen = Math.min(count, Math.ceil((top + height) / rowHeight));
+  return { first: Math.max(0, firstOnScreen - OVERSCAN), last: Math.min(count, lastOnScreen + OVERSCAN), firstOnScreen, lastOnScreen };
+}
+
 export function useColumnLayout({ commits, slots, rowHeight, scrollTop, viewport, settledWidth, columnWidths, show, laneWidth, authorsOnGraph }: LayoutInput) {
   const narrow = settledWidth > 0 && settledWidth < NARROW_WIDTH;
-  const first = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN);
-  const last = Math.min(slots.length, Math.ceil((scrollTop + viewport.height) / rowHeight) + OVERSCAN);
+  const { first, last, firstOnScreen, lastOnScreen } = rowRange(scrollTop, rowHeight, viewport.height, slots.length);
 
   // The lanes the rows on screen use. A lane's line can pass through a row without a commit
   // on it, so the lines count too. (Rows rendered off screen don't count: a lane coming into
   // view widens the graph in the same frame.)
-  const firstOnScreen = Math.floor(scrollTop / rowHeight);
-  const lastOnScreen = Math.min(slots.length, Math.ceil((scrollTop + viewport.height) / rowHeight));
   const lanesInView = useMemo(() => {
     let lanes = 1;
     for (let slot = firstOnScreen; slot < lastOnScreen; slot++) {
       const row = slots[slot];
+      if (row === undefined) continue;
       const commit = commits[typeof row === "number" ? row : row.before];
       if (!commit) continue;
       lanes = Math.max(lanes, commit.graph.column + 1);

@@ -64,7 +64,7 @@ pub fn note(what: &str) {
         .map(|since| since.as_secs())
         .unwrap_or(0);
     if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&path) {
-        let version = env!("CARGO_PKG_VERSION");
+        let version = crate::diagnostics::app_version();
         let _ = writeln!(
             file,
             "{} Tributary {version}: {}",

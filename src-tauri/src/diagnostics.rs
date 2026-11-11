@@ -3,6 +3,7 @@
 //! out, and the user sees all of it before copying it.
 
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use gix::bstr::ByteSlice;
 use serde::Serialize;
@@ -50,6 +51,23 @@ pub struct RepositoryInfo {
     pub error: Option<String>,
 }
 
+/// The app's version, as the app knows it (set when it starts).
+static APP_VERSION: OnceLock<String> = OnceLock::new();
+
+/// The version the app was built as: a release gives it to Tauri when it's built (like
+/// 0.2.1), while `Cargo.toml` keeps the version builds on your own computer use.
+pub fn set_app_version(version: String) {
+    let _ = APP_VERSION.set(version);
+}
+
+/// Tributary's version: as the app was built, or `Cargo.toml`'s before the app has started.
+pub fn app_version() -> String {
+    APP_VERSION
+        .get()
+        .cloned()
+        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_owned())
+}
+
 /// Gather the diagnostics, for the repository at `path` if one is open. Never fails:
 /// what can't be found out says so.
 pub fn diagnostics(path: Option<&Path>) -> Diagnostics {
@@ -70,7 +88,7 @@ pub fn diagnostics(path: Option<&Path>) -> Diagnostics {
         Err(error) => (error.to_string(), None, None),
     };
     Diagnostics {
-        version: env!("CARGO_PKG_VERSION").to_owned(),
+        version: app_version(),
         platform: platform(),
         git: git_version,
         git_path,

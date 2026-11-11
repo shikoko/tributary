@@ -127,7 +127,11 @@ export function paintGraph(
     const middle = top + rowHeight / 2;
     const bottom = top + rowHeight;
     const row = slots[slot];
-    const lines = typeof row === "number" ? commits[row].graph.lines : passingLines(commits[row.before]);
+    // Never outside the list, but a row that isn't there mustn't stop the whole window.
+    if (row === undefined) continue;
+    const commit = typeof row === "number" ? commits[row] : commits[row.before];
+    if (!commit) continue;
+    const lines = typeof row === "number" ? commit.graph.lines : passingLines(commit);
 
     for (const [kind, from, to, child, dashed] of lines) {
       const color = laneColor(kind === 2 ? to : from, options.lanes);
@@ -172,6 +176,7 @@ export function paintGraph(
     const row = slots[slot];
     if (typeof row !== "number") continue;
     const commit = commits[row];
+    if (!commit) continue;
     const faded = focus !== null && !focus.has(commit.id);
     const cx = x(commit.graph.column);
     const cy = (slot - first) * rowHeight + rowHeight / 2;
