@@ -140,14 +140,15 @@
   }
 }
 
+/* All of it, through the river too: its length (pathLength) is set on its wave as --length. */
 .tributaries-stream.settling.success .tributaries-stream-line {
-  stroke-dasharray: 100 100;
+  stroke-dasharray: var(--length, 100) var(--length, 100);
   animation: tributaries-fill-whole 1s cubic-bezier(0.45, 0, 0.2, 1) both;
 }
 
 @keyframes tributaries-fill-whole {
   from {
-    stroke-dashoffset: 100;
+    stroke-dashoffset: var(--length, 100);
   }
   to {
     stroke-dashoffset: 0;
