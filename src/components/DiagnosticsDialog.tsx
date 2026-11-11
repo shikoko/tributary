@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { activityLog, diagnostics } from "../api";
 import { copyText } from "../lib/clipboard";
+import { bugReportUrl } from "../lib/bugReport";
 import { formatDiagnostics } from "../lib/diagnostics";
+import { openInBrowser } from "../lib/weblinks";
+import { thisSystem } from "./ErrorScreen";
 import { Dialog } from "./Dialog";
 
 interface Props {
@@ -58,6 +61,14 @@ export function DiagnosticsDialog({ repoPath, extra, onCopied, onClose }: Props)
               Show Problem Reports
             </button>
           )}
+          <button
+            className="secondary-button"
+            onClick={() => text !== null && openInBrowser(bugReportUrl({ diagnostics: text, system: thisSystem() }))}
+            disabled={text === null}
+            title="A new bug report on GitHub, with this filled in, to read and send there"
+          >
+            Report on GitHub
+          </button>
           <button className="secondary-button" onClick={onClose}>
             Close
           </button>
