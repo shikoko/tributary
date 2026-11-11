@@ -147,6 +147,24 @@ export function groupChecks(checks: RequestCheck[]): CheckGroup[] {
   return groups;
 }
 
+/**
+ * How much later than its group's first check each check started, in ms, for the ones that
+ * started more than a few seconds later (waiting for another job, or for a runner).
+ */
+export function startedLater(groups: CheckGroup[]): Map<RequestCheck, number> {
+  const later = new Map<RequestCheck, number>();
+  for (const group of groups) {
+    const starts = group.checks.map((check) => (check.state !== null && check.startedAt ? Date.parse(check.startedAt) : NaN));
+    const known = starts.filter((start) => !Number.isNaN(start));
+    if (known.length === 0) continue;
+    const first = Math.min(...known);
+    group.checks.forEach((check, index) => {
+      if (starts[index] - first > TOGETHER_MS) later.set(check, starts[index] - first);
+    });
+  }
+  return later;
+}
+
 /** One clock for a request's checks: where each one's bar starts and ends on it, from 0 to 1. */
 export interface CheckTimeline {
   /** A bar for each check, in order, or null for one that hasn't started (or has no times). */

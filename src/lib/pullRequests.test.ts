@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RequestCheck, RequestDetails } from "../api";
-import { anyRunning, byStart, checksVerdict, checkTime, checkTimeline, describeCheckProgress, describeMergeable, describeReviews, suggestRequest, formatElapsed, groupChecks, summarizeChecks, titleFromBranch } from "./pullRequests";
+import { anyRunning, byStart, checksVerdict, checkTime, checkTimeline, describeCheckProgress, describeMergeable, describeReviews, suggestRequest, formatElapsed, groupChecks, startedLater, summarizeChecks, titleFromBranch } from "./pullRequests";
 
 describe("suggestRequest", () => {
   it("uses a single commit's message", () => {
@@ -161,6 +161,19 @@ describe("groupChecks", () => {
       ["Checks", "on the pull request", ["App", "Rust (Linux)"]],
       ["Tidy", "on the pull request", ["footer"]],
     ]);
+  });
+
+  it("says how much later than its run each check started, past a few seconds", () => {
+    const groups = groupChecks([
+      check("Version", 0, "Build"),
+      check("macOS", 15, "Build"),
+      check("Windows", 17, "Build"),
+      check("Lint", 3, "Build"),
+      check("Queued", null, "Build", null, "pending"),
+      check("App", 540, "Checks"),
+    ]);
+    const later = startedLater(groups);
+    expect(Object.fromEntries([...later].map(([c, ms]) => [c.name, ms]))).toEqual({ macOS: 15_000, Windows: 17_000 });
   });
 
   it("keeps runs of one workflow with different triggers apart, and checks without one together", () => {

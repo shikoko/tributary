@@ -1,6 +1,6 @@
 import type { RequestCheck } from "../api";
 import { relativeTime } from "../lib/format";
-import { checkTime, checkTimeline, formatElapsed, groupChecks, type CheckGroup } from "../lib/pullRequests";
+import { checkTime, checkTimeline, formatElapsed, groupChecks, startedLater, type CheckGroup } from "../lib/pullRequests";
 import { ExternalLinkIcon } from "./Icons";
 
 const WORDS = { success: "Passed", failure: "Failed", pending: "Running", cancelled: "Cancelled", skipped: "Skipped" } as const;
@@ -16,7 +16,7 @@ const isRunning = (check: RequestCheck) => check.state === "pending" && Boolean(
 /** Past this far along the clock, a run's "Started …" goes left of its line, so it fits. */
 const LABEL_FLIPS_AT = 0.72;
 
-/** A bar starting this close to the start of the clock (under a pixel) starts it: rounded, nothing dotted before it. */
+/** A bar starting this close to the start of the clock (under a pixel) starts it: nothing dotted before it. */
 const AT_THE_START = 0.002;
 
 /**
@@ -25,8 +25,10 @@ const AT_THE_START = 0.002;
  * The time beside each says how long it took or has been running. They're in groups by
  * what they're part of (a GitHub workflow run, with what started it, or a GitLab stage),
  * in the order they started: a dotted line down each group marks when its run started,
- * and the time before a check started is dotted on its track, its bar cut square where it
- * starts (one that started the clock is round at both ends). Without times from the
+ * and the time before a check started is dotted on its track. A bar is cut square where it
+ * starts, flush against its run's line or the dots, except one that started the clock in a
+ * list without lines, which is round at both ends. Beside its name, how much later than its
+ * run a check started ("+15s"), when it waited for another job or a runner. Without times from the
  * site, just the names and how they went.
  */
 export function CheckTimeline({
@@ -44,6 +46,7 @@ export function CheckTimeline({
   onLight?: (name: string | null) => void;
 }) {
   const groups = groupChecks(checks);
+  const later = startedLater(groups);
   const ordered = groups.flatMap((group) => group.checks);
   const timeline = checkTimeline(ordered, now);
   const barOf = (check: RequestCheck) => timeline?.bars[ordered.indexOf(check)] ?? null;
@@ -51,7 +54,7 @@ export function CheckTimeline({
   const headed = groups.some((group) => group.name !== null);
   const length = timeline ? Math.max(timeline.last - timeline.first, 1) : 1;
 
-  const row = (check: RequestCheck, index: number) => {
+  const row = (groupName: string) => (check: RequestCheck, index: number) => {
     const state = check.state ?? "skipped";
     const queued = check.state === "pending" && !check.startedAt;
     const bar = barOf(check);
@@ -76,11 +79,16 @@ export function CheckTimeline({
           </span>
         )}
         {timeline && (
+          <span className="request-timeline-later" title={later.has(check) ? `Started ${formatElapsed(later.get(check)!)} after the first of ${groupName}` : undefined}>
+            {later.has(check) ? `+${formatElapsed(later.get(check)!)}` : null}
+          </span>
+        )}
+        {timeline && (
           <span className={`request-timeline-track${bar ? " started" : ""}`} aria-hidden style={bar ? { ["--from" as string]: `${bar.from * 100}%` } : undefined}>
             {bar ? (
               <>
                 {bar.from >= AT_THE_START && <span className="request-timeline-before" />}
-                <span className={`request-timeline-bar ${state}${bar.from < AT_THE_START ? " first" : ""}`} style={{ left: `${bar.from * 100}%`, width: `${(bar.to - bar.from) * 100}%` }} />
+                <span className={`request-timeline-bar ${state}${bar.from < AT_THE_START && !headed ? " first" : ""}`} style={{ left: `${bar.from * 100}%`, width: `${(bar.to - bar.from) * 100}%` }} />
               </>
             ) : state !== "skipped" ? (
               <span className="request-timeline-waiting" />
@@ -127,14 +135,14 @@ export function CheckTimeline({
             </span>
           )}
         </div>
-        <ul className="request-timeline-list">{each.checks.map(row)}</ul>
+        <ul className="request-timeline-list">{each.checks.map(row(`the ${each.name ?? "other checks"}`))}</ul>
       </li>
     );
   };
 
   return (
     <div className={`request-timeline${timeline ? "" : " untimed"}${headed ? " grouped" : ""}`}>
-      <ul className="request-timeline-list">{headed ? groups.map(group) : ordered.map(row)}</ul>
+      <ul className="request-timeline-list">{headed ? groups.map(group) : ordered.map(row("these checks"))}</ul>
       {timeline && (
         <div className="request-timeline-axis" aria-hidden>
           <span>{ago(timeline.first, now)}</span>
