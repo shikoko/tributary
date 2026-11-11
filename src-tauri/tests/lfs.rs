@@ -9,6 +9,7 @@ use std::process::Command;
 
 use common::{TempRepo, lfs_installed, remote_turn, run, with_identity};
 use tributary_lib::actions::{Action, CloneOptions, LockRef};
+use tributary_lib::git::{self, Progress};
 use tributary_lib::{actions, locks};
 
 /// Git LFS uploads its files before git's own push, and says nothing about it unless it's
@@ -96,15 +97,16 @@ fn counts_the_git_lfs_files_a_pull_downloads() {
         reports.borrow_mut().push(progress)
     })
     .unwrap();
+    let reports = reports.into_inner();
     let counted: Vec<_> = reports
-        .into_inner()
-        .into_iter()
+        .iter()
         .filter_map(|progress| progress.files)
         .collect();
-    assert!(!counted.is_empty(), "no file counts while pulling");
+    let story = what_happened(&bob, &reports);
+    assert!(!counted.is_empty(), "no file counts while pulling\n{story}");
     // At the end, exactly: the three new files (again.bin's content was here already).
     let last = counted.last().unwrap();
-    assert_eq!((last.done, last.total), (3, 3), "{counted:?}");
+    assert_eq!((last.done, last.total), (3, 3), "{counted:?}\n{story}");
     assert!(counted.iter().all(|count| count.done <= count.total));
     assert_eq!(
         std::fs::read(bob.path().join("c.bin")).unwrap(),
@@ -148,20 +150,51 @@ fn downloads_a_branchs_git_lfs_files_before_checking_it_out() {
         &|progress| reports.borrow_mut().push(progress),
     )
     .unwrap();
+    let reports = reports.into_inner();
     let counted: Vec<_> = reports
-        .into_inner()
-        .into_iter()
+        .iter()
         .filter_map(|progress| progress.files)
         .collect();
     assert_eq!(
         counted.last().map(|count| (count.done, count.total)),
         Some((2, 2)),
-        "{counted:?}"
+        "{counted:?}\n{}",
+        what_happened(&bob, &reports)
     );
     assert_eq!(
         std::fs::read(bob.path().join("two.bin")).unwrap(),
         vec![6u8; 20_000]
     );
+}
+
+/// For a failed count, what went on: every progress report, and each git command the app ran
+/// in `repo` (in order, with whether it worked and what it said). The counts come from
+/// commands whose failures are otherwise passed over quietly, so this says which one it was.
+fn what_happened(repo: &TempRepo, reports: &[Progress]) -> String {
+    let mut story = String::from("Progress reports:\n");
+    for report in reports {
+        story.push_str(&format!(
+            "  {} {:?} {:?} files {:?}\n",
+            report.phase, report.percent, report.detail, report.files
+        ));
+    }
+    story.push_str("Git commands here:\n");
+    let here = repo.path().to_string_lossy().into_owned();
+    for entry in git::activity()
+        .into_iter()
+        .filter(|entry| entry.folder == here)
+    {
+        story.push_str(&format!(
+            "  git {} ({}, {} ms)\n",
+            entry.args.join(" "),
+            if entry.success { "worked" } else { "FAILED" },
+            entry.duration_ms
+        ));
+        for line in entry.output.lines().take(12) {
+            story.push_str(&format!("    | {line}\n"));
+        }
+    }
+    story
 }
 
 /// A Git LFS server that only does locking, as `rosa` sees it from her side: every
