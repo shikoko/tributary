@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as R
 import { moved } from "../lib/order";
 import {
   ACCENTS,
+  CI_DOTS,
   DEFAULT_APPEARANCE,
   LANE_PALETTE_LABELS,
   LANE_PALETTES,
@@ -11,6 +12,7 @@ import {
   parseHex,
   toHex,
   type Appearance,
+  type CiDots,
   type LaneChoice,
   type LanePaletteName,
   type Theme,
@@ -156,6 +158,38 @@ function LanePicker({ value, custom, theme, onChange }: { value: LaneChoice; cus
           </button>
         );
       })}
+    </div>
+  );
+}
+
+const CI_DOT_LABELS: Record<CiDots, string> = { beside: "Beside", ringed: "Ringed", halo: "Halo", filled: "Filled" };
+
+/** How a dot on the graph shows its checks, each with a small merge in the graph's colours. */
+function CiDotPicker({ value, lanes, onChange }: { value: CiDots; lanes: string[]; onChange: (value: CiDots) => void }) {
+  const style = { ["--lane" as string]: lanes[0], ["--lane-2" as string]: lanes[1] ?? lanes[0] };
+  return (
+    <div className="lane-picker" role="radiogroup" aria-label="Checks on dots" onKeyDown={arrowKeys}>
+      {CI_DOTS.map((look) => (
+        <button
+          key={look}
+          role="radio"
+          aria-checked={value === look}
+          tabIndex={value === look ? 0 : -1}
+          className={`lane-choice${value === look ? " chosen" : ""}`}
+          onClick={() => onChange(look)}
+        >
+          <span className="ci-dot-sample" aria-hidden style={style}>
+            <span className="ci-dot-sample-line" />
+            <span className="ci-dot-sample-branch" />
+            <span className="ci-dot-sample-node" />
+            <span
+              className={`graph-ci success${look === "beside" ? "" : ` on-dot ${look}`}`}
+              style={{ left: "var(--sample-x)", ["--ci-offset" as string]: look === "beside" ? "3.5px" : "0px" }}
+            />
+          </span>
+          <span>{CI_DOT_LABELS[look]}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -343,6 +377,12 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
       set: (value) => change({ nodes: value as Appearance["nodes"] }),
     },
     {
+      kind: "custom",
+      label: "Checks on dots",
+      hint: "How a merge shows its checks, and every commit when the graph shows dots. An author's picture has them beside it.",
+      content: <CiDotPicker value={appearance.ciDots} lanes={lanePalette(appearance, theme)} onChange={(value) => change({ ciDots: value })} />,
+    },
+    {
       kind: "select",
       label: "Graph line bends",
       hint: "How the lines turn from one branch's lane to another's.",
@@ -378,7 +418,7 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
       ),
     },
   ];
-  const graph = new Set(["Graph colours", "Your graph colours", "Commits on the graph", "Graph line bends"]);
+  const graph = new Set(["Graph colours", "Your graph colours", "Commits on the graph", "Checks on dots", "Graph line bends"]);
   return {
     look: rows.filter((row) => !graph.has(row.label) && row.label !== "Start over"),
     graph: rows.filter((row) => graph.has(row.label)),
