@@ -4,6 +4,7 @@ import { overlapHeadline } from "../../lib/elsewhere";
 import { relativeTime } from "../../lib/format";
 import { baseName } from "../../lib/paths";
 import { BranchIcon } from "../Icons";
+import { Button } from "../ui/Button";
 
 /** How many files are listed before "Show all". */
 const SHOWN = 4;
@@ -40,9 +41,9 @@ export function ElsewhereWarning({ overlaps, onShow }: Props) {
               <li key={overlap.path} title={overlap.path}>
                 <span className="elsewhere-file">{baseName(overlap.path)}</span>
                 {!overlap.uncommitted && <span className="elsewhere-note">in your commits</span>}
-                <button className="link-button elsewhere-branch" onClick={() => onShow(latest.commit)} title={`Show "${latest.summary}"`}>
+                <Button kind="link" className="elsewhere-branch" onClick={() => onShow(latest.commit)} title={`Show "${latest.summary}"`}>
                   {latest.branch}
-                </button>
+                </Button>
                 <span className="elsewhere-who">
                   {latest.author}, {relativeTime(latest.time)}
                   {more.length > 0 && ` (+${more.length})`}
@@ -52,9 +53,9 @@ export function ElsewhereWarning({ overlaps, onShow }: Props) {
           })}
         </ul>
         {overlaps.length > SHOWN && (
-          <button className="link-button" onClick={() => setAll(!all)}>
+          <Button kind="link" onClick={() => setAll(!all)}>
             {all ? "Show fewer" : `Show all ${overlaps.length}`}
-          </button>
+          </Button>
         )}
       </div>
     </div>

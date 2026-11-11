@@ -10,6 +10,7 @@ import { LockedFileList, SubmoduleList, WorktreeList } from "./sidebar/OtherList
 import { RefItem, type RefHandlers } from "./sidebar/RefItem";
 import { sidebarLists, stashLabel } from "./sidebar/refTree";
 import { RefTree, SidebarSection, type Folding } from "./sidebar/SidebarSection";
+import { Button } from "./ui/Button";
 
 interface Props {
   /** The repository's folder. */
@@ -151,9 +152,9 @@ export function Sidebar(props: Props) {
         <div className="sidebar-visibility">
           <EyeOffIcon size={13} />
           <span>{soloing ? `Showing only ${hiddenCount === 1 ? "one branch" : `${hiddenCount} branches`}` : `${hiddenCount} hidden`}</span>
-          <button className="link-button" onClick={props.onShowAll}>
+          <Button kind="link" onClick={props.onShowAll}>
             Show all
-          </button>
+          </Button>
         </div>
       )}
       <div className="sidebar-scroll">

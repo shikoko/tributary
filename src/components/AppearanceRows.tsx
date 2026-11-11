@@ -20,6 +20,7 @@ import {
 } from "../lib/appearance";
 import { CheckIcon } from "./Icons";
 import type { SettingRow } from "./SettingsDialog";
+import { Button } from "./ui/Button";
 
 const THEMES: { value: ThemeChoice; label: string }[] = [
   { value: "dark", label: "Dark" },
@@ -412,9 +413,9 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
       label: "Start over",
       hint: "Dark, with the azure accent and vivid graph colours.",
       content: (
-        <button className="outline-button" onClick={() => set({})} disabled={!changed}>
+        <Button kind="outline" onClick={() => set({})} disabled={!changed}>
           <span className="button-label">Reset appearance</span>
-        </button>
+        </Button>
       ),
     },
   ];

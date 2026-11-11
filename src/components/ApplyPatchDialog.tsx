@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { patchInfo, runAction, type PatchInfo } from "../api";
 import { plural } from "../lib/format";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
 
 /**
  * Apply a patch file: what's in it (its commits and files) and whether it applies to your
@@ -65,12 +66,12 @@ export function ApplyPatchDialog({
       wide
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running}>
+          <Button kind="secondary" onClick={onCancel} disabled={running}>
             Cancel
-          </button>
-          <button className="primary-small-button" onClick={apply} disabled={running || !info}>
+          </Button>
+          <Button kind="primary" onClick={apply} disabled={running || !info}>
             {running ? "Applying…" : asCommits && info && info.commits.length > 0 ? `Apply ${plural(info.commits.length, "commit")}` : "Apply the changes"}
-          </button>
+          </Button>
         </>
       }
     >

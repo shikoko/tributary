@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { runAction } from "../api";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
 
 interface Props {
   repoPath: string;
@@ -35,12 +37,12 @@ export function RenameBranchDialog({ repoPath, branch, onCancel, onDone }: Props
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running}>
+          <Button kind="secondary" onClick={onCancel} disabled={running}>
             Cancel
-          </button>
-          <button className="primary-small-button" onClick={rename} disabled={running || unchanged}>
+          </Button>
+          <Button kind="primary" onClick={rename} disabled={running || unchanged}>
             {running ? "Renaming…" : "Rename"}
-          </button>
+          </Button>
         </>
       }
     >
@@ -51,8 +53,7 @@ export function RenameBranchDialog({ repoPath, branch, onCancel, onDone }: Props
           rename();
         }}
       >
-        <label className="field">
-          <span>New name</span>
+        <Field label="New name">
           <input
             className="text-input"
             value={name}
@@ -66,7 +67,7 @@ export function RenameBranchDialog({ repoPath, branch, onCancel, onDone }: Props
             autoCorrect="off"
             autoFocus
           />
-        </label>
+        </Field>
       </form>
     </Dialog>
   );

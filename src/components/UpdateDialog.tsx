@@ -1,5 +1,6 @@
 import type { Updates } from "../lib/updates";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
 
 /** Release notes, from GitHub's Markdown: headings, bullet points and paragraphs. */
 function Notes({ text }: { text: string }) {
@@ -59,18 +60,18 @@ export function UpdateDialog({ updates, onClose }: { updates: Updates; onClose: 
           <>
             <span className="update-waiting">Waiting for git to finish…</span>
             <span className="spacer" />
-            <button className="secondary-button" onClick={updates.stopWaiting}>
+            <Button kind="secondary" onClick={updates.stopWaiting}>
               Don't restart
-            </button>
+            </Button>
           </>
         ) : (
           <>
-            <button className="secondary-button" onClick={onClose}>
+            <Button kind="secondary" onClick={onClose}>
               Later
-            </button>
-            <button className="primary-small-button" onClick={() => void updates.restart()} disabled={!ready} autoFocus={ready}>
+            </Button>
+            <Button kind="primary" onClick={() => void updates.restart()} disabled={!ready} autoFocus={ready}>
               {ready ? "Restart now" : percent === null ? "Downloading…" : `Downloading… ${percent}%`}
-            </button>
+            </Button>
           </>
         )
       }

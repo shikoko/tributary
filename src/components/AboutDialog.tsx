@@ -5,6 +5,8 @@ import { useNow } from "../lib/useNow";
 import { openInBrowser } from "../lib/weblinks";
 import { Dialog } from "./Dialog";
 import { CheckIcon, DownloadIcon, ExternalLinkIcon, InfoIcon, Logo, NotesIcon, RefreshIcon, SparkleIcon, WarningIcon } from "./Icons";
+import { Button } from "./ui/Button";
+import { Switch } from "./ui/Switch";
 
 const SOURCE = "https://github.com/shikoko/tributary";
 /** Opening About checks again when the last check is older than this. */
@@ -31,14 +33,14 @@ function UpdateStatus({ updates, onInstall }: Pick<Props, "updates" | "onInstall
   const now = useNow(30_000);
   const { available, checking, checkedAt, downloading, ready, waiting, error, check } = updates;
   const again = (label: string, retry = check) => (
-    <button className="secondary-button" onClick={() => void retry()} disabled={checking}>
+    <Button kind="secondary" onClick={() => void retry()} disabled={checking}>
       {label}
-    </button>
+    </Button>
   );
   const whatsNew = available && (
-    <button className="link-button" onClick={onInstall}>
+    <Button kind="link" onClick={onInstall}>
       What's new
-    </button>
+    </Button>
   );
   let tone: string;
   let icon: ReactNode;
@@ -51,9 +53,9 @@ function UpdateStatus({ updates, onInstall }: Pick<Props, "updates" | "onInstall
     title = "Restarting when git is done…";
     detail = "Waiting for a git command to finish";
     action = (
-      <button className="secondary-button" onClick={updates.stopWaiting}>
+      <Button kind="secondary" onClick={updates.stopWaiting}>
         Don't restart
-      </button>
+      </Button>
     );
   } else if (error && error.step !== "check") {
     tone = "failed";
@@ -67,9 +69,9 @@ function UpdateStatus({ updates, onInstall }: Pick<Props, "updates" | "onInstall
     title = `Tributary ${available.version} is ready`;
     detail = <>Installs when you restart, or when you quit · {whatsNew}</>;
     action = (
-      <button className="primary-small-button" onClick={() => void updates.restart()}>
+      <Button kind="primary" onClick={() => void updates.restart()}>
         Restart now
-      </button>
+      </Button>
     );
   } else if (downloading && available) {
     tone = "available";
@@ -124,9 +126,7 @@ function Toggle({ label, hint, on, set }: { label: string; hint: string; on: boo
         <span>{label}</span>
         <span className="settings-hint">{hint}</span>
       </span>
-      <button role="switch" aria-checked={on} aria-label={label} className={`switch${on ? " on" : ""}`} onClick={() => set(!on)}>
-        <span className="switch-knob" />
-      </button>
+      <Switch on={on} onChange={set} label={label} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { ancestors, countMissing } from "../lib/graph";
 import { plural, shortId } from "../lib/format";
 import { Dialog } from "./Dialog";
 import { TypeToConfirm } from "./Safety";
+import { Button } from "./ui/Button";
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -54,12 +55,12 @@ export function ResetDialog({ snapshot, target, protectedName, onCancel, onDone 
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running} autoFocus={!protectedName}>
+          <Button kind="secondary" onClick={onCancel} disabled={running} autoFocus={!protectedName}>
             Cancel
-          </button>
-          <button className="danger-button" onClick={reset} disabled={running || !confirmed}>
+          </Button>
+          <Button kind="danger" onClick={reset} disabled={running || !confirmed}>
             {running ? (discardOnly ? "Discarding…" : "Resetting…") : discardOnly ? "Discard changes" : `Reset ${branch}`}
-          </button>
+          </Button>
         </>
       }
     >

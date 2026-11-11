@@ -4,6 +4,7 @@ import { relativeTime } from "../lib/format";
 import { changeLineKind, describeRewrite, rewrittenVersions, summarizePairs } from "../lib/rewrites";
 import { ChevronDownIcon, ChevronRightIcon, CloseIcon, RebaseIcon } from "./Icons";
 import { Loader } from "./Loader";
+import { Button } from "./ui/Button";
 
 interface Props {
   repoPath: string;
@@ -102,9 +103,9 @@ export function RewriteView({ repoPath, branch, base, onClose }: Props) {
             ))}
           </select>
         )}
-        <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close">
+        <Button kind="icon" onClick={onClose} title="Close (Esc)" aria-label="Close">
           <CloseIcon />
-        </button>
+        </Button>
       </header>
       <div className="diff-body request-body-scroll">
         {error ? (

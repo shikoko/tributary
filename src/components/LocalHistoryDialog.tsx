@@ -5,6 +5,7 @@ import { useStoredState } from "../lib/settings";
 import { baseName, folderOf } from "../lib/paths";
 import { Dialog } from "./Dialog";
 import { HistoryIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 interface Props {
   repoPath: string;
@@ -97,17 +98,17 @@ export function LocalHistoryDialog({ repoPath, file, canChange, run, onOpenSetti
       onCancel={onClose}
       buttons={
         <>
-          <button className="secondary-button" onClick={() => void takeOne()} disabled={taking || !canChange}>
+          <Button kind="secondary" onClick={() => void takeOne()} disabled={taking || !canChange}>
             {taking ? "Keeping…" : "Keep a snapshot now"}
-          </button>
+          </Button>
           <span className="spacer" />
-          <button className="secondary-button" onClick={onClose}>
+          <Button kind="secondary" onClick={onClose}>
             Close
-          </button>
+          </Button>
           {files.length > 1 && (
-            <button className="primary-small-button" disabled={!canChange} onClick={() => restore(files.map((each) => each.path))}>
+            <Button kind="primary" disabled={!canChange} onClick={() => restore(files.map((each) => each.path))}>
               Restore all {files.length}
-            </button>
+            </Button>
           )}
         </>
       }
@@ -121,9 +122,9 @@ export function LocalHistoryDialog({ repoPath, file, canChange, run, onOpenSetti
         ) : (
           <>Snapshots aren't kept now. </>
         )}
-        <button className="link-button" onClick={onOpenSettings}>
+        <Button kind="link" onClick={onOpenSettings}>
           Settings
-        </button>
+        </Button>
       </p>
       {snapshots === null ? (
         <p className="shelves-empty">Looking…</p>
@@ -157,14 +158,14 @@ export function LocalHistoryDialog({ repoPath, file, canChange, run, onOpenSetti
                 <span className={`shelf-change ${each.change}`}>{each.change === "added" ? "A" : each.change === "deleted" ? "D" : "M"}</span>
                 <span className="history-file-name">{baseName(each.path)}</span>
                 <span className="history-file-dir">{folderOf(each.path)}</span>
-                <button
-                  className="outline-button"
+                <Button
+                  kind="outline"
                   disabled={!canChange}
                   title={each.change === "deleted" ? "It had been deleted then: delete it again" : `Put ${baseName(each.path)} back as it was at ${selected ? timeOf(selected.time) : ""}`}
                   onClick={() => restore([each.path])}
                 >
                   <span className="button-label">Restore</span>
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

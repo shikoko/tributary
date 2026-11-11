@@ -1,6 +1,7 @@
 import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { plural } from "../lib/format";
 import { CloseIcon, SearchIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 /** Every file row is this tall (see .file). */
 const ROW = 26;
@@ -93,9 +94,9 @@ export function FileFilter({ value, onChange, shown, total }: FilterProps) {
           <span className="file-filter-count">
             {shown.toLocaleString()} of {total.toLocaleString()}
           </span>
-          <button className="icon-button small" onClick={() => onChange("")} aria-label="Clear the filter" title="Clear (Esc)">
+          <Button kind="icon" size="small" onClick={() => onChange("")} aria-label="Clear the filter" title="Clear (Esc)">
             <CloseIcon size={12} />
-          </button>
+          </Button>
         </>
       )}
     </div>

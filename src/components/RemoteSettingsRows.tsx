@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { remotes as listRemotes, type Action, type RemoteInfo } from "../api";
 import type { SettingRow } from "./SettingsDialog";
+import { Button } from "./ui/Button";
 
 /** A remote being changed: its name and addresses as typed. */
 interface Editing {
@@ -83,12 +84,12 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
               placeholder="Push address (optional: the same one)"
             />
             <div className="remote-form-buttons">
-              <button type="button" className="outline-button" onClick={() => setEditing(null)} disabled={busy}>
+              <Button type="button" kind="outline" onClick={() => setEditing(null)} disabled={busy}>
                 <span className="button-label">Cancel</span>
-              </button>
-              <button type="submit" className="primary-small-button" disabled={busy || !draft.name.trim() || !draft.url.trim()}>
+              </Button>
+              <Button type="submit" kind="primary" disabled={busy || !draft.name.trim() || !draft.url.trim()}>
                 Save
-              </button>
+              </Button>
             </div>
           </form>
         ),
@@ -103,11 +104,11 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
         removing === remote.name ? (
           <div className="remote-buttons">
             <span className="remote-confirm">Its remote branches go too.</span>
-            <button className="outline-button" onClick={() => setRemoving(null)} disabled={busy}>
+            <Button kind="outline" onClick={() => setRemoving(null)} disabled={busy}>
               <span className="button-label">Keep</span>
-            </button>
-            <button
-              className="danger-button"
+            </Button>
+            <Button
+              kind="danger"
               disabled={busy}
               onClick={() => {
                 setRemoving(null);
@@ -115,21 +116,21 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
               }}
             >
               Remove
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="remote-buttons">
-            <button
-              className="outline-button"
+            <Button
+              kind="outline"
               disabled={busy}
               onClick={() => setEditing({ name: remote.name, draft: { name: remote.name, url: remote.url, pushUrl: remote.pushUrl ?? "" } })}
               aria-label={`Edit ${remote.name}`}
             >
               <span className="button-label">Edit…</span>
-            </button>
-            <button className="outline-button" disabled={busy} onClick={() => setRemoving(remote.name)} aria-label={`Remove ${remote.name}`}>
+            </Button>
+            <Button kind="outline" disabled={busy} onClick={() => setRemoving(remote.name)} aria-label={`Remove ${remote.name}`}>
               <span className="button-label">Remove…</span>
-            </button>
+            </Button>
           </div>
         ),
     });
@@ -166,9 +167,9 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
           aria-label="New remote's address"
         />
         <div className="remote-form-buttons">
-          <button type="submit" className="primary-small-button" disabled={busy || !adding.name.trim() || !adding.url.trim()}>
+          <Button type="submit" kind="primary" disabled={busy || !adding.name.trim() || !adding.url.trim()}>
             Add remote
-          </button>
+          </Button>
         </div>
       </form>
     ),

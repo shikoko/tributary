@@ -4,6 +4,7 @@ import { describeMeta } from "../../lib/unityMeta";
 import { formatBytes, plural } from "../../lib/format";
 import { baseName } from "../../lib/paths";
 import { LockIcon, WarningIcon } from "../Icons";
+import { Button } from "../ui/Button";
 
 /** "*.umap" for "Content/Maps/Level.umap"; the path itself for a file without an extension. */
 export function lfsPattern(path: string): string {
@@ -119,9 +120,9 @@ export function ChangeWarnings({ staged, unstaged, lockOf, checks, canLock, busy
           </div>
           <div className="file-warning-actions">
             {patterns.map((pattern) => (
-              <button
+              <Button
                 key={pattern}
-                className="outline-button small"
+                kind="outline" size="small"
                 disabled={busy}
                 onClick={() =>
                   run({
@@ -132,7 +133,7 @@ export function ChangeWarnings({ staged, unstaged, lockOf, checks, canLock, busy
                 }
               >
                 Track {pattern} with LFS
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -148,9 +149,9 @@ export function ChangeWarnings({ staged, unstaged, lockOf, checks, canLock, busy
             {unlocked.length === 1 ? "it" : "them"}.
           </div>
           <div className="file-warning-actions">
-            <button className="outline-button small" disabled={busy} onClick={() => run({ kind: "lockFiles", paths: unlocked })}>
+            <Button kind="outline" size="small" disabled={busy} onClick={() => run({ kind: "lockFiles", paths: unlocked })}>
               {unlocked.length === 1 ? "Lock it" : `Lock ${unlocked.length} files`}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

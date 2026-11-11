@@ -4,6 +4,8 @@ import { runAction, type CommitRow, type Worktree } from "../api";
 import { shortId } from "../lib/format";
 import { folderSlug, joinPath, parentFolder } from "../lib/paths";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
 
 interface Props {
   repoPath: string;
@@ -66,12 +68,12 @@ export function NewWorktreeDialog({ repoPath, repoName, branches, worktrees, bra
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running}>
+          <Button kind="secondary" onClick={onCancel} disabled={running}>
             Cancel
-          </button>
-          <button className="primary-small-button" onClick={create} disabled={running || !name || !folder.trim() || Boolean(busyElsewhere)}>
+          </Button>
+          <Button kind="primary" onClick={create} disabled={running || !name || !folder.trim() || Boolean(busyElsewhere)}>
             {running ? "Creating…" : "Create worktree"}
-          </button>
+          </Button>
         </>
       }
     >
@@ -83,8 +85,7 @@ export function NewWorktreeDialog({ repoPath, repoName, branches, worktrees, bra
           create();
         }}
       >
-        <label className="field">
-          <span>Branch</span>
+        <Field label="Branch">
           <input
             className="text-input"
             value={branch}
@@ -96,7 +97,7 @@ export function NewWorktreeDialog({ repoPath, repoName, branches, worktrees, bra
             autoFocus
             disabled={running}
           />
-        </label>
+        </Field>
         <p className="hint">
           {!name
             ? " "
@@ -106,17 +107,15 @@ export function NewWorktreeDialog({ repoPath, repoName, branches, worktrees, bra
                 ? `Checks out the branch ${name}.`
                 : `Makes the new branch ${name} at ${shortId(start.id)} ${start.summary}.`}
         </p>
-        <div className="field">
-          <span>In</span>
+        <Field group label="In">
           <div className="field-row">
             <input className="text-input" value={parent} readOnly onClick={choose} disabled={running} />
-            <button type="button" className="secondary-button" onClick={choose} disabled={running}>
+            <Button type="button" kind="secondary" onClick={choose} disabled={running}>
               Choose…
-            </button>
+            </Button>
           </div>
-        </div>
-        <label className="field">
-          <span>Folder name</span>
+        </Field>
+        <Field label="Folder name">
           <input
             className="text-input"
             value={folder}
@@ -127,7 +126,7 @@ export function NewWorktreeDialog({ repoPath, repoName, branches, worktrees, bra
             spellCheck={false}
             disabled={running}
           />
-        </label>
+        </Field>
         <label className="checkbox">
           <input type="checkbox" checked={openIt} onChange={(event) => setOpenIt(event.target.checked)} disabled={running} />
           Open it in a new tab

@@ -32,6 +32,8 @@ import { CheckTributaries } from "./CheckTributaries";
 import { Markdown } from "./Markdown";
 import { AskForReview, useRequestChange } from "./RequestControls";
 import { ConversationList, MergeRequestDialog, ReviewBox } from "./RequestReview";
+import { Button } from "./ui/Button";
+import { Chip } from "./ui/Chip";
 
 /** While checks are running, they're asked about again this often. */
 const POLL = 20_000;
@@ -228,8 +230,8 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
           <span className="request-number">{requestNumber(request)}</span>
           <span className="request-title">{details?.title ?? request.title}</span>
         </div>
-        <button
-          className="icon-button"
+        <Button
+          kind="icon"
           onClick={() => {
             load();
             loadConversation();
@@ -239,14 +241,14 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
           aria-label={`Refresh the ${noun}`}
         >
           <RefreshIcon size={14} />
-        </button>
-        <button className="outline-button" onClick={() => openUrl(details?.url ?? request.url)} title={`Open it on ${site}`} data-url={details?.url ?? request.url}>
+        </Button>
+        <Button kind="outline" onClick={() => openUrl(details?.url ?? request.url)} title={`Open it on ${site}`} data-url={details?.url ?? request.url}>
           <ExternalLinkIcon size={13} />
           <span className="button-label">Open on {site}</span>
-        </button>
-        <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label={`Close the ${noun}`}>
+        </Button>
+        <Button kind="icon" onClick={onClose} title="Close (Esc)" aria-label={`Close the ${noun}`}>
           <CloseIcon />
-        </button>
+        </Button>
       </header>
       <div className="diff-body request-body-scroll">
         {error && !details ? (
@@ -259,10 +261,12 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
         ) : (
           <div className="request-content">
             <div className="request-meta">
-              <span className={`request-state ${details.state}`}>
-                {details.state === "merged" ? <MergeIcon size={13} /> : details.state === "closed" ? <CloseIcon size={12} /> : <PullRequestIcon size={13} />}
-                <span className="chip-text">{STATES[details.state]}</span>
-              </span>
+              <Chip
+                className={`request-state ${details.state}`}
+                icon={details.state === "merged" ? <MergeIcon size={13} /> : details.state === "closed" ? <CloseIcon size={12} /> : <PullRequestIcon size={13} />}
+              >
+                {STATES[details.state]}
+              </Chip>
               <span className="request-who chip-text">
                 <strong>{details.author}</strong> wants to merge
               </span>
@@ -332,17 +336,17 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
               action={
                 canAct && conversation ? (
                   details.state === "draft" ? (
-                    <button className="primary-small-button request-primary" disabled={busy} onClick={() => void change({ kind: "draft", draft: false })}>
+                    <Button kind="primary" className="request-primary" disabled={busy} onClick={() => void change({ kind: "draft", draft: false })}>
                       <span className="button-label">Ready for review</span>
-                    </button>
+                    </Button>
                   ) : conversation.mergeMethods.length > 0 ? (
                     <span className="request-split">
-                      <button className="primary-small-button request-primary" onClick={() => setMerging(true)}>
+                      <Button kind="primary" className="request-primary" onClick={() => setMerging(true)}>
                         <MergeIcon size={14} />
                         <span className="button-label">Merge…</span>
-                      </button>
-                      <button
-                        className="primary-small-button request-primary request-caret"
+                      </Button>
+                      <Button
+                        kind="primary" className="request-primary request-caret"
                         disabled={busy}
                         title="More ways to merge"
                         aria-label="More ways to merge"
@@ -358,7 +362,7 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
                         }
                       >
                         <ChevronDownIcon size={14} />
-                      </button>
+                      </Button>
                     </span>
                   ) : null
                 ) : null
@@ -385,35 +389,35 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
             </StatusCard>
 
             <div className="request-toolbar">
-              <button
-                className="outline-button"
+              <Button
+                kind="outline"
                 onClick={() => onCompare(details)}
                 disabled={!fetched}
                 title={fetched ? `What ${details.branch} changes, compared with ${details.base}` : `Fetch to see its changes here: its commits aren't loaded`}
               >
                 <CompareIcon size={14} />
                 <span className="button-label">See its changes</span>
-              </button>
+              </Button>
               {forcePushed && (
-                <button className="outline-button" onClick={() => onShowRewrite(details.branch, details.base)} title={`${details.branch} was force-pushed: see what changed, commit by commit`}>
+                <Button kind="outline" onClick={() => onShowRewrite(details.branch, details.base)} title={`${details.branch} was force-pushed: see what changed, commit by commit`}>
                   <RebaseIcon size={14} />
                   <span className="button-label">Since the force-push</span>
-                </button>
+                </Button>
               )}
               {canAct && (
-                <button className={`outline-button${reviewing ? " active" : ""}`} onClick={() => setReviewing(!reviewing)} aria-expanded={reviewing}>
+                <Button kind="outline" className={reviewing ? "active" : undefined} onClick={() => setReviewing(!reviewing)} aria-expanded={reviewing}>
                   <EyeIcon size={14} />
                   <span className="button-label">Review</span>
-                </button>
+                </Button>
               )}
               {canAct && (
-                <button className={`outline-button${asking ? " active" : ""}`} disabled={busy} onClick={() => setAsking(!asking)} aria-expanded={asking}>
+                <Button kind="outline" className={asking ? "active" : undefined} disabled={busy} onClick={() => setAsking(!asking)} aria-expanded={asking}>
                   <UserIcon size={14} />
                   <span className="button-label">Ask for review…</span>
-                </button>
+                </Button>
               )}
-              <button
-                className="outline-button quiet"
+              <Button
+                kind="outline" className="quiet"
                 title="More"
                 onClick={(event) =>
                   showMenu(event.currentTarget, [
@@ -433,7 +437,7 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
               >
                 <span className="button-label">More</span>
                 <ChevronDownIcon size={13} />
-              </button>
+              </Button>
             </div>
             {asking && <AskForReview gitlab={details.forge === "gitlab"} busy={busy} onAsk={(reviewers) => void change({ kind: "reviewers", reviewers })} onCancel={() => setAsking(false)} />}
             {changeError && <p className="review-error">{changeError}</p>}
@@ -543,9 +547,9 @@ export function CheckRow({ check, time, openUrl }: { check: RequestCheck; time: 
       {check.detail && <span className="request-check-detail">{check.detail}</span>}
       {time && <CheckTime check={check} time={time} />}
       {check.url && (
-        <button className="link-button request-check-link" onClick={() => openUrl(check.url!)} data-url={check.url}>
+        <Button kind="link" className="request-check-link" onClick={() => openUrl(check.url!)} data-url={check.url}>
           Details
-        </button>
+        </Button>
       )}
     </li>
   );

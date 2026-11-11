@@ -1,6 +1,7 @@
 import type { Bisect, CommitRow } from "../api";
 import { plural, shortId } from "../lib/format";
 import { SearchIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 interface Props {
   bisect: Bisect;
@@ -18,9 +19,9 @@ interface Props {
 export function BisectBar({ bisect, testing, found, busy, onMark, onStop, onShow }: Props) {
   const back = bisect.start ? (/^[0-9a-f]{40}$/.test(bisect.start) ? shortId(bisect.start) : bisect.start) : null;
   const stop = (
-    <button className="secondary-button" onClick={onStop} disabled={busy} title={back ? `Stop, and go back to ${back}` : "Stop bisecting"}>
+    <Button kind="secondary" onClick={onStop} disabled={busy} title={back ? `Stop, and go back to ${back}` : "Stop bisecting"}>
       {bisect.found ? "Done" : "Stop"}
-    </button>
+    </Button>
   );
   if (bisect.found) {
     return (
@@ -28,15 +29,15 @@ export function BisectBar({ bisect, testing, found, busy, onMark, onStop, onShow
         <SearchIcon size={14} />
         <span className="operation-text">
           <span className="operation-title">Found it:</span>{" "}
-          <button className="link-button mono" onClick={() => onShow(bisect.found!)}>
+          <Button kind="link" className="mono" onClick={() => onShow(bisect.found!)}>
             {shortId(bisect.found)}
-          </button>{" "}
+          </Button>{" "}
           {found ? <>“{found.summary}”</> : null} is the first bad commit.
         </span>
         <span className="operation-buttons">
-          <button className="primary-small-button" onClick={() => onShow(bisect.found!)}>
+          <Button kind="primary" onClick={() => onShow(bisect.found!)}>
             Show it
-          </button>
+          </Button>
           {stop}
         </span>
       </div>
@@ -50,9 +51,9 @@ export function BisectBar({ bisect, testing, found, busy, onMark, onStop, onShow
         {ready && testing ? (
           <>
             <span className="operation-title">Bisecting:</span> test{" "}
-            <button className="link-button mono" onClick={() => onShow(testing.id)}>
+            <Button kind="link" className="mono" onClick={() => onShow(testing.id)}>
               {shortId(testing.id)}
-            </button>
+            </Button>
             {testing.commit && <> “{testing.commit.summary}”</>}, then say whether it's good or bad.
             {bisect.left !== null && (
               <span className="bisect-left">
@@ -76,9 +77,9 @@ export function BisectBar({ bisect, testing, found, busy, onMark, onStop, onShow
             <button className="bisect-button bad" onClick={() => onMark("bad")} disabled={busy} title="It's broken: the problem is here or earlier">
               Bad
             </button>
-            <button className="secondary-button" onClick={() => onMark("skip")} disabled={busy} title="Can't tell (it doesn't build, say): try another one">
+            <Button kind="secondary" onClick={() => onMark("skip")} disabled={busy} title="Can't tell (it doesn't build, say): try another one">
               Skip
-            </button>
+            </Button>
           </>
         )}
         {stop}

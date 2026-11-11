@@ -5,6 +5,7 @@ import { shortId } from "../lib/format";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
 import { GripIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 interface Props {
   branch: string;
@@ -115,11 +116,11 @@ export function InteractiveRebaseDialog({ branch, onto, commits, loadDetails, on
           <span className="dialog-note">
             {commits.length} {commits.length === 1 ? "commit" : "commits"} → {result} after the rebase
           </span>
-          <button className="secondary-button" onClick={onCancel}>
+          <Button kind="secondary" onClick={onCancel}>
             Cancel
-          </button>
-          <button
-            className="primary-small-button"
+          </Button>
+          <Button
+            kind="primary"
             disabled={problem !== null || !changed}
             onClick={() =>
               onStart(
@@ -130,7 +131,7 @@ export function InteractiveRebaseDialog({ branch, onto, commits, loadDetails, on
             }
           >
             Start rebase
-          </button>
+          </Button>
         </>
       }
     >

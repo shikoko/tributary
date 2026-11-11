@@ -7,6 +7,7 @@ import { formatDiagnostics } from "../lib/diagnostics";
 import { openInBrowser } from "../lib/weblinks";
 import { thisSystem } from "./ErrorScreen";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
 
 interface Props {
   /** The open repository, if any. */
@@ -57,24 +58,24 @@ export function DiagnosticsDialog({ repoPath, extra, onCopied, onClose }: Props)
         <>
           <span className="dialog-note">Passwords and tokens in addresses are left out.</span>
           {reports && (
-            <button className="secondary-button" onClick={() => void revealItemInDir(reports).catch((e) => setError(String(e)))}>
+            <Button kind="secondary" onClick={() => void revealItemInDir(reports).catch((e) => setError(String(e)))}>
               Show Problem Reports
-            </button>
+            </Button>
           )}
-          <button
-            className="secondary-button"
+          <Button
+            kind="secondary"
             onClick={() => text !== null && openInBrowser(bugReportUrl({ diagnostics: text, system: thisSystem() }))}
             disabled={text === null}
             title="A new bug report on GitHub, with this filled in, to read and send there"
           >
             Report on GitHub
-          </button>
-          <button className="secondary-button" onClick={onClose}>
+          </Button>
+          <Button kind="secondary" onClick={onClose}>
             Close
-          </button>
-          <button className="primary-small-button" onClick={copy} disabled={text === null} autoFocus>
+          </Button>
+          <Button kind="primary" onClick={copy} disabled={text === null} autoFocus>
             Copy
-          </button>
+          </Button>
         </>
       }
     >

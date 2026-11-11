@@ -19,6 +19,7 @@ import type { Repository } from "./useRepository";
 import type { RepositorySettings } from "./useRepositorySettings";
 import type { Selection } from "./useSelection";
 import type { Submodules } from "./useSubmodules";
+import { Button } from "../components/ui/Button";
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -117,9 +118,9 @@ export function RepositoryBanners(props: Props) {
               {hook.what === "commit" ? "Commit anyway (skip hooks)" : "Push anyway (skip hooks)"}
             </button>
           )}
-          <button className="icon-button" onClick={() => setError(null)} aria-label="Dismiss">
+          <Button kind="icon" onClick={() => setError(null)} aria-label="Dismiss">
             <CloseIcon size={14} />
-          </button>
+          </Button>
         </div>
       )}
       {error && !hook && (
@@ -145,9 +146,9 @@ export function RepositoryBanners(props: Props) {
               Open that worktree
             </button>
           )}
-          <button className="icon-button" onClick={() => setError(null)} aria-label="Dismiss">
+          <Button kind="icon" onClick={() => setError(null)} aria-label="Dismiss">
             <CloseIcon size={14} />
-          </button>
+          </Button>
         </div>
       )}
       {lfsHealth.notice && (

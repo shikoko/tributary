@@ -3,6 +3,7 @@ import { projectSetup, type Action, type ProjectSetup, type SetupCheck } from ".
 import { openInBrowser } from "../lib/weblinks";
 import { Dialog } from "./Dialog";
 import { CheckIcon, CloseIcon, WarningIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 const STATUS_ICON = { good: <CheckIcon size={14} />, warning: <WarningIcon size={14} />, problem: <CloseIcon size={14} /> };
 
@@ -61,14 +62,14 @@ export function ProjectSetupDialog({
       busy={fixing !== null}
       buttons={
         <>
-          <button className="secondary-button" onClick={onClose} disabled={fixing !== null}>
+          <Button kind="secondary" onClick={onClose} disabled={fixing !== null}>
             Close
-          </button>
+          </Button>
           <span className="spacer" />
           {fixable.length > 1 && (
-            <button className="primary-small-button" onClick={() => fix(fixable)} disabled={!canChange || fixing !== null}>
+            <Button kind="primary" onClick={() => fix(fixable)} disabled={!canChange || fixing !== null}>
               Fix all {fixable.length}
-            </button>
+            </Button>
           )}
         </>
       }
@@ -106,19 +107,19 @@ export function ProjectSetupDialog({
                 </div>
                 <div className="setup-action">
                   {check.fix && check.status !== "good" && (
-                    <button className="outline-button" onClick={() => fix([check])} disabled={!canChange || fixing !== null}>
+                    <Button kind="outline" onClick={() => fix([check])} disabled={!canChange || fixing !== null}>
                       <span className="button-label">{fixing === check.id ? "Fixing…" : check.fixLabel}</span>
-                    </button>
+                    </Button>
                   )}
                   {check.id === "big" && (
-                    <button className="outline-button" onClick={onOpenSize}>
+                    <Button kind="outline" onClick={onOpenSize}>
                       <span className="button-label">Repository size…</span>
-                    </button>
+                    </Button>
                   )}
                   {check.id === "lfs-installed" && !check.fix && (
-                    <button className="outline-button" onClick={() => openInBrowser("https://git-lfs.com")} data-url="https://git-lfs.com">
+                    <Button kind="outline" onClick={() => openInBrowser("https://git-lfs.com")} data-url="https://git-lfs.com">
                       <span className="button-label">Get Git LFS</span>
-                    </button>
+                    </Button>
                   )}
                 </div>
               </li>

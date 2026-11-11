@@ -10,6 +10,7 @@ import { AccountChips } from "./AccountChips";
 import { GitNeededCard, GitOldNote } from "./GitNeeded";
 import { BranchIcon, CloneIcon, CloseIcon, FolderIcon, Logo, NewRepoIcon, PinIcon, SearchIcon } from "./Icons";
 import { Loader } from "./Loader";
+import { Button } from "./ui/Button";
 
 interface Props {
   recent: RecentRepo[];
@@ -85,22 +86,22 @@ export function Welcome({ recent, summaries, opening, error, onPick, onClone, on
           {repo.openedAt && <span className="recent-when">{relativeTime(repo.openedAt / 1000)}</span>}
         </span>
       </button>
-      <button
-        className={`icon-button recent-pin${repo.pinned ? " pinned" : ""}`}
+      <Button
+        kind="icon" className={`recent-pin${repo.pinned ? " pinned" : ""}`}
         onClick={() => onPin(repo.path, !repo.pinned)}
         title={repo.pinned ? "Unpin" : "Pin to the top"}
         aria-label={repo.pinned ? `Unpin ${repo.name}` : `Pin ${repo.name}`}
       >
         <PinIcon size={14} />
-      </button>
-      <button
-        className="icon-button"
+      </Button>
+      <Button
+        kind="icon"
         onClick={() => onForget(repo.path)}
         title="Remove from recent"
         aria-label={`Remove ${repo.name} from recent`}
       >
         <CloseIcon size={14} />
-      </button>
+      </Button>
     </li>
     );
   };
@@ -123,19 +124,19 @@ export function Welcome({ recent, summaries, opening, error, onPick, onClone, on
 
         {git.missing && <GitNeededCard install={git} />}
         <div className="welcome-actions">
-          <button className="primary-button" onClick={onPick} disabled={opening !== null}>
+          <Button kind="primary" size="large" onClick={onPick} disabled={opening !== null}>
             <FolderIcon />
             Open repository…
             <kbd>{modKey}O</kbd>
-          </button>
-          <button className="secondary-button large" onClick={onClone} disabled={opening !== null}>
+          </Button>
+          <Button kind="secondary" size="large" onClick={onClone} disabled={opening !== null}>
             <CloneIcon />
             Clone…
-          </button>
-          <button className="secondary-button large" onClick={onCreate} disabled={opening !== null}>
+          </Button>
+          <Button kind="secondary" size="large" onClick={onCreate} disabled={opening !== null}>
             <NewRepoIcon />
             New…
-          </button>
+          </Button>
         </div>
         <AccountChips accounts={accounts} onSignIn={onSignIn} />
         {git.install?.old && <GitOldNote install={git} />}

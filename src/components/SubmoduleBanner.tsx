@@ -1,5 +1,6 @@
 import { SUBMODULE_EXPLAINED } from "../lib/submodules";
 import { CloseIcon, SubmoduleIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 interface Props {
   notice: { text: string; action: string };
@@ -17,16 +18,16 @@ export function SubmoduleBanner({ notice, busy, onUpdate, onDismiss, onAlways }:
       <SubmoduleIcon size={14} />
       <span title={SUBMODULE_EXPLAINED}>{notice.text}</span>
       {onAlways && (
-        <button className="link-button" onClick={onAlways} disabled={busy} title="Update them now, and after every checkout and pull from now on (Settings, General)">
+        <Button kind="link" onClick={onAlways} disabled={busy} title="Update them now, and after every checkout and pull from now on (Settings, General)">
           Always
-        </button>
+        </Button>
       )}
       <button className="notice-action" onClick={onUpdate} disabled={busy}>
         {notice.action}
       </button>
-      <button className="icon-button" onClick={onDismiss} aria-label="Not now" title="Not now">
+      <Button kind="icon" onClick={onDismiss} aria-label="Not now" title="Not now">
         <CloseIcon size={14} />
-      </button>
+      </Button>
     </div>
   );
 }

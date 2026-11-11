@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { lfsStorage, type LfsStorage } from "../api";
 import { formatBytes, plural } from "../lib/format";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { Button } from "./ui/Button";
 
 /** How much space the repository's Git LFS files take here; null while looking, or without LFS. */
 function useLfsStorage(repoPath: string): LfsStorage | null | undefined {
@@ -26,9 +27,9 @@ export function LfsStorageSummary({ repoPath, onCleanUp }: { repoPath: string; o
   return (
     <span className="settings-inline">
       <span className="settings-value">{formatBytes(storage.bytes)}</span>
-      <button className="outline-button" onClick={onCleanUp} disabled={storage.files === 0}>
+      <Button kind="outline" onClick={onCleanUp} disabled={storage.files === 0}>
         <span className="button-label">Clean up…</span>
-      </button>
+      </Button>
     </span>
   );
 }

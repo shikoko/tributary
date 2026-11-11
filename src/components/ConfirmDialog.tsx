@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { runAction, type Action } from "../api";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
 
 interface Props {
   repoPath: string;
@@ -43,9 +44,9 @@ export function ConfirmDialog(props: Props) {
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running} autoFocus>
+          <Button kind="secondary" onClick={onCancel} disabled={running} autoFocus>
             Cancel
-          </button>
+          </Button>
           <button className={danger ? "danger-button" : "primary-small-button"} onClick={() => run(action)} disabled={running}>
             {running ? busyLabel : confirmLabel}
           </button>

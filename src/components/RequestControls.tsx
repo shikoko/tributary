@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { changeRequest, type RequestChange, type RequestDetails } from "../api";
+import { Button } from "./ui/Button";
 
 /**
  * Changing an open request besides reviewing and merging: ready for review or back to a
@@ -64,12 +65,12 @@ export function AskForReview({
         spellCheck={false}
         autoCapitalize="off"
       />
-      <button type="button" className="link-button" onClick={onCancel} disabled={busy}>
+      <Button type="button" kind="link" onClick={onCancel} disabled={busy}>
         Cancel
-      </button>
-      <button type="submit" className="primary-small-button" disabled={busy || reviewers.length === 0}>
+      </Button>
+      <Button type="submit" kind="primary" disabled={busy || reviewers.length === 0}>
         <span className="button-label">Ask</span>
-      </button>
+      </Button>
     </form>
   );
 }

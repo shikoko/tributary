@@ -4,6 +4,7 @@ import { copyText } from "../lib/clipboard";
 import { relativeTime } from "../lib/format";
 import type { HistoryEntry } from "../lib/history";
 import { CheckIcon, CloseIcon, CopyIcon, RevertIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 interface Props {
   entries: LogEntry[];
@@ -41,10 +42,10 @@ function YourActions({ history, canUndo, onUndo }: Pick<Props, "history" | "canU
             {entry.undone ? (
               <span className="history-undone">Undone</span>
             ) : entry.undo ? (
-              <button className="secondary-button small history-undo" disabled={!state.ok} title={state.ok ? `Undo: ${entry.text}` : state.why} onClick={() => onUndo(entry)}>
+              <Button kind="secondary" size="small" className="history-undo" disabled={!state.ok} title={state.ok ? `Undo: ${entry.text}` : state.why} onClick={() => onUndo(entry)}>
                 <RevertIcon size={12} />
                 Undo
-              </button>
+              </Button>
             ) : (
               <span className="history-none" title="This can't be undone from here">
                 —
@@ -106,16 +107,16 @@ export function ActivityPanel({ entries, folder, onClear, onClose, history, canU
             This repository only
           </label>
         )}
-        <button
-          className="secondary-button small"
+        <Button
+          kind="secondary" size="small"
           onClick={tab === "actions" ? onClearHistory : onClear}
           disabled={tab === "actions" ? history.length === 0 : shown.length === 0}
         >
           Clear
-        </button>
-        <button className="icon-button" onClick={onClose} aria-label="Close activity" title="Close">
+        </Button>
+        <Button kind="icon" onClick={onClose} aria-label="Close activity" title="Close">
           <CloseIcon size={14} />
-        </button>
+        </Button>
       </header>
       <div className="activity-list" ref={list}>
         {tab === "actions" && <YourActions history={history} canUndo={canUndo} onUndo={onUndo} />}
@@ -139,14 +140,14 @@ export function ActivityPanel({ entries, folder, onClear, onClose, history, canU
             </button>
             {open === entry.id && (
               <div className="activity-output">
-                <button
-                  className="icon-button small"
+                <Button
+                  kind="icon" size="small"
                   onClick={() => copyText(commandLine(entry))}
                   title="Copy the command"
                   aria-label="Copy the command"
                 >
                   <CopyIcon size={13} />
-                </button>
+                </Button>
                 <pre>{entry.output || "(no output)"}</pre>
               </div>
             )}
