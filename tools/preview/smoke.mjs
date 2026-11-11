@@ -676,7 +676,7 @@ try {
   await step("lists every file of a huge commit, and filters them", async () => {
     await row("Import the generated level instances").click();
     const files = page.locator(".details .files");
-    await files.locator("h3", { hasText: "2,400 changed files" }).waitFor({ timeout: 10_000 });
+    await files.locator(".details-section-head", { hasText: "Changed files" }).filter({ hasText: "2,400" }).waitFor({ timeout: 10_000 });
     // Only the rows on screen are drawn, but the last file is there to scroll to.
     const drawn = await files.locator(".file").count();
     expect(drawn < 400, `${drawn} rows drawn`);
