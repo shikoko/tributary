@@ -83,18 +83,21 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [looks, v.tone]);
   const smooth = (t: number) => t * t * (3 - 2 * t);
+  // Where the tributaries meet: from there on they're one river, flowing into the verdict.
+  const confluence = Math.round(width * 0.66);
   const wave = (index: number) => {
     const start = n === 1 ? middle : 12 + (index * (height - 24)) / (n - 1);
-    const end = middle + (index - (n - 1) / 2) * 3.4;
     const phase = index * 1.1;
     return (x: number) => {
-      const s = smooth(Math.min(1, x / (width * 0.82)));
-      return start + (end - start) * s + 7 * (1 - 0.75 * s) * Math.sin((2 * Math.PI * x) / 190 + phase);
+      const s = smooth(Math.min(1, x / confluence));
+      return start + (middle - start) * s + 7 * (1 - s) * Math.sin((2 * Math.PI * x) / 190 + phase);
     };
   };
+  // The river is wider the more tributaries feed it.
+  const riverWidth = Math.min(8, 3 + n * 0.5);
   const litIndex = lit === null ? -1 : checks.findIndex((check) => check.name === lit);
   const litCheck = litIndex >= 0 ? checks[litIndex] : null;
-  const labelX = Math.min(width - 90, Math.max(90, labelAt ?? width * 0.3));
+  const labelX = Math.min(confluence - 40, Math.max(90, labelAt ?? width * 0.3));
   const across = (event: { clientX: number }) => event.clientX - (box.current?.getBoundingClientRect().left ?? 0);
   const light = (name: string | null, x: number | null = null) => {
     onLight(name);
@@ -104,13 +107,18 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
     <div className={`tributaries ${v.tone}${celebrating ? " celebrating" : ""}${litCheck ? " lit" : ""}`}>
       <div className="tributaries-streams" ref={box}>
         <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
+          <path className="tributaries-river" d={`M${confluence} ${middle} L${width - riverWidth} ${middle}`} style={{ strokeWidth: riverWidth }} />
+          {celebrating && (
+            <path className="tributaries-river-sweep" d={`M${confluence} ${middle} L${width - riverWidth} ${middle}`} pathLength={100} style={{ animationDelay: `${1900 + n * 90}ms` }} />
+          )}
           {checks.map((check, index) => {
             const y = wave(index);
             let d = "";
-            for (let x = 0; x <= width; x += 4) d += `${x === 0 ? "M" : " L"}${x} ${y(x).toFixed(1)}`;
+            for (let x = 0; x < confluence; x += 4) d += `${x === 0 ? "M" : " L"}${x} ${y(x).toFixed(1)}`;
+            d += ` L${confluence} ${middle}`;
             const state = stateOf(check);
             const waiting = queued(check);
-            const dry = width * 0.7;
+            const dry = confluence * 0.72;
             const time = checkTime(check, now);
             const title = `${check.name}: ${waiting ? "queued" : WORDS[state]}${time ? ` · ${time}` : ""}`;
             const was = settling.get(check.name);
