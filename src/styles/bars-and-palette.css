@@ -58,6 +58,14 @@
   color: var(--text-muted);
 }
 
+/* The words in a column of their own, so the bar starts in the same place however long they
+   get as the numbers change (in a narrow window they're cut short with "…", and the
+   tooltip has the details). Figures of one width, so they don't jostle either. */
+.progress-strip .progress-text {
+  flex: 0 0 min(580px, 50%);
+  font-variant-numeric: tabular-nums;
+}
+
 /* The bar, and under it, when files are being counted, a thinner one for them. */
 .progress-bars {
   display: flex;
