@@ -82,6 +82,18 @@
   </tr>
   <tr>
     <td width="50%" valign="top">
+      <img src="docs/images/checks.png" alt="A pull request's checks drawn as streams flowing together into one river and the verdict, Failing, above a timeline of the checks in groups by workflow run"><br>
+      <b>Checks at a glance</b><br>
+      Every check a stream flowing into the verdict, and a timeline of each workflow run.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/what-makes-it-big.png" alt="What makes this repository big: a map of the biggest files in all of the history, coloured by kind, with the kinds to move into Git LFS"><br>
+      <b>What makes it big</b><br>
+      The biggest files in all of the history, by kind and folder, and moving them into Git LFS.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
       <img src="docs/images/local-history.png" alt="Local history: snapshots of uncommitted work, with Restore for each file"><br>
       <b>Local history</b><br>
       Your uncommitted work, kept every few minutes, to put back after a crash or an overwrite.
@@ -132,7 +144,8 @@ One line each here; the [feature guide](docs/features.md) has the details.
 
 ### Pull requests, CI and issues
 - Pull and merge requests in the app: open, review, comment and merge.
-- CI status on every commit, and re-running failed jobs.
+- Checks drawn as streams flowing into the verdict, over a timeline of each workflow run.
+- CI status on every commit (merges show it on their own dot), and re-running failed jobs.
 - GitHub, GitLab, Jira and Linear issues, with branches named after them.
 - Code owners offered as reviewers when you open a pull request.
 

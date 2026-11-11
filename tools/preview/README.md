@@ -39,7 +39,9 @@ npm run preview:screenshots
 Takes the README's pictures (`docs/images`) from fresh demo repositories, at twice the
 size for sharp screens: each one sets up its scene (a merge conflict, a bisect, a pull
 request, …) and captures it. `-- --only blame,bisect` takes just those, and a folder after
-`--` saves them somewhere else.
+`--` saves them somewhere else. The README's opening image (`hero.png`) and the social preview
+(`social-preview.png`) are made from the overview with `hero.html`, whenever the overview is
+taken (or with `--only hero`).
 
 ## Smoke test
 
