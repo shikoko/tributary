@@ -232,7 +232,7 @@ export function parseInline(text: string): Inline[] {
     const c = text[i];
     const rest = text.slice(i);
     const before = text[i - 1] ?? "";
-    let found: RegExpMatchArray | null = null;
+    let found: RegExpMatchArray | null;
 
     if (c === "\\" && ESCAPABLE.test(text[i + 1] ?? "")) {
       plain += text[i + 1];
