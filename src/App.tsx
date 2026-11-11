@@ -24,6 +24,7 @@ import { paletteCommands } from "./app/paletteCommands";
 import { RepositoryView } from "./app/RepositoryView";
 import { StartView } from "./app/StartView";
 import { useAccounts } from "./app/useAccounts";
+import { useLeftOpen } from "./app/useLeftOpen";
 import { useViewFade } from "./app/useViewFade";
 import { useGitInstall } from "./app/useGitInstall";
 import { GitNeededBanner } from "./components/GitNeeded";
@@ -292,7 +293,10 @@ export default function App() {
     fetchActive: async () => Boolean(await act({ kind: "fetchLatest" }, "fetch")),
     notify: setToast,
   });
+  // A pull request merged or closed on the site moved the remote's branches: fetch now.
+  const prLeftOpen = useLeftOpen(repoPath, prs.list);
   const tabNews = useBackgroundFetch({
+    nudge: prLeftOpen,
     snapshot,
     tabs,
     enabled: preferences.autoFetch,
