@@ -4,6 +4,7 @@
 //   npm run preview:build && node tools/preview/screenshots.mjs [<folder>] [--only <name>,…]
 //
 // They're written to docs/images (or <folder>) at twice the size, for sharp screens. The
+// README's opening image and the social preview are made from the overview (hero.html). The
 // demos are made up (people, history, pull requests), so nobody's own details show.
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -119,12 +120,35 @@ function teammate(folder, who, hoursAgo, message, files, to) {
 }
 
 const shots = {
-  /** The commit graph, with a merge commit's details. */
+  /** The commit graph with each commit's CI, and a merge commit's details with its checks. */
   async overview() {
-    const page = await open(demos.notebook);
+    const folder = demos.notebook;
+    // On GitHub, so its commits show their checks.
+    git(folder, ["remote", "add", "github", "https://github.com/example/notebook.git"]);
+    const ids = (...args) => git(folder, ["log", "--all", "--format=%H %s", ...args]).split("\n").filter(Boolean);
+    const ciStates = {};
+    for (const line of ids()) {
+      const [id, ...words] = line.split(" ");
+      const subject = words.join(" ");
+      ciStates[id.slice(0, 12)] = subject === "Prepare the 0.3 release notes" ? "pending" : subject === "Add a theme picker" ? "failure" : "success";
+    }
+    const ago = (seconds) => new Date(Date.now() - seconds * 1000).toISOString();
+    const ran = (from, to) => ({ startedAt: ago(from), finishedAt: ago(to), workflow: "Checks", trigger: "on push to main" });
+    const commitChecks = {
+      site: "GitHub",
+      canRerun: false,
+      checks: [
+        { name: "Build (macOS)", state: "success", url: "https://github.com/example/notebook/actions/runs/1", detail: null, ...ran(3 * 86_400 + 600, 3 * 86_400 + 408) },
+        { name: "Build (Windows)", state: "success", url: "https://github.com/example/notebook/actions/runs/2", detail: null, ...ran(3 * 86_400 + 600, 3 * 86_400 + 361) },
+        { name: "Tests", state: "success", url: "https://github.com/example/notebook/actions/runs/3", detail: null, ...ran(3 * 86_400 + 600, 3 * 86_400 + 492) },
+        { name: "Lint", state: "success", url: "https://github.com/example/notebook/actions/runs/4", detail: null, ...ran(3 * 86_400 + 600, 3 * 86_400 + 578) },
+      ],
+    };
+    const page = await open(folder, { preview: { ciStates, commitChecks } });
     await row(page, "Merge pull request #18 from feature/sync").click();
     await page.locator(".details", { hasText: "Merge pull request #18" }).waitFor();
-    await settle(page);
+    await page.locator(".graph-ci").first().waitFor({ timeout: 10_000 });
+    await settle(page, 800);
     return page;
   },
 
@@ -239,6 +263,32 @@ const shots = {
     return page;
   },
 
+  /** A pull request's checks: the tributaries flowing into the verdict, and the timeline in workflow runs. */
+  async checks() {
+    const page = await open(fresh().studio, {
+      preview: { pullRequests: STUDIO_PULL_REQUESTS, pullRequestDetails: STUDIO_PULL_REQUEST_DETAILS, conversations: STUDIO_PULL_REQUEST_CONVERSATIONS },
+    });
+    await page.getByRole("button", { name: "Close details" }).click().catch(() => {});
+    await page.locator(".pr-badge", { hasText: "#14" }).first().click();
+    const card = page.locator(".request-status");
+    await card.locator(".tributaries").waitFor();
+    await card.evaluate((status) => status.scrollIntoView({ block: "start" }));
+    // The waves draw in.
+    await settle(page, 2500);
+    return page;
+  },
+
+  /** What makes a repository big: its biggest files in all of the history, by kind and folder. */
+  async "what-makes-it-big"() {
+    const page = await open(fresh().studio);
+    await page.locator(".menu-bar-item", { hasText: "Repository" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Tools" }).hover();
+    await page.locator(".menu-item", { hasText: "What Makes It Big" }).click();
+    await page.locator(".big-window .big").waitFor({ timeout: 30_000 });
+    await settle(page, 900);
+    return page;
+  },
+
   /** A pull request's conversation, with a reply being written. */
   async review() {
     const page = await open(fresh().studio, {
@@ -345,8 +395,8 @@ const shots = {
     await page.locator(".commit-row", { hasText: "A slower door with a longer creak" }).first().click();
     await page.locator(".details .file", { hasText: "DoorCreak.wav" }).click();
     await page.locator(".diff-view .diff-waveform").nth(1).waitFor();
-    await page.keyboard.press("]");
-    await page.keyboard.press("]");
+    // The 3D model (after the sound, the video and the Blender file).
+    await page.locator(".details .file", { hasText: "Stool.glb" }).click();
     await page.locator(".diff-model-facts").waitFor({ timeout: 20_000 });
     await settle(page, 1500);
     return page;
@@ -385,6 +435,7 @@ const shots = {
   async "project-setup"() {
     const page = await open(fresh().studio);
     await page.locator(".menu-bar-item", { hasText: "Repository" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "Tools" }).hover();
     await page.locator(".menu-item", { hasText: "Check Project Setup" }).click();
     await page.locator(".setup-item").first().waitFor({ timeout: 15_000 });
     await settle(page);
@@ -483,6 +534,31 @@ const shots = {
   },
 };
 
+/**
+ * The README's opening image (hero.png, at twice the size) and the social preview
+ * (social-preview.png, for the repository's settings): Tributary's icon, name and tagline
+ * beside the overview screenshot.
+ */
+async function hero() {
+  const root = join(here, "..", "..");
+  const data = (file, type) => `data:${type};base64,${readFileSync(file).toString("base64")}`;
+  const html = readFileSync(join(here, "hero.html"), "utf8")
+    .replace("{{font}}", data(join(root, "node_modules", "@fontsource-variable", "google-sans", "files", "google-sans-latin-full-normal.woff2"), "font/woff2"))
+    .replace("{{icon}}", data(join(root, "src-tauri", "icons", "128x128@2x.png"), "image/png"))
+    .replace("{{shot}}", data(join(out, "overview.png"), "image/png"));
+  for (const [name, scale] of [
+    ["hero", 2],
+    ["social-preview", 1],
+  ]) {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 640 }, deviceScaleFactor: scale });
+    await page.setContent(html);
+    await page.evaluate(() => document.fonts.ready);
+    await settle(page, 300);
+    await page.screenshot({ path: join(out, `${name}.png`) });
+    await page.close();
+  }
+}
+
 /** Shots whose hover is part of the picture. */
 const HOVERED = new Set(["blame", "compare", "merge-check"]);
 
@@ -501,6 +577,15 @@ for (const [name, shoot] of Object.entries(shots)) {
   } catch (error) {
     failed++;
     console.error(`  ✗ ${name}\n      ${String(error).split("\n").join("\n      ")}`);
+  }
+}
+if (!only || only.has("overview") || only.has("hero")) {
+  try {
+    await hero();
+    console.log("  ✓ hero, social-preview");
+  } catch (error) {
+    failed++;
+    console.error(`  ✗ hero\n      ${String(error).split("\n").join("\n      ")}`);
   }
 }
 await browser.close();

@@ -45,7 +45,7 @@ npm run preview:demo
 
 That builds demo repositories with made-up people and history and serves the app on <http://127.0.0.1:4173>; choose **Open repository** and paste a path it printed. `npm run preview` does the same for your own repositories. See [tools/preview](../tools/preview/README.md).
 
-The pictures in this README are taken the same way, from the demos. After changing the interface, take them again (into `docs/images`):
+The pictures in this README are taken the same way, from the demos. After changing the interface, take them again (into `docs/images`). The README's opening image and the repository's social preview (`social-preview.png`, uploaded in its settings) are made from the overview with `tools/preview/hero.html`:
 
 ```bash
 npm run preview:screenshots
