@@ -122,7 +122,8 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
     };
   };
   const riverEnd = width - 4;
-  // Its second half narrows a little and fades into the verdict, so it has no head. It
+  // Its second half narrows a little and it fades out well before the verdict, so it has no
+  // head and no end to see. It
   // starts a little before the waves meet, under them, so its glow comes in gently.
   const leadIn = 18;
   const river = (() => {
@@ -158,8 +159,13 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
               <stop offset="0.5" style={{ stopColor: "var(--river)" }} />
             </linearGradient>
             <linearGradient id="tributaries-mouth" gradientUnits="userSpaceOnUse" x1={confluence} y1={middle} x2={riverEnd} y2={middle}>
-              <stop offset="0.55" stopColor="#fff" />
-              <stop offset="1" stopColor="#fff" stopOpacity="0" />
+              {/* Fading out soon and slowly, so where it ends can't be made out. */}
+              <stop offset="0.3" stopColor="#fff" />
+              <stop offset="0.45" stopColor="#fff" stopOpacity="0.75" />
+              <stop offset="0.58" stopColor="#fff" stopOpacity="0.45" />
+              <stop offset="0.7" stopColor="#fff" stopOpacity="0.2" />
+              <stop offset="0.8" stopColor="#fff" stopOpacity="0.07" />
+              <stop offset="0.9" stopColor="#fff" stopOpacity="0" />
             </linearGradient>
             <mask id="tributaries-fade" maskUnits="userSpaceOnUse" x={confluence - leadIn - 12} y={0} width={riverEnd - confluence + leadIn + 24} height={height}>
               <rect x={confluence - leadIn - 12} y={0} width={riverEnd - confluence + leadIn + 24} height={height} fill="url(#tributaries-mouth)" />
