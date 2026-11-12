@@ -6,11 +6,8 @@ import { SlidingText } from "./SlidingText";
 
 const WORDS = { success: "Passed", failure: "Failed", pending: "Running", cancelled: "Cancelled", skipped: "Skipped" } as const;
 
-/** "5 minutes ago" with a capital, for the ends of the clock. */
-const ago = (ms: number, now: number) => {
-  const text = relativeTime(ms / 1000, now / 1000);
-  return text[0].toUpperCase() + text.slice(1);
-};
+/** "Finished 5 minutes ago", for the ends of the clock. */
+const ago = (what: string, ms: number, now: number) => `${what} ${relativeTime(ms / 1000, now / 1000)}`;
 
 const isRunning = (check: RequestCheck) => check.state === "pending" && Boolean(check.startedAt) && !check.finishedAt;
 
@@ -152,9 +149,10 @@ export function CheckTimeline({
       <ul className="request-timeline-list">{headed ? groups.map((each, index) => group(each, index)) : ordered.map(row)}</ul>
       {timeline && (
         <div className="request-timeline-axis" aria-hidden>
-          <span>{headed ? null : ago(timeline.first, now)}</span>
-          {/* While they run, how long the clock is (it grows now and then, in round steps). */}
-          <span>{timeline.running ? `+${formatSpan(timeline.length)}` : ago(timeline.last, now)}</span>
+          <span>{headed ? null : ago("Started", timeline.first, now)}</span>
+          {/* While they run, how long the clock is (it grows now and then, in round steps); then
+              when the last one finished. */}
+          <span>{timeline.running ? `+${formatSpan(timeline.length)}` : ago("Finished", timeline.last, now)}</span>
         </div>
       )}
     </div>

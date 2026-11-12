@@ -72,10 +72,6 @@
   color: var(--text-muted);
 }
 
-.sidebar-folder .sidebar-icon {
-  width: 12px;
-}
-
 .sidebar-folder .sidebar-count {
   margin-left: auto;
 }

@@ -6,7 +6,7 @@ import { isShown } from "../lib/diffTargets";
 import { withCoAuthor } from "../lib/commitMessage";
 import type { LfsLocks } from "../lib/locks";
 import type { RefEntry } from "../lib/refs";
-import { checkoutFor, commitMenu, dropMenu, pillForEntry, pillMenu, selectionMenu, type OpenDialog } from "../menus";
+import { checkoutFor, commitMenu, dropMenu, pillForEntry, pillMenu, pillRefNames, selectionMenu, type OpenDialog } from "../menus";
 import { ActivityPanel } from "../components/ActivityPanel";
 import { SimpleView } from "../components/SimpleView";
 import { TourOffer, TourOverlay } from "../components/TourOverlay";
@@ -216,7 +216,7 @@ export function RepositoryView(props: Props) {
       // A hidden branch: its commit may not even be loaded.
       if (!name) return;
       menu.show(x, y, [
-        { label: `Show ${entry.name}`, icon: <EyeIcon />, onSelect: () => settings.setHidden([name], false) },
+        { label: `Show ${entry.name}`, icon: <EyeIcon />, onSelect: () => settings.setHidden(pillRefNames(pillForEntry(entry)), false) },
         {
           label: settings.pins.includes(name) ? `Unpin ${entry.name}` : `Pin ${entry.name} in the sidebar`,
           icon: <PlusIcon />,
@@ -269,9 +269,10 @@ export function RepositoryView(props: Props) {
         onContextMenu={sidebarMenu}
         onFocus={(entry) => byId.has(entry.commitId) && highlight.highlightHistory(entry.name, entry.commitId)}
         onToggleVisible={(entry) => {
-          const name = fullRefName(entry);
-          if (!name) return;
-          settings.setHidden([name], settings.soloing ? settings.visibility.solo.includes(name) : !entry.hidden);
+          // A branch with its copies on remotes, which are on the same row.
+          const names = pillRefNames(pillForEntry(entry));
+          if (names.length === 0) return;
+          settings.setHidden(names, settings.soloing ? settings.visibility.solo.includes(names[0]) : !entry.hidden);
         }}
         onShowAll={settings.showAllBranches}
         onPrune={canChange ? () => openDialog({ kind: "prune" }) : null}

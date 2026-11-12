@@ -8,8 +8,8 @@ import { useStoredState } from "../lib/settings";
 import { BranchIcon, BroomIcon, CloudIcon, EyeOffIcon, GearIcon, PinIcon, PlusIcon, SearchIcon, StashIcon, TagIcon, UnlockIcon } from "./Icons";
 import { LockedFileList, SubmoduleList, WorktreeList } from "./sidebar/OtherLists";
 import { RefItem, type RefHandlers } from "./sidebar/RefItem";
-import { sidebarLists, stashLabel } from "./sidebar/refTree";
-import { RefTree, SidebarSection, type Folding } from "./sidebar/SidebarSection";
+import { branchGroups, sidebarLists, stashLabel } from "./sidebar/refTree";
+import { RefTree, SidebarGroup, SidebarSection, type Folding } from "./sidebar/SidebarSection";
 import { Button } from "./ui/Button";
 
 interface Props {
@@ -63,14 +63,16 @@ interface Props {
 }
 
 /**
- * Every branch, remote branch, tag and stash (click one to jump to its commit), pinned
- * ones first, and the repository's worktrees, submodules and Git LFS locks. A filter narrows them all.
+ * Every branch (once: with its copies on remotes), the remote branches that aren't on this
+ * computer, tags and stashes (click one to jump to its commit), pinned ones first, and the
+ * repository's worktrees, submodules and Git LFS locks. A filter narrows them all.
  */
 export function Sidebar(props: Props) {
   const { visibility, pins, selectedId, width, aheadBehind } = props;
   const [filter, setFilter] = useState("");
   const [collapsed, setCollapsed] = useStoredState<Record<string, boolean>>("sidebar.collapsed", { tags: true });
   const lists = useMemo(() => sidebarLists(props.commits, props.hiddenRefs), [props.commits, props.hiddenRefs]);
+  const groups = useMemo(() => branchGroups(lists.branches, lists.remotes, props.protectedBranches), [lists, props.protectedBranches]);
 
   const needle = filter.trim().toLowerCase();
   const filtering = needle !== "";
@@ -80,11 +82,18 @@ export function Sidebar(props: Props) {
     isOpen: (key) => filtering || !collapsed[key],
     toggle: (key) => setCollapsed((current) => ({ ...current, [key]: !current[key] })),
   };
+  // Groups that start folded ("Only on origin"): open once they're opened.
+  const foldedFirst: Folding = {
+    isOpen: (key) => filtering || collapsed[key] === false,
+    toggle: (key) => setCollapsed((current) => ({ ...current, [key]: current[key] === false })),
+  };
   const handlers: RefHandlers = props;
+  const branchIcon = <BranchIcon size={13} />;
   const item = (entry: RefEntry, label: string, icon: ReactNode, depth = 0, key = `${entry.kind}:${entry.name}`) => (
     <RefItem
       key={key}
-      entry={entry}
+      // A local branch stands for its copies on remotes too: its menu offers them.
+      entry={entry.kind === "branch" ? { ...entry, remotes: groups.copies.get(entry.name) } : entry}
       label={label}
       icon={icon}
       depth={depth}
@@ -94,25 +103,37 @@ export function Sidebar(props: Props) {
       stack={entry.kind === "branch" ? props.stacks.get(entry.name) : undefined}
       isProtected={entry.kind === "branch" && props.protectedBranches.includes(entry.name)}
       handlers={handlers}
+      localOnly={entry.kind === "branch" && !entry.hidden && groups.localOnly.has(entry.name)}
     />
   );
-  const tree = (id: string, entries: RefEntry[], labelOf: (entry: RefEntry) => string, icon: ReactNode) => (
-    <RefTree id={id} entries={entries} labelOf={labelOf} folding={folding} renderItem={(entry, label, depth) => item(entry, label, icon, depth)} />
+  const tree = (id: string, entries: RefEntry[], labelOf: (entry: RefEntry) => string, icon: ReactNode, baseDepth = 0) => (
+    <RefTree id={id} entries={entries} labelOf={labelOf} folding={folding} baseDepth={baseDepth} renderItem={(entry, label, depth) => item(entry, label, icon, depth)} />
   );
 
   const branches = lists.branches.filter(matches);
+  const top = groups.top.filter(matches);
+  const rest = groups.rest.filter(matches);
+  const remoteOnly = groups.remoteOnly.map(([remote, entries]) => [remote, entries.filter(matches)] as const).filter(([, entries]) => entries.length > 0);
+  // The branches at the top are out of their folders: they go by their last part
+  // ("world-build-tools"), unless another branch's ends the same way. The whole name is on hover.
+  const last = (name: string) => name.slice(name.lastIndexOf("/") + 1);
+  const shortName = (entry: RefEntry) => (lists.branches.filter((other) => last(other.name) === last(entry.name)).length === 1 ? last(entry.name) : entry.name);
   const tags = lists.tags.filter(matches);
   const stashes = lists.stashes.filter(matches);
   const locks = props.locks?.filter((lock) => !needle || lock.path.toLowerCase().includes(needle)) ?? null;
   const submodules = props.submodules.filter((submodule) => !needle || submodule.path.toLowerCase().includes(needle));
-  const remotes = [...lists.remotes.entries()].map(([remote, entries]) => [remote, entries.filter(matches)] as const);
-  const remoteCount = remotes.reduce((sum, [, entries]) => sum + entries.length, 0);
   const everything = [...lists.branches, ...[...lists.remotes.values()].flat(), ...lists.tags];
   const pinned = pins
     .map((name) => everything.find((entry) => fullRefName(entry) === name))
     .filter((entry): entry is RefEntry => entry !== undefined && matches(entry));
   const soloing = visibility.solo.length > 0;
-  const hiddenCount = soloing ? visibility.solo.length : visibility.hidden.length;
+  // A branch is hidden (or shown alone) with its copies on remotes: they count once.
+  const branchOf = (name: string) => {
+    if (name.startsWith("refs/heads/")) return name.slice("refs/heads/".length);
+    const remote = [...lists.remotes.keys()].find((remote) => name.startsWith(`refs/remotes/${remote}/`));
+    return remote ? name.slice(`refs/remotes/${remote}/`.length) : name;
+  };
+  const hiddenCount = new Set((soloing ? visibility.solo : visibility.hidden).map(branchOf)).size;
   const section = { filtering, folding };
 
   return (
@@ -163,43 +184,50 @@ export function Sidebar(props: Props) {
             <ul>{pinned.map((entry) => item(entry, entry.name, <PinIcon size={13} />, 0, `pin:${entry.kind}:${entry.name}`))}</ul>
           </SidebarSection>
         )}
+        {/* Each branch once: a local branch and its copy on the remote are one row (with what
+            there is to push and pull). The checked-out one and the protected ones are at the
+            top; branches only on a remote are folded away under "Only on origin". */}
         <SidebarSection
           id="branches"
           title="Branches"
           count={branches.length}
+          empty={branches.length === 0 && remoteOnly.length === 0}
           {...section}
           action={
-            props.onPrune && (
-              <button className="sidebar-heading-action" onClick={props.onPrune} title="Prune branches: clean up merged ones and ones gone from the remote" aria-label="Prune branches">
-                <BroomIcon size={13} />
-              </button>
+            (props.onManageRemotes || props.onPrune) && (
+              <>
+                {props.onManageRemotes && (
+                  <button className="sidebar-heading-action" onClick={props.onManageRemotes} title="Add, rename or remove remotes" aria-label="Manage remotes">
+                    <GearIcon size={13} />
+                  </button>
+                )}
+                {props.onPrune && (
+                  <button className="sidebar-heading-action" onClick={props.onPrune} title="Prune branches: clean up merged ones and ones gone from the remote" aria-label="Prune branches">
+                    <BroomIcon size={13} />
+                  </button>
+                )}
+              </>
             )
           }
         >
-          {tree("branches", branches, (e) => e.name, <BranchIcon size={13} />)}
-        </SidebarSection>
-        <SidebarSection
-          id="remotes"
-          title="Remotes"
-          count={remoteCount}
-          {...section}
-          action={
-            props.onManageRemotes && (
-              <button className="sidebar-heading-action" onClick={props.onManageRemotes} title="Add, rename or remove remotes" aria-label="Manage remotes">
-                <GearIcon size={13} />
-              </button>
-            )
-          }
-        >
-          {remotes.map(
-            ([remote, entries]) =>
-              entries.length > 0 && (
-                <div key={remote} className="sidebar-group">
-                  <div className="sidebar-group-name">{remote}</div>
-                  {tree(`remote:${remote}`, entries, (e) => e.name.slice(remote.length + 1), <CloudIcon size={13} />)}
-                </div>
-              ),
-          )}
+          <ul>
+            {top.map((entry) => item(entry, shortName(entry), branchIcon))}
+            {top.length > 0 && rest.length > 0 && <li className="sidebar-divider" aria-hidden />}
+            <li>{tree("branches", rest, (e) => e.name, branchIcon)}</li>
+            {remoteOnly.map(([remote, entries]) => (
+              <SidebarGroup
+                key={remote}
+                id={`only:${remote}`}
+                icon={<CloudIcon size={13} />}
+                label={`Only on ${remote}`}
+                count={entries.length}
+                folding={foldedFirst}
+                title={`Branches on ${remote} that aren't on this computer: double-click one to check it out`}
+              >
+                {tree(`only:${remote}`, entries, (e) => e.name.slice(remote.length + 1), <CloudIcon size={13} />, 1)}
+              </SidebarGroup>
+            ))}
+          </ul>
         </SidebarSection>
         <SidebarSection id="tags" title="Tags" count={tags.length} {...section}>
           {tree("tags", tags, (e) => e.name, <TagIcon size={13} />)}

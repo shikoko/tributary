@@ -499,6 +499,22 @@ try {
     await box.press("Escape");
   });
 
+  await step("lists each branch once, with the remote's others folded away", async () => {
+    const sidebar = page.locator(".sidebar");
+    // feature/export is here and on origin: one row, whose menu offers origin's copy too.
+    const exportRows = sidebar.locator(".sidebar-item .sidebar-name").filter({ hasText: /^export$/ });
+    expect((await exportRows.count()) === 1, `export is listed ${await exportRows.count()} times`);
+    await exportRows.first().click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Delete feature/export from origin…" }).waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    // feature/onboarding is only on origin: folded away until its group is opened.
+    const onlyOnOrigin = sidebar.getByRole("button", { name: /Only on origin/ });
+    expect((await sidebar.locator(".sidebar-name", { hasText: "onboarding" }).count()) === 0, "a branch only on origin is shown before its group is opened");
+    await onlyOnOrigin.click();
+    await sidebar.locator(".sidebar-name", { hasText: "onboarding" }).waitFor({ timeout: 5000 });
+    await onlyOnOrigin.click();
+  });
+
   await step("hides a branch, then shows everything again", async () => {
     const themes = page.locator(".sidebar-item", { hasText: /^themes/ }).first();
     await themes.hover();

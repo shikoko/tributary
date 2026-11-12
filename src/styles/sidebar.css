@@ -1,6 +1,7 @@
 /* Sidebar */
 
 .sidebar {
+  container: sidebar / inline-size;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -70,7 +71,8 @@
   color: var(--text-secondary);
 }
 
-.sidebar-heading .collapsed {
+.sidebar-heading .collapsed,
+.sidebar-folder .collapsed {
   transform: rotate(-90deg);
 }
 
@@ -90,10 +92,10 @@
 .sidebar-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   height: 26px;
-  padding: 0 8px 0 22px;
+  padding: 0 8px 0 24px;
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
@@ -133,22 +135,8 @@
   white-space: nowrap;
 }
 
-/* A whole number of pixels tall (22px), so the rows under it stay on whole pixels too:
-   otherwise their text and badges round a pixel up or down. */
-.sidebar-group-name {
-  padding: 4px 8px 2px 22px;
-  color: var(--text-muted);
-  font-size: var(--type-sm);
-  font-weight: 600;
-  line-height: 16px;
-}
-
-.sidebar-group ul .sidebar-item {
-  padding-left: 32px;
-}
-
 .sidebar-empty {
-  padding: 2px 8px 4px 22px;
+  padding: 2px 8px 4px 24px;
   color: var(--text-faint);
   font-size: var(--type-sm);
   line-height: 16px;
@@ -285,9 +273,11 @@
   color: var(--text);
 }
 
-/* A branch built on another unmerged branch: "on feat/api". */
+/* A branch built on another unmerged branch: "on feat/api". It gives way before the
+   branch's name does, so the name is never squeezed out. */
 .sidebar-stack {
-  flex: none;
+  flex: 0 1000 auto;
+  min-width: 0;
   max-width: 45%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -298,4 +288,63 @@
 
 .sidebar-stack.moved {
   color: var(--warning-text);
+}
+
+/* Branch rows and folders start with a chevron's width (see rowIndent). */
+.sidebar-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  flex: none;
+  color: var(--text-faint);
+}
+
+.sidebar-group-icon {
+  display: inline-flex;
+  flex: none;
+}
+
+/* A branch only on this computer. */
+.sidebar-local {
+  display: inline-flex;
+  margin-left: auto;
+  color: var(--text-faint);
+  flex: none;
+}
+
+.sidebar-local + .pr-badge,
+.sidebar-local + .sidebar-counts {
+  margin-left: 4px;
+}
+
+.sidebar-local + .sidebar-eye {
+  margin-left: 0;
+}
+
+.sidebar-item:hover .sidebar-local + .sidebar-eye,
+.sidebar-item:focus-within .sidebar-local + .sidebar-eye {
+  margin-left: 4px;
+}
+
+.sidebar-divider {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--border);
+}
+
+/* The checked-out branch is always marked, not only when it's selected. */
+.sidebar-item.current {
+  background: rgb(var(--accent-rgb) / 0.1);
+}
+
+.sidebar-item.current.selected {
+  background: rgb(var(--accent-rgb) / 0.16);
+}
+
+/* "on feat/…" needs room beside a name: in a narrow sidebar it's left to the hover. */
+@container sidebar (width < 300px) {
+  .sidebar-stack {
+    display: none;
+  }
 }
