@@ -9,3 +9,23 @@
 - **Label every pull request into `develop`** with one of `fix`, `feature` or `breaking`: the label decides the next version (see `docs/development.md`), and the Labels check fails without one.
 - **Every pull request is merged with a merge commit**, into `develop` and into `main`: never "Squash and merge" or "Rebase and merge", which copy the commits and leave the branch looking unmerged in the graph.
 - **Rebase before merging:** before merging a pull request into `develop`, rebase its branch onto the latest `develop` and push it (`--force-with-lease`), so the branch starts from the tip of `develop` and the graph shows a short loop that joins straight back in. If its checks had passed and the rebase had no conflicts, merge it straight away, without waiting for them to run again: each merge into `develop` is checked again as merged. A pull request from `develop` into `main` isn't rebased.
+
+## Writing commit messages and pull request descriptions
+
+Commits go out under the maintainer's name and are public, so they get quoted out of context. Write them as an experienced engineer would.
+
+- **Only facts about the change.** Plain technical terms: what changed and why. No commentary or chatty asides, and nothing that sounds unsure. Write "CI: run the Rust checks when `generated.ts` changes", not "…and the guide says how it works".
+- **Every sentence should read well quoted on its own.**
+- **Mention side effects** (regenerated files, dependency bumps, changed defaults) in a final line or bullet.
+
+### Commit messages
+
+- **Subject:** imperative, specific, under 72 characters: "Remember the window's position between launches", not "Window improvements".
+- **Body:** what changed and why, wrapped at 72 columns. Name the files, settings or behaviour that changed.
+
+### Pull request descriptions
+
+- **Start with the problem** in one or two sentences: what was wrong or missing, as a user or developer would see it.
+- **Changes:** a short list of what the pull request does, naming files, settings and behaviour.
+- **Tested:** what was run (checks, tests, the app itself) and the results, and what couldn't be tested, with the reason.
+- Refer to design options by what they are, not only by a letter from a conversation ("the by-folder layout", not just "option 2").

@@ -72,3 +72,45 @@ export function sidebarLists(commits: CommitRow[], hiddenRefs: HiddenRef[]) {
 export function stashLabel(entry: RefEntry): string {
   return entry.summary.replace(/^(WIP )?on [^:]+: /i, "") || entry.name;
 }
+
+/** The branches as one list: a local branch and its copies on remotes are one entry. */
+export interface BranchGroups {
+  /** The checked-out branch, then the protected ones (like main): always at the top. */
+  top: RefEntry[];
+  /** The other local branches. */
+  rest: RefEntry[];
+  /** For each local branch, the remotes with a branch of the same name. */
+  copies: Map<string, string[]>;
+  /** Local branches that aren't on any remote (never pushed, or gone from it). */
+  localOnly: Set<string>;
+  /** Remote branches that no local branch tracks or shares a name with, by remote. */
+  remoteOnly: [string, RefEntry[]][];
+}
+
+export function branchGroups(branches: RefEntry[], remotes: Map<string, RefEntry[]>, protectedNames: string[]): BranchGroups {
+  const remoteNames = new Set([...remotes.values()].flat().map((entry) => entry.name));
+  const covered = new Set<string>();
+  const copies = new Map<string, string[]>();
+  const localOnly = new Set<string>();
+  for (const branch of branches) {
+    const same = [...remotes.keys()].filter((remote) => remoteNames.has(`${remote}/${branch.name}`));
+    same.forEach((remote) => covered.add(`${remote}/${branch.name}`));
+    if (branch.upstream && remoteNames.has(branch.upstream)) covered.add(branch.upstream);
+    copies.set(branch.name, same);
+    if (same.length === 0 && !(branch.upstream && remoteNames.has(branch.upstream))) localOnly.add(branch.name);
+  }
+  const order = (entry: RefEntry) => protectedNames.indexOf(entry.name);
+  const top = [
+    ...branches.filter((entry) => entry.current),
+    ...branches.filter((entry) => !entry.current && order(entry) >= 0).sort((a, b) => order(a) - order(b)),
+  ];
+  return {
+    top,
+    rest: branches.filter((entry) => !top.includes(entry)),
+    copies,
+    localOnly,
+    remoteOnly: [...remotes.entries()]
+      .map(([remote, entries]): [string, RefEntry[]] => [remote, entries.filter((entry) => !covered.has(entry.name) && entry.name !== `${remote}/HEAD`)])
+      .filter(([, entries]) => entries.length > 0),
+  };
+}

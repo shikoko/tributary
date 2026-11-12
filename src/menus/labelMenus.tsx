@@ -231,7 +231,8 @@ export function pillForEntry(entry: RefEntry): RefPill {
     name: entry.name,
     kind: entry.kind === "remote" ? "branch" : entry.kind,
     local: entry.kind === "branch",
-    remotes: [],
+    // Its copies on remotes, so its menu offers them too (delete from origin; hide both).
+    remotes: entry.kind === "branch" ? (entry.remotes ?? []) : [],
     current: entry.current,
   };
 }

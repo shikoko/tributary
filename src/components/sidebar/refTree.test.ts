@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RefEntry } from "../../lib/refs";
-import { group, stashLabel } from "./refTree";
+import { branchGroups, group, stashLabel } from "./refTree";
 
 const entry = (name: string): RefEntry => ({ kind: "branch", name, commitId: "c", current: false, summary: "" });
 const grouped = (...names: string[]) => group(names.map((name) => ({ entry: entry(name), label: name })));
@@ -25,5 +25,43 @@ describe("stashLabel", () => {
   it("drops git's prefix", () => {
     expect(stashLabel({ ...entry("stash@{0}"), kind: "stash", summary: "On main: Try a sidebar" })).toBe("Try a sidebar");
     expect(stashLabel({ ...entry("stash@{1}"), kind: "stash", summary: "WIP on main: abc123 Thing" })).toBe("abc123 Thing");
+  });
+});
+
+describe("branchGroups", () => {
+  const remote = (name: string): RefEntry => ({ ...entry(name), kind: "remote" });
+  const names = (entries: RefEntry[]) => entries.map((each) => each.name);
+  const branches = [
+    entry("feat/barbershop"),
+    { ...entry("feat/world-build-tools"), current: true },
+    entry("main"),
+    { ...entry("lantern"), upstream: "origin/maya/lantern" },
+    entry("sketch"),
+  ];
+  const remotes = new Map([
+    ["origin", ["origin/HEAD", "origin/feat/barbershop", "origin/feat/world-build-tools", "origin/main", "origin/maya/lantern", "origin/spike/fox"].map(remote)],
+    ["upstream", ["upstream/main", "upstream/release"].map(remote)],
+  ]);
+  const groups = branchGroups(branches, remotes, ["main", "develop"]);
+
+  it("puts the checked-out branch, then the protected ones, at the top", () => {
+    expect(names(groups.top)).toEqual(["feat/world-build-tools", "main"]);
+    expect(names(groups.rest)).toEqual(["feat/barbershop", "lantern", "sketch"]);
+  });
+
+  it("lists a local branch once, with its copies on remotes", () => {
+    expect(groups.copies.get("main")).toEqual(["origin", "upstream"]);
+    expect(groups.copies.get("feat/barbershop")).toEqual(["origin"]);
+  });
+
+  it("leaves out remote branches that a local branch tracks or shares a name with", () => {
+    expect(groups.remoteOnly.map(([name, entries]) => [name, names(entries)])).toEqual([
+      ["origin", ["origin/spike/fox"]],
+      ["upstream", ["upstream/release"]],
+    ]);
+  });
+
+  it("knows which branches are only on this computer", () => {
+    expect([...groups.localOnly]).toEqual(["sketch"]);
   });
 });

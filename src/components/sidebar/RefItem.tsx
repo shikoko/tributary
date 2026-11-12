@@ -4,8 +4,15 @@ import { describeSync, type BranchSync } from "../../lib/branchSync";
 import { pressLabel } from "../../lib/drag";
 import { PullRequestsContext } from "../../lib/pullRequests";
 import type { RefEntry } from "../../lib/refs";
-import { CheckIcon, EyeIcon, EyeOffIcon, LockIcon } from "../Icons";
+import { CheckIcon, EyeIcon, EyeOffIcon, LaptopIcon, LockIcon } from "../Icons";
 import { PullRequestBadge } from "../RefPills";
+
+/**
+ * How far in a row starts, at this depth in folders. Every row starts with a chevron's
+ * width (a folder's chevron, or nothing), so a folder's icon and name line up with its
+ * neighbours', and its branches' are one step in.
+ */
+export const rowIndent = (depth: number) => 6 + depth * 16;
 
 /** What clicking, double-clicking and right-clicking an entry does. */
 export interface RefHandlers {
@@ -33,10 +40,12 @@ interface Props {
   stack?: Stacked;
   isProtected: boolean;
   handlers: RefHandlers;
+  /** A local branch that isn't on any remote. */
+  localOnly?: boolean;
 }
 
 /** A branch, remote branch, tag or stash in the sidebar. Branches can be dragged onto commits to merge or rebase. */
-export function RefItem({ entry, label, icon, depth = 0, selected, visibility, counts, stack, isProtected, handlers }: Props) {
+export function RefItem({ entry, label, icon, depth = 0, selected, visibility, counts, stack, isProtected, handlers, localOnly = false }: Props) {
   const pullRequests = useContext(PullRequestsContext);
   // The branch below, without the folder both are in ("on export" for feature/export).
   const folder = label && entry.name.endsWith(label) ? entry.name.slice(0, entry.name.length - label.length) : "";
@@ -55,7 +64,7 @@ export function RefItem({ entry, label, icon, depth = 0, selected, visibility, c
     <li>
       <div
         className={`sidebar-item${selected && !entry.hidden ? " selected" : ""}${entry.current ? " current" : ""}${entry.hidden ? " hidden-ref" : ""}`}
-        style={depth ? { paddingLeft: 12 + depth * 14 } : undefined}
+        style={{ paddingLeft: rowIndent(depth) }}
         role="button"
         tabIndex={0}
         onPointerDown={(event) => {
@@ -71,6 +80,7 @@ export function RefItem({ entry, label, icon, depth = 0, selected, visibility, c
         }}
         title={entry.kind === "stash" ? `${entry.name}: ${entry.summary}` : entry.hidden ? `${entry.name} (hidden)` : entry.name}
       >
+        <span className="sidebar-chevron" />
         <span className="sidebar-icon">{entry.current ? <CheckIcon size={13} /> : icon}</span>
         <span className="sidebar-name">{label}</span>
         {stack && (
@@ -88,6 +98,11 @@ export function RefItem({ entry, label, icon, depth = 0, selected, visibility, c
         {isProtected && (
           <span className="sidebar-lock" title={`${entry.name} is protected: it can't be deleted, and rewriting it needs its name typed`}>
             <LockIcon size={11} />
+          </span>
+        )}
+        {localOnly && (
+          <span className="sidebar-local" title={`${entry.name} is only on this computer: it hasn't been pushed`}>
+            <LaptopIcon size={12} />
           </span>
         )}
         {pr && <PullRequestBadge pr={pr} onOpen={pullRequests!.open} />}
