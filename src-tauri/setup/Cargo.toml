@@ -15,6 +15,8 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
+# Reads where Tributary's window was, to open an update's window on the same display.
+serde_json = "1"
 
 # Where Tributary is installed already, from its uninstall entry.
 [target.'cfg(windows)'.dependencies]
