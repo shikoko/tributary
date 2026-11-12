@@ -329,7 +329,12 @@ pub enum Action {
     /// Throw away the changes to files (untracked ones are deleted). What they were is
     /// kept for [`BACKUP_DAYS`] days, to undo with [`Action::RestoreDiscarded`].
     DiscardFiles { paths: Vec<String> },
-    /// Put back changes thrown away by [`Action::DiscardFiles`] or [`Action::ApplyLines`].
+    /// Throw away every uncommitted change, deleting new files too (ignored ones stay).
+    /// What they were is kept for [`BACKUP_DAYS`] days, to undo with
+    /// [`Action::RestoreDiscarded`].
+    DiscardAll,
+    /// Put back changes thrown away by [`Action::DiscardFiles`], [`Action::DiscardAll`] or
+    /// [`Action::ApplyLines`].
     RestoreDiscarded { reference: String },
     /// Stage, unstage or throw away the changes on some lines of `file`: `added` are line
     /// numbers after the change, `removed` before it, as the diff shows them. Thrown away
@@ -737,6 +742,7 @@ fn perform(
         Action::LockFiles { paths } => lfs::lock_files(&git, paths),
         Action::TrackWithLfs { patterns, paths } => lfs::track_with_lfs(&git, patterns, paths),
         Action::DiscardFiles { paths } => changes::discard_files(&repo, &git, paths, extra),
+        Action::DiscardAll => changes::discard_all(&repo, &git, extra),
         Action::RestoreDiscarded { reference } => {
             if partial::is_discarded_lines(&git, &reference) {
                 partial::restore_discarded_lines(&repo, &git, &reference)

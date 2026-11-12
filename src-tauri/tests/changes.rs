@@ -285,6 +285,46 @@ fn discards_files_and_puts_them_back() {
 }
 
 #[test]
+fn discards_everything_and_puts_it_back() {
+    let mut repo = TempRepo::new("discard-all");
+    with_identity(&repo);
+    repo.commit(".gitignore", "*.tmp\n");
+    repo.commit("a.txt", "original");
+    std::fs::write(repo.path().join("a.txt"), "edited").unwrap();
+    std::fs::write(repo.path().join("staged.txt"), "staged").unwrap();
+    repo.git(&["add", "staged.txt"]);
+    std::fs::write(repo.path().join("new.log"), "new").unwrap();
+    std::fs::create_dir_all(repo.path().join("Art/Props")).unwrap();
+    std::fs::write(repo.path().join("Art/Props/crate.uasset"), "art").unwrap();
+    std::fs::write(repo.path().join("cache.tmp"), "ignored").unwrap();
+
+    let discarded = outcome(&repo, Action::DiscardAll);
+    assert_eq!(discarded.message, "Discarded all uncommitted changes");
+    assert_eq!(read(&repo, "a.txt"), "original");
+    // New files go, staged or not, folders and all; ignored ones stay.
+    assert!(!repo.path().join("staged.txt").exists());
+    assert!(!repo.path().join("new.log").exists());
+    assert!(!repo.path().join("Art").exists());
+    assert_eq!(read(&repo, "cache.tmp"), "ignored");
+    assert_eq!(
+        repo.git(&["status", "--porcelain", "--untracked-files=all"]),
+        ""
+    );
+    assert_eq!(stash_count(&repo), 0);
+
+    let reference = discarded.backup.expect("kept for undo");
+    run(&repo, Action::RestoreDiscarded { reference }).unwrap();
+    assert_eq!(read(&repo, "a.txt"), "edited");
+    assert_eq!(read(&repo, "new.log"), "new");
+    assert_eq!(read(&repo, "Art/Props/crate.uasset"), "art");
+    // Staged again, as it was.
+    assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "staged.txt");
+
+    run(&repo, Action::DiscardAll).unwrap();
+    assert!(run(&repo, Action::DiscardAll).is_err());
+}
+
+#[test]
 fn ignores_files_and_stops_ignoring_them() {
     let mut repo = TempRepo::new("ignore");
     repo.commit("a.txt", "First");
