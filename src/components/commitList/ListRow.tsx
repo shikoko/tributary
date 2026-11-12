@@ -31,6 +31,8 @@ export interface RowHandlers {
   /** The labels that didn't fit next to a commit: pick one for its menu. */
   onMorePills: (pills: RefPill[], commit: CommitRow, x: number, y: number) => void;
   onHover: (event: MouseEvent, commit: CommitRow) => void;
+  /** The pointer is on one of a commit's labels, or has left them (null): its lane lights up. */
+  onLaneHover: (commitId: string | null) => void;
   onLeave: () => void;
 }
 
@@ -58,6 +60,8 @@ interface RowProps {
   head: boolean;
   /** Not a search match, or outside the highlighted history. */
   dimmed: boolean;
+  /** In the lane that's lit up: the pointer is on one of its branch's labels. */
+  lit: boolean;
   handlers: RefObject<RowHandlers>;
 }
 
@@ -68,7 +72,7 @@ interface RowProps {
  */
 export const ListRow = memo(function ListRow(props: RowProps) {
   const { commit, top, height, metrics, lanes, visible, options, ciDots, changes, narrow, dense, handlers } = props;
-  const { selected, primary, dimmed, authorNode, head } = props;
+  const { selected, primary, dimmed, authorNode, head, lit } = props;
   const bisectMark = useContext(BisectMarksContext).get(commit.id);
   const ci = useContext(CiStatesContext).get(commit.id);
   const on = () => handlers.current!;
@@ -112,7 +116,12 @@ export const ListRow = memo(function ListRow(props: RowProps) {
       role="option"
       aria-selected={selected}
     >
-      <div className="cell refs-cell">
+      <div
+        className="cell refs-cell"
+        // On one of its branch or tag labels, the commit's lane lights up.
+        onMouseOver={(event) => on().onLaneHover((event.target as Element).closest(".ref-pill:not(.more):not(.stash)") ? commit.id : null)}
+        onMouseLeave={() => on().onLaneHover(null)}
+      >
         <RefPills
           refs={commit.refs}
           color={color}
@@ -144,7 +153,7 @@ export const ListRow = memo(function ListRow(props: RowProps) {
       <div className="graph-cell">
         {authorNode && (
           <span
-            className={`graph-node${head ? " head" : ""}${selected ? " selected" : ""}`}
+            className={`graph-node${head ? " head" : ""}${selected ? " selected" : ""}${lit ? " lit" : ""}`}
             style={{ left: lane, ["--lane" as string]: color }}
             title={`${commit.authorName} <${commit.authorEmail}>`}
           >

@@ -5,6 +5,7 @@ import { fullRefName, PAGE_SIZE, teamPulse, type Action, type CommitRow, type Di
 import { isShown } from "../lib/diffTargets";
 import { withCoAuthor } from "../lib/commitMessage";
 import type { LfsLocks } from "../lib/locks";
+import { useLaneHover } from "../lib/lanes";
 import type { RefEntry } from "../lib/refs";
 import { checkoutFor, commitMenu, dropMenu, pillForEntry, pillMenu, pillRefNames, selectionMenu, type OpenDialog } from "../menus";
 import { ActivityPanel } from "../components/ActivityPanel";
@@ -240,6 +241,8 @@ export function RepositoryView(props: Props) {
   const notLoaded = () => props.notify({ text: "That commit isn't loaded: load more commits, or fetch" });
   /** The status bar's "changed elsewhere": the branches, and your files on each. */
   const [elsewhereAt, setElsewhereAt] = useState<HTMLElement | null>(null);
+  // The commit of the branch whose label the pointer is on: its lane lights up in the graph.
+  const [laneTip, hoverLane] = useLaneHover();
   const showBranch = (branch: string) => {
     const tip = snapshot.commits.find((commit) => commit.refs.some((ref) => (ref.kind === "branch" || ref.kind === "remote") && ref.name === branch));
     if (!tip) return notLoaded();
@@ -268,6 +271,7 @@ export function RepositoryView(props: Props) {
         onActivate={(entry) => checkout({ pill: pillForEntry(entry), commit: byId.get(entry.commitId) })}
         onContextMenu={sidebarMenu}
         onFocus={(entry) => byId.has(entry.commitId) && highlight.highlightHistory(entry.name, entry.commitId)}
+        onLaneHover={hoverLane}
         onToggleVisible={(entry) => {
           // A branch with its copies on remotes, which are on the same row.
           const names = pillRefNames(pillForEntry(entry));
@@ -462,6 +466,8 @@ export function RepositoryView(props: Props) {
               }}
               onLoadMore={() => repo.load(snapshot.path, "more", snapshot.commits.length + PAGE_SIZE)}
               loadingMore={repo.busy?.kind === "more"}
+              laneTip={laneTip}
+              onLaneHover={hoverLane}
             />
             <ListOverlays
               snapshot={snapshot}

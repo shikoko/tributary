@@ -3,8 +3,9 @@ import type { CommitRow } from "../../api";
 import { laneColor } from "../../lib/colors";
 import type { CanvasColors, CurveStyle } from "../../lib/appearance";
 import type { Slot } from "../../lib/days";
+import type { Lane } from "../../lib/lanes";
 import { paintGraph } from "../graphPainter";
-import { GRAPH_PADDING } from "./layout";
+import { DENSE_ROW_HEIGHT, GRAPH_PADDING, nodeAvatarSize } from "./layout";
 
 /** Size a canvas for the screen's pixel density, and get it ready to draw in CSS pixels. */
 function prepare(element: HTMLCanvasElement, width: number, height: number) {
@@ -38,11 +39,13 @@ interface GraphInput {
   laneWidth: number;
   /** Commits are authors' pictures (ListRow): the painter leaves them out. */
   avatars: boolean;
+  /** A branch's lane, lit up: the pointer is on one of its labels. */
+  lane: Lane | null;
 }
 
 /** Draw the graph for the rendered rows. */
 export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, input: GraphInput) {
-  const { commits, slots, first, last, width, rowHeight, headId, selectedId, focusIds, colors, curves, laneWidth, avatars } = input;
+  const { commits, slots, first, last, width, rowHeight, headId, selectedId, focusIds, colors, curves, laneWidth, avatars, lane } = input;
   useLayoutEffect(() => {
     if (!canvas.current) return;
     const ctx = prepare(canvas.current, width, Math.max(0, last - first) * rowHeight);
@@ -60,8 +63,10 @@ export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, inpu
       lanes: colors.lanes,
       curves,
       avatars,
+      pictureSize: nodeAvatarSize(rowHeight === DENSE_ROW_HEIGHT),
+      lane,
     });
-  }, [canvas, commits, slots, first, last, width, headId, selectedId, rowHeight, focusIds, colors, curves, laneWidth, avatars]);
+  }, [canvas, commits, slots, first, last, width, headId, selectedId, rowHeight, focusIds, colors, curves, laneWidth, avatars, lane]);
 }
 
 /** A mark next to the scrollbar. */

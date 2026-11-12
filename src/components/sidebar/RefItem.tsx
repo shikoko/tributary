@@ -24,6 +24,8 @@ export interface RefHandlers {
   onFocus: (entry: RefEntry) => void;
   /** The eye button: hide or show the entry in the graph. */
   onToggleVisible: (entry: RefEntry) => void;
+  /** The pointer is on the entry (its commit), or has left it (null): its lane lights up. */
+  onLaneHover: (commitId: string | null) => void;
 }
 
 interface Props {
@@ -47,6 +49,7 @@ interface Props {
 /** A branch, remote branch, tag or stash in the sidebar. Branches can be dragged onto commits to merge or rebase. */
 export function RefItem({ entry, label, icon, depth = 0, selected, visibility, counts, stack, isProtected, handlers, localOnly = false }: Props) {
   const pullRequests = useContext(PullRequestsContext);
+  const lights = entry.kind !== "stash" && !entry.hidden;
   // The branch below, without the folder both are in ("on export" for feature/export).
   const folder = label && entry.name.endsWith(label) ? entry.name.slice(0, entry.name.length - label.length) : "";
   const below = stack && folder && stack.on.startsWith(folder) ? stack.on.slice(folder.length) : stack?.on;
@@ -67,6 +70,9 @@ export function RefItem({ entry, label, icon, depth = 0, selected, visibility, c
         style={{ paddingLeft: rowIndent(depth) }}
         role="button"
         tabIndex={0}
+        // Its lane lights up in the graph.
+        onPointerEnter={() => lights && handlers.onLaneHover(entry.commitId)}
+        onPointerLeave={() => lights && handlers.onLaneHover(null)}
         onPointerDown={(event) => {
           if (entry.kind !== "stash" && !entry.hidden && !event.altKey) pressLabel(event, entry.name);
         }}

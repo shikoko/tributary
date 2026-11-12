@@ -6,11 +6,12 @@ import { onLabelDrop } from "../lib/drag";
 import type { RefPill } from "../lib/refs";
 import type { SelectHow } from "../lib/selection";
 import { ThemeContext } from "../app/useAppearance";
+import { laneOf } from "../lib/lanes";
 import { marksNear, scrollMarks, useGraphCanvas, useScrollMarkers } from "./commitList/canvases";
 import { DENSE_ROW_HEIGHT, FOOTER_HEIGHT, GRAPH_PADDING, laneWidthFor, ROW_HEIGHT, useColumnLayout, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
 import { ListHeader } from "./commitList/ListHeader";
 import { DaySeparator, ListRow, type RowHandlers } from "./commitList/ListRow";
-import { MarkHover } from "./commitList/MarkHover";
+import { glowRect, MarkGlow, MarkHover } from "./commitList/MarkHover";
 import { CommitPreview } from "./CommitPreview";
 import { Loader } from "./Loader";
 import { Button } from "./ui/Button";
@@ -60,6 +61,10 @@ interface Props {
   onScrollChange: (scrollTop: number) => void;
   onLoadMore: () => void;
   loadingMore: boolean;
+  /** The pointer is on a label of the branch at this commit, in the sidebar or the graph: its lane lights up. */
+  laneTip: string | null;
+  /** The pointer is on one of a commit's labels in the graph, or has left them (null). */
+  onLaneHover: (commitId: string | null) => void;
 }
 
 /**
@@ -163,7 +168,10 @@ export function CommitList(props: Props) {
     if (focusIds === null) return matchIds;
     return new Set([...matchIds].filter((id) => focusIds.has(id)));
   }, [matchIds, focusIds]);
-  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: brightIds, colors, curves, laneWidth, avatars });
+  // The lane of the branch whose label the pointer is on: it lights up, the rest fades.
+  const laneTip = props.laneTip;
+  const lane = useMemo(() => (laneTip ? laneOf(commits, indexById, laneTip) : null), [laneTip, commits, indexById]);
+  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: brightIds, colors, curves, laneWidth, avatars, lane });
   const marked = useMemo(() => selectedIds ?? new Set(selectedId ? [selectedId] : []), [selectedIds, selectedId]);
   const marks = useMemo(
     () => scrollMarks({ commits, slotOf, indexById, rowHeight, contentHeight, height: viewport.height, matchIds, headId: headCommit, selectedIds: marked, colors }),
@@ -172,8 +180,17 @@ export function CommitList(props: Props) {
   // The pointer on the marks beside the scrollbar: they stand out, and a card says what they are.
   const [markAt, setMarkAt] = useState<{ y: number; strip: { top: number; right: number; bottom: number; width: number } } | null>(null);
   const near = useMemo(() => (markAt ? marksNear(marks, markAt.y) : []), [marks, markAt]);
-  const lit = useMemo(() => new Set(near.map((mark) => mark.index)), [near]);
+  // The lit branch's tip lights up beside the scrollbar too.
+  const tipIndex = laneTip ? (indexById.get(laneTip) ?? -1) : -1;
+  const tipMarks = useMemo(() => marks.filter((mark) => mark.index === tipIndex), [marks, tipIndex]);
+  const lit = useMemo(() => new Set([...near, ...tipMarks].map((mark) => mark.index)), [near, tipMarks]);
   useScrollMarkers(markerCanvas, marks, viewport, lit);
+  const body = useRef<HTMLDivElement>(null);
+  const [tipStrip, setTipStrip] = useState<{ top: number; right: number; bottom: number; width: number } | null>(null);
+  useLayoutEffect(() => {
+    const rect = tipMarks.length > 0 ? body.current?.getBoundingClientRect() : undefined;
+    setTipStrip(rect ? { top: rect.top, right: rect.right, bottom: rect.top + viewport.height, width: viewport.scrollbar || 6 } : null);
+  }, [tipMarks, viewport]);
 
 
   // Bring the selected commit into view when it changes (or the rows change height), once:
@@ -237,6 +254,7 @@ export function CommitList(props: Props) {
     onPillContextMenu: props.onPillContextMenu,
     onMorePills: props.onMorePills,
     onPillFocus: props.onPillFocus,
+    onLaneHover: props.onLaneHover,
     onHover: (event, commit) => {
       window.clearTimeout(previewTimer.current);
       if (!props.previews || commit.kind === "worktree" || event.buttons) return setPreview(null);
@@ -274,6 +292,7 @@ export function CommitList(props: Props) {
         authorNode={avatars && commit.kind === "commit" && commit.parents.length <= 1}
         head={commit.id === headCommit}
         dimmed={brightIds !== null && !brightIds.has(commit.id)}
+        lit={Boolean(lane?.ids.has(commit.id))}
         handlers={handlers}
       />,
     );
@@ -281,7 +300,7 @@ export function CommitList(props: Props) {
 
   return (
     <section
-      className={`commit-list${dense ? " dense" : ""}${layout.graphGrowing ? " graph-growing" : ""}`}
+      className={`commit-list${dense ? " dense" : ""}${layout.graphGrowing ? " graph-growing" : ""}${lane ? " lane-lit" : ""}`}
       aria-label="Commits"
       // The rows' columns: set here, so a new width restyles the rows without re-rendering them.
       style={{ ["--list-columns" as string]: columns, ["--refs-width" as string]: `${refsWidth}px`, ["--graph-width" as string]: `${graphWidth}px` }}
@@ -299,6 +318,7 @@ export function CommitList(props: Props) {
         onContextMenu={props.onHeaderContextMenu}
       />
       <div
+        ref={body}
         className="list-body"
         onPointerMove={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
@@ -348,6 +368,9 @@ export function CommitList(props: Props) {
         </div>
       </div>
       {preview && <CommitPreview commit={preview.commit} x={preview.x} y={preview.y} loadDetails={props.loadDetails} />}
+      {tipStrip && tipMarks.length > 0 && !near.some((mark) => mark.index === tipIndex) && (
+        <MarkGlow color={tipMarks[0].color} rect={glowRect(tipMarks, tipStrip.width)} strip={tipStrip} />
+      )}
       {markAt && near.length > 0 && <MarkHover near={near} strip={markAt.strip} commits={commits} headBranch={snapshot.headBranch} />}
     </section>
   );
