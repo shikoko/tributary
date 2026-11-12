@@ -84,6 +84,8 @@ export interface RefEntry {
   upstream?: string;
   /** Left out of the graph (its commit may not be loaded). */
   hidden?: boolean;
+  /** For a local branch: the remotes with a branch of the same name (its copies there). */
+  remotes?: string[];
 }
 
 export interface RefLists {

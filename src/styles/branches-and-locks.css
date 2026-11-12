@@ -100,7 +100,8 @@
   font-size: var(--type-sm);
 }
 
-/* A small button at the end of a sidebar heading (prune branches). */
+/* Small buttons at the end of a sidebar heading (prune branches, manage remotes), shown
+   while the pointer is on it. */
 .sidebar-heading-row {
   position: relative;
 }
@@ -109,10 +110,19 @@
   padding-right: 32px;
 }
 
-.sidebar-heading-action {
+.sidebar-heading-row:has(.sidebar-heading-action + .sidebar-heading-action) .sidebar-heading {
+  padding-right: 54px;
+}
+
+.sidebar-heading-actions {
   position: absolute;
   top: 3px;
   right: 4px;
+  display: flex;
+  gap: 2px;
+}
+
+.sidebar-heading-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;

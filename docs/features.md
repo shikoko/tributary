@@ -31,11 +31,13 @@ Everything Tributary does, in detail. For a quick look, see the [README](../READ
   - Every file is listed, however many there are, and a long list has a filter: type part of a name or folder, like `level03 instance`. In your changes, the filter also turns **Stage all** into **Stage these 12**.
   - Links, issue numbers like `#12` (or Jira and Linear keys like `FEAST-12`) and commit ids in the message can be clicked, and the issues it mentions are listed with their titles and states ([see below](#pull-requests-and-remotes)).
 - **Search:** find commits by message, author, branch, tag or SHA. Matches are highlighted and you can jump between them. Switch the search box to **Files** to find the commits in any branch that changed a file whose path contains what you type (or matches a pattern like `*.psd`), or to **Code** for the commits that added or removed some exact text, like a function's name (`git log -S`). Matches further back than the loaded commits are counted, and appear as you scroll.
-- **Branch sidebar:** every branch, remote branch, tag and stash, with a filter.
+- **Branch sidebar:** every branch, tag and stash, with a filter.
+  - Each branch is listed once: a branch and its copy on the remote are one row. The checked-out branch and the protected ones (like `main`) are at the top.
   - Names that share a prefix, like `feature/…`, are grouped into folders, and you can pin the ones you use most to the top.
-  - Each branch shows how many commits it's ahead (↑) and behind (↓) its upstream, counted by git over the whole history; so does its label in the graph (hover it for the details).
-  - Click one to jump to its commit; double-click a branch to check it out. Double-clicking a remote branch, like `origin/feature`, checks out its local branch, and fast-forwards it when it's only behind.
-- **Hide or solo branches:** the eye next to a branch in the sidebar hides it (and the commits only it has) from the graph. Right-click a branch and choose **Show only…** to see just that branch and the checked-out one. Tributary remembers this for each repository; **Show all** brings everything back.
+  - Each branch shows how many commits it's ahead (↑) and behind (↓) its upstream, counted by git over the whole history; so does its label in the graph (hover it for the details). One that's only on your computer, never pushed, is marked with a laptop.
+  - Branches on the remote that aren't on your computer (a teammate's, say) are folded away under **Only on origin**.
+  - Click one to jump to its commit; double-click a branch to check it out. Double-clicking one that's only on the remote, like `origin/feature`, makes a local branch that tracks it; right-clicking a branch also offers its copy on the remote (**Delete … from origin**).
+- **Hide or solo branches:** the eye next to a branch in the sidebar hides it, with its copy on the remote (and the commits only they have), from the graph. Right-click a branch and choose **Show only…** to see just that branch and the checked-out one. Tributary remembers this for each repository; **Show all** brings everything back.
 - **Highlight a branch's history or an author's commits:** <kbd>Alt</kbd>+click a branch label (or right-click it and choose **Highlight**) to fade every commit that isn't part of its history. Right-click a commit to highlight everything its author committed, or turn on **Highlight My Commits** in the View menu. Press <kbd>Esc</kbd> to stop.
 - **Only this branch:** in the View menu, **Only *branch*'s own history** hides merged-in side branches and shows just the commits made on the checked-out branch, following first parents.
 - **Hover previews:** rest the mouse on a commit for a moment to see its full message and changed files without opening it. You can turn this off in the View menu.
@@ -155,7 +157,7 @@ Everything Tributary does, in detail. For a quick look, see the [README](../READ
   - **In the background:** every open tab is fetched every few minutes, so the numbers stay current. When a pull request is merged or closed on the site, the open repository is fetched straight away, so its history shows the merge without waiting. New commits on main or on your branch's upstream are announced with who pushed what and a **Pull** button (or a dot on another tab). Settings chooses how often, and whether to notify.
   - **Pushing:** the first push of a new branch sets its upstream, and when the remote suggests a pull request, **Create pull request** takes you there. A pull that needs a merge merges, unless you've told git to rebase.
 - **Force push:** from the menu next to Push, after a confirmation. It uses `--force-with-lease`, so it stops if someone else pushed in the meantime.
-- **Remotes:** add, rename and remove remotes, and change their addresses (or give pushes an address of their own), from the repository's settings or the gear on the sidebar's Remotes heading. Passwords and tokens in addresses are never shown, there or in the activity log.
+- **Remotes:** add, rename and remove remotes, and change their addresses (or give pushes an address of their own), from the repository's settings or the gear on the sidebar's Branches heading. Passwords and tokens in addresses are never shown, there or in the activity log.
 
 <sub>[↑ Contents](#contents)</sub>
 
