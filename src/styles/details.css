@@ -121,7 +121,7 @@
 
 .details-label {
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: var(--type-xs);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -134,7 +134,7 @@
   height: 24px;
   padding: 0 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: var(--bg-raised);
   color: var(--text-secondary);
 }
@@ -167,7 +167,7 @@
   display: block;
   margin: 0;
   color: var(--text-faint);
-  font-size: 10.5px;
+  font-size: var(--type-xs);
   font-weight: 650;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -175,12 +175,12 @@
 
 .details-section-note {
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .details-summary {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--type-lg);
   font-weight: 650;
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -219,10 +219,10 @@
 .body-code {
   margin: 0;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--bg-raised);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--type-sm);
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -282,7 +282,7 @@
 .person-when {
   margin-top: 3px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .meta {
@@ -312,10 +312,10 @@
   margin: -2px -6px;
   padding: 2px 6px;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--type-xs);
   text-align: left;
   cursor: pointer;
 }
@@ -354,11 +354,11 @@
 .sha-link {
   padding: 1px 6px;
   border: 1px solid var(--border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-raised);
   color: var(--accent-text);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .sha-link:hover:not(:disabled) {
@@ -395,13 +395,13 @@
   align-items: baseline;
   gap: 8px;
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: var(--type-base);
   font-weight: 600;
 }
 
 .files .hint {
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--type-sm);
   font-weight: 400;
 }
 
@@ -417,7 +417,7 @@
   gap: 8px;
   height: 26px;
   padding: 0 8px;
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   white-space: nowrap;
 }
 
@@ -431,9 +431,9 @@
   justify-content: center;
   width: 18px;
   height: 18px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--type-xs);
   font-weight: 700;
   flex: none;
 }
@@ -448,7 +448,7 @@
 .file-dir {
   min-width: 0;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--type-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   /* A long folder is cut at its start ("…Generated/Level03"): its last folders say the most. */
@@ -485,12 +485,12 @@
   align-items: baseline;
   gap: 8px;
   min-width: 0;
-  font-size: 12.5px;
+  font-size: var(--type-base);
 }
 
 .mentioned-issue-key {
   flex: none;
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .mentioned-issue-title {
@@ -505,10 +505,10 @@
   flex: none;
   margin-left: auto;
   padding: 0 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-raised);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--type-xs);
 }
 
 .mentioned-issue.done .mentioned-issue-title {
@@ -517,7 +517,7 @@
 
 .field-note {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 /* A commit's CI: how many passed and failed, as words and a bar, then the ones to look at. */
@@ -529,10 +529,10 @@
   margin-left: auto;
   padding: 0 10px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .commit-checks-rerun:hover:not(:disabled) {
@@ -550,7 +550,7 @@
   flex-wrap: wrap;
   gap: 4px 14px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--type-base);
 }
 
 .commit-checks-count strong {
@@ -577,7 +577,7 @@
   height: 4px;
   margin-top: 10px;
   overflow: hidden;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 
 .commit-checks-bar > span {
@@ -614,7 +614,7 @@
   min-height: 32px;
   padding: 6px 8px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text);
   font: inherit;
@@ -673,7 +673,7 @@ button.commit-check-row:hover {
 
 .commit-check-detail {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .commit-check.failure .commit-check-detail {
@@ -683,7 +683,7 @@ button.commit-check-row:hover {
 .commit-check-time {
   flex: none;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-sm);
   line-height: 20px;
   font-variant-numeric: tabular-nums;
 }
@@ -700,7 +700,7 @@ button.commit-check-row:hover svg {
 
 .commit-checks-more {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 /* Shows a pull request the commit mentions in the app, beside its link to the site. */
@@ -713,10 +713,10 @@ button.commit-check-row:hover svg {
   margin-left: auto;
   padding: 0 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 11.5px;
+  font-size: var(--type-sm);
 }
 
 .mentioned-issue-status + .mentioned-issue-show {

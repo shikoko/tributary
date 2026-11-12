@@ -22,11 +22,11 @@
   gap: 10px;
   padding: 7px 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: none;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--type-base);
   text-align: left;
   cursor: pointer;
 }
@@ -48,7 +48,7 @@
   place-items: center;
   width: 24px;
   height: 24px;
-  border-radius: 7px;
+  border-radius: var(--radius-lg);
   background: var(--wn-faint);
   color: var(--wn-color);
 }
@@ -74,7 +74,7 @@
   margin-bottom: 8px;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-3xl);
   background:
     radial-gradient(70% 120% at 15% 0%, var(--wn-soft), transparent 65%),
     radial-gradient(70% 120% at 95% 100%, var(--wn-next-soft), transparent 65%),
@@ -110,7 +110,7 @@
   place-items: center;
   width: 68px;
   height: 68px;
-  border-radius: 20px;
+  border-radius: var(--radius-4xl);
   background: linear-gradient(135deg, var(--wn-light), var(--wn-color) 70%);
   box-shadow: 0 14px 36px var(--wn-glow);
   color: var(--on-lane);
@@ -118,7 +118,7 @@
 
 .wn-stage-version {
   color: var(--wn-color);
-  font-size: 11px;
+  font-size: var(--type-xs);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -126,18 +126,18 @@
 
 .wn-stage h3 {
   margin: 0;
-  font-size: 19px;
+  font-size: var(--type-xl);
   letter-spacing: -0.01em;
 }
 
 .dialog .wn-stage p {
-  font-size: 13.5px;
+  font-size: var(--type-md);
   line-height: 1.6;
 }
 
 .wn-step {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 @keyframes tour-in {

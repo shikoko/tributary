@@ -215,7 +215,7 @@ npm run notices
 | `src/menus/` | The right-click menus of commits, branch and tag labels and the sidebar |
 | `src/components/` | The interface: the commit list (only the rows on screen are rendered; its layout, header, rows and canvases in `commitList/`), the sidebar (`sidebar/`), the changes panel (`worktree/`), the details panel, the dialogs, … |
 | `src/lib/` | Logic without an interface (search, selection, undo, paths, diagnostics, …), with its tests |
-| `src/styles/` | The styles, an area per file (colours and themes in `theme.css`), applied in the order `src/styles.css` lists them |
+| `src/styles/` | The styles, an area per file, applied in the order `src/styles.css` lists them. `theme.css` holds the colours and themes, and the scales for text (`--type-xs` to `--type-4xl`) and corners (`--radius-xs` to `--radius-pill`): sizes and corners use those steps, never their own pixels, which a test checks (`src/lib/styles.test.ts`) |
 | `tools/preview/` | The browser preview, demo repositories and the smoke test |
 | `tools/e2e/` | End-to-end tests of the desktop app, through tauri-driver and WebDriver |
 | `tools/icons/` | Draws the app icon, light and dark, and renders it at every size |

@@ -13,7 +13,7 @@
   margin: 0 -4px;
   padding: 0 4px 2px;
   overflow-y: auto;
-  font-size: 13px;
+  font-size: var(--type-base);
 }
 
 /* It scrolls instead of squeezing what's in it. */
@@ -23,7 +23,7 @@
 
 .big h3 {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--type-xs);
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -52,7 +52,7 @@
   flex: none;
   width: 10px;
   height: 10px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .big-card {
@@ -62,7 +62,7 @@
   min-width: 0;
   padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   background: var(--bg);
 }
 
@@ -77,14 +77,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--type-sm);
   color: var(--text-secondary);
 }
 
 /* The map: folders as blocks as big as what they take, their biggest files inside. */
 .big-map {
   position: relative;
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
 }
 
@@ -92,7 +92,7 @@
   position: absolute;
   box-sizing: border-box;
   border: 2px solid var(--bg-panel);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg);
 }
 
@@ -106,7 +106,7 @@
   gap: 6px;
   height: 20px;
   padding: 0 6px;
-  font-size: 11px;
+  font-size: var(--type-xs);
   line-height: 20px;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -124,9 +124,9 @@
   flex-direction: column;
   justify-content: flex-end;
   box-sizing: border-box;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  font-size: 11px;
+  font-size: var(--type-xs);
   line-height: 1.3;
   transition: filter 0.12s;
 }
@@ -161,9 +161,9 @@
   display: flex;
   gap: 6px;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--bg-raised);
-  font-size: 12px;
+  font-size: var(--type-sm);
   color: var(--text-secondary);
 }
 
@@ -190,7 +190,7 @@
 }
 
 .big-lfs header .muted {
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .big-lfs .dialog-note-line {
@@ -210,11 +210,11 @@
   height: 28px;
   padding: 0 11px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--type-sm);
   cursor: pointer;
 }
 
@@ -239,11 +239,11 @@
   max-width: 300px;
   padding: 5px 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--bg-raised);
   box-shadow: 0 6px 18px var(--shadow);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--type-sm);
   pointer-events: none;
   overflow-wrap: anywhere;
 }
@@ -251,10 +251,10 @@
 .repo-size-tag {
   flex: none;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-active);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--type-xs);
 }
 
 .repo-size-tag.lfs {

@@ -32,7 +32,7 @@ textarea.request-body.short {
 .review-error {
   margin: 0;
   color: var(--danger-text);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 /* The conversation: each comment beside its author's picture, replies indented under it. */
@@ -61,7 +61,7 @@ textarea.request-body.short {
 .request-comment.reply {
   margin: -8px 0 0 40px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   background: var(--sunken);
 }
 
@@ -80,7 +80,7 @@ textarea.request-body.short {
   flex-wrap: wrap;
   gap: 6px 8px;
   min-height: 20px;
-  font-size: 13px;
+  font-size: var(--type-base);
 }
 
 .request-comment-head strong {
@@ -93,10 +93,10 @@ textarea.request-body.short {
   align-items: center;
   height: 20px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--overlay-rgb) / 0.12);
   color: var(--text-secondary);
-  font-size: 11.5px;
+  font-size: var(--type-sm);
   font-weight: 600;
 }
 
@@ -116,10 +116,10 @@ textarea.request-body.short {
   height: 20px;
   max-width: 260px;
   padding: 0 7px;
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: rgb(var(--overlay-rgb) / 0.12);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .request-comment-when {
@@ -135,11 +135,11 @@ textarea.request-body.short {
   margin: 8px 0 6px;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg);
   color: var(--text-secondary);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--type-sm);
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -155,7 +155,7 @@ textarea.request-body.short {
 
 .request-reply {
   margin: 6px 0 0 40px;
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .request-comment.reply .request-reply {

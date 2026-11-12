@@ -138,7 +138,7 @@
 
   color-scheme: dark;
   font-family: var(--font);
-  font-size: 13px;
+  font-size: var(--type-base);
   line-height: 1.4;
   color: var(--text);
   background: var(--bg);
@@ -280,6 +280,35 @@
   box-sizing: border-box;
 }
 
+/* Sizes, so the same kinds of things match everywhere: pick a step, not a number of pixels.
+   Text in nine steps: most of the interface is --type-sm, captions and counts --type-xs,
+   text to read --type-base, and titles from --type-lg up. Corners grow with what they
+   round: marks and tags, then buttons and fields, then cards and windows. */
+:root {
+  --type-xs: 11px;
+  --type-sm: 12px;
+  --type-base: 13px;
+  --type-md: 14px;
+  --type-lg: 16px;
+  --type-xl: 18px;
+  --type-2xl: 22px;
+  --type-3xl: 26px;
+  --type-4xl: 30px;
+  /* One number shown large, like the team's commits this week. */
+  --type-hero: 52px;
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
+  --radius-3xl: 14px;
+  --radius-4xl: 20px;
+  /* Ends rounded right off, whatever the height. */
+  --radius-pill: 999px;
+}
+
 html,
 body,
 #root {
@@ -325,7 +354,7 @@ button:disabled {
 
 .mono {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .muted {
@@ -354,7 +383,7 @@ button:disabled {
   /* A little see-through, so the commit list's marks show under it. */
   background: var(--scrollbar);
   border: 3px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background-clip: padding-box;
 }
 

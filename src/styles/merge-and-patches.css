@@ -12,7 +12,7 @@
   column-gap: 8px;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
 }
 
@@ -32,7 +32,7 @@
 
 .merge-method-hint {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .dialog-note-line.warning {
@@ -68,8 +68,8 @@
 .patch-files {
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: var(--radius-lg);
+  font-size: var(--type-sm);
 }
 
 .patch-files li {
@@ -100,7 +100,7 @@
 }
 
 .request-owners-label {
-  font-size: 12px;
+  font-size: var(--type-sm);
   color: var(--text-muted);
 }
 
