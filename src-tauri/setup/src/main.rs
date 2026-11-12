@@ -19,6 +19,8 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod record;
+
 use serde::Serialize;
 use tauri::{
     AppHandle, Manager, PhysicalPosition, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
@@ -292,13 +294,47 @@ async fn install(folder: String, everyone: bool) -> Result<(), String> {
 #[tauri::command]
 async fn update(app: AppHandle, launch: State<'_, Launch>) -> Result<(), String> {
     let launch = launch.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
+    let start = std::time::Instant::now();
+    // Where the window is as the update starts (its page has loaded by now), and whether
+    // it can be seen.
+    match app.get_webview_window("setup") {
+        Some(window) => record::note(&format!(
+            "updating, the window at {}, {}, {}",
+            window
+                .outer_position()
+                .map_or("an unknown place".into(), |place| format!(
+                    "({}, {})",
+                    place.x, place.y
+                )),
+            if window.is_visible().unwrap_or(false) {
+                "shown"
+            } else {
+                "hidden"
+            },
+            if window.is_focused().unwrap_or(false) {
+                "in front"
+            } else {
+                "not in front"
+            },
+        )),
+        None => record::note("updating, without its window"),
+    }
+    let result = tauri::async_runtime::spawn_blocking(move || {
         let everyone = target(&platform::installs(), launch.installed.as_deref())
             .is_some_and(|install| install.everyone);
         platform::run_installer(everyone, &installer_args(&launch.pass_on), true)
     })
     .await
-    .map_err(|e| e.to_string())??;
+    .map_err(|e| e.to_string())
+    .and_then(|result| result);
+    match &result {
+        Ok(()) => record::note(&format!("updated in {:.1}s", start.elapsed().as_secs_f64())),
+        Err(error) => record::note(&format!(
+            "couldn't update after {:.1}s: {error}",
+            start.elapsed().as_secs_f64()
+        )),
+    }
+    result?;
     app.exit(0);
     Ok(())
 }
@@ -356,8 +392,12 @@ fn without_window(launch: &Launch) -> i32 {
     // Updates for everyone ask for an administrator; IT tools (`/S /ALLUSERS`) run as one.
     let elevate = launch.update && everyone;
     match platform::run_installer(everyone, &installer_args(&launch.pass_on), elevate) {
-        Ok(()) => 0,
+        Ok(()) => {
+            record::note("installed, without a window");
+            0
+        }
         Err(error) => {
+            record::note(&format!("couldn't install, without a window: {error}"));
             eprintln!("{error}");
             1
         }
@@ -382,9 +422,21 @@ fn main() {
             return;
         }
     }
+    let started = args.join(" ");
     let launch = parse(args);
     let uninstalling = launch.uninstall.is_some();
     let windowless = launch.silent || (launch.update && !launch.restart);
+    record::note(&format!(
+        "started ({}{}) with: {started}",
+        if launch.update {
+            "update"
+        } else if uninstalling {
+            "uninstall"
+        } else {
+            "install"
+        },
+        if windowless { ", without a window" } else { "" },
+    ));
     if windowless || !platform::can_show_window() {
         if windowless || launch.update {
             std::process::exit(without_window(&launch));
@@ -430,18 +482,31 @@ fn main() {
                     .data_directory(std::env::temp_dir().join("tributary-setup"))
                     // Shown once it's in place, so it isn't seen moving.
                     .visible(false)
+                    // An update's window is only there for the few seconds the update takes,
+                    // and it starts as Tributary closes, when Windows may leave a program
+                    // started in the background behind the window in front: it stays on top.
+                    .always_on_top(launch.update)
                     .build()?;
             // An update opens on the display Tributary's window was on, not the main one.
-            if launch.update
-                && let Some(point) = app_window_middle(app.handle())
-            {
-                let _ = center_on_display(&window, point);
+            if launch.update {
+                match app_window_middle(app.handle()) {
+                    Some(point) => match center_on_display(&window, point) {
+                        Ok(Some(place)) => record::note(&format!("Tributary was at {point:?}: the window goes to {place:?}")),
+                        Ok(None) => record::note(&format!("Tributary was at {point:?}, on no display there is now: the window stays in the middle of the main one")),
+                        Err(error) => record::note(&format!("couldn't place the window: {error}")),
+                    },
+                    None => record::note("where Tributary was isn't saved: the window stays in the middle of the main one"),
+                }
             }
             window.show()?;
+            if launch.update {
+                let _ = window.set_focus();
+            }
             Ok(())
         })
         .run(tauri::generate_context!());
     if let Err(error) = built {
+        record::note(&format!("couldn't start: {error}"));
         eprintln!("Tributary's setup couldn't start: {error}");
     }
     // The uninstall window ran from a temporary copy of itself: it goes too.
@@ -469,8 +534,12 @@ fn app_window_middle(app: &AppHandle) -> Option<(i32, i32)> {
     Some((i32::try_from(x).ok()?, i32::try_from(y).ok()?))
 }
 
-/// Put the window in the middle of the display Tributary's window was on.
-fn center_on_display(window: &WebviewWindow, point: (i32, i32)) -> tauri::Result<()> {
+/// Put the window in the middle of the display Tributary's window was on: where it went, or
+/// None when no display has that point now.
+fn center_on_display(
+    window: &WebviewWindow,
+    point: (i32, i32),
+) -> tauri::Result<Option<(i32, i32)>> {
     let displays: Vec<Display> = window
         .available_monitors()?
         .iter()
@@ -482,10 +551,11 @@ fn center_on_display(window: &WebviewWindow, point: (i32, i32)) -> tauri::Result
             scale: display.scale_factor(),
         })
         .collect();
-    if let Some((x, y)) = middle_of_display(&displays, point) {
+    let place = middle_of_display(&displays, point);
+    if let Some((x, y)) = place {
         window.set_position(PhysicalPosition::new(x, y))?;
     }
-    Ok(())
+    Ok(place)
 }
 
 /// A display: its place and size in physical pixels, and its scale.
