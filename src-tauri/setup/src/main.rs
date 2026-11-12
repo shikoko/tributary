@@ -20,7 +20,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use serde::Serialize;
-use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{
+    AppHandle, Manager, PhysicalPosition, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+};
+
+/// The window's size, in logical pixels.
+const SIZE: (f64, f64) = (720.0, 480.0);
+
+/// Tributary's identifier: its settings and the window's data are in folders by this name.
+const APP_ID: &str = "io.github.shikoko.tributary";
 
 /// The version being installed (the release build sets it).
 const VERSION: &str = match option_env!("TRIBUTARY_VERSION") {
@@ -407,19 +415,29 @@ fn main() {
             } else {
                 "Install Tributary"
             };
-            WebviewWindowBuilder::new(app, "setup", WebviewUrl::App("index.html".into()))
-                .title(title)
-                .inner_size(720.0, 480.0)
-                .resizable(false)
-                .maximizable(false)
-                .decorations(false)
-                .shadow(true)
-                .center()
-                .theme(Some(tauri::Theme::Dark))
-                .background_color(tauri::window::Color(20, 22, 27, 255))
-                // The window's browser data goes to a temporary folder, not next to the app's.
-                .data_directory(std::env::temp_dir().join("tributary-setup"))
-                .build()?;
+            let window =
+                WebviewWindowBuilder::new(app, "setup", WebviewUrl::App("index.html".into()))
+                    .title(title)
+                    .inner_size(SIZE.0, SIZE.1)
+                    .resizable(false)
+                    .maximizable(false)
+                    .decorations(false)
+                    .shadow(true)
+                    .center()
+                    .theme(Some(tauri::Theme::Dark))
+                    .background_color(tauri::window::Color(20, 22, 27, 255))
+                    // The window's browser data goes to a temporary folder, not next to the app's.
+                    .data_directory(std::env::temp_dir().join("tributary-setup"))
+                    // Shown once it's in place, so it isn't seen moving.
+                    .visible(false)
+                    .build()?;
+            // An update opens on the display Tributary's window was on, not the main one.
+            if launch.update
+                && let Some(point) = app_window_middle(app.handle())
+            {
+                let _ = center_on_display(&window, point);
+            }
+            window.show()?;
             Ok(())
         })
         .run(tauri::generate_context!());
@@ -430,6 +448,77 @@ fn main() {
     if uninstalling {
         platform::delete_self_later();
     }
+}
+
+/// The middle of Tributary's window, in physical pixels, from where it saves its place
+/// (tauri-plugin-window-state, in its settings folder). Tributary saves it just before an
+/// update installs.
+fn app_window_middle(app: &AppHandle) -> Option<(i32, i32)> {
+    let file = app
+        .path()
+        .config_dir()
+        .ok()?
+        .join(APP_ID)
+        .join(".window-state.json");
+    let saved: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(file).ok()?).ok()?;
+    let main = saved.get("main")?;
+    let number = |key: &str| main.get(key).and_then(serde_json::Value::as_i64);
+    let x = number("x")? + number("width")? / 2;
+    let y = number("y")? + number("height")? / 2;
+    Some((i32::try_from(x).ok()?, i32::try_from(y).ok()?))
+}
+
+/// Put the window in the middle of the display Tributary's window was on.
+fn center_on_display(window: &WebviewWindow, point: (i32, i32)) -> tauri::Result<()> {
+    let displays: Vec<Display> = window
+        .available_monitors()?
+        .iter()
+        .map(|display| Display {
+            x: display.position().x,
+            y: display.position().y,
+            width: display.size().width,
+            height: display.size().height,
+            scale: display.scale_factor(),
+        })
+        .collect();
+    if let Some((x, y)) = middle_of_display(&displays, point) {
+        window.set_position(PhysicalPosition::new(x, y))?;
+    }
+    Ok(())
+}
+
+/// A display: its place and size in physical pixels, and its scale.
+#[derive(Debug, Clone, Copy)]
+struct Display {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+    scale: f64,
+}
+
+/// Where the window goes to be in the middle of the display that has `point` on it, or
+/// None when no display has it (the one it was on isn't connected now). The window's size
+/// there is its size in logical pixels (`SIZE`) at that display's scale, which it takes on
+/// as it moves there; a hidden window's own measurements aren't reliable everywhere.
+fn middle_of_display(displays: &[Display], (x, y): (i32, i32)) -> Option<(i32, i32)> {
+    let display = displays.iter().find(|display| {
+        i64::from(x) >= i64::from(display.x)
+            && i64::from(y) >= i64::from(display.y)
+            && i64::from(x) < i64::from(display.x) + i64::from(display.width)
+            && i64::from(y) < i64::from(display.y) + i64::from(display.height)
+    })?;
+    let middle = |start: i32, space: u32, length: f64| {
+        start
+            + ((f64::from(space) - length * display.scale) / 2.0)
+                .max(0.0)
+                .round() as i32
+    };
+    Some((
+        middle(display.x, display.width, SIZE.0),
+        middle(display.y, display.height, SIZE.1),
+    ))
 }
 
 #[cfg(windows)]
@@ -630,9 +719,6 @@ mod platform {
         }
     }
 
-    /// Tributary's identifier: its settings and the window's data are in folders by this name.
-    const APP_ID: &str = "io.github.shikoko.tributary";
-
     /// This is the uninstall window: installed beside Tributary as `tributary-uninstall.exe`.
     pub fn is_uninstaller() -> bool {
         std::env::current_exe()
@@ -738,7 +824,7 @@ mod platform {
     pub fn remove_settings() {
         for variable in ["APPDATA", "LOCALAPPDATA"] {
             if let Some(base) = std::env::var_os(variable) {
-                let _ = std::fs::remove_dir_all(PathBuf::from(base).join(APP_ID));
+                let _ = std::fs::remove_dir_all(PathBuf::from(base).join(super::APP_ID));
             }
         }
     }
@@ -832,7 +918,7 @@ mod platform {
 
 #[cfg(test)]
 mod tests {
-    use super::{Installed, Launch, installer_args, parse, target};
+    use super::{Display, Installed, Launch, installer_args, middle_of_display, parse, target};
 
     fn args(line: &str) -> Vec<String> {
         line.split(' ').map(String::from).collect()
@@ -904,5 +990,42 @@ mod tests {
         assert!(!everyone(None));
         assert!(target(&installs[1..], None).is_some_and(|install| install.everyone));
         assert_eq!(Launch::default().installed, None);
+    }
+
+    #[test]
+    fn an_update_opens_on_the_display_tributary_was_on() {
+        let display = |x, y, width, height, scale| Display {
+            x,
+            y,
+            width,
+            height,
+            scale,
+        };
+        // The main display, a second one to its right, and a third to the left of the main
+        // one (negative places), at 150%.
+        let displays = [
+            display(0, 0, 1920, 1080, 1.0),
+            display(1920, 0, 2560, 1440, 1.0),
+            display(-2880, 0, 2880, 1620, 1.5),
+        ];
+        // Window size 720×480: in the middle of each display.
+        assert_eq!(
+            middle_of_display(&displays, (2500, 700)),
+            Some((1920 + 920, 480))
+        );
+        assert_eq!(middle_of_display(&displays, (100, 100)), Some((600, 300)));
+        // At 150% it's 1080×720.
+        assert_eq!(
+            middle_of_display(&displays, (-100, 50)),
+            Some((-2880 + 900, 450))
+        );
+        // On a display that isn't connected now: left where the system puts it.
+        assert_eq!(middle_of_display(&displays, (9000, 100)), None);
+        assert_eq!(middle_of_display(&[], (100, 100)), None);
+        // A display smaller than the window: from its corner.
+        assert_eq!(
+            middle_of_display(&[display(0, 0, 640, 400, 1.0)], (10, 10)),
+            Some((0, 0))
+        );
     }
 }
