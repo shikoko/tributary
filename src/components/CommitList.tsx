@@ -6,10 +6,11 @@ import { onLabelDrop } from "../lib/drag";
 import type { RefPill } from "../lib/refs";
 import type { SelectHow } from "../lib/selection";
 import { ThemeContext } from "../app/useAppearance";
-import { useGraphCanvas, useScrollMarkers } from "./commitList/canvases";
+import { marksNear, scrollMarks, useGraphCanvas, useScrollMarkers } from "./commitList/canvases";
 import { DENSE_ROW_HEIGHT, FOOTER_HEIGHT, GRAPH_PADDING, laneWidthFor, ROW_HEIGHT, useColumnLayout, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
 import { ListHeader } from "./commitList/ListHeader";
 import { DaySeparator, ListRow, type RowHandlers } from "./commitList/ListRow";
+import { MarkHover } from "./commitList/MarkHover";
 import { CommitPreview } from "./CommitPreview";
 import { Loader } from "./Loader";
 import { Button } from "./ui/Button";
@@ -164,7 +165,16 @@ export function CommitList(props: Props) {
   }, [matchIds, focusIds]);
   useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: brightIds, colors, curves, laneWidth, avatars });
   const marked = useMemo(() => selectedIds ?? new Set(selectedId ? [selectedId] : []), [selectedIds, selectedId]);
-  useScrollMarkers(markerCanvas, { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId: headCommit, selectedIds: marked, colors });
+  const marks = useMemo(
+    () => scrollMarks({ commits, slotOf, indexById, rowHeight, contentHeight, height: viewport.height, matchIds, headId: headCommit, selectedIds: marked, colors }),
+    [commits, slotOf, indexById, rowHeight, contentHeight, viewport.height, matchIds, headCommit, marked, colors],
+  );
+  // The pointer on the marks beside the scrollbar: they stand out, and a card says what they are.
+  const [markAt, setMarkAt] = useState<{ y: number; strip: { top: number; right: number; bottom: number; width: number } } | null>(null);
+  const near = useMemo(() => (markAt ? marksNear(marks, markAt.y) : []), [marks, markAt]);
+  const lit = useMemo(() => new Set(near.map((mark) => mark.index)), [near]);
+  useScrollMarkers(markerCanvas, marks, viewport, lit, colors.ring);
+
 
   // Bring the selected commit into view when it changes (or the rows change height), once:
   // as soon as it's on the list, which may take more commits to load. Refreshes (a fetch,
@@ -288,7 +298,19 @@ export function CommitList(props: Props) {
         scrollbar={viewport.scrollbar}
         onContextMenu={props.onHeaderContextMenu}
       />
-      <div className="list-body">
+      <div
+        className="list-body"
+        onPointerMove={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const width = viewport.scrollbar || 6;
+          if (event.buttons === 0 && commits.length > 0 && event.clientX >= rect.right - width - 2) {
+            hidePreview();
+            const strip = { top: rect.top, right: rect.right, bottom: rect.top + viewport.height, width };
+            setMarkAt({ y: Math.min(Math.max(event.clientY - rect.top, 0), viewport.height), strip });
+          } else if (markAt) setMarkAt(null);
+        }}
+        onPointerLeave={() => setMarkAt(null)}
+      >
         <canvas ref={markerCanvas} className="list-markers" aria-hidden />
         <div
           ref={scroller}
@@ -326,6 +348,7 @@ export function CommitList(props: Props) {
         </div>
       </div>
       {preview && <CommitPreview commit={preview.commit} x={preview.x} y={preview.y} loadDetails={props.loadDetails} />}
+      {markAt && near.length > 0 && <MarkHover near={near} strip={markAt.strip} commits={commits} headBranch={snapshot.headBranch} />}
     </section>
   );
 }

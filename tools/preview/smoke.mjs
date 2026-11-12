@@ -525,6 +525,32 @@ try {
     await page.locator(".ref-pill", { hasText: "feature/themes" }).first().waitFor({ timeout: 10_000 });
   });
 
+  await step("says what a mark beside the scrollbar is, and lights it up", async () => {
+    // The marks, from their canvas: the middle of each run of painted rows.
+    const strip = await page.evaluate(() => {
+      const canvas = document.querySelector(".list-markers");
+      const box = canvas.getBoundingClientRect();
+      const data = canvas.getContext("2d").getImageData(Math.floor(canvas.width / 2), 0, 1, canvas.height).data;
+      const marks = [];
+      for (let y = 0, start = -1; y <= canvas.height; y++) {
+        const painted = y < canvas.height && data[y * 4 + 3] > 0;
+        if (painted && start < 0) start = y;
+        if (!painted && start >= 0) {
+          marks.push(((start + y) / 2) * (box.height / canvas.height));
+          start = -1;
+        }
+      }
+      return { x: box.left + box.width / 2, top: box.top, marks };
+    });
+    expect(strip.marks.length > 0, "no marks beside the scrollbar");
+    await page.mouse.move(strip.x, strip.top + strip.marks[0]);
+    const card = page.locator(".mark-card");
+    await card.locator(".mark-entry-name").first().waitFor({ timeout: 5000 });
+    expect((await card.locator(".mark-entry-summary").count()) > 0, "the card doesn't say which commit");
+    await page.mouse.move(strip.x - 300, strip.top + 200);
+    await card.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("opens a second repository in a new tab", async () => {
     // The pull requests' comments from the start: news is what changes after the first look.
     await page.evaluate(
