@@ -306,7 +306,10 @@ fn discards_everything_and_puts_it_back() {
     assert!(!repo.path().join("new.log").exists());
     assert!(!repo.path().join("Art").exists());
     assert_eq!(read(&repo, "cache.tmp"), "ignored");
-    assert_eq!(repo.git(&["status", "--porcelain", "--untracked-files=all"]), "");
+    assert_eq!(
+        repo.git(&["status", "--porcelain", "--untracked-files=all"]),
+        ""
+    );
     assert_eq!(stash_count(&repo), 0);
 
     let reference = discarded.backup.expect("kept for undo");
