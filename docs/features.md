@@ -23,7 +23,7 @@ Everything Tributary does, in detail. For a quick look, see the [README](../READ
 
 ## The commit graph
 
-- **Commit graph:** each lane has its own colour, merges are drawn as rounded connecting lines, and local branches, remote branches and tags are labelled. Dividers like **Today**, **Last week** and **October** separate commits from different periods (you can turn them off in the View menu), and marks next to the scrollbar show where the checked-out commit, branch tips, search matches and the selection are. Point at a mark to see what it is: it lights up, and a card beside it names its branches, with the commit's message and author.
+- **Commit graph:** each lane has its own colour, merges are drawn as rounded connecting lines, and local branches, remote branches and tags are labelled. Dividers like **Today**, **Last week** and **October** separate commits from different periods (you can turn them off in the View menu), and marks next to the scrollbar show where the checked-out commit, branch tips, search matches and the selection are. Point at a mark to see what it is: it glows, and a card beside it names its branches, with the commit's message and author.
 - **Uncommitted changes and stashes:** a row at the top shows your uncommitted changes, and each stash appears as a small box joined to the commit it was made from.
 - **Always up to date:** changes made outside the app (saving in an editor, committing in the terminal, a pull by a script or an agent) show up as they happen: the open repository is watched, leaving out what `.gitignore` ignores, like build output.
 - **Commit details:** the full message, author, committer and co-authors, parents (click one to jump to it) and the changed files.

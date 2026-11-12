@@ -546,6 +546,7 @@ try {
     await page.mouse.move(strip.x, strip.top + strip.marks[0]);
     const card = page.locator(".mark-card");
     await card.locator(".mark-entry-name").first().waitFor({ timeout: 5000 });
+    expect((await page.locator(".mark-glow").count()) > 0, "the mark doesn't light up");
     expect((await card.locator(".mark-entry-summary").count()) > 0, "the card doesn't say which commit");
     await page.mouse.move(strip.x - 300, strip.top + 200);
     await card.waitFor({ state: "detached", timeout: 5000 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CommitRow } from "../../api";
 import type { CanvasColors } from "../../lib/appearance";
-import { marksNear, scrollMarks } from "./canvases";
+import { markRect, marksNear, scrollMarks } from "./canvases";
 
 const commit = (id: string, column: number, branches: string[] = []) =>
   ({ id, graph: { column, lines: [] }, refs: branches.map((name) => ({ kind: "branch", name, current: false })) }) as unknown as CommitRow;
@@ -42,5 +42,13 @@ describe("scrollMarks", () => {
     ]);
     expect(marksNear(marks, 11).map((mark) => mark.kind)).toEqual(["match"]);
     expect(marksNear(marks, 30)).toEqual([]);
+  });
+
+  it("places each mark on the strip: branch tips inset, the checked-out commit full width and thicker", () => {
+    const [main, , , head] = marks;
+    expect(markRect(main, 12)).toEqual({ x: 3, y: 4, width: 6, height: 2 });
+    expect(markRect(head, 12)).toEqual({ x: 0, y: 4, width: 12, height: 3 });
+    // A narrower strip takes less off the sides.
+    expect(markRect(main, 6)).toEqual({ x: 1.5, y: 4, width: 3, height: 2 });
   });
 });

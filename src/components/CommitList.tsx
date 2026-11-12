@@ -173,7 +173,7 @@ export function CommitList(props: Props) {
   const [markAt, setMarkAt] = useState<{ y: number; strip: { top: number; right: number; bottom: number; width: number } } | null>(null);
   const near = useMemo(() => (markAt ? marksNear(marks, markAt.y) : []), [marks, markAt]);
   const lit = useMemo(() => new Set(near.map((mark) => mark.index)), [near]);
-  useScrollMarkers(markerCanvas, marks, viewport, lit, colors.ring);
+  useScrollMarkers(markerCanvas, marks, viewport, lit);
 
 
   // Bring the selected commit into view when it changes (or the rows change height), once:
