@@ -6,6 +6,7 @@ import { useNow } from "../lib/useNow";
 import { openInBrowser } from "../lib/weblinks";
 import { SlidingText } from "./SlidingText";
 import { ExternalLinkIcon, RefreshIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 type State = "failure" | "pending" | "success" | "cancelled" | "skipped";
 const stateOf = (check: RequestCheck): State => check.state ?? "skipped";
@@ -90,9 +91,9 @@ export function CommitChecks({ repoPath, id, notify }: { repoPath: string; id: s
         </ul>
       )}
       {(all || shown.length < sorted.length) && (
-        <button className="link-button commit-checks-more" onClick={() => setAll(!all)}>
+        <Button kind="link" className="commit-checks-more" onClick={() => setAll(!all)}>
           {all ? "Show fewer" : `Show all ${sorted.length} ${jobs}`}
-        </button>
+        </Button>
       )}
     </section>
   );

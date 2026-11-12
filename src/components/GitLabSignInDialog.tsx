@@ -2,6 +2,8 @@ import { useState } from "react";
 import { signInToGitLab, signInToGitLabWithBrowser, type GitLabAccount, type GitLabStatus } from "../api";
 import { openInBrowser } from "../lib/weblinks";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
 
 const CREDENTIAL_MANAGER_URL = "https://gh.io/gcm";
 
@@ -53,12 +55,12 @@ export function GitLabSignInDialog({ host: startHost, status, onCancel, onDone }
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running !== null}>
+          <Button kind="secondary" onClick={onCancel} disabled={running !== null}>
             Cancel
-          </button>
-          <button className="primary-small-button" onClick={() => signIn("token")} disabled={running !== null || !server || !token.trim()}>
+          </Button>
+          <Button kind="primary" onClick={() => signIn("token")} disabled={running !== null || !server || !token.trim()}>
             {running === "token" ? "Checking…" : "Sign in"}
-          </button>
+          </Button>
         </>
       }
     >
@@ -73,8 +75,7 @@ export function GitLabSignInDialog({ host: startHost, status, onCancel, onDone }
           signIn("token");
         }}
       >
-        <label className="field">
-          <span>Server</span>
+        <Field label="Server">
           <input
             className="text-input"
             value={host}
@@ -88,17 +89,16 @@ export function GitLabSignInDialog({ host: startHost, status, onCancel, onDone }
             autoCorrect="off"
             disabled={running !== null}
           />
-        </label>
+        </Field>
         {status?.browserSignIn && (
           <div className="sign-in-browser">
-            <button type="button" className="outline-button" onClick={() => signIn("browser")} disabled={running !== null || !server}>
+            <Button type="button" kind="outline" onClick={() => signIn("browser")} disabled={running !== null || !server}>
               <span className="button-label">{running === "browser" ? "Waiting for the browser…" : "Sign in with browser"}</span>
-            </button>
+            </Button>
             <span className="hint">With Git Credential Manager.</span>
           </div>
         )}
-        <label className="field">
-          <span>{status?.browserSignIn ? "Or a personal access token" : "Personal access token"}</span>
+        <Field label={status?.browserSignIn ? "Or a personal access token" : "Personal access token"}>
           <input
             className="text-input"
             type="password"
@@ -115,19 +115,19 @@ export function GitLabSignInDialog({ host: startHost, status, onCancel, onDone }
             autoFocus={!status?.browserSignIn}
             disabled={running !== null}
           />
-        </label>
+        </Field>
         <p className="hint">
-          <button type="button" className="link-button" onClick={() => server && openInBrowser(newGitLabTokenUrl(server))} disabled={!server} data-url={server ? newGitLabTokenUrl(server) : undefined}>
+          <Button type="button" kind="link" onClick={() => server && openInBrowser(newGitLabTokenUrl(server))} disabled={!server} data-url={server ? newGitLabTokenUrl(server) : undefined}>
             Make a token on {server || "GitLab"}
-          </button>{" "}
+          </Button>{" "}
           with the “api” and “write_repository” scopes.
         </p>
         {status && !status.canKeepToken && (
           <p className="hint warning">
             Git has no credential helper, so there's nowhere safe to keep a token.{" "}
-            <button type="button" className="link-button" onClick={() => openInBrowser(CREDENTIAL_MANAGER_URL)} data-url={CREDENTIAL_MANAGER_URL}>
+            <Button type="button" kind="link" onClick={() => openInBrowser(CREDENTIAL_MANAGER_URL)} data-url={CREDENTIAL_MANAGER_URL}>
               Install Git Credential Manager
-            </button>{" "}
+            </Button>{" "}
             first.
           </p>
         )}

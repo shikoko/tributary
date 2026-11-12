@@ -2,6 +2,7 @@ import type { Focus } from "../app/constants";
 import { baseName } from "../lib/paths";
 import { plural } from "../lib/format";
 import { ChevronDownIcon, ChevronUpIcon, EyeIcon, FileHistoryIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 interface Props {
   focus: Focus | null;
@@ -65,22 +66,22 @@ export function ViewBanner({ focus, firstParent, solo, branchLabel, mine, focuse
       )}
       {focus?.kind === "path" && pathMatches.length > 0 && (
         <span className="banner-steps">
-          <button className="icon-button" onClick={() => onStep(-1)} title="Newer change" aria-label="Newer change">
+          <Button kind="icon" onClick={() => onStep(-1)} title="Newer change" aria-label="Newer change">
             <ChevronUpIcon size={13} />
-          </button>
+          </Button>
           <span className="banner-step-count">
             {selectedIndex !== undefined && pathMatches.includes(selectedIndex)
               ? `${pathMatches.indexOf(selectedIndex) + 1} of ${pathMatches.length}`
               : plural(pathMatches.length, "change")}
           </span>
-          <button className="icon-button" onClick={() => onStep(1)} title="Older change" aria-label="Older change">
+          <Button kind="icon" onClick={() => onStep(1)} title="Older change" aria-label="Older change">
             <ChevronDownIcon size={13} />
-          </button>
+          </Button>
         </span>
       )}
-      <button className="link-button" onClick={onShowEverything}>
+      <Button kind="link" onClick={onShowEverything}>
         {focus ? "Show everything (Esc)" : "Show all branches"}
-      </button>
+      </Button>
     </div>
   );
 }

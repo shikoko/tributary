@@ -5,6 +5,8 @@ import { requestNoun, suggestRequest } from "../lib/pullRequests";
 import { Dialog } from "./Dialog";
 import { Loader } from "./Loader";
 import { MarkdownField } from "./MarkdownField";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
 
 interface Props {
   repoPath: string;
@@ -95,9 +97,9 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
   };
 
   const browserButton = browserUrl && (
-    <button className="secondary-button" onClick={() => openUrl(browserUrl)} disabled={running !== null} data-url={browserUrl}>
+    <Button kind="secondary" onClick={() => openUrl(browserUrl)} disabled={running !== null} data-url={browserUrl}>
       Open on {site} instead
-    </button>
+    </Button>
   );
 
   if (loadError) {
@@ -108,13 +110,13 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
         onCancel={onCancel}
         buttons={
           <>
-            <button className="secondary-button" onClick={onCancel}>
+            <Button kind="secondary" onClick={onCancel}>
               Close
-            </button>
+            </Button>
             {browserUrl && (
-              <button className="primary-small-button" onClick={() => openUrl(browserUrl)} data-url={browserUrl}>
+              <Button kind="primary" onClick={() => openUrl(browserUrl)} data-url={browserUrl}>
                 Open in the browser
-              </button>
+              </Button>
             )}
           </>
         }
@@ -136,12 +138,12 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
         <>
           {browserButton}
           <span className="spacer" />
-          <button className="secondary-button" onClick={onCancel} disabled={running !== null}>
+          <Button kind="secondary" onClick={onCancel} disabled={running !== null}>
             Cancel
-          </button>
-          <button className="primary-small-button" onClick={() => void create()} disabled={!canCreate}>
+          </Button>
+          <Button kind="primary" onClick={() => void create()} disabled={!canCreate}>
             {running === "push" ? `Pushing ${local}…` : running === "create" ? "Opening…" : `${willPush ? "Push and open" : "Open"} ${noun}`}
-          </button>
+          </Button>
         </>
       }
     >
@@ -171,12 +173,10 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
             </select>
             {info.commits.length > 0 && <span className="request-commits">{plural(info.commits.length, "commit")}</span>}
           </div>
-          <label className="field">
-            <span>Title</span>
+          <Field label="Title">
             <input className="text-input" value={title} onChange={(event) => setTitle(event.target.value)} autoFocus spellCheck />
-          </label>
-          <label className="field">
-            <span>Description</span>
+          </Field>
+          <Field label="Description">
             <MarkdownField
               className="request-body"
               rows={8}
@@ -184,7 +184,7 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
               onChange={(event) => setBody(event.target.value)}
               placeholder="What it changes and why, how to try it…"
             />
-          </label>
+          </Field>
           <label className="checkbox">
             <input type="checkbox" checked={draft} onChange={(event) => setDraft(event.target.checked)} />
             Draft: not ready for review yet
@@ -232,9 +232,9 @@ export function CreatePullRequestDialog({ repoPath, branch, local, checkedOut, b
               {info.forge === "github" ? (
                 <>
                   To open it from here, sign in to GitHub.{" "}
-                  <button type="button" className="link-button" onClick={signIn}>
+                  <Button type="button" kind="link" onClick={signIn}>
                     Sign in…
-                  </button>
+                  </Button>
                 </>
               ) : (
                 "Git has no token for this GitLab server yet (pushing or fetching once signs in): open it on GitLab instead."

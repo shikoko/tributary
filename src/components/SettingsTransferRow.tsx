@@ -6,6 +6,7 @@ import { loadRecent } from "../lib/recent";
 import { applySettings, collectSettings } from "../lib/settingsTransfer";
 import type { SettingRow } from "./SettingsDialog";
 import { SettingsRepositoryDialog } from "./SettingsRepositoryDialog";
+import { Button } from "./ui/Button";
 
 /** Every setting, as the JSON text that's exported. */
 const exportedText = () => JSON.stringify(collectSettings(localStorage), null, 2);
@@ -23,9 +24,9 @@ function RepositoryButton({ mode, notify }: { mode: "export" | "import"; notify:
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button className="outline-button" onClick={() => setOpen(true)}>
+      <Button kind="outline" onClick={() => setOpen(true)}>
         <span className="button-label">{mode === "export" ? "Export to a repository…" : "Import from a repository…"}</span>
-      </button>
+      </Button>
       {open && (
         <SettingsRepositoryDialog
           mode={mode}
@@ -78,9 +79,9 @@ export function settingsTransferRows(notify: (text: string) => void): SettingRow
       hint: "Appearance, columns, notices, and each repository's pinned, hidden and protected branches. No passwords or tokens.",
       content: (
         <div className="settings-buttons">
-          <button className="outline-button" onClick={() => void exportSettings()}>
+          <Button kind="outline" onClick={() => void exportSettings()}>
             <span className="button-label">Export to a file…</span>
-          </button>
+          </Button>
           <RepositoryButton mode="export" notify={notify} />
         </div>
       ),
@@ -91,9 +92,9 @@ export function settingsTransferRows(notify: (text: string) => void): SettingRow
       hint: "Exported here or on another computer. Tributary starts again with them.",
       content: (
         <div className="settings-buttons">
-          <button className="outline-button" onClick={() => void importSettings()}>
+          <Button kind="outline" onClick={() => void importSettings()}>
             <span className="button-label">Import from a file…</span>
-          </button>
+          </Button>
           <RepositoryButton mode="import" notify={notify} />
         </div>
       ),

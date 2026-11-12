@@ -8,6 +8,7 @@ import { FileLine } from "./FileLine";
 import { FileFilter, FileList } from "./FileList";
 import { CloseIcon, CompareIcon } from "./Icons";
 import { Loader } from "./Loader";
+import { Button } from "./ui/Button";
 
 interface Props {
   comparing: Comparing;
@@ -53,18 +54,18 @@ export function ComparePanel({ comparing, onOpenFile, isShown, onSelect, hasComm
         <header className="details-header">
           <span className="details-label">Compare</span>
           <span className="spacer" />
-          <button className="icon-button" onClick={comparing.close} title="Close (Esc)" aria-label="Close the comparison">
+          <Button kind="icon" onClick={comparing.close} title="Close (Esc)" aria-label="Close the comparison">
             <CloseIcon />
-          </button>
+          </Button>
         </header>
         <div className="details-scroll">
           <div className="compare-sides">
             <span className="compare-side mono" title={from.id}>
               {from.label}
             </span>
-            <button className="icon-button compare-swap" onClick={comparing.swap} title="Swap them" aria-label="Swap the two sides">
+            <Button kind="icon" className="compare-swap" onClick={comparing.swap} title="Swap them" aria-label="Swap the two sides">
               <CompareIcon size={14} />
-            </button>
+            </Button>
             <span className="compare-side mono to" title={to.id}>
               {to.label}
             </span>

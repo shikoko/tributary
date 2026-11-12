@@ -1155,6 +1155,17 @@ try {
     await reloaded;
   });
 
+  await step("shows the catalogue of the building blocks, in both themes", async () => {
+    await page.goto(`${preview.url}?catalogue`);
+    for (const theme of ["Dark", "Light"]) {
+      const inside = page.frameLocator(`iframe[title="${theme}"]`);
+      await inside.locator(".catalogue-section h2", { hasText: "Buttons" }).waitFor({ timeout: 10_000 });
+      expect((await inside.locator(".catalogue-icons > div").count()) > 50, `${theme}: the icons are missing`);
+      expect((await inside.locator(".catalogue-colour").count()) > 40, `${theme}: the colours are missing`);
+      expect((await inside.locator(".catalogue-row code", { hasText: "--type-sm" }).count()) === 1, `${theme}: the type scale is missing`);
+    }
+  });
+
   await step("had no errors on the page", async () => {
     expect(errors.length === 0, errors.join("; "));
   });

@@ -5,6 +5,7 @@ import { describeMeta, type MetaWarning } from "../../lib/unityMeta";
 import { plural } from "../../lib/format";
 import { baseName } from "../../lib/paths";
 import { modKey } from "../../lib/platform";
+import { Button } from "../ui/Button";
 
 export interface CommitDraft {
   summary: string;
@@ -207,9 +208,9 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
               </>
             )}
           </span>
-          <button className="link-button" onClick={() => setConfirmLarge(false)}>
+          <Button kind="link" onClick={() => setConfirmLarge(false)}>
             Cancel
-          </button>
+          </Button>
           <button className="danger-outline-button small" onClick={() => commit(true)}>
             Commit anyway
           </button>
@@ -225,8 +226,8 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
           />
           Amend last commit
         </label>
-        <button
-          className="primary-small-button"
+        <Button
+          kind="primary"
           onClick={() => commit()}
           disabled={!canCommit}
           title={
@@ -242,7 +243,7 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
             : draft.amend
               ? "Amend commit"
               : `Commit ${stagedCount > 0 ? plural(stagedCount, "file") : ""}`.trim()}
-        </button>
+        </Button>
       </div>
     </div>
   );

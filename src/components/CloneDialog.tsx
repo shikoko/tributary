@@ -7,6 +7,8 @@ import { AccountChips } from "./AccountChips";
 import { Dialog } from "./Dialog";
 import { ProgressBars, ProgressText } from "./ProgressStrip";
 import { YourRepositories } from "./YourRepositories";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
 
 interface Props {
   onCancel: () => void;
@@ -99,17 +101,17 @@ export function CloneDialog({ onCancel, onDone, accounts, onSignIn }: Props) {
       onCancel={onCancel}
       buttons={
         running ? (
-          <button className="secondary-button" onClick={() => cancelAction().catch(() => {})}>
+          <Button kind="secondary" onClick={() => cancelAction().catch(() => {})}>
             Cancel
-          </button>
+          </Button>
         ) : (
           <>
-            <button className="secondary-button" onClick={onCancel}>
+            <Button kind="secondary" onClick={onCancel}>
               Cancel
-            </button>
-            <button className="primary-small-button" onClick={clone} disabled={!url.trim() || !parent || !name.trim()}>
+            </Button>
+            <Button kind="primary" onClick={clone} disabled={!url.trim() || !parent || !name.trim()}>
               Clone
-            </button>
+            </Button>
           </>
         )
       }
@@ -122,8 +124,7 @@ export function CloneDialog({ onCancel, onDone, accounts, onSignIn }: Props) {
         }}
       >
         {signedIn ? (
-          <div className="field">
-            <span>Your repositories</span>
+          <Field group label="Your repositories">
             <YourRepositories
               accounts={accounts}
               picked={url.trim()}
@@ -134,7 +135,7 @@ export function CloneDialog({ onCancel, onDone, accounts, onSignIn }: Props) {
               }}
             />
             {!running && <AccountChips accounts={accounts} onSignIn={onSignIn} />}
-          </div>
+          </Field>
         ) : (
           !running && (
             <div className="field clone-sign-in">
@@ -143,8 +144,7 @@ export function CloneDialog({ onCancel, onDone, accounts, onSignIn }: Props) {
             </div>
           )
         )}
-        <label className="field">
-          <span>{signedIn ? "Or its address" : "Address"}</span>
+        <Field label={signedIn ? "Or its address" : "Address"}>
           <input
             className="text-input"
             value={url}
@@ -159,18 +159,16 @@ export function CloneDialog({ onCancel, onDone, accounts, onSignIn }: Props) {
             autoFocus={!signedIn}
             disabled={running}
           />
-        </label>
-        <div className="field">
-          <span>Into</span>
+        </Field>
+        <Field group label="Into">
           <div className="field-row">
             <input className="text-input" value={parent} readOnly placeholder="Choose a folder" onClick={choose} disabled={running} />
-            <button type="button" className="secondary-button" onClick={choose} disabled={running}>
+            <Button type="button" kind="secondary" onClick={choose} disabled={running}>
               Choose…
-            </button>
+            </Button>
           </div>
-        </div>
-        <label className="field">
-          <span>Folder name</span>
+        </Field>
+        <Field label="Folder name">
           <input
             className="text-input"
             value={name}
@@ -181,7 +179,7 @@ export function CloneDialog({ onCancel, onDone, accounts, onSignIn }: Props) {
             spellCheck={false}
             disabled={running}
           />
-        </label>
+        </Field>
         {parent && name.trim() && <p className="hint">The repository will be in {join(parent, name.trim())}</p>}
         <label className="checkbox clone-submodules">
           <input type="checkbox" checked={submodules} onChange={(event) => setSubmodules(event.target.checked)} disabled={running} />
@@ -195,8 +193,7 @@ export function CloneDialog({ onCancel, onDone, accounts, onSignIn }: Props) {
               Download Git LFS files later
             </label>
             <p className="hint checkbox-hint">They arrive as small pointer files. Download them all from Repository → Git LFS, or as you check out branches.</p>
-            <label className="field">
-              <span>Only these folders</span>
+            <Field label="Only these folders">
               <input
                 className="text-input"
                 value={folders}
@@ -206,12 +203,11 @@ export function CloneDialog({ onCancel, onDone, accounts, onSignIn }: Props) {
                 autoCapitalize="off"
                 autoCorrect="off"
               />
-            </label>
+            </Field>
             {parseFolders(folders).length > 0 && (
               <p className="hint">Other folders aren't checked out, and their files aren't downloaded. Files at the top are always there.</p>
             )}
-            <label className="field">
-              <span>History</span>
+            <Field label="History">
               <select
                 className="text-input"
                 value={depth ?? ""}
@@ -223,13 +219,13 @@ export function CloneDialog({ onCancel, onDone, accounts, onSignIn }: Props) {
                   </option>
                 ))}
               </select>
-            </label>
+            </Field>
           </fieldset>
         ) : (
           !running && (
-            <button type="button" className="link-button clone-options-toggle" onClick={() => setShowOptions(true)}>
+            <Button type="button" kind="link" className="clone-options-toggle" onClick={() => setShowOptions(true)}>
               Options for big repositories…
-            </button>
+            </Button>
           )
         )}
         {running && (

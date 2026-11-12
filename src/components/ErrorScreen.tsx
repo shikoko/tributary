@@ -7,6 +7,7 @@ import { formatDiagnostics } from "../lib/diagnostics";
 import { isMac, isWindows } from "../lib/platform";
 import { describeProblem, keepProblem } from "../lib/problems";
 import { openInBrowser } from "../lib/weblinks";
+import { Button } from "./ui/Button";
 
 /** The bug report form's System for this computer. */
 export const thisSystem = (): ReportSystem => (isMac ? "macOS" : isWindows ? "Windows" : "Linux (built from source)");
@@ -80,19 +81,19 @@ export function ErrorScreen({ problem, log }: { problem: string; log: string | n
         </p>
         <div className="error-screen-buttons">
           {log && (
-            <button className="secondary-button" onClick={() => void revealItemInDir(log).catch(() => {})}>
+            <Button kind="secondary" onClick={() => void revealItemInDir(log).catch(() => {})}>
               Show Problem Reports
-            </button>
+            </Button>
           )}
-          <button className="secondary-button" onClick={() => void copy()}>
+          <Button kind="secondary" onClick={() => void copy()}>
             {copied ? "Copied" : "Copy Details"}
-          </button>
-          <button className="secondary-button" onClick={() => void reportOnGitHub(problem)} title="A new bug report on GitHub, filled in, to read and send there">
+          </Button>
+          <Button kind="secondary" onClick={() => void reportOnGitHub(problem)} title="A new bug report on GitHub, filled in, to read and send there">
             Report on GitHub
-          </button>
-          <button className="primary-small-button" onClick={() => window.location.reload()} autoFocus>
+          </Button>
+          <Button kind="primary" onClick={() => window.location.reload()} autoFocus>
             Reload
-          </button>
+          </Button>
         </div>
       </div>
     </div>

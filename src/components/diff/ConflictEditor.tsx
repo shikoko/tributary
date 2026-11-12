@@ -5,6 +5,7 @@ import { plural } from "../../lib/format";
 import { highlightCode, languageFor, pieces } from "../../lib/syntax";
 import { LineText } from "./DiffLines";
 import { Loader } from "../Loader";
+import { Button } from "../ui/Button";
 
 interface Props {
   repoPath: string;
@@ -142,9 +143,9 @@ export function ConflictEditor({ repoPath, path, mine, theirs, version, run }: P
       <div className="diff-message">
         <strong>No conflicts left in this file</strong>
         <span className="muted">It looks resolved: stage it to mark it resolved.</span>
-        <button className="primary-small-button" onClick={() => void run({ kind: "stage", paths: [path] })}>
+        <Button kind="primary" onClick={() => void run({ kind: "stage", paths: [path] })}>
           Mark as resolved
-        </button>
+        </Button>
       </div>
     );
   }
@@ -159,21 +160,21 @@ export function ConflictEditor({ repoPath, path, mine, theirs, version, run }: P
           </strong>{" "}
           resolved
         </span>
-        <button className="link-button" onClick={() => chooseAll("ours")} title={`Keep ${mine}'s side of every conflict`}>
+        <Button kind="link" onClick={() => chooseAll("ours")} title={`Keep ${mine}'s side of every conflict`}>
           All mine
-        </button>
-        <button className="link-button" onClick={() => chooseAll("theirs")} title={`Take ${theirs}'s side of every conflict`}>
+        </Button>
+        <Button kind="link" onClick={() => chooseAll("theirs")} title={`Take ${theirs}'s side of every conflict`}>
           All theirs
-        </button>
+        </Button>
         <span className="spacer" />
-        <button
-          className="primary-small-button"
+        <Button
+          kind="primary"
           disabled={result === null || saving}
           onClick={() => void save()}
           title={result === null ? "Choose a side for every conflict first" : "Save the file and stage it"}
         >
           {saving ? "Saving…" : "Save and mark resolved"}
-        </button>
+        </Button>
       </div>
       <div className="conflict-segments">
         {segments.map((segment, segmentIndex) => {
@@ -296,18 +297,18 @@ function ConflictCard({ conflict, number, count, mine, theirs, choice, onChoose,
             aria-label={`Conflict ${number}, as it should be`}
           />
           <div className="conflict-edit-actions">
-            <button className="outline-button" onClick={() => onEdit(null)}>
+            <Button kind="outline" onClick={() => onEdit(null)}>
               <span className="button-label">Cancel</span>
-            </button>
-            <button
-              className="primary-small-button"
+            </Button>
+            <Button
+              kind="primary"
               onClick={() => {
                 onChoose({ text: editing });
                 onEdit(null);
               }}
             >
               Use this
-            </button>
+            </Button>
           </div>
         </div>
       ) : choice !== undefined ? (
@@ -330,9 +331,9 @@ function ConflictCard({ conflict, number, count, mine, theirs, choice, onChoose,
       )}
       {conflict.base !== null && editing === null && choice === undefined && (
         <div className="conflict-base">
-          <button className="link-button" onClick={() => setShowBase(!showBase)} aria-expanded={showBase}>
+          <Button kind="link" onClick={() => setShowBase(!showBase)} aria-expanded={showBase}>
             {showBase ? "Hide" : "Show"} what it was before either change
-          </button>
+          </Button>
           {showBase && <pre>{sideText(conflict.base)}</pre>}
         </div>
       )}

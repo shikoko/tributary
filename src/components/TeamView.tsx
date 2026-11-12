@@ -6,6 +6,7 @@ import { CloseIcon, UserIcon } from "./Icons";
 import { useTip, type TeamData } from "./team/parts";
 import { TeamCards } from "./team/TeamCards";
 import { Loader } from "./Loader";
+import { Button } from "./ui/Button";
 
 const PERIODS = [7, 14, 30];
 
@@ -140,9 +141,9 @@ export function TeamView({ repoPath, version, user, locks, overlaps, onClose, on
             </button>
           ))}
         </div>
-        <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close team activity">
+        <Button kind="icon" onClick={onClose} title="Close (Esc)" aria-label="Close team activity">
           <CloseIcon />
-        </button>
+        </Button>
       </header>
       <div className="diff-body team-body" ref={layer} onScroll={tip.hide}>
         {error ? (

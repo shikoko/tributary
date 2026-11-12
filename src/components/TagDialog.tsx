@@ -2,6 +2,8 @@ import { useState } from "react";
 import { runAction, type CommitRow } from "../api";
 import { shortId } from "../lib/format";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
 
 interface Props {
   repoPath: string;
@@ -54,12 +56,12 @@ export function TagDialog({ repoPath, target, remote, onCancel, onDone }: Props)
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running}>
+          <Button kind="secondary" onClick={onCancel} disabled={running}>
             Cancel
-          </button>
-          <button className="primary-small-button" onClick={create} disabled={running || !name.trim()}>
+          </Button>
+          <Button kind="primary" onClick={create} disabled={running || !name.trim()}>
             {running ? "Creating…" : "Create tag"}
-          </button>
+          </Button>
         </>
       }
     >
@@ -73,8 +75,7 @@ export function TagDialog({ repoPath, target, remote, onCancel, onDone }: Props)
           create();
         }}
       >
-        <label className="field">
-          <span>Name</span>
+        <Field label="Name">
           <input
             className="text-input"
             value={name}
@@ -88,9 +89,8 @@ export function TagDialog({ repoPath, target, remote, onCancel, onDone }: Props)
             autoCorrect="off"
             autoFocus
           />
-        </label>
-        <label className="field">
-          <span>Message (optional)</span>
+        </Field>
+        <Field label="Message (optional)">
           <textarea
             className="text-input"
             rows={3}
@@ -98,7 +98,7 @@ export function TagDialog({ repoPath, target, remote, onCancel, onDone }: Props)
             onChange={(event) => setMessage(event.target.value)}
             placeholder="With a message, the tag is annotated: it records who made it and when."
           />
-        </label>
+        </Field>
         {remote && (
           <label className="checkbox">
             <input type="checkbox" checked={push} onChange={(event) => setPush(event.target.checked)} />

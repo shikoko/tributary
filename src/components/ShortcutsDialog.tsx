@@ -1,5 +1,6 @@
 import { isMac, modKey } from "../lib/platform";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
 
 const SHORTCUTS: [string, string][] = [
   [`${modKey}K`, "Command palette"],
@@ -38,9 +39,9 @@ export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
       title="Keyboard shortcuts"
       onCancel={onClose}
       buttons={
-        <button className="secondary-button" onClick={onClose} autoFocus>
+        <Button kind="secondary" onClick={onClose} autoFocus>
           Close
-        </button>
+        </Button>
       }
     >
       <table className="shortcuts">

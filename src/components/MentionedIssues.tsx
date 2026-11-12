@@ -4,6 +4,7 @@ import { issueKeys, issueUrl, useIssueTracker } from "../lib/issues";
 import { PullRequestsContext } from "../lib/pullRequests";
 import { openInBrowser } from "../lib/weblinks";
 import { PullRequestIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 /** Issues already looked up, by tracker and key. */
 const known = new Map<string, Issue | null>();
@@ -60,9 +61,9 @@ export function MentionedIssues({ text }: { text: string }) {
         const request = requests ? requestFor(key, issue, number ? requests.byNumber(Number(number)) : undefined, tracker, remote) : null;
         return (
           <li key={key} className={`mentioned-issue${issue?.done ? " done" : ""}`}>
-            <button className="link-button mentioned-issue-key mono" onClick={() => url && openInBrowser(url)} disabled={!url} data-url={url ?? undefined}>
+            <Button kind="link" className="mentioned-issue-key mono" onClick={() => url && openInBrowser(url)} disabled={!url} data-url={url ?? undefined}>
               {key}
-            </button>
+            </Button>
             {issue && <span className="mentioned-issue-title">{issue.title}</span>}
             {issue?.status && <span className="mentioned-issue-status">{issue.status}</span>}
             {request && requests && (

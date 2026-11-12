@@ -2,6 +2,7 @@ import type { LfsHealth } from "../api";
 import { baseName } from "../lib/paths";
 import { plural } from "../lib/format";
 import { CloseIcon, WarningIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 interface Props {
   health: LfsHealth;
@@ -53,9 +54,9 @@ export function LfsHealthBanner({ health, busy, onDownload, onSetUp, onGetLfs, o
           Download them
         </button>
       )}
-      <button className="icon-button" onClick={onDismiss} aria-label="Dismiss" title="Dismiss">
+      <Button kind="icon" onClick={onDismiss} aria-label="Dismiss" title="Dismiss">
         <CloseIcon size={14} />
-      </button>
+      </Button>
     </div>
   );
 }

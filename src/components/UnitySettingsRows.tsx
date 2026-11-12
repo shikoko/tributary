@@ -2,6 +2,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import { unitySetup, type Action, type UnitySetup } from "../api";
 import type { SettingRow } from "./SettingsDialog";
+import { Button } from "./ui/Button";
 
 /** "Unity 2022.3.10f1", from the editor's folder in a UnityYAMLMerge path, or the path. */
 export function toolLabel(tool: string): string {
@@ -56,9 +57,9 @@ export function useUnityRows(path: string, run: (action: Action) => Promise<bool
         ? `${setup.configuredTool ? `With ${toolLabel(setup.configuredTool)}. ` : ""}Conflicts in them mostly resolve by themselves.`
         : `Unity's Smart Merge merges them by what changed in them (objects and their properties), so most conflicts resolve by themselves.${setup.editorVersion ? ` This project uses Unity ${setup.editorVersion}.` : ""}`,
       content: setup.configured ? (
-        <button className="outline-button" onClick={() => apply({ kind: "removeUnityMerge" })} disabled={busy}>
+        <Button kind="outline" onClick={() => apply({ kind: "removeUnityMerge" })} disabled={busy}>
           <span className="button-label">Turn off</span>
-        </button>
+        </Button>
       ) : null,
     },
   ];
@@ -77,9 +78,9 @@ export function useUnityRows(path: string, run: (action: Action) => Promise<bool
             ))}
           </select>
         )}
-        <button className="outline-button" onClick={() => void choose()} disabled={busy}>
+        <Button kind="outline" onClick={() => void choose()} disabled={busy}>
           <span className="button-label">Choose…</span>
-        </button>
+        </Button>
       </div>
     ),
   });
@@ -89,8 +90,8 @@ export function useUnityRows(path: string, run: (action: Action) => Promise<bool
       label: "",
       hint: "Only for this repository on this computer: the files your team shares don't change.",
       content: (
-        <button
-          className="primary-small-button"
+        <Button
+          kind="primary"
           disabled={busy || !tool}
           onClick={async () => {
             await apply({ kind: "setUpUnityMerge", tool: tool! });
@@ -98,7 +99,7 @@ export function useUnityRows(path: string, run: (action: Action) => Promise<bool
           }}
         >
           {setup.configured ? "Use this one" : "Set up Smart Merge"}
-        </button>
+        </Button>
       ),
     });
   }

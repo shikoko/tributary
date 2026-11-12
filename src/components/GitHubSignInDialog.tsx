@@ -2,6 +2,8 @@ import { useState } from "react";
 import { signInToGitHub, signInToGitHubWithBrowser, type GitHubAccount, type GitHubStatus } from "../api";
 import { openInBrowser } from "../lib/weblinks";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
 
 /** GitHub's page for making a classic token that can read and push private repositories. */
 export const NEW_TOKEN_URL = "https://github.com/settings/tokens/new?description=Tributary&scopes=repo";
@@ -39,12 +41,12 @@ export function GitHubSignInDialog({ status, onCancel, onDone }: Props) {
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running !== null}>
+          <Button kind="secondary" onClick={onCancel} disabled={running !== null}>
             Cancel
-          </button>
-          <button className="primary-small-button" onClick={() => signIn("token")} disabled={running !== null || !token.trim()}>
+          </Button>
+          <Button kind="primary" onClick={() => signIn("token")} disabled={running !== null || !token.trim()}>
             {running === "token" ? "Checking…" : "Sign in"}
-          </button>
+          </Button>
         </>
       }
     >
@@ -54,9 +56,9 @@ export function GitHubSignInDialog({ status, onCancel, onDone }: Props) {
       </p>
       {status?.browserSignIn && (
         <div className="sign-in-browser">
-          <button className="outline-button" onClick={() => signIn("browser")} disabled={running !== null}>
+          <Button kind="outline" onClick={() => signIn("browser")} disabled={running !== null}>
             <span className="button-label">{running === "browser" ? "Waiting for the browser…" : "Sign in with browser"}</span>
-          </button>
+          </Button>
           <span className="hint">With Git Credential Manager.</span>
         </div>
       )}
@@ -67,8 +69,7 @@ export function GitHubSignInDialog({ status, onCancel, onDone }: Props) {
           signIn("token");
         }}
       >
-        <label className="field">
-          <span>{status?.browserSignIn ? "Or a personal access token" : "Personal access token"}</span>
+        <Field label={status?.browserSignIn ? "Or a personal access token" : "Personal access token"}>
           <input
             className="text-input"
             type="password"
@@ -85,20 +86,20 @@ export function GitHubSignInDialog({ status, onCancel, onDone }: Props) {
             autoFocus={!status?.browserSignIn}
             disabled={running !== null}
           />
-        </label>
+        </Field>
         <p className="hint">
-          <button type="button" className="link-button" onClick={() => openInBrowser(NEW_TOKEN_URL)} data-url={NEW_TOKEN_URL}>
+          <Button type="button" kind="link" onClick={() => openInBrowser(NEW_TOKEN_URL)} data-url={NEW_TOKEN_URL}>
             Make a token on GitHub
-          </button>{" "}
+          </Button>{" "}
           with the “repo” scope. A fine-grained token works too, with read and write access to contents and read access to pull
           requests and commit statuses.
         </p>
         {status && !status.canKeepToken && (
           <p className="hint warning">
             Git has no credential helper, so there's nowhere safe to keep a token.{" "}
-            <button type="button" className="link-button" onClick={() => openInBrowser(CREDENTIAL_MANAGER_URL)} data-url={CREDENTIAL_MANAGER_URL}>
+            <Button type="button" kind="link" onClick={() => openInBrowser(CREDENTIAL_MANAGER_URL)} data-url={CREDENTIAL_MANAGER_URL}>
               Install Git Credential Manager
-            </button>{" "}
+            </Button>{" "}
             first.
           </p>
         )}

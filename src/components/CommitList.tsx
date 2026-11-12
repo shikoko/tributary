@@ -12,6 +12,7 @@ import { ListHeader } from "./commitList/ListHeader";
 import { DaySeparator, ListRow, type RowHandlers } from "./commitList/ListRow";
 import { CommitPreview } from "./CommitPreview";
 import { Loader } from "./Loader";
+import { Button } from "./ui/Button";
 
 export { DEFAULT_COLUMNS, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
 
@@ -315,9 +316,9 @@ export function CommitList(props: Props) {
               {snapshot.truncated && (
                 <div className="list-footer" style={{ top: slots.length * rowHeight, height: FOOTER_HEIGHT }}>
                   <span>Showing the {commits.length.toLocaleString()} most recent commits.</span>
-                  <button className="tool-button" onClick={onLoadMore} disabled={loadingMore}>
+                  <Button kind="tool" onClick={onLoadMore} disabled={loadingMore}>
                     {loadingMore ? <Loader inline size={18} title="Loading…" /> : `Load ${PAGE_SIZE.toLocaleString()} more`}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>

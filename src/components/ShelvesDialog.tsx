@@ -5,6 +5,7 @@ import { baseName, folderOf } from "../lib/paths";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
 import { ShelfIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 interface Props {
   repoPath: string;
@@ -90,9 +91,9 @@ export function ShelvesDialog({ repoPath, status, paths, head, canChange, run, o
       className="shelves-dialog"
       onCancel={onClose}
       buttons={
-        <button className="secondary-button" onClick={onClose}>
+        <Button kind="secondary" onClick={onClose}>
           Close
-        </button>
+        </Button>
       }
     >
       <p className="dialog-note-line">
@@ -134,17 +135,17 @@ export function ShelvesDialog({ repoPath, status, paths, head, canChange, run, o
               Keep them in my copy too
             </label>
             <span className="spacer" />
-            <button
+            <Button
               type="button"
-              className="link-button"
+              kind="link"
               onClick={() => setChosen(new Set(chosen.size === files.length ? [] : files.map((file) => file.path)))}
             >
               {chosen.size === files.length ? "Select none" : "Select all"}
-            </button>
-            <button type="submit" className="primary-small-button" disabled={picked.length === 0 || !description.trim()}>
+            </Button>
+            <Button type="submit" kind="primary" disabled={picked.length === 0 || !description.trim()}>
               <ShelfIcon size={13} />
               Shelve {plural(picked.length, "file")}
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -177,9 +178,9 @@ export function ShelvesDialog({ repoPath, status, paths, head, canChange, run, o
                       </>
                     )}
                     {" · "}
-                    <button className="link-button shelf-files-toggle" onClick={() => setOpen(expanded ? null : shelf.reference)} aria-expanded={expanded}>
+                    <Button kind="link" className="shelf-files-toggle" onClick={() => setOpen(expanded ? null : shelf.reference)} aria-expanded={expanded}>
                       {plural(shelf.files.length, "file")}
-                    </button>
+                    </Button>
                   </span>
                   {expanded && (
                     <ul className="shelf-files">
@@ -194,8 +195,8 @@ export function ShelvesDialog({ repoPath, status, paths, head, canChange, run, o
                   )}
                 </div>
                 <div className="shelf-buttons">
-                  <button
-                    className="outline-button"
+                  <Button
+                    kind="outline"
                     disabled={!canChange}
                     title={canChange ? "Take its files into your copy, as they were shelved" : undefined}
                     onClick={() => {
@@ -204,15 +205,15 @@ export function ShelvesDialog({ repoPath, status, paths, head, canChange, run, o
                     }}
                   >
                     <span className="button-label">Open</span>
-                  </button>
-                  <button
-                    className={`outline-button${deleting === shelf.reference ? " danger" : ""}`}
+                  </Button>
+                  <Button
+                    kind="outline" className={deleting === shelf.reference ? "danger" : undefined}
                     onClick={() => void remove(shelf)}
                     onBlur={() => deleting === shelf.reference && setDeleting(null)}
                     title={shelf.mine ? "Delete it, for everyone" : `Delete ${shelf.author}'s shelf, for everyone`}
                   >
                     <span className="button-label">{deleting === shelf.reference ? (shelf.mine ? "Delete it?" : `Delete ${shelf.author.split(" ")[0]}'s?`) : "Delete"}</span>
-                  </button>
+                  </Button>
                 </div>
               </li>
             );

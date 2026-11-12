@@ -151,6 +151,11 @@
 .secondary-button,
 .danger-button,
 .danger-outline-button {
+  /* Room for an icon before the label, as every kind of button has. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   height: 32px;
   padding: 0 14px;
   border-radius: var(--radius-md);
@@ -278,6 +283,10 @@
 }
 
 .primary-small-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   height: 32px;
   padding: 0 14px;
   border: none;

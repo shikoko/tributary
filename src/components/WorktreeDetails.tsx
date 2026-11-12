@@ -11,6 +11,7 @@ import { CommitBox, type CommitDraft } from "./worktree/CommitBox";
 import { ConflictList } from "./worktree/ConflictList";
 import { ElsewhereWarning } from "./worktree/ElsewhereWarning";
 import { FileSection } from "./worktree/FileSection";
+import { Button } from "./ui/Button";
 
 export { EMPTY_DRAFT, type CommitDraft } from "./worktree/CommitBox";
 export { lfsPattern } from "./worktree/ChangeWarnings";
@@ -86,18 +87,18 @@ export function WorktreeDetailsPanel(props: Props) {
         <header className="details-header">
           <span className="details-label">Working tree</span>
           <span className="spacer" />
-          <button className="icon-button" onClick={props.onShelve} disabled={busy} title="Shelve changes for the team…" aria-label="Shelve changes">
+          <Button kind="icon" onClick={props.onShelve} disabled={busy} title="Shelve changes for the team…" aria-label="Shelve changes">
             <ShelfIcon />
-          </button>
-          <button className="icon-button" onClick={props.onStash} disabled={busy} title="Stash changes…" aria-label="Stash changes">
+          </Button>
+          <Button kind="icon" onClick={props.onStash} disabled={busy} title="Stash changes…" aria-label="Stash changes">
             <StashIcon />
-          </button>
-          <button className="icon-button" onClick={props.onDiscard} disabled={busy || !snapshot.headCommit} title="Discard all changes…" aria-label="Discard all changes">
+          </Button>
+          <Button kind="icon" onClick={props.onDiscard} disabled={busy || !snapshot.headCommit} title="Discard all changes…" aria-label="Discard all changes">
             <TrashIcon />
-          </button>
-          <button className="icon-button" onClick={props.onClose} title="Close (Esc)" aria-label="Close details">
+          </Button>
+          <Button kind="icon" onClick={props.onClose} title="Close (Esc)" aria-label="Close details">
             <CloseIcon />
-          </button>
+          </Button>
         </header>
 
         <div className="details-scroll worktree">

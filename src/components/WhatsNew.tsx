@@ -17,6 +17,7 @@ import {
   TeamIcon,
   ViewIcon,
 } from "./Icons";
+import { Button } from "./ui/Button";
 
 const ICONS: Record<WhatsNewIcon, (size: number) => ReactNode> = {
   lfs: (size) => <DownloadIcon size={size} />,
@@ -99,13 +100,13 @@ export function WhatsNewDialog({ releases, onClose }: { releases: Release[]; onC
           </span>
           <span className="spacer" />
           {at > 0 && (
-            <button className="secondary-button" onClick={() => setAt(at - 1)}>
+            <Button kind="secondary" onClick={() => setAt(at - 1)}>
               Back
-            </button>
+            </Button>
           )}
-          <button className="primary-small-button" onClick={() => (last ? onClose() : setAt(at + 1))} autoFocus>
+          <Button kind="primary" onClick={() => (last ? onClose() : setAt(at + 1))} autoFocus>
             {last ? "Got it" : "Next"}
-          </button>
+          </Button>
         </>
       }
     >

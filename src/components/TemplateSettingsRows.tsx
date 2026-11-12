@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { commitTemplate, type Action, type CommitTemplate } from "../api";
 import { TEMPLATE_CHANGED } from "./worktree/CommitBox";
 import type { SettingRow } from "./SettingsDialog";
+import { Button } from "./ui/Button";
 
 /**
  * The message new commits start from here: git's commit.template. A team's shared one shows
@@ -55,13 +56,13 @@ export function useTemplateRows(path: string, run: (action: Action) => Promise<b
       label: "",
       content: (
         <span className="settings-buttons">
-          <button className="primary-small-button" onClick={() => save(text)} disabled={saving || !changed || !text.trim()}>
+          <Button kind="primary" onClick={() => save(text)} disabled={saving || !changed || !text.trim()}>
             Save template
-          </button>
+          </Button>
           {template?.ours && (
-            <button className="outline-button" onClick={() => save("")} disabled={saving}>
+            <Button kind="outline" onClick={() => save("")} disabled={saving}>
               <span className="button-label">Remove</span>
-            </button>
+            </Button>
           )}
         </span>
       ),

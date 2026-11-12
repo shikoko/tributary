@@ -3,6 +3,7 @@ import { useThemeColors } from "../app/useAppearance";
 import { withAlpha } from "../lib/colors";
 import { shownStops, type Tour, type TourId } from "../lib/tours";
 import { DownloadIcon, RevertIcon, SparkleIcon, TeamIcon, ViewIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 /** Each tour's picture, and its graph colour (by place in the palette). */
 export const TOUR_LOOKS: Record<TourId, { icon: (size: number) => ReactNode; lane: number }> = {
@@ -207,22 +208,22 @@ export function TourOverlay({ tour, onClose, onNever }: Props) {
         <h3>{stop.title}</h3>
         <p>{stop.text}</p>
         <div className="tour-buttons">
-          <button className="link-button tour-skip" onClick={onClose}>
+          <Button kind="link" className="tour-skip" onClick={onClose}>
             {last ? "Close" : "Skip tour"}
-          </button>
+          </Button>
           <span className="spacer" />
           {at > 0 && (
-            <button className="secondary-button" onClick={() => setAt(at - 1)}>
+            <Button kind="secondary" onClick={() => setAt(at - 1)}>
               Back
-            </button>
+            </Button>
           )}
-          <button className="primary-small-button" onClick={() => (last ? onClose() : setAt(at + 1))} autoFocus>
+          <Button kind="primary" onClick={() => (last ? onClose() : setAt(at + 1))} autoFocus>
             {last ? "Done" : "Next"}
-          </button>
+          </Button>
         </div>
-        <button className="link-button tour-never" onClick={onNever}>
+        <Button kind="link" className="tour-never" onClick={onNever}>
           Don't show tours again
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -247,15 +248,15 @@ export function TourOffer({ tour, onStart, onLater, onNever }: { tour: Tour; onS
           {tour.summary}, in {tour.stops.length} stops (about {minutes} minute{minutes === 1 ? "" : "s"}).
         </span>
         <div className="tour-offer-buttons">
-          <button className="primary-small-button" onClick={onStart}>
+          <Button kind="primary" onClick={onStart}>
             Show me
-          </button>
-          <button className="secondary-button" onClick={onLater}>
+          </Button>
+          <Button kind="secondary" onClick={onLater}>
             Not now
-          </button>
-          <button className="link-button" onClick={onNever}>
+          </Button>
+          <Button kind="link" onClick={onNever}>
             Don't show tours again
-          </button>
+          </Button>
         </div>
       </div>
     </div>

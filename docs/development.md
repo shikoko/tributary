@@ -51,6 +51,12 @@ The pictures in this README are taken the same way, from the demos. After changi
 npm run preview:screenshots
 ```
 
+### The catalogue
+
+The app's building blocks are on one page: the type scale, the corners, every colour of the theme, the graph's lane colours, each kind of button in its sizes, switches, fields, chips and every icon, dark and light side by side. Open the app with `?catalogue` added to its address, in the browser preview (<http://127.0.0.1:4173/?catalogue>) or with `npm run dev` (<http://localhost:1420/?catalogue>); `?catalogue&theme=light` (or `dark`) shows one theme. It reads the tokens from the stylesheets, so it's always complete, and it's only loaded when asked for. The smoke test opens it in both themes.
+
+When you make something, start from the parts in `src/components/ui`: `Button` (with its `kind`: primary, secondary, outline, danger, link, icon or tool, and a `size` where the kind has one), `Switch`, `Field` and `Chip`, and the steps in `theme.css` for sizes and corners. If the catalogue shows two things that should match but don't, that's worth fixing.
+
 ## Build installers for your platform
 
 ```bash
@@ -214,6 +220,8 @@ npm run notices
 | `src/api/` | The commands the frontend calls, one file per area; the shapes of what they take and give back are in `generated.ts`, made from the Rust types (see [Test](#test)) |
 | `src/menus/` | The right-click menus of commits, branch and tag labels and the sidebar |
 | `src/components/` | The interface: the commit list (only the rows on screen are rendered; its layout, header, rows and canvases in `commitList/`), the sidebar (`sidebar/`), the changes panel (`worktree/`), the details panel, the dialogs, … |
+| `src/components/ui/` | The parts the interface is built from: `Button`, `Switch`, `Field` and `Chip` |
+| `src/catalogue/` | The catalogue page (`?catalogue`): the building blocks together, dark and light |
 | `src/lib/` | Logic without an interface (search, selection, undo, paths, diagnostics, …), with its tests |
 | `src/styles/` | The styles, an area per file, applied in the order `src/styles.css` lists them. `theme.css` holds the colours and themes, and the scales for text (`--type-xs` to `--type-4xl`) and corners (`--radius-xs` to `--radius-pill`): sizes and corners use those steps, never their own pixels, which a test checks (`src/lib/styles.test.ts`) |
 | `tools/preview/` | The browser preview, demo repositories and the smoke test |
