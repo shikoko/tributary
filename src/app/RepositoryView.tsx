@@ -241,8 +241,8 @@ export function RepositoryView(props: Props) {
   const notLoaded = () => props.notify({ text: "That commit isn't loaded: load more commits, or fetch" });
   /** The status bar's "changed elsewhere": the branches, and your files on each. */
   const [elsewhereAt, setElsewhereAt] = useState<HTMLElement | null>(null);
-  // The commit of the branch whose label the pointer is on: its lane lights up in the graph.
-  const [laneTip, hoverLane] = useLaneHover();
+  // The branch or tag label the pointer is on: its lanes light up in the graph.
+  const [laneLabel, hoverLane] = useLaneHover();
   const showBranch = (branch: string) => {
     const tip = snapshot.commits.find((commit) => commit.refs.some((ref) => (ref.kind === "branch" || ref.kind === "remote") && ref.name === branch));
     if (!tip) return notLoaded();
@@ -466,7 +466,7 @@ export function RepositoryView(props: Props) {
               }}
               onLoadMore={() => repo.load(snapshot.path, "more", snapshot.commits.length + PAGE_SIZE)}
               loadingMore={repo.busy?.kind === "more"}
-              laneTip={laneTip}
+              laneLabel={laneLabel}
               onLaneHover={hoverLane}
             />
             <ListOverlays

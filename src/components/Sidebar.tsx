@@ -3,6 +3,7 @@ import type { BranchSync } from "../lib/branchSync";
 import type { Stacked } from "../api";
 import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Submodule, type Visibility, type Worktree } from "../api";
 import { stepFocus } from "../lib/inputMode";
+import type { LaneLabel } from "../lib/lanes";
 import type { RefEntry } from "../lib/refs";
 import { useStoredState } from "../lib/settings";
 import { BranchIcon, BroomIcon, CloudIcon, EyeOffIcon, GearIcon, PinIcon, PlusIcon, SearchIcon, StashIcon, TagIcon, UnlockIcon } from "./Icons";
@@ -31,8 +32,8 @@ interface Props {
   onFocus: (entry: RefEntry) => void;
   /** The eye button: hide or show the entry in the graph. */
   onToggleVisible: (entry: RefEntry) => void;
-  /** The pointer is on a branch (its commit), or has left it (null): its lane lights up. */
-  onLaneHover: (commitId: string | null) => void;
+  /** The pointer is on a branch or tag, or has left it (null): its lanes light up. */
+  onLaneHover: (label: LaneLabel | null) => void;
   /** Show every branch again. */
   onShowAll: () => void;
   /** Open the prune branches dialog (null while that can't be done). */

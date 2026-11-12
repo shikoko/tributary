@@ -6,7 +6,7 @@ import { onLabelDrop } from "../lib/drag";
 import type { RefPill } from "../lib/refs";
 import type { SelectHow } from "../lib/selection";
 import { ThemeContext } from "../app/useAppearance";
-import { laneOf } from "../lib/lanes";
+import { lanesOf, laneTips, type LaneLabel } from "../lib/lanes";
 import { marksNear, scrollMarks, useGraphCanvas, useScrollMarkers } from "./commitList/canvases";
 import { DENSE_ROW_HEIGHT, FOOTER_HEIGHT, GRAPH_PADDING, laneWidthFor, ROW_HEIGHT, useColumnLayout, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
 import { ListHeader } from "./commitList/ListHeader";
@@ -61,10 +61,10 @@ interface Props {
   onScrollChange: (scrollTop: number) => void;
   onLoadMore: () => void;
   loadingMore: boolean;
-  /** The pointer is on a label of the branch at this commit, in the sidebar or the graph: its lane lights up. */
-  laneTip: string | null;
-  /** The pointer is on one of a commit's labels in the graph, or has left them (null). */
-  onLaneHover: (commitId: string | null) => void;
+  /** The pointer is on this branch or tag label, in the sidebar or the graph: its lanes light up. */
+  laneLabel: LaneLabel | null;
+  /** The pointer is on a branch or tag label in the graph, or has left it (null). */
+  onLaneHover: (label: LaneLabel | null) => void;
 }
 
 /**
@@ -168,10 +168,12 @@ export function CommitList(props: Props) {
     if (focusIds === null) return matchIds;
     return new Set([...matchIds].filter((id) => focusIds.has(id)));
   }, [matchIds, focusIds]);
-  // The lane of the branch whose label the pointer is on: it lights up, the rest fades.
-  const laneTip = props.laneTip;
-  const lane = useMemo(() => (laneTip ? laneOf(commits, indexById, laneTip) : null), [laneTip, commits, indexById]);
-  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: brightIds, colors, curves, laneWidth, avatars, lane });
+  // The lanes of the branch whose label the pointer is on, from where it is and where its
+  // copies on remotes are: they light up, the rest fades.
+  const laneLabel = props.laneLabel;
+  const tipIds = useMemo(() => (laneLabel ? laneTips(commits, laneLabel) : []), [laneLabel, commits]);
+  const litLanes = useMemo(() => lanesOf(commits, indexById, tipIds), [commits, indexById, tipIds]);
+  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: brightIds, colors, curves, laneWidth, avatars, litLanes });
   const marked = useMemo(() => selectedIds ?? new Set(selectedId ? [selectedId] : []), [selectedIds, selectedId]);
   const marks = useMemo(
     () => scrollMarks({ commits, slotOf, indexById, rowHeight, contentHeight, height: viewport.height, matchIds, headId: headCommit, selectedIds: marked, colors }),
@@ -180,9 +182,13 @@ export function CommitList(props: Props) {
   // The pointer on the marks beside the scrollbar: they stand out, and a card says what they are.
   const [markAt, setMarkAt] = useState<{ y: number; strip: { top: number; right: number; bottom: number; width: number } } | null>(null);
   const near = useMemo(() => (markAt ? marksNear(marks, markAt.y) : []), [marks, markAt]);
-  // The lit branch's tip lights up beside the scrollbar too.
-  const tipIndex = laneTip ? (indexById.get(laneTip) ?? -1) : -1;
-  const tipMarks = useMemo(() => marks.filter((mark) => mark.index === tipIndex), [marks, tipIndex]);
+  // The lit branch's tips light up beside the scrollbar too (not those the pointer is on,
+  // which MarkHover lights).
+  const tipMarks = useMemo(() => {
+    const tips = new Set(tipIds.map((id) => indexById.get(id)));
+    const pointedAt = new Set(near.map((mark) => mark.index));
+    return marks.filter((mark) => tips.has(mark.index) && !pointedAt.has(mark.index));
+  }, [marks, tipIds, indexById, near]);
   const lit = useMemo(() => new Set([...near, ...tipMarks].map((mark) => mark.index)), [near, tipMarks]);
   useScrollMarkers(markerCanvas, marks, viewport, lit);
   const body = useRef<HTMLDivElement>(null);
@@ -292,7 +298,7 @@ export function CommitList(props: Props) {
         authorNode={avatars && commit.kind === "commit" && commit.parents.length <= 1}
         head={commit.id === headCommit}
         dimmed={brightIds !== null && !brightIds.has(commit.id)}
-        lit={Boolean(lane?.ids.has(commit.id))}
+        lit={litLanes.some((lane) => lane.ids.has(commit.id))}
         handlers={handlers}
       />,
     );
@@ -300,7 +306,7 @@ export function CommitList(props: Props) {
 
   return (
     <section
-      className={`commit-list${dense ? " dense" : ""}${layout.graphGrowing ? " graph-growing" : ""}${lane ? " lane-lit" : ""}`}
+      className={`commit-list${dense ? " dense" : ""}${layout.graphGrowing ? " graph-growing" : ""}${litLanes.length > 0 ? " lane-lit" : ""}`}
       aria-label="Commits"
       // The rows' columns: set here, so a new width restyles the rows without re-rendering them.
       style={{ ["--list-columns" as string]: columns, ["--refs-width" as string]: `${refsWidth}px`, ["--graph-width" as string]: `${graphWidth}px` }}
@@ -368,9 +374,11 @@ export function CommitList(props: Props) {
         </div>
       </div>
       {preview && <CommitPreview commit={preview.commit} x={preview.x} y={preview.y} loadDetails={props.loadDetails} />}
-      {tipStrip && tipMarks.length > 0 && !near.some((mark) => mark.index === tipIndex) && (
-        <MarkGlow color={tipMarks[0].color} rect={glowRect(tipMarks, tipStrip.width)} strip={tipStrip} />
-      )}
+      {tipStrip &&
+        [...new Set(tipMarks.map((mark) => mark.index))].map((index) => {
+          const own = tipMarks.filter((mark) => mark.index === index);
+          return <MarkGlow key={index} color={own[0].color} rect={glowRect(own, tipStrip.width)} strip={tipStrip} />;
+        })}
       {markAt && near.length > 0 && <MarkHover near={near} strip={markAt.strip} commits={commits} headBranch={snapshot.headBranch} />}
     </section>
   );

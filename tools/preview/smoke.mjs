@@ -559,6 +559,11 @@ try {
     expect((await page.locator(".mark-glow").count()) > 0, "the branch's mark doesn't light up");
     await page.locator(".commit-row .summary").first().hover();
     await page.locator(".commit-list.lane-lit").waitFor({ state: "detached", timeout: 5000 });
+    // And from its label in the graph.
+    await page.locator(".commit-row .ref-pill.branch").first().hover();
+    await page.locator(".commit-list.lane-lit").waitFor({ timeout: 5000 });
+    await page.locator(".commit-row .summary").first().hover();
+    await page.locator(".commit-list.lane-lit").waitFor({ state: "detached", timeout: 5000 });
   });
 
   await step("opens a second repository in a new tab", async () => {
