@@ -42,6 +42,7 @@ export function checkFor(action: Action): UndoCheck {
     case "restoreFromHistory":
     case "ignorePaths":
     case "discardFiles":
+    case "discardAll":
     case "applyLines":
       return "always";
     default:

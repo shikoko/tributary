@@ -14,10 +14,16 @@ interface Props {
   onCancel: () => void;
   /** Called with git's result message once the reset worked. */
   onDone: (message: string) => void;
+  /** Throw away every uncommitted change, new files too, to undo later (the action's runner does it). */
+  onDiscardAll: () => void;
 }
 
-/** Asks for confirmation before `git reset --hard`, saying exactly what will be lost. */
-export function ResetDialog({ snapshot, target, protectedName, onCancel, onDone }: Props) {
+/**
+ * Asks for confirmation before `git reset --hard`, saying exactly what will be lost. To the
+ * checked-out commit, it only discards uncommitted changes: then new files go too, and it can
+ * be undone (except while a merge or rebase is under way, which a reset ends).
+ */
+export function ResetDialog({ snapshot, target, protectedName, onCancel, onDone, onDiscardAll }: Props) {
   const [typed, setTyped] = useState("");
   const confirmed = !protectedName || typed.trim() === protectedName;
   const [running, setRunning] = useState(false);
@@ -25,6 +31,8 @@ export function ResetDialog({ snapshot, target, protectedName, onCancel, onDone 
   const branch = snapshot.headBranch ?? "HEAD";
   // Resetting to the current commit only throws away uncommitted changes.
   const discardOnly = target.id === snapshot.headCommit;
+  // That's discarding them all, new files too, to put back later; not in a merge or a rebase.
+  const discardAll = discardOnly && !snapshot.operation;
 
   const { head, leaving, lostFiles, untrackedFiles } = useMemo(() => {
     const byId = new Map(snapshot.commits.map((commit) => [commit.id, commit]));
@@ -58,13 +66,15 @@ export function ResetDialog({ snapshot, target, protectedName, onCancel, onDone 
           <Button kind="secondary" onClick={onCancel} disabled={running} autoFocus={!protectedName}>
             Cancel
           </Button>
-          <Button kind="danger" onClick={reset} disabled={running || !confirmed}>
+          <Button kind="danger" onClick={discardAll ? onDiscardAll : reset} disabled={running || !confirmed}>
             {running ? (discardOnly ? "Discarding…" : "Resetting…") : discardOnly ? "Discard changes" : `Reset ${branch}`}
           </Button>
         </>
       }
     >
-      {discardOnly ? (
+      {discardAll ? (
+        <p>Your files will be changed back to how they are in the last commit, and new files will be deleted.</p>
+      ) : discardOnly ? (
         <p>Your files will be changed back to how they are in the last commit.</p>
       ) : (
       <p>
@@ -85,13 +95,23 @@ export function ResetDialog({ snapshot, target, protectedName, onCancel, onDone 
             <code>git reflog</code> for a while.
           </li>
         )}
-        {lostFiles > 0 && (
-          <li className="danger">
-            Uncommitted changes to {plural(lostFiles, "file")} will be discarded. This can't be undone.
-          </li>
+        {discardAll ? (
+          <>
+            {lostFiles > 0 && <li className="danger">Changes to {plural(lostFiles, "file")} will be discarded.</li>}
+            {untrackedFiles > 0 && <li className="danger">{plural(untrackedFiles, "new file")} will be deleted.</li>}
+            <li>You can put them back with Undo, for 30 days.</li>
+          </>
+        ) : (
+          <>
+            {lostFiles > 0 && (
+              <li className="danger">
+                Uncommitted changes to {plural(lostFiles, "file")} will be discarded. This can't be undone.
+              </li>
+            )}
+            {untrackedFiles > 0 && <li>New files are kept.</li>}
+            {leaving === 0 && lostFiles === 0 && <li>No commits or uncommitted changes will be lost.</li>}
+          </>
         )}
-        {untrackedFiles > 0 && <li>Untracked files are kept.</li>}
-        {leaving === 0 && lostFiles === 0 && <li>No commits or uncommitted changes will be lost.</li>}
       </ul>
       {protectedName && <TypeToConfirm name={protectedName} value={typed} onChange={setTyped} />}
     </Dialog>

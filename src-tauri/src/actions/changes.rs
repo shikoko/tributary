@@ -87,6 +87,24 @@ pub(super) fn discard_files(
     extra: &mut Extra,
 ) -> Result<String> {
     let paths = check_file_paths(&paths)?;
+    stash_away(repo, git, &paths, extra)?;
+    Ok(format!(
+        "Discarded the changes to {}",
+        describe_files(&paths)
+    ))
+}
+
+/// Throw away every uncommitted change: new files are deleted too (ignored ones stay).
+/// What they were is kept for [`BACKUP_DAYS`] days, to undo with
+/// [`Action::RestoreDiscarded`].
+pub(super) fn discard_all(repo: &gix::Repository, git: &Git, extra: &mut Extra) -> Result<String> {
+    stash_away(repo, git, &[], extra)?;
+    Ok("Discarded all uncommitted changes".into())
+}
+
+/// Take the changes to `paths` (all of them when there are none) out of the working tree,
+/// untracked files too, and keep them under [`DISCARDED`] for undo (in `extra.backup`).
+fn stash_away(repo: &gix::Repository, git: &Git, paths: &[&str], extra: &mut Extra) -> Result<()> {
     let before = stash_top(git);
     // A stash keeps the changes (untracked files too) and removes them in one go.
     let mut args = vec![
@@ -96,10 +114,16 @@ pub(super) fn discard_files(
         "--include-untracked",
         "--message",
         "Tributary: discarded changes",
-        "--",
     ];
-    args.extend(&paths);
-    git.run_with_env(&args, &LITERAL)?;
+    if paths.is_empty() {
+        // Not with literal pathspecs: then git's own ":/" (the whole working tree), which it
+        // cleans the untracked files from, would match nothing.
+        git.run(&args)?;
+    } else {
+        args.push("--");
+        args.extend(paths);
+        git.run_with_env(&args, &LITERAL)?;
+    }
     let Some(stash) = stash_top(git).filter(|top| Some(top) != before.as_ref()) else {
         return Err("There were no changes to discard.".into());
     };
@@ -109,10 +133,7 @@ pub(super) fn discard_files(
     git.run(&["stash", "drop", "--quiet"])?;
     forget_old_discards(repo, git);
     extra.backup = Some(reference);
-    Ok(format!(
-        "Discarded the changes to {}",
-        describe_files(&paths)
-    ))
+    Ok(())
 }
 
 /// Put back changes thrown away by [`Action::DiscardFiles`].

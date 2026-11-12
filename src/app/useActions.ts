@@ -135,7 +135,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       }
       const { message, pullRequest, backup } = outcome;
       // Discarded files and lines are kept for a while, to put back.
-      const discarded = action.kind === "discardFiles" || action.kind === "applyLines" || (action.kind === "shelve" && !action.keep);
+      const discarded = action.kind === "discardFiles" || action.kind === "discardAll" || action.kind === "applyLines" || (action.kind === "shelve" && !action.keep);
       // Restored from the local history: what the files were just before was kept too.
       const restoredOver = backup && action.kind === "restoreFromHistory" ? { kind: "restoreFromHistory" as const, reference: backup, paths: action.paths } : null;
       const undo = backup && discarded ? { kind: "restoreDiscarded" as const, reference: backup } : (restoredOver ?? undoFor(action, before));

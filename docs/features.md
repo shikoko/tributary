@@ -56,6 +56,7 @@ Everything Tributary does, in detail. For a quick look, see the [README](../READ
   - Text stored with Git LFS is compared by its real contents; pictures, sounds, videos and 3D models show as what they are ([see below](#game-projects-big-files-and-git-lfs)). Other binary files show their sizes, with a button to open them in your diff tool.
 - **Diff and merge tools:** choose them in Settings, under **Diff and merge**: the tools git finds on your computer (Meld, Beyond Compare, WinMerge, P4Merge, KDiff3, …), Visual Studio Code, or a command of your own. They're git's own settings (`diff.tool`, `merge.tool`), so `git difftool` and `git mergetool` use them too. Until one is chosen, the diff view's button offers to choose one.
 - **Per file:** right-click a changed file to discard its changes (with **Undo**; Tributary keeps them for 30 days), stash just that file, or for a new file, ignore it, every file like it, or its folder (added to `.gitignore`, with **Undo**).
+- **Discard all changes:** the button above your changes (or **Discard all changes…** on the uncommitted changes row) puts every file back as it is in the last commit and deletes the new ones. Ignored files stay. **Undo** puts it all back, for 30 days. While a merge or rebase is under way, it resets to the last commit instead, which keeps new files and can't be undone.
 
 <sub>[↑ Contents](#contents)</sub>
 

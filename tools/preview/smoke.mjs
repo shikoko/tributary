@@ -313,6 +313,36 @@ try {
     writeFileSync(store, before);
   });
 
+  await step("discards all changes, new files too, and puts them back", async () => {
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" });
+    const status = () => git("status", "--porcelain", "--untracked-files=all");
+    const sketches = join(demos.notebook, "sketches");
+    mkdirSync(sketches, { recursive: true });
+    writeFileSync(join(sketches, "idea.md"), "A note that isn't committed yet.\n");
+    const before = status();
+    await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+    // A new folder is listed as itself. The files are read again when the window gets the
+    // focus, at most every 2 seconds.
+    const listed = page.locator(".details .file", { hasText: "sketches" }).first();
+    for (let tries = 0; tries < 20 && !(await listed.isVisible()); tries++) {
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      await page.waitForTimeout(500);
+    }
+    await listed.waitFor({ timeout: 5000 });
+    await page.getByRole("button", { name: "Discard all changes" }).click();
+    const dialog = page.locator(".dialog", { hasText: "Discard all uncommitted changes?" });
+    await dialog.locator("li", { hasText: /new files? will be deleted/ }).waitFor({ timeout: 5000 });
+    await dialog.getByRole("button", { name: "Discard changes" }).click();
+    await page.locator(".toast", { hasText: "Discarded all uncommitted changes" }).waitFor({ timeout: 10_000 });
+    expect(!existsSync(sketches), "the new file wasn't deleted");
+    expect(status() === "", "changes were left");
+    await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
+    await page.locator(".toast", { hasText: "Put the discarded changes back" }).waitFor({ timeout: 10_000 });
+    expect(status() === before, "the changes didn't all come back as they were");
+    rmSync(sketches, { recursive: true, force: true });
+    await dismissToast();
+  });
+
   await step("fixes up an earlier commit with the staged changes, and undoes it", async () => {
     const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" }).trim();
     const head = git("rev-parse", "HEAD");

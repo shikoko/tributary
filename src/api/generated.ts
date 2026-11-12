@@ -97,6 +97,7 @@ export type Action =
   | { kind: "lockFiles"; paths: Array<string> }
   | { kind: "trackWithLfs"; patterns: Array<string>; paths?: Array<string> }
   | { kind: "discardFiles"; paths: Array<string> }
+  | { kind: "discardAll" }
   | { kind: "restoreDiscarded"; reference: string }
   | {
     kind: "applyLines";
