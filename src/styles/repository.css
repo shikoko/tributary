@@ -226,18 +226,29 @@
   --ring: var(--graph-ring);
 }
 
-/* A faded commit: its picture faint on the list's background (which keeps the lines behind
-   it from showing through), in a muted ring of its lane's colour. */
-.commit-row.dimmed .graph-node {
+/* In a lit lane (the pointer on one of its branch's labels): on a dark background, a lighter
+   ring, as the lane's lines are. The graph glows under it (graphPainter); the row would cut
+   off a glow of its own. */
+:root:not([data-theme="light"]) .graph-node.lit {
+  --ring: color-mix(in srgb, var(--lane) 65%, white);
+}
+
+/* A faded commit, or one outside the lit lane: its picture faint on the list's background
+   (which keeps the lines behind it from showing through), in a muted ring of its lane's
+   colour. */
+.commit-row.dimmed .graph-node,
+.commit-list.lane-lit .graph-node:not(.lit) {
   --ring: color-mix(in srgb, var(--lane) 35%, var(--bg));
   background: var(--bg);
 }
 
-.commit-row.dimmed .graph-node.selected {
+.commit-row.dimmed .graph-node.selected,
+.commit-list.lane-lit .graph-node.selected:not(.lit) {
   --ring: var(--graph-ring);
 }
 
-.commit-row.dimmed .graph-node .avatar {
+.commit-row.dimmed .graph-node .avatar,
+.commit-list.lane-lit .graph-node:not(.lit) .avatar {
   opacity: 0.35;
 }
 

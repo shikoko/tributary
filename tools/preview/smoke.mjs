@@ -552,6 +552,15 @@ try {
     await card.waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("lights up a branch's lane while the pointer is on it", async () => {
+    await page.locator(".sidebar-item", { hasText: /^themes/ }).first().hover();
+    await page.locator(".commit-list.lane-lit").waitFor({ timeout: 5000 });
+    // Its tip lights up beside the scrollbar too.
+    expect((await page.locator(".mark-glow").count()) > 0, "the branch's mark doesn't light up");
+    await page.locator(".commit-row .summary").first().hover();
+    await page.locator(".commit-list.lane-lit").waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("opens a second repository in a new tab", async () => {
     // The pull requests' comments from the start: news is what changes after the first look.
     await page.evaluate(

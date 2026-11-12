@@ -1,7 +1,8 @@
 import type { CommitRow, GraphLine } from "../api";
-import type { CurveStyle } from "../lib/appearance";
+import { luminance, parseHex, type CurveStyle } from "../lib/appearance";
 import { laneColor } from "../lib/colors";
 import type { Slot } from "../lib/days";
+import type { Lane } from "../lib/lanes";
 
 export interface GraphMetrics {
   rowHeight: number;
@@ -30,6 +31,10 @@ export interface PaintOptions extends GraphMetrics {
   curves?: CurveStyle;
   /** Commits (not merges) are shown as their authors' pictures over the graph: leave room. */
   avatars?: boolean;
+  /** How wide the authors' pictures are, without their rings. */
+  pictureSize?: number;
+  /** A branch's lane, lit up: the pointer is on one of its labels. */
+  lane?: Lane | null;
 }
 
 
@@ -108,6 +113,41 @@ export function paintGraph(
   const curves = options.curves ?? "mixed";
   /** "mixed": smooth into the next lane, round for longer jumps. */
   const bend = (from: number, to: number) => (curves === "mixed" ? (Math.abs(to - from) === 1 ? "smooth" : "round") : curves);
+  /** A row's piece of a line, in the row from `top`: as `paintGraph` draws them. */
+  const segment = (path: Path2D, kind: number, from: number, to: number, top: number) => {
+    const middle = top + rowHeight / 2;
+    const bottom = top + rowHeight;
+    if (kind === 0) {
+      path.moveTo(x(from), top);
+      path.lineTo(x(from), bottom);
+    } else if (kind === 1) {
+      // Down from the top of the row, then across into the node.
+      if (from === to) {
+        path.moveTo(x(from), top);
+        path.lineTo(x(to), middle);
+      } else {
+        turn(path, [x(from), top], [x(from), middle], [x(to), middle], corner, bend(from, to));
+      }
+    } else {
+      // Across from the node, then down to the bottom of the row.
+      if (from === to) {
+        path.moveTo(x(from), middle);
+        path.lineTo(x(to), bottom);
+      } else {
+        turn(path, [x(from), middle], [x(to), middle], [x(to), bottom], corner, bend(from, to));
+      }
+    }
+  };
+  const lane = options.lane ?? null;
+  /** Part of the lit lane: from its own commits in its own column, and all from its oldest
+      commit (down to where it was branched from). */
+  const inLane = (kind: number, from: number, to: number, child: number | number[]) => {
+    if (!lane) return false;
+    const ids = (Array.isArray(child) ? child : [child]).map((index) => commits[index]?.id);
+    if (ids.includes(lane.last)) return true;
+    const own = ids.some((id) => id !== undefined && lane.ids.has(id));
+    return own && (kind === 0 ? from === lane.column : from === lane.column && to === lane.column);
+  };
   const focus = options.focusIds;
   // A line is part of the highlighted history when the commit it links from is.
   const inFocus = (child: number | number[]) =>
@@ -124,8 +164,6 @@ export function paintGraph(
   const batches = new Map<string, { color: string; alpha: number; dashed: boolean; path: Path2D }>();
   for (let slot = first; slot < last; slot++) {
     const top = (slot - first) * rowHeight;
-    const middle = top + rowHeight / 2;
-    const bottom = top + rowHeight;
     const row = slots[slot];
     // Never outside the list, but a row that isn't there mustn't stop the whole window.
     if (row === undefined) continue;
@@ -135,31 +173,12 @@ export function paintGraph(
 
     for (const [kind, from, to, child, dashed] of lines) {
       const color = laneColor(kind === 2 ? to : from, options.lanes);
-      const alpha = focus ? (inFocus(child) ? 1 : FADED) : 1;
+      // Outside the highlighted history, or the lit lane: faded.
+      const alpha = (focus && !inFocus(child)) || (lane && !inLane(kind, from, to, child)) ? FADED : 1;
       const key = `${color} ${alpha} ${dashed ? 1 : 0}`;
       let batch = batches.get(key);
       if (!batch) batches.set(key, (batch = { color, alpha, dashed: !!dashed, path: new Path2D() }));
-      const path = batch.path;
-      if (kind === 0) {
-        path.moveTo(x(from), top);
-        path.lineTo(x(from), bottom);
-      } else if (kind === 1) {
-        // Down from the top of the row, then across into the node.
-        if (from === to) {
-          path.moveTo(x(from), top);
-          path.lineTo(x(to), middle);
-        } else {
-          turn(path, [x(from), top], [x(from), middle], [x(to), middle], corner, bend(from, to));
-        }
-      } else {
-        // Across from the node, then down to the bottom of the row.
-        if (from === to) {
-          path.moveTo(x(from), middle);
-          path.lineTo(x(to), bottom);
-        } else {
-          turn(path, [x(from), middle], [x(to), middle], [x(to), bottom], corner, bend(from, to));
-        }
-      }
+      segment(batch.path, kind, from, to, top);
     }
   }
   for (const { color, alpha, dashed, path } of batches.values()) {
@@ -177,7 +196,7 @@ export function paintGraph(
     if (typeof row !== "number") continue;
     const commit = commits[row];
     if (!commit) continue;
-    const faded = focus !== null && !focus.has(commit.id);
+    const faded = (focus !== null && !focus.has(commit.id)) || (lane !== null && !lane.ids.has(commit.id));
     const cx = x(commit.graph.column);
     const cy = (slot - first) * rowHeight + rowHeight / 2;
     const color = laneColor(commit.graph.column, options.lanes);
@@ -242,6 +261,66 @@ export function paintGraph(
     }
   }
   ctx.globalAlpha = 1;
+  if (lane) paintLane(lane);
+
+  /**
+   * The lit lane, over the graph (the rest of it faded): glowing in its colour, its lines and
+   * dots in a lighter tint of it on a dark background, and a halo under each of its authors'
+   * pictures.
+   */
+  function paintLane(lane: Lane) {
+    const color = laneColor(lane.column, options.lanes);
+    const background = parseHex(options.background);
+    const light = background !== null && luminance(background) > 0.5;
+    // A lighter tint would wash out on a light background: there the lane keeps its colour.
+    const core = light ? color : tint(color, 0.35);
+    // Its lines, in one path to glow as one.
+    const path = new Path2D();
+    for (let slot = first; slot < last; slot++) {
+      const row = slots[slot];
+      if (row === undefined) continue;
+      const commit = typeof row === "number" ? commits[row] : commits[row.before];
+      if (!commit) continue;
+      const lines = typeof row === "number" ? commit.graph.lines : passingLines(commit);
+      for (const [kind, from, to, child] of lines) if (inLane(kind, from, to, child)) segment(path, kind, from, to, (slot - first) * rowHeight);
+    }
+    ctx.save();
+    ctx.lineWidth = LINE_WIDTH + 0.5;
+    ctx.strokeStyle = core;
+    ctx.shadowColor = light ? withAlpha(color, 0.6) : color;
+    for (const blur of [14, 6]) {
+      ctx.shadowBlur = blur;
+      ctx.stroke(path);
+    }
+    // Its dots; under its authors' pictures (which go over the graph), a halo.
+    for (let slot = first; slot < last; slot++) {
+      const row = slots[slot];
+      if (typeof row !== "number") continue;
+      const commit = commits[row];
+      if (!commit || !lane.ids.has(commit.id) || commit.kind !== "commit") continue;
+      const merge = commit.parents.length > 1;
+      const picture = options.avatars && !merge && options.pictureSize !== undefined;
+      const radius = picture ? options.pictureSize! / 2 + 2 : (merge ? MERGE_RADIUS : NODE_RADIUS) + (commit.id === options.headId ? 1.5 : 0);
+      ctx.beginPath();
+      ctx.arc(x(commit.graph.column), (slot - first) * rowHeight + rowHeight / 2, radius, 0, Math.PI * 2);
+      ctx.fillStyle = picture ? color : core;
+      ctx.shadowBlur = picture ? 16 : 12;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+/** `color` (#rrggbb) moved `amount` of the way to white. */
+function tint(color: string, amount: number): string {
+  const rgb = parseHex(color);
+  return rgb ? `rgb(${rgb.map((c) => Math.round(c + (255 - c) * amount)).join(", ")})` : color;
+}
+
+/** `color` (#rrggbb), see-through: `alpha` of it. */
+function withAlpha(color: string, alpha: number): string {
+  const rgb = parseHex(color);
+  return rgb ? `rgba(${rgb.join(", ")}, ${alpha})` : color;
 }
 
 /** A square path centred on (cx, cy), `half` wide on each side, with rounded corners. */

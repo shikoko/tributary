@@ -31,6 +31,8 @@ interface Props {
   onFocus: (entry: RefEntry) => void;
   /** The eye button: hide or show the entry in the graph. */
   onToggleVisible: (entry: RefEntry) => void;
+  /** The pointer is on a branch (its commit), or has left it (null): its lane lights up. */
+  onLaneHover: (commitId: string | null) => void;
   /** Show every branch again. */
   onShowAll: () => void;
   /** Open the prune branches dialog (null while that can't be done). */

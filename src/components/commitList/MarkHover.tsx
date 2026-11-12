@@ -35,6 +35,37 @@ interface Entry {
   states: string;
 }
 
+/** A commit's marks on a strip `width` wide, drawn on top of each other: the rectangle they make. */
+export function glowRect(marks: ScrollMark[], width: number) {
+  const rects = marks.map((mark) => markRect(mark, width));
+  const left = Math.min(...rects.map((rect) => rect.x));
+  const top = Math.min(...rects.map((rect) => rect.y));
+  return {
+    x: left,
+    y: top,
+    width: Math.max(...rects.map((each) => each.x + each.width)) - left,
+    height: Math.max(...rects.map((each) => each.y + each.height)) - top,
+  };
+}
+
+/** Marks lit up over the scrollbar, in their own place and shape, glowing in their colour. */
+export function MarkGlow({ color, rect, strip }: { color: string; rect: { x: number; y: number; width: number; height: number }; strip: Props["strip"] }) {
+  return (
+    <div
+      className="mark-glow"
+      style={
+        {
+          "--mark": color,
+          top: strip.top + rect.y,
+          left: strip.right - strip.width + rect.x,
+          width: rect.width,
+          height: rect.height,
+        } as CSSProperties
+      }
+    />
+  );
+}
+
 /**
  * The marks beside the scrollbar that the pointer is on: they glow (in their own place and
  * shape, over the scrollbar), and a card says what they are: for each commit, its branches
@@ -73,15 +104,7 @@ export function MarkHover({ near, strip, commits, headBranch }: Props) {
       .filter(Boolean)
       .join(" · ");
     // Its marks, drawn on top of each other: the rectangle they make, to light up.
-    const rects = own.map((mark) => markRect(mark, strip.width));
-    const left = Math.min(...rects.map((rect) => rect.x));
-    const top = Math.min(...rects.map((rect) => rect.y));
-    const rect = {
-      x: left,
-      y: top,
-      width: Math.max(...rects.map((each) => each.x + each.width)) - left,
-      height: Math.max(...rects.map((each) => each.y + each.height)) - top,
-    };
+    const rect = glowRect(own, strip.width);
     return { commit, color, y: shownBy.y, rect, names, states };
   });
   const key = indexes.join(",");
@@ -107,19 +130,7 @@ export function MarkHover({ near, strip, commits, headBranch }: Props) {
     <>
       {/* The marks the pointer is on light up, over the scrollbar. */}
       {entries.map((entry) => (
-        <div
-          key={`glow-${entry.commit.id}`}
-          className="mark-glow"
-          style={
-            {
-              "--mark": entry.color,
-              top: strip.top + entry.rect.y,
-              left: strip.right - strip.width + entry.rect.x,
-              width: entry.rect.width,
-              height: entry.rect.height,
-            } as CSSProperties
-          }
-        />
+        <MarkGlow key={`glow-${entry.commit.id}`} color={entry.color} rect={entry.rect} strip={strip} />
       ))}
       <div ref={card} className={`mark-card${shown ? " shown" : ""}`} style={style} role="tooltip">
         {entries.slice(0, MOST).map((entry) => (
