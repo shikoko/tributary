@@ -23,7 +23,7 @@
   gap: 10px;
   padding: 0 14px 0 10px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--type-xs);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -94,7 +94,7 @@
   padding: 0;
   overflow: hidden;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   opacity: 0;
@@ -153,10 +153,10 @@
   gap: 6px;
   margin: 0 10px 6px;
   padding: 5px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: rgb(var(--accent-rgb) / 0.08);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .sidebar-visibility .link-button {
@@ -173,7 +173,7 @@
   border-top: 1px solid var(--border);
   background: var(--bg-panel);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--type-sm);
   flex: none;
   min-width: 0;
   overflow: hidden;
@@ -186,7 +186,7 @@
   height: 20px;
   padding: 0 6px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -268,7 +268,7 @@
   padding: 0 10px 0 14px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
-  font-size: 12px;
+  font-size: var(--type-sm);
   flex: none;
 }
 
@@ -278,7 +278,7 @@
 
 .checkbox.small {
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--type-sm);
   color: var(--text-secondary);
 }
 
@@ -304,7 +304,7 @@
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--type-sm);
   text-align: left;
 }
 
@@ -336,7 +336,7 @@
   white-space: nowrap;
   color: var(--text);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 .activity-entry.failed .activity-command {
@@ -346,10 +346,10 @@
 .activity-badge,
 .activity-folder {
   padding: 0 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-raised);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--type-xs);
   flex: none;
 }
 
@@ -365,7 +365,7 @@
   margin: 2px 14px 6px 96px;
   padding: 8px 36px 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--bg-panel);
 }
 
@@ -375,7 +375,7 @@
   overflow: auto;
   color: var(--text-secondary);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--type-sm);
   white-space: pre-wrap;
   word-break: break-word;
   user-select: text;
@@ -414,10 +414,10 @@
   height: 26px;
   padding: 0 9px;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--type-base);
 }
 
 .menu-bar-item:hover {
@@ -436,10 +436,10 @@
   justify-content: center;
   gap: 10px;
   border: 2px dashed var(--accent);
-  border-radius: 14px;
+  border-radius: var(--radius-3xl);
   background: rgb(var(--bg-rgb) / 0.82);
   color: var(--text);
-  font-size: 16px;
+  font-size: var(--type-lg);
   font-weight: 600;
   pointer-events: none;
 }
@@ -451,7 +451,7 @@
   gap: 10px;
   min-height: 30px;
   padding: 2px 14px;
-  font-size: 12.5px;
+  font-size: var(--type-base);
 }
 
 .history-entry:hover {
@@ -483,7 +483,7 @@
   max-width: 40%;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -493,14 +493,14 @@
   flex: none;
   min-width: 64px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-sm);
   text-align: center;
 }
 
 .history-entry .activity-time {
   min-width: 100px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--type-sm);
 }
 
 /* While a link is pointed at, the status bar says where it goes instead of the rest. */
@@ -540,10 +540,10 @@
   border: 1px solid var(--border-strong);
   border-bottom: none;
   border-left: none;
-  border-top-right-radius: 6px;
+  border-top-right-radius: var(--radius-md);
   background: var(--bg-raised);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--type-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
   pointer-events: none;

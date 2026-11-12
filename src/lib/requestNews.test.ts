@@ -38,7 +38,7 @@ describe("describeRequestNews", () => {
   });
 
   it("sums up checks", () => {
-    const check = (state: "success" | "failure" | "pending" | null) => ({ name: "x", state, url: null, detail: null });
+    const check = (state: "success" | "failure" | "pending" | null) => ({ name: "x", state, url: null, detail: null, startedAt: null, finishedAt: null, workflow: null, trigger: null });
     expect(checksState([check("success"), check("pending")])).toBe("pending");
     expect(checksState([check("success"), check("failure")])).toBe("failure");
     expect(checksState([check(null)])).toBeNull();

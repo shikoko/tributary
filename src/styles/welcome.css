@@ -25,7 +25,7 @@
 
 .welcome-card h1 {
   margin: 4px 0 0;
-  font-size: 30px;
+  font-size: var(--type-4xl);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -33,7 +33,7 @@
 .tagline {
   margin: 0 0 12px;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--type-md);
 }
 
 .welcome-card .error-banner {
@@ -51,7 +51,7 @@
   margin: 0 0 6px;
   padding: 0 10px;
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: var(--type-xs);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -67,7 +67,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .recent li:hover {
@@ -101,7 +101,7 @@
 .recent-path {
   min-width: 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -131,11 +131,11 @@
   height: 30px;
   padding: 0 12px 0 11px;
   border: 1px dashed var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--type-base);
   line-height: 1;
   cursor: pointer;
 }
@@ -209,7 +209,7 @@
   height: 34px;
   padding: 0 4px 0 11px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg);
   color: var(--text-muted);
 }
@@ -226,7 +226,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--type-base);
 }
 
 .your-repos-toggle {
@@ -236,7 +236,7 @@
   width: 26px;
   height: 26px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -262,7 +262,7 @@
   padding: 4px;
   overflow-y: auto;
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   background: var(--bg-raised);
   box-shadow: 0 14px 40px var(--shadow-strong);
   list-style: none;
@@ -279,7 +279,7 @@
 .your-repos-note {
   padding: 14px 10px;
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: var(--type-base);
   font-weight: 400;
 }
 
@@ -288,7 +288,7 @@
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text);
   cursor: pointer;
 }
@@ -315,7 +315,7 @@
   gap: 5px;
   min-width: 0;
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--type-base);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -335,17 +335,17 @@
 .your-repo-forge {
   flex: none;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-active);
   color: var(--text-muted);
-  font-size: 10.5px;
+  font-size: var(--type-xs);
   font-weight: 500;
 }
 
 .your-repo-desc {
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-sm);
   font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -354,7 +354,7 @@
 .your-repo-when {
   flex: none;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--type-sm);
   font-weight: 400;
 }
 
@@ -371,7 +371,7 @@
   margin: 4px 0 14px;
   padding: 20px 22px;
   border: 1px solid rgb(var(--notice-rgb) / 0.4);
-  border-radius: 12px;
+  border-radius: var(--radius-2xl);
   background: rgb(var(--notice-rgb) / 0.08);
   text-align: left;
 }
@@ -380,7 +380,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 15px;
+  font-size: var(--type-lg);
 }
 
 .git-needed-head svg {
@@ -412,7 +412,7 @@
 .git-old {
   margin: 0;
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: var(--type-base);
 }
 
 .git-needed-banner .primary-small-button {

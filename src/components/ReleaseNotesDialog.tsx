@@ -5,6 +5,7 @@ import { plural } from "../lib/format";
 import { issueKeys, issueUrl, useIssueTracker } from "../lib/issues";
 import { releaseMarkdown } from "../lib/releaseNotes";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
 
 /**
  * Release notes for a tag: the changes since an earlier tag (pull requests by title, and
@@ -75,12 +76,12 @@ export function ReleaseNotesDialog({
       onCancel={onClose}
       buttons={
         <>
-          <button className="secondary-button" onClick={onClose}>
+          <Button kind="secondary" onClick={onClose}>
             Close
-          </button>
+          </Button>
           <span className="spacer" />
-          <button
-            className="outline-button"
+          <Button
+            kind="outline"
             disabled={!notes}
             onClick={() => {
               void copyText(text);
@@ -88,16 +89,16 @@ export function ReleaseNotesDialog({
             }}
           >
             <span className="button-label">Copy as Markdown</span>
-          </button>
+          </Button>
           {site &&
             (published ? (
-              <button className="primary-small-button" onClick={() => openUrl(published)} data-url={published}>
+              <Button kind="primary" onClick={() => openUrl(published)} data-url={published}>
                 Open on {site}
-              </button>
+              </Button>
             ) : (
-              <button className="primary-small-button" disabled={!notes || publishing} onClick={() => void publish()} title={`Publish ${tag} as a release on ${site} (push the tag first)`}>
+              <Button kind="primary" disabled={!notes || publishing} onClick={() => void publish()} title={`Publish ${tag} as a release on ${site} (push the tag first)`}>
                 {publishing ? "Publishing…" : `Publish on ${site}`}
-              </button>
+              </Button>
             ))}
         </>
       }

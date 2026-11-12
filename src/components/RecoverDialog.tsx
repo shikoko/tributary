@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { reflog, type ReflogEntry } from "../api";
 import { relativeTime, shortId } from "../lib/format";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
 
 interface Props {
   repoPath: string;
@@ -75,9 +76,9 @@ export function RecoverDialog({ repoPath, isLoaded, truncated, onCancel, onShow,
             <input type="checkbox" checked={onlyLost} onChange={(event) => setOnlyLost(event.target.checked)} />
             Only commits on no branch ({lostCount})
           </label>
-          <button className="secondary-button" onClick={onCancel}>
+          <Button kind="secondary" onClick={onCancel}>
             Close
-          </button>
+          </Button>
         </>
       }
     >
@@ -114,13 +115,13 @@ export function RecoverDialog({ repoPath, isLoaded, truncated, onCancel, onShow,
                   </div>
                 </div>
                 {loaded ? (
-                  <button className="outline-button" onClick={() => onShow(entry.id)}>
+                  <Button kind="outline" onClick={() => onShow(entry.id)}>
                     <span className="button-label">Show</span>
-                  </button>
+                  </Button>
                 ) : (
-                  <button className="outline-button" onClick={() => onCreateBranch(entry)}>
+                  <Button kind="outline" onClick={() => onCreateBranch(entry)}>
                     <span className="button-label">Create branch…</span>
-                  </button>
+                  </Button>
                 )}
               </li>
             );

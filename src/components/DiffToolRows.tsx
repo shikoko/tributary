@@ -2,6 +2,7 @@ import { useState } from "react";
 import { setDiffTool, type DiffToolSettings } from "../api";
 import { diffToolsChanged, toolLabel, useDiffTools } from "../lib/diffTools";
 import type { SettingRow } from "./SettingsDialog";
+import { Button } from "./ui/Button";
 
 interface Options {
   /** Only looked up while Settings is open. */
@@ -89,9 +90,9 @@ function toolRows(
             spellCheck={false}
             aria-label={`Command for the ${kind} tool`}
           />
-          <button className="outline-button" onClick={() => save(kind, "custom", text)} disabled={!text.trim() || (draft === null && current === "custom")}>
+          <Button kind="outline" onClick={() => save(kind, "custom", text)} disabled={!text.trim() || (draft === null && current === "custom")}>
             <span className="button-label">Save</span>
-          </button>
+          </Button>
         </span>
       ),
     });

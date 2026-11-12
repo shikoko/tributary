@@ -6,13 +6,15 @@
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::requests::{ReviewState, Site, site};
 
 /// One comment in a request's conversation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "RequestComment")]
 pub struct Comment {
     pub id: String,
     pub author: String,
@@ -34,7 +36,7 @@ pub struct Comment {
 }
 
 /// How to merge a request.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum MergeMethod {
     /// With a merge commit.
@@ -46,7 +48,7 @@ pub enum MergeMethod {
 }
 
 /// What a review says.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum ReviewVerdict {
     Approve,
@@ -55,8 +57,9 @@ pub enum ReviewVerdict {
 }
 
 /// A request's conversation, and what you can do with it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "RequestConversation")]
 pub struct Conversation {
     /// Oldest first; replies follow their thread's first comment.
     pub comments: Vec<Comment>,
@@ -187,7 +190,7 @@ pub async fn review(
 }
 
 /// What merging a request should do.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct MergeRequestOptions {
     pub method: MergeMethod,

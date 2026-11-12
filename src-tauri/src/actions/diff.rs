@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use base64::Engine;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use super::support::LITERAL;
 use super::validate::{check_file_paths, commit_id};
@@ -23,7 +24,7 @@ const MAX_TEXT_BYTES: u64 = MAX_DIFF_BYTES as u64;
 const TOOL_SETTLE: Duration = Duration::from_secs(2);
 
 /// Which change to a file.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum DiffSource {
     /// What a commit changed, compared to its first parent.
@@ -36,7 +37,7 @@ pub enum DiffSource {
     Range { from: String, to: String },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum LineKind {
     Context,
@@ -45,17 +46,18 @@ pub enum LineKind {
 }
 
 /// One line of a diff, with its number before and after the change.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DiffLine {
     pub kind: LineKind,
+    /// Line numbers before and after.
     pub old: Option<u32>,
     pub new: Option<u32>,
     pub text: String,
 }
 
 /// A stretch of changed lines with some unchanged ones around them.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Hunk {
     /// What git says the lines are in, like a function's name.
@@ -64,7 +66,7 @@ pub struct Hunk {
 }
 
 /// What kind of file a picture, sound, video or 3D model is, to show it as one.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum MediaKind {
     Image,
@@ -75,7 +77,7 @@ pub enum MediaKind {
 
 /// A picture, sound, video or 3D model before and after, as `data:` URLs: None where the
 /// file doesn't exist, or (with its size known) is too big to show here.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Media {
     pub kind: MediaKind,
@@ -152,7 +154,7 @@ fn media_type(file: &str) -> Option<(MediaKind, &'static str)> {
 }
 
 /// A submodule moved from one commit to another.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SubmoduleChange {
     pub before: Option<String>,
@@ -167,7 +169,7 @@ pub struct SubmoduleChange {
     pub more: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SubmoduleCommit {
     pub id: String,
@@ -177,7 +179,7 @@ pub struct SubmoduleCommit {
 /// Submodule changes list at most this many commits.
 const MAX_SUBMODULE_COMMITS: usize = 50;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct FileDiff {
     pub path: String,

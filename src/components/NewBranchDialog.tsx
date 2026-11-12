@@ -4,6 +4,8 @@ import { branchNameFor, useIssueTracker } from "../lib/issues";
 import { involvesUntrackedFiles, isLocalChangesError } from "../lib/errors";
 import { Dialog } from "./Dialog";
 import { CommitRef } from "./ResetDialog";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
 
 interface Props {
   repoPath: string;
@@ -69,12 +71,12 @@ export function NewBranchDialog({ repoPath, target, canCheckout, onCancel, onDon
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running}>
+          <Button kind="secondary" onClick={onCancel} disabled={running}>
             Cancel
-          </button>
-          <button className="primary-small-button" onClick={create} disabled={running || !name.trim()}>
+          </Button>
+          <Button kind="primary" onClick={create} disabled={running || !name.trim()}>
             {running ? "Creating…" : "Create branch"}
-          </button>
+          </Button>
         </>
       }
     >
@@ -89,8 +91,7 @@ export function NewBranchDialog({ repoPath, target, canCheckout, onCancel, onDon
         }}
       >
         {tracker && (
-          <label className="field">
-            <span>From an issue</span>
+          <Field label="From an issue">
             {issues && issues.length > 0 ? (
               <select
                 className="settings-select"
@@ -112,10 +113,9 @@ export function NewBranchDialog({ repoPath, target, canCheckout, onCancel, onDon
             ) : (
               <span className="field-note">{issuesNote ?? (issues ? "No open issues are assigned to you." : "Looking for your issues…")}</span>
             )}
-          </label>
+          </Field>
         )}
-        <label className="field">
-          <span>Name</span>
+        <Field label="Name">
           <input
             className="text-input"
             value={name}
@@ -129,7 +129,7 @@ export function NewBranchDialog({ repoPath, target, canCheckout, onCancel, onDon
             autoCorrect="off"
             autoFocus
           />
-        </label>
+        </Field>
         <label className="checkbox">
           <input
             type="checkbox"

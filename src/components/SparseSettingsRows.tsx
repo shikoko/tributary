@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { sparseSettings, type Action, type SparseSettings } from "../api";
 import { plural } from "../lib/format";
 import type { SettingRow } from "./SettingsDialog";
+import { Button } from "./ui/Button";
 
 /** Whether `folder` is inside one of `chosen` (so choosing it too changes nothing). */
 function inside(folder: string, chosen: ReadonlySet<string>): boolean {
@@ -56,9 +57,9 @@ export function useSparseRows(path: string, run: (action: Action) => Promise<boo
         ? `${settings.folders.join(", ") || "None"}, and the files at the top.${settings.partial ? " Files in the other folders aren't downloaded." : ""}`
         : "To work on part of a big repository, check out only the folders you need: the others leave your disk, and the list and searches stay the same.",
       content: settings.sparse ? (
-        <button className="outline-button" onClick={() => apply([])} disabled={busy}>
+        <Button kind="outline" onClick={() => apply([])} disabled={busy}>
           <span className="button-label">Check out everything</span>
-        </button>
+        </Button>
       ) : null,
     },
   ];
@@ -95,9 +96,9 @@ export function useSparseRows(path: string, run: (action: Action) => Promise<boo
     label: "",
     hint: wanted.length > 0 ? `${plural(wanted.length, "folder")} and the files at the top.` : undefined,
     content: (
-      <button className="primary-small-button" onClick={() => apply(wanted)} disabled={busy || wanted.length === 0 || unchanged}>
+      <Button kind="primary" onClick={() => apply(wanted)} disabled={busy || wanted.length === 0 || unchanged}>
         {busy ? "Checking out…" : "Check out only these"}
-      </button>
+      </Button>
     ),
   });
   return rows;

@@ -3,6 +3,7 @@ import type { DiffSource, FileChange, Lock, Overlap } from "../../api";
 import { plural } from "../../lib/format";
 import { FileLine } from "../FileLine";
 import { FileList } from "../FileList";
+import { Button } from "../ui/Button";
 
 interface Props {
   title: string;
@@ -31,9 +32,9 @@ export function FileSection({ title, files, empty, bulk, fileAction, busy, lockO
         <span className="hint">{plural(files.length, "file")}</span>
         <span className="spacer" />
         {files.length > 0 && (
-          <button className="link-button" onClick={bulk.onClick} disabled={busy}>
+          <Button kind="link" onClick={bulk.onClick} disabled={busy}>
             {bulk.label}
-          </button>
+          </Button>
         )}
       </h3>
       {files.length === 0 ? (

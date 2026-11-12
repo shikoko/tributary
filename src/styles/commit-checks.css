@@ -1,0 +1,90 @@
+/* The checks of a commit, in its details (the same rows, as a list). */
+.request-checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.request-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 28px;
+  border-bottom: 1px solid var(--border);
+}
+
+.request-check:last-child {
+  border-bottom: none;
+}
+
+.request-check-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.request-check.success .request-check-dot {
+  background: var(--success);
+}
+
+.request-check.failure .request-check-dot {
+  background: var(--danger);
+}
+
+.request-check.pending .request-check-dot {
+  background: var(--warning);
+  animation: request-pending 1.4s ease-in-out infinite;
+}
+
+@keyframes request-pending {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.request-check-name {
+  flex: 0 1 auto;
+  max-width: 65%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-check.skipped .request-check-name {
+  color: var(--text-muted);
+}
+
+.request-check-detail {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-check-link {
+  margin-left: auto;
+  font-size: var(--type-sm);
+}
+
+.request-section .team-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 6px 0 14px;
+}
+
+.request-empty {
+  margin: 0;
+  font-size: var(--type-base);
+}
+
+.request-stale {
+  margin: 0;
+  color: var(--warning-text);
+  font-size: var(--type-sm);
+}

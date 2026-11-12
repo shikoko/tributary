@@ -5,6 +5,7 @@ import { openInBrowser } from "../lib/weblinks";
 import { DownloadIcon, ExternalLinkIcon, PlusIcon } from "./Icons";
 import { LfsStorageSummary } from "./LfsCleanup";
 import { NameList, type SettingRow } from "./SettingsDialog";
+import { Button } from "./ui/Button";
 
 /** File types often stored with Git LFS, offered when a repository doesn't use it yet. */
 const COMMON = ["*.psd", "*.png", "*.wav", "*.mp4", "*.fbx", "*.uasset", "*.umap", "*.zip"];
@@ -48,10 +49,10 @@ export function useLfsSettingsRows({ path, run, onCleanUp }: Options): SettingRo
         label: "Git LFS isn't installed",
         hint: "It keeps big files like art, audio and video out of git itself, so clones stay small. Install it, then come back here to choose which files to store with it.",
         content: (
-          <button className="outline-button" onClick={() => openInBrowser("https://git-lfs.com")} data-url="https://git-lfs.com">
+          <Button kind="outline" onClick={() => openInBrowser("https://git-lfs.com")} data-url="https://git-lfs.com">
             <ExternalLinkIcon size={13} />
             <span className="button-label">Get Git LFS</span>
-          </button>
+          </Button>
         ),
       },
     ];
@@ -218,10 +219,10 @@ function downloadRows(
     label: "Download now",
     hint: `${downloaded.toLocaleString()} of the ${plural(files, "file")} stored with Git LFS are on this computer. Pulling downloads the ones you chose; this gets them now.`,
     content: (
-      <button className="outline-button" disabled={busy} onClick={() => void change({ kind: "downloadLfsFiles" })}>
+      <Button kind="outline" disabled={busy} onClick={() => void change({ kind: "downloadLfsFiles" })}>
         <DownloadIcon size={13} />
         <span className="button-label">Download</span>
-      </button>
+      </Button>
     ),
   });
   return rows;

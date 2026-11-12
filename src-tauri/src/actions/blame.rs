@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::support::LITERAL;
 use super::validate::{check_file_paths, commit_id};
@@ -15,7 +16,8 @@ const MAX_LINES: usize = 20_000;
 /// The commit git gives lines that aren't committed yet.
 const NOT_COMMITTED: &str = "0000000000000000000000000000000000000000";
 
-#[derive(Debug, Clone, Serialize)]
+/// Who changed each line of a file last.
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Blame {
     /// The commits the lines come from, in the order they first appear.
@@ -24,7 +26,7 @@ pub struct Blame {
     pub lines: Vec<BlameLine>,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct BlameCommit {
     /// The full id, or None for lines that aren't committed yet.
@@ -42,7 +44,7 @@ pub struct BlameCommit {
     pub previous_name: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct BlameLine {
     pub text: String,

@@ -5,13 +5,15 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::support::{LITERAL, count};
 use super::validate::check_paths;
 use crate::error::{Error, Result};
 use crate::git::Git;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// Why a file is ignored, if it is.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct IgnoreReason {
     /// The file, relative to the repository's top.
@@ -22,7 +24,7 @@ pub struct IgnoreReason {
     pub rule: Option<IgnoreRule>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct IgnoreRule {
     /// The file it's in, like ".gitignore" or "Content/.gitignore" (relative to the

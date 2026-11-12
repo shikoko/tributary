@@ -3,6 +3,7 @@ import { copyText } from "../lib/clipboard";
 import { shortId } from "../lib/format";
 import { Avatar } from "./Avatar";
 import { CherryIcon, CloseIcon, CompareIcon, CopyIcon, RevertIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 interface Props {
   /** The selected commits, in list order (newest first). */
@@ -27,35 +28,35 @@ export function MultiSelectPanel({ commits, branch, canChange, onCherryPick, onR
       <header className="details-header">
         <span className="details-label">{commits.length} commits selected</span>
         <span className="spacer" />
-        <button className="icon-button" onClick={onClose} title="Clear the selection (Esc)" aria-label="Clear the selection">
+        <Button kind="icon" onClick={onClose} title="Clear the selection (Esc)" aria-label="Clear the selection">
           <CloseIcon />
-        </button>
+        </Button>
       </header>
       <div className="details-scroll">
         <div className="details-actions">
           {onCompare && (
-            <button className="outline-button" onClick={onCompare}>
+            <Button kind="outline" onClick={onCompare}>
               <CompareIcon size={14} />
               <span className="button-label">Compare these two</span>
-            </button>
+            </Button>
           )}
-          <button className="outline-button" onClick={onCherryPick} disabled={disabled}>
+          <Button kind="outline" onClick={onCherryPick} disabled={disabled}>
             <CherryIcon size={14} />
             <span className="button-label">
               Cherry-pick {commits.length} onto {branch ?? "HEAD"}
             </span>
-          </button>
-          <button className="outline-button" onClick={onRevert} disabled={disabled}>
+          </Button>
+          <Button kind="outline" onClick={onRevert} disabled={disabled}>
             <RevertIcon size={14} />
             <span className="button-label">Revert {commits.length}</span>
-          </button>
-          <button
-            className="outline-button"
+          </Button>
+          <Button
+            kind="outline"
             onClick={() => copyText(commits.map((commit) => commit.id).join("\n"))}
           >
             <CopyIcon size={14} />
             <span className="button-label">Copy SHAs</span>
-          </button>
+          </Button>
         </div>
         {blocked && <p className="hint">{blocked}</p>}
         <p className="hint">

@@ -19,6 +19,7 @@ import { FILTER_FROM, filterFiles } from "../lib/fileFilter";
 import { highlightedFirst } from "../lib/diffTargets";
 import { reflowBody } from "../lib/message";
 import { Loader } from "./Loader";
+import { Button } from "./ui/Button";
 
 
 interface Props {
@@ -124,9 +125,9 @@ export function CommitDetailsPanel(props: Props) {
         <header className="details-header">
           <span className="details-label">{commit.kind === "stash" ? "Stash" : "Commit"}</span>
           <span className="spacer" />
-          <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close details">
+          <Button kind="icon" onClick={onClose} title="Close (Esc)" aria-label="Close details">
             <CloseIcon />
-          </button>
+          </Button>
         </header>
 
         <div className="details-scroll">

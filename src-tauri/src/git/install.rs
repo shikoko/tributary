@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::command;
 use crate::error::{Error, Result};
@@ -18,7 +19,7 @@ use crate::error::{Error, Result};
 pub const RECOMMENDED: (u32, u32) = (2, 38);
 
 /// Where git is (if it's anywhere), which version, and what's in the way when it isn't.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct GitInstall {
     /// The git that runs, when there is one.

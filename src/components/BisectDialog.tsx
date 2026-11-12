@@ -1,6 +1,7 @@
 import type { CommitRow } from "../api";
 import { shortId } from "../lib/format";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
 
 interface Props {
   /** The commit that worked, and the checked-out one, which doesn't. */
@@ -21,12 +22,12 @@ export function BisectDialog({ good, bad, between, onCancel, onStart }: Props) {
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel}>
+          <Button kind="secondary" onClick={onCancel}>
             Cancel
-          </button>
-          <button className="primary-small-button" onClick={onStart} autoFocus>
+          </Button>
+          <Button kind="primary" onClick={onStart} autoFocus>
             Start bisecting
-          </button>
+          </Button>
         </>
       }
     >

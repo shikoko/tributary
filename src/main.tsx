@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 // Google Sans for the interface and JetBrains Mono (with its real italics) for SHAs, branch
@@ -28,11 +28,22 @@ if (!import.meta.env.DEV) {
   });
 }
 
+// The catalogue of the app's building blocks (?catalogue), for working on how it looks: a
+// page of its own, loaded only when asked for.
+const Catalogue = lazy(() => import("./catalogue/Catalogue"));
+const catalogue = new URLSearchParams(location.search).has("catalogue");
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    {/* An error that stops the interface shows what happened, instead of an empty window. */}
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
+    {catalogue ? (
+      <Suspense>
+        <Catalogue />
+      </Suspense>
+    ) : (
+      // An error that stops the interface shows what happened, instead of an empty window.
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    )}
   </React.StrictMode>,
 );

@@ -10,6 +10,7 @@
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::support::{LITERAL, file_name};
 use super::validate::check_file_paths;
@@ -51,7 +52,7 @@ pub const YAML_ASSETS: [&str; 24] = [
 ];
 
 /// A repository's Unity project, and Smart Merge's setup for it.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct UnitySetup {
     /// There's a Unity project in it (at the top, or in a folder just below).

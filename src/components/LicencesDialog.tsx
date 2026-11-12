@@ -4,6 +4,7 @@ import { openInBrowser } from "../lib/weblinks";
 import { parseNotices, searchNotices, type NoticePackage } from "../lib/notices";
 import { Dialog } from "./Dialog";
 import { ExternalLinkIcon, SearchIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 /** Tributary's own entry, first in the list. */
 const OWN = "tributary";
@@ -45,9 +46,9 @@ export function LicencesDialog({ onClose }: { onClose: () => void }) {
       error={error}
       onCancel={onClose}
       buttons={
-        <button className="secondary-button" onClick={onClose} autoFocus>
+        <Button kind="secondary" onClick={onClose} autoFocus>
           Done
-        </button>
+        </Button>
       }
     >
       <div className="settings">
@@ -86,10 +87,10 @@ export function LicencesDialog({ onClose }: { onClose: () => void }) {
                   Version {selected.version} · {selected.license}
                 </span>
               </h3>
-              <button className="link-button licences-home" onClick={() => openInBrowser(selected.home)} data-url={selected.home}>
+              <Button kind="link" className="licences-home" onClick={() => openInBrowser(selected.home)} data-url={selected.home}>
                 <ExternalLinkIcon size={12} />
                 <span>{selected.home.replace(/^https?:\/\//, "")}</span>
-              </button>
+              </Button>
               {selected.texts.length === 0 ? (
                 <p className="licences-note">This package doesn't come with a licence file: its licence is the standard text of {selected.license}.</p>
               ) : (

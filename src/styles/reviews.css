@@ -1,0 +1,160 @@
+/* Reviewing and commenting in the app */
+.review-box,
+.comment-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.review-box textarea,
+.comment-box textarea,
+textarea.request-body.short {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+}
+
+.review-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-buttons .spacer {
+  flex: 1;
+}
+
+.review-changes .button-label {
+  color: var(--danger-text);
+}
+
+.review-error {
+  margin: 0;
+  color: var(--danger-text);
+  font-size: var(--type-sm);
+}
+
+/* The conversation: each comment beside its author's picture, replies indented under it. */
+.request-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.request-comment-body {
+  position: relative;
+  padding-left: 40px;
+}
+
+/* Beside the head's line (20px): its middle on the line's. */
+.request-comment-avatar {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  display: inline-flex;
+}
+
+.request-comment.reply {
+  margin: -8px 0 0 40px;
+  padding: 12px 14px;
+  border-radius: var(--radius-xl);
+  background: var(--sunken);
+}
+
+.request-comment.reply .request-comment-body {
+  padding-left: 32px;
+}
+
+.request-comment.reply .request-comment-avatar {
+  top: -1px;
+}
+
+/* Name, tags and time, each trimmed to its letters and centred on one 20px line. */
+.request-comment-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  min-height: 20px;
+  font-size: var(--type-base);
+}
+
+.request-comment-head strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.request-review {
+  background: rgb(var(--overlay-rgb) / 0.12);
+  color: var(--text-secondary);
+}
+
+.request-review.approved {
+  background: rgb(var(--success-rgb) / 0.16);
+  color: var(--success-text);
+}
+
+.request-review.changesRequested {
+  background: rgb(var(--danger-rgb) / 0.14);
+  color: var(--danger-text);
+}
+
+.request-comment-where {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  max-width: 260px;
+  padding: 0 7px;
+  border-radius: var(--radius-md);
+  background: rgb(var(--overlay-rgb) / 0.12);
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+}
+
+.request-comment-when {
+  color: var(--text-muted);
+}
+
+.request-comment-text {
+  margin-top: 4px;
+}
+
+/* The lines a comment is about. */
+.request-hunk {
+  margin: 8px 0 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--type-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.request-hunk .added {
+  color: var(--added);
+}
+
+.request-hunk .removed {
+  color: var(--removed);
+}
+
+.request-reply {
+  margin: 6px 0 0 40px;
+  font-size: var(--type-sm);
+}
+
+.request-comment.reply .request-reply {
+  margin-left: 32px;
+}
+
+.request-section > .comment-box {
+  margin-top: 22px;
+}

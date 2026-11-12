@@ -1,17 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-
-/** A newer version of Tributary. */
-export interface UpdateInfo {
-  version: string;
-  /** The version running now. */
-  current: string;
-  notes: string | null;
-  date: string | null;
-  /** Already downloaded, ready to install. */
-  ready?: boolean;
-}
+import type { UpdateInfo } from "../api/generated";
+export type { UpdateInfo };
 
 export interface UpdateProgress {
   downloaded: number;

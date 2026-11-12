@@ -8,6 +8,7 @@ import { BranchIcon, LockIcon } from "../Icons";
 import { AreaTrend } from "./AreaTrend";
 import { DayTip, Divergence, Overlap, RingedAvatar, YouTag, type TeamData } from "./parts";
 import { HotspotsCard, KindBar, KindsCard, LinesCard, PunchCard, RequestsCard } from "./TeamStats";
+import { Chip } from "../ui/Chip";
 
 export function TeamCards({ team, work, requests, days, now, colorOf, isYou, yoursOn, lockOwners, tip, onShowBranch, onShowPerson }: TeamData) {
   const today = days[days.length - 1];
@@ -149,9 +150,9 @@ export function TeamCards({ team, work, requests, days, now, colorOf, isYou, you
               {workOf(person.email) && <KindBar kinds={workOf(person.email)?.kinds ?? []} tip={tip} />}
               <span className="team-chips">
                 {person.branches.slice(0, 3).map((branch) => (
-                  <span key={branch} className="team-branch-chip mono">
+                  <Chip key={branch} className="team-branch-chip">
                     {withoutRemote(branch)}
-                  </span>
+                  </Chip>
                 ))}
                 {person.branches.length > 3 && <span className="muted">+{person.branches.length - 3}</span>}
               </span>

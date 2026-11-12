@@ -2,6 +2,7 @@ import { useState } from "react";
 import { runAction, type RepoSnapshot } from "../api";
 import { Dialog } from "./Dialog";
 import { TypeToConfirm } from "./Safety";
+import { Button } from "./ui/Button";
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -39,12 +40,12 @@ export function ForcePushDialog({ snapshot, protectedName, onCancel, onDone }: P
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running} autoFocus={!protectedName}>
+          <Button kind="secondary" onClick={onCancel} disabled={running} autoFocus={!protectedName}>
             Cancel
-          </button>
-          <button className="danger-button" onClick={push} disabled={running || !confirmed}>
+          </Button>
+          <Button kind="danger" onClick={push} disabled={running || !confirmed}>
             {running ? "Force pushing…" : "Force push"}
-          </button>
+          </Button>
         </>
       }
     >

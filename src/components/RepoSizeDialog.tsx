@@ -5,6 +5,7 @@ import { textOn } from "../lib/appearance";
 import { formatBytes, plural } from "../lib/format";
 import { kindOf, squarify } from "../lib/repoSize";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
 
 /** Which lane colours the five kinds of file that take the most get, in order (apart for colour-blind eyes too). */
 const KIND_LANES = [0, 1, 2, 4, 3];
@@ -140,14 +141,14 @@ export function RepoSizeDialog({
       onCancel={onClose}
       buttons={
         <>
-          <button className="secondary-button" onClick={onClose}>
+          <Button kind="secondary" onClick={onClose}>
             Close
-          </button>
+          </Button>
           <span className="spacer" />
           {offered.length > 0 && (
             <>
-              <button
-                className="outline-button"
+              <Button
+                kind="outline"
                 disabled={!canChange || patterns.length === 0}
                 title="New versions go into Git LFS; what's in the history stays"
                 onClick={() => {
@@ -156,7 +157,7 @@ export function RepoSizeDialog({
                 }}
               >
                 <span className="button-label">Into Git LFS from now on</span>
-              </button>
+              </Button>
               <button
                 className={everything ? "danger-outline-button" : "primary-small-button"}
                 disabled={!canChange || patterns.length === 0 || !branch}

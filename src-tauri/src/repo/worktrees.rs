@@ -5,11 +5,13 @@ use std::path::{Path, PathBuf};
 
 use gix::bstr::ByteSlice;
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::open;
 use crate::error::{Error, Result};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// A working tree of the repository: the main one, or one linked with `git worktree add`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Worktree {
     pub path: String,

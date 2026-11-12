@@ -130,7 +130,10 @@ const shots = {
     for (const line of ids()) {
       const [id, ...words] = line.split(" ");
       const subject = words.join(" ");
-      ciStates[id.slice(0, 12)] = subject === "Prepare the 0.3 release notes" ? "pending" : subject === "Add a theme picker" ? "failure" : "success";
+      // As the branches' pull requests below say: running on export, failing on themes.
+      const pending = ["Prepare the 0.3 release notes", "Export a whole notebook as a zip"];
+      const failed = ["Add a theme picker", "High-contrast theme"];
+      ciStates[id.slice(0, 12)] = pending.includes(subject) ? "pending" : failed.includes(subject) ? "failure" : "success";
     }
     const ago = (seconds) => new Date(Date.now() - seconds * 1000).toISOString();
     const ran = (from, to) => ({ startedAt: ago(from), finishedAt: ago(to), workflow: "Checks", trigger: "on push to main" });
@@ -144,7 +147,17 @@ const shots = {
         { name: "Lint", state: "success", url: "https://github.com/example/notebook/actions/runs/4", detail: null, ...ran(3 * 86_400 + 600, 3 * 86_400 + 578) },
       ],
     };
-    const page = await open(folder, { preview: { ciStates, commitChecks } });
+    // Open pull requests on three branches, each with its checks on its badge: passing,
+    // failing and still running.
+    git(folder, ["push", "-q", "origin", "feature/themes", "feature/export-pdf"]);
+    const request = (number, branch, title, author, checks) => ({ number, title, url: `https://github.com/example/notebook/pull/${number}`, remote: "origin", branch, draft: false, author, checks, forge: "github" });
+    const pullRequests = [
+      request(19, "feature/export", "Export a whole notebook as a zip", "sam-okafor", "pending"),
+      request(20, "feature/themes", "A theme picker, with a high-contrast theme", "lena-fischer", "failure"),
+      request(21, "feature/export-pdf", "Export a notebook as a PDF", "sam-okafor", "success"),
+    ];
+    // The branch column wide enough for the names beside their pull requests.
+    const page = await open(folder, { preview: { ciStates, commitChecks, pullRequests }, storage: { "tributary.columns": { refs: 236, graph: null } } });
     await row(page, "Merge pull request #18 from feature/sync").click();
     await page.locator(".details", { hasText: "Merge pull request #18" }).waitFor();
     await page.locator(".graph-ci").first().waitFor({ timeout: 10_000 });

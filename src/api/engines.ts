@@ -1,16 +1,8 @@
 // Game engines: what Unreal's actors saved in their own files (World Partition) are, and
 // Unity's Smart Merge for scenes and prefabs.
 import { invoke } from "@tauri-apps/api/core";
-
-/** An actor saved in its own file, under __ExternalActors__. */
-export interface ActorName {
-  /** Its name in the editor's outliner, like "SM_RackShelf_215". */
-  label: string | null;
-  /** Its class, short: "StaticMeshActor", or a Blueprint's name, like "BP_Door". */
-  class: string | null;
-  /** The level it's in, like "Maps/Tavern". */
-  level: string | null;
-}
+import type { ActorName, UnitySetup } from "./generated";
+export type { ActorName, UnitySetup };
 
 /** Whether a file is an actor (or object) saved in its own file by Unreal Engine. */
 export function isExternalActor(path: string): boolean {
@@ -23,20 +15,6 @@ export function isExternalActor(path: string): boolean {
  */
 export function actorNames(path: string, at: string | null, fallback: string | null, files: string[]): Promise<Record<string, ActorName>> {
   return invoke<Record<string, ActorName>>("actor_names", { path, at, fallback, files });
-}
-
-/** A repository's Unity project, and Unity's Smart Merge (UnityYAMLMerge) set up for it. */
-export interface UnitySetup {
-  /** There's a Unity project in it (at the top, or in a folder just below). */
-  project: boolean;
-  /** The editor version it's made with, like "2022.3.10f1". */
-  editorVersion: string | null;
-  /** The UnityYAMLMerge programs found on this computer, the project's version's first. */
-  tools: string[];
-  /** Scenes and prefabs are merged with Smart Merge (set up here, or by the team). */
-  configured: boolean;
-  /** The program git runs to merge them, when set up. */
-  configuredTool: string | null;
 }
 
 export function unitySetup(path: string): Promise<UnitySetup> {

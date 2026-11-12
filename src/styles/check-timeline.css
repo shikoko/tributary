@@ -1,0 +1,426 @@
+/* A request's checks on one clock (CheckTimeline): dot, name, how much later than its run it
+   started, a track with the check's bar on it, and its time. Every row has the same columns, so the bars share one time axis,
+   and the axis under them uses the same columns to line up with the tracks. */
+.request-timeline {
+  --timeline-columns: 8px minmax(0, 170px) 52px minmax(0, 1fr) 60px;
+  position: relative;
+}
+
+/* When the first check started: one dotted line down through every run, from the dot of
+   its "Started …" at the top, fading out above the clock's ends. */
+.request-timeline-origin {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: var(--timeline-columns);
+  column-gap: 12px;
+  pointer-events: none;
+}
+
+.request-timeline-origin > span {
+  grid-column: 4;
+  position: relative;
+}
+
+/* The tracks start a little after the line, so a bar that started with the clock sits beside
+   it rather than on it. */
+.request-timeline.grouped .request-timeline-track {
+  margin-left: 2px;
+}
+
+.request-timeline-origin > span > span {
+  position: absolute;
+  top: var(--group-head-middle, 4.5px);
+  bottom: 22px;
+  border-left: 2px dotted var(--border-strong);
+  transform: translateX(-2px);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+}
+
+.request-timeline.untimed {
+  --timeline-columns: 8px minmax(0, 1fr) auto;
+}
+
+.request-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.request-status .request-check.request-timeline-row {
+  display: grid;
+  grid-template-columns: var(--timeline-columns);
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 8px;
+  min-height: 18px;
+  border-bottom: none;
+}
+
+/* A long name ends in "…" inside its column; the link only as wide as the name. */
+.request-timeline-name,
+.request-timeline-row .request-check-open {
+  display: inline-flex;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.request-timeline-row .request-check-name {
+  min-width: 0;
+}
+
+.request-timeline-track {
+  position: relative;
+  height: 8px;
+  border-radius: var(--radius-sm);
+  background: rgb(var(--overlay-rgb) / 0.06);
+}
+
+/* Cut square where it starts, flush against its run's line or the dotted wait; round at
+   both ends when it started the clock in a list without lines. */
+.request-timeline-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 4px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--text-faint);
+  /* When the clock steps up, bars glide to their new places; a running one grows smoothly. */
+  transition:
+    left 0.6s ease,
+    width 0.6s ease;
+}
+
+/* Where a bar starts on its track (set on the track), registered so it can glide too. */
+@property --from {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 0%;
+}
+
+.request-timeline-track {
+  transition: --from 0.6s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .request-timeline-bar,
+  .request-timeline-track {
+    transition: none;
+  }
+}
+
+.request-timeline-bar.first {
+  border-radius: var(--radius-sm);
+}
+
+/* Before a check started: a dotted line instead of the track. */
+.request-timeline-track.started {
+  background: linear-gradient(to right, transparent var(--from), rgb(var(--overlay-rgb) / 0.06) var(--from));
+}
+
+.request-timeline-before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: var(--from);
+  border-top: 2px dotted var(--border-strong);
+  transform: translateY(-50%);
+}
+
+.request-timeline-bar.success {
+  background: var(--success);
+}
+
+.request-timeline-bar.failure {
+  background: var(--danger);
+}
+
+/* Running: stripes that move, growing until now. */
+.request-timeline-bar.pending {
+  background: repeating-linear-gradient(-45deg, var(--warning) 0 6px, color-mix(in srgb, var(--warning) 60%, transparent) 6px 12px);
+  background-size: 17px 17px;
+  animation: request-timeline-stripes 1s linear infinite;
+}
+
+@keyframes request-timeline-stripes {
+  to {
+    background-position: 17px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .request-timeline-bar.pending {
+    animation: none;
+  }
+}
+
+/* Waiting for a runner: an empty, dashed track. */
+.request-timeline-waiting {
+  position: absolute;
+  inset: 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+/* A row with a page: anywhere on it opens the page, its name underlined while pointed at. */
+.request-timeline-row.opens {
+  cursor: pointer;
+}
+
+.request-timeline-row.opens:hover .request-check-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.request-timeline-row.opens:hover .request-check-open svg {
+  opacity: 1;
+}
+
+/* The check in the spotlight (its wave is lit above): a soft band behind its row. */
+.request-status .request-check.request-timeline-row {
+  border-radius: var(--radius-lg);
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.request-status .request-check.request-timeline-row.lit {
+  background: rgb(var(--overlay-rgb) / 0.06);
+  box-shadow: 0 0 0 7px rgb(var(--overlay-rgb) / 0.06);
+}
+
+/* Skipped: it didn't run. The whole row faded, at the bottom of the list. */
+.request-status .request-check.request-timeline-row.skipped {
+  opacity: 0.45;
+}
+
+.request-timeline-row.skipped .request-timeline-time {
+  color: var(--text-faint);
+}
+
+.request-timeline-time {
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.request-timeline-row.pending .request-timeline-time {
+  color: var(--text);
+}
+
+/* How much later than its run it started: "+15s". */
+.request-timeline-later {
+  overflow-x: visible;
+  text-box: trim-both cap alphabetic;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Why it failed, under its name. */
+.request-timeline-detail {
+  grid-column: 2 / -1;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
+  color: var(--danger-text);
+  font-size: var(--type-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-timeline-axis {
+  display: grid;
+  grid-template-columns: var(--timeline-columns);
+  column-gap: 12px;
+  margin-top: 10px;
+  color: var(--text-faint);
+  font-size: var(--type-xs);
+}
+
+.request-timeline-axis span {
+  grid-column: 4;
+  grid-row: 1;
+  text-box: trim-both cap alphabetic;
+}
+
+.request-timeline-axis span:last-child {
+  justify-self: end;
+}
+
+/* In groups by workflow run (or GitLab stage): a heading with what started it, when, and
+   how long it's taken, then its checks. On the same columns as the rows. */
+.request-timeline.grouped > .request-timeline-list {
+  gap: 22px;
+}
+
+.request-timeline-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.request-timeline-group > .request-timeline-list,
+.request-timeline-group-head {
+  position: relative;
+}
+
+.request-timeline-group-head {
+  display: grid;
+  grid-template-columns: var(--timeline-columns);
+  align-items: center;
+  column-gap: 12px;
+  color: var(--text-faint);
+  font-size: var(--type-xs);
+}
+
+.request-timeline-group-head > * {
+  grid-row: 1;
+}
+
+/* Over the dot, name and start columns, up to where its run's line can be. */
+.request-timeline-group-name {
+  grid-column: 1 / 4;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-timeline.untimed .request-timeline-group-name {
+  grid-column: 1 / -1;
+}
+
+.request-timeline-group-trigger {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.request-timeline-group-total {
+  grid-column: 5;
+  text-box: trim-both cap alphabetic;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* When its run started: a dot by the heading, with a dotted line down to its last row.
+   The line ends where the bars start, so they start flush against it. */
+.request-timeline-group-start {
+  grid-column: 4;
+  position: relative;
+  align-self: stretch;
+}
+
+.request-timeline-group-flag {
+  position: absolute;
+  top: 50%;
+  padding-left: 9px;
+  color: var(--text-muted);
+  text-box: trim-both cap alphabetic;
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+
+.request-timeline-group-flag::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transform: translate(-50%, -50%);
+}
+
+/* Near the end of the clock: the words go on the line's left. */
+.request-timeline-group-flag.flipped {
+  padding: 0 9px 0 0;
+  transform: translate(-100%, -50%);
+}
+
+.request-timeline-group-flag.flipped::before {
+  left: auto;
+  right: 1px;
+  transform: translate(50%, -50%);
+}
+
+.request-timeline-guide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: var(--timeline-columns);
+  column-gap: 12px;
+  pointer-events: none;
+}
+
+.request-timeline-guide > span {
+  grid-column: 4;
+  position: relative;
+}
+
+.request-timeline-guide > span > span {
+  position: absolute;
+  top: var(--group-head-middle, 4.5px);
+  bottom: 0;
+  border-left: 2px dotted var(--border-strong);
+  transform: translateX(-2px);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+}
+
+/* How long a check has been running, or took. Figures of one width, so a ticking time
+   doesn't wobble the words beside it. */
+.request-check-time {
+  flex: none;
+  min-width: 6.5ch;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* In a commit's list: on the right, beside Details. */
+.request-check-name + .request-check-time {
+  margin-left: auto;
+}
+
+.request-check-time + .request-check-link {
+  margin-left: 0;
+}
+
+.request-conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--type-sm);
+}
+
+.request-conflicts ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text);
+}
+
+.request-conflicts li {
+  overflow-wrap: anywhere;
+}

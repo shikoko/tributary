@@ -28,6 +28,9 @@ jobs:
   version:
     name: Version
     runs-on: ubuntu-24.04
+    # Every job stops after about twice its longest run, so one that hangs frees its runner
+    # and the queue behind it, instead of holding them for GitHub's six hours.
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: read
@@ -75,6 +78,8 @@ jobs:
     needs: version
     if: needs.version.outputs.build == 'true'
     runs-on: ${{ matrix.os }}
+    # The installers took 22 minutes at most; one built without its cache can take twice that.
+    timeout-minutes: 45
     # Releases (builds of main) and betas (builds of develop) get the signing key from the
     # "release" environment, which only main and develop can use. Other builds use
     # "test-build", which has no secrets, so they're unsigned (they install by hand, but not
@@ -231,6 +236,7 @@ jobs:
     if: github.ref == 'refs/heads/develop'
     needs: [version, build]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write
     env:
@@ -298,6 +304,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs: [version, build]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
@@ -353,13 +360,11 @@ jobs:
             --jq "[.[] | select(.tag_name == \"$TAG\")][0] | {body, assets: [.assets[] | {name}]}" \
             > release.json
           node .github/scripts/latest-json.mjs "$GITHUB_REPOSITORY" "$TAG" release.json installers latest.json "docs/release-notes/$TAG.md"
-          if [ -f latest.json ]; then
-            gh release upload "$TAG" latest.json --repo "$GITHUB_REPOSITORY"
-          fi
-          else
+          if [ ! -f latest.json ]; then
             echo "::error::No latest.json (the installers aren't signed for updates): $TAG is left as a draft."
             exit 1
           fi
+          gh release upload "$TAG" latest.json --repo "$GITHUB_REPOSITORY"
 
       # Published with its latest.json in place: from now on, everyone is offered it.
       - name: Publish the release

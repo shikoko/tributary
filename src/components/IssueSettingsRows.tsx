@@ -3,6 +3,7 @@ import { trackerSignIn, trackerSignOut, trackerStatus, type Tracker, type Tracke
 import type { TrackerSetting } from "../lib/issues";
 import { useRepoSetting } from "../lib/repoPrefs";
 import type { SettingRow } from "./SettingsDialog";
+import { Button } from "./ui/Button";
 
 const NAMES: Record<TrackerKind, string> = { github: "GitHub issues", gitlab: "GitLab issues", jira: "Jira", linear: "Linear" };
 
@@ -117,9 +118,9 @@ export function useIssueRows(path: string, automatic: Tracker | null): SettingRo
       kind: "custom",
       label: "",
       content: (
-        <button className="primary-small-button" onClick={save} disabled={!changed || !draft.site.trim()}>
+        <Button kind="primary" onClick={save} disabled={!changed || !draft.site.trim()}>
           Save
-        </button>
+        </Button>
       ),
     },
   );
@@ -130,8 +131,8 @@ export function useIssueRows(path: string, automatic: Tracker | null): SettingRo
       label: `Signed in to ${NAMES[own.kind]} as ${status.user ?? "you"}`,
       hint: "The key is kept by git's credential helper, not by Tributary.",
       content: (
-        <button
-          className="outline-button"
+        <Button
+          kind="outline"
           disabled={busy}
           onClick={async () => {
             setBusy(true);
@@ -141,7 +142,7 @@ export function useIssueRows(path: string, automatic: Tracker | null): SettingRo
           }}
         >
           <span className="button-label">Sign out</span>
-        </button>
+        </Button>
       ),
     });
     return rows;
@@ -189,9 +190,9 @@ export function useIssueRows(path: string, automatic: Tracker | null): SettingRo
         />
         {error && <p className="review-error">{error}</p>}
         <div className="remote-form-buttons">
-          <button type="submit" className="primary-small-button" disabled={busy || !signIn.token.trim()}>
+          <Button type="submit" kind="primary" disabled={busy || !signIn.token.trim()}>
             {busy ? "Checking…" : "Sign in"}
-          </button>
+          </Button>
         </div>
       </form>
     ),

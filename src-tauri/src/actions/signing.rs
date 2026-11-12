@@ -3,12 +3,13 @@
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::Git;
 
 /// How commits in this repository are signed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum SigningMode {
     /// As git is set up for every repository.
@@ -22,7 +23,7 @@ pub enum SigningMode {
 }
 
 /// A key commits could be signed with.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SigningKey {
     /// What `user.signingkey` takes: a GPG key id, or an SSH public key's file.
@@ -32,7 +33,7 @@ pub struct SigningKey {
     pub format: SigningMode,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SigningSettings {
     /// What's set for this repository (`Usual` when nothing is).

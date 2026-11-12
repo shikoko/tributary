@@ -5,6 +5,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::Git;
@@ -14,7 +15,8 @@ const MAX_BRANCHES: usize = 40;
 /// At most this many commit times are kept for each person and branch.
 const MAX_TIMES: usize = 2000;
 
-#[derive(Debug, Clone, Serialize)]
+/// Who committed where lately: people, the branches they work on, and how far those are from the main branch.
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct TeamActivity {
     /// Since when (seconds since the Unix epoch), and over how many days.
@@ -32,7 +34,7 @@ pub struct TeamActivity {
     pub previous: Vec<i64>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct TeamPerson {
     pub name: String,
@@ -46,7 +48,7 @@ pub struct TeamPerson {
     pub times: Vec<i64>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct BranchActivity {
     /// Like "origin/feature/export", or a local branch that isn't pushed.
@@ -64,7 +66,7 @@ pub struct BranchActivity {
     pub times: Vec<i64>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct BranchPerson {
     pub name: String,
@@ -123,7 +125,7 @@ fn commits(git: &Git, args: &[&str]) -> Vec<(String, String, String, i64)> {
 }
 
 /// How many people committed, and how many commits, on any branch in the last `days` days.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct TeamPulse {
     pub people: usize,

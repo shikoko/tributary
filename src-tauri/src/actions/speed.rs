@@ -5,6 +5,7 @@
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use super::support::count;
 use crate::error::{Error, Result};
@@ -14,7 +15,7 @@ use crate::git::{Git, Progress};
 pub const BIG: u64 = 20_000;
 
 /// One of git's speed-ups.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum SpeedUp {
     /// `core.fsmonitor`: git's file watcher (Windows and macOS).
@@ -28,7 +29,7 @@ pub enum SpeedUp {
 }
 
 /// How big the repository is, and which speed-ups are on.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SpeedSettings {
     /// Files in the index.

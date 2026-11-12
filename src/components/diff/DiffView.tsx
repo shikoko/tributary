@@ -15,6 +15,7 @@ import { ConflictEditor } from "./ConflictEditor";
 import { DiffLines, type LinePicking } from "./DiffLines";
 import { DiffSubmodule } from "./DiffSubmodule";
 import { Loader } from "../Loader";
+import { Button } from "../ui/Button";
 
 interface Props {
   repoPath: string;
@@ -154,18 +155,18 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
     <section className="diff-view" aria-label={`Changes to ${path}`}>
       <header className="diff-header">
         <div className="diff-steps">
-          <button className="icon-button" onClick={() => onIndex(index - 1)} disabled={index === 0} title="Previous file ([)" aria-label="Previous file">
+          <Button kind="icon" onClick={() => onIndex(index - 1)} disabled={index === 0} title="Previous file ([)" aria-label="Previous file">
             <ChevronUpIcon size={14} />
-          </button>
-          <button
-            className="icon-button"
+          </Button>
+          <Button
+            kind="icon"
             onClick={() => onIndex(index + 1)}
             disabled={index === targets.length - 1}
             title="Next file (])"
             aria-label="Next file"
           >
             <ChevronDownIcon size={14} />
-          </button>
+          </Button>
           <span className="diff-count">
             {index + 1} of {targets.length}
           </span>
@@ -208,8 +209,8 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           </label>
         )}
         {(conflicted || (target.file.status !== "untracked" && !diff?.submodule)) && (
-          <button
-            className="outline-button tool-button"
+          <Button
+            kind="outline" className="tool-button"
             onClick={openInTool}
             title={`${toolButton}: ${
               tools && !tool
@@ -222,11 +223,11 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           >
             <ExternalLinkIcon size={13} />
             <span className="button-label">{toolButton}</span>
-          </button>
+          </Button>
         )}
         {!whole && !conflicted && (
-          <button
-            className={`icon-button${split ? " active" : ""}`}
+          <Button
+            kind="icon" className={split ? "active" : undefined}
             onClick={() => setSplit(!split)}
             aria-pressed={split}
             title={
@@ -239,16 +240,16 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
             aria-label="Side by side"
           >
             <SplitIcon size={15} />
-          </button>
+          </Button>
         )}
         {!whole && !conflicted && target.file.status !== "deleted" && target.file.status !== "untracked" && (
-          <button className="icon-button" onClick={() => onBlame(target)} title="Who changed each line" aria-label="Who changed each line">
+          <Button kind="icon" onClick={() => onBlame(target)} title="Who changed each line" aria-label="Who changed each line">
             <BlameIcon size={15} />
-          </button>
+          </Button>
         )}
-        <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close the changes">
+        <Button kind="icon" onClick={onClose} title="Close (Esc)" aria-label="Close the changes">
           <CloseIcon />
-        </button>
+        </Button>
       </header>
       <div className="diff-body" ref={body}>
         {conflicted && live ? (
@@ -277,21 +278,21 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
             <span>{linesLabel(selected.size)} chosen</span>
             {picking.side === "unstaged" ? (
               <>
-                <button className="outline-button" disabled={applying} onClick={() => void apply("discard", selected)} title="Undo them in the file (you can put them back)">
+                <Button kind="outline" disabled={applying} onClick={() => void apply("discard", selected)} title="Undo them in the file (you can put them back)">
                   <span className="button-label">Discard</span>
-                </button>
-                <button className="primary-small-button" disabled={applying} onClick={() => void apply("stage", selected)}>
+                </Button>
+                <Button kind="primary" disabled={applying} onClick={() => void apply("stage", selected)}>
                   Stage {linesLabel(selected.size)}
-                </button>
+                </Button>
               </>
             ) : (
-              <button className="primary-small-button" disabled={applying} onClick={() => void apply("unstage", selected)}>
+              <Button kind="primary" disabled={applying} onClick={() => void apply("unstage", selected)}>
                 Unstage {linesLabel(selected.size)}
-              </button>
+              </Button>
             )}
-            <button className="icon-button" onClick={() => setSelected(new Set())} title="Let go of them (Esc)" aria-label="Let go of the chosen lines">
+            <Button kind="icon" onClick={() => setSelected(new Set())} title="Let go of them (Esc)" aria-label="Let go of the chosen lines">
               <CloseIcon size={13} />
-            </button>
+            </Button>
           </div>
         )}
     </section>

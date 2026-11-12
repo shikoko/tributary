@@ -3,6 +3,7 @@ import { branchBackups, runAction, type Backup, type BackupEvent } from "../api"
 import { relativeTime, shortId } from "../lib/format";
 import { Dialog } from "./Dialog";
 import { CloseIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 interface Props {
   repoPath: string;
@@ -62,9 +63,9 @@ export function RestoreDialog({ repoPath, onCancel, onRestore }: Props) {
       error={error}
       onCancel={onCancel}
       buttons={
-        <button className="secondary-button" onClick={onCancel}>
+        <Button kind="secondary" onClick={onCancel}>
           Close
-        </button>
+        </Button>
       }
     >
       <p className="hint">
@@ -90,16 +91,16 @@ export function RestoreDialog({ repoPath, onCancel, onRestore }: Props) {
                 </div>
                 <div className="restore-outcome">{outcome(backup)}</div>
               </div>
-              <button
-                className="outline-button"
+              <Button
+                kind="outline"
                 onClick={() => onRestore(backup)}
                 disabled={!backup.remote && backup.current === backup.id}
               >
                 <span className="button-label">Restore</span>
-              </button>
-              <button className="icon-button restore-remove" onClick={() => remove(backup)} title="Forget this backup" aria-label="Forget this backup">
+              </Button>
+              <Button kind="icon" className="restore-remove" onClick={() => remove(backup)} title="Forget this backup" aria-label="Forget this backup">
                 <CloseIcon size={12} />
-              </button>
+              </Button>
             </li>
           ))}
         </ul>

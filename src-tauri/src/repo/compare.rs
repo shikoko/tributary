@@ -5,6 +5,7 @@ use std::path::Path;
 
 use gix::ObjectId;
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::details::file_change;
 use super::open;
@@ -12,7 +13,8 @@ use super::status::FileChange;
 use crate::error::{Error, Result};
 use crate::git::Git;
 
-#[derive(Debug, Serialize)]
+/// Two commits (or branches) compared: the files that differ, and the commits each has that the other doesn't.
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Comparison {
     /// What the files are compared from: `from` itself, or (since they split) where the

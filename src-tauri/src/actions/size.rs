@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::backups::{BackupEvent, back_up};
 use super::stacks::branch_tips;
@@ -20,7 +21,8 @@ const MOST_FILES: usize = 60;
 /// How many folders and kinds of file are listed.
 const MOST_GROUPS: usize = 12;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// What makes a repository big.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RepoSize {
     /// The history's size on disk (git's packed and loose objects), in bytes.
@@ -35,7 +37,7 @@ pub struct RepoSize {
     pub kinds: Vec<SizeGroup>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct BigFile {
     pub path: String,
@@ -48,7 +50,7 @@ pub struct BigFile {
     pub in_lfs: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SizeGroup {
     pub name: String,

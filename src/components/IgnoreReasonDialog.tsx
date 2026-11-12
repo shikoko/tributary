@@ -5,6 +5,7 @@ import { baseName } from "../lib/paths";
 import { useStoredState } from "../lib/settings";
 import { Dialog } from "./Dialog";
 import { CheckIcon, FolderIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 /** Skip the introduction and go straight to choosing a file (Settings → General turns it back on). */
 export const SKIP_INTRO_KEY = "ignoreReason.skipIntro";
@@ -92,12 +93,12 @@ export function IgnoreReasonDialog({
               Don't show this again
             </label>
             <span className="spacer" />
-            <button className="secondary-button" onClick={onClose}>
+            <Button kind="secondary" onClick={onClose}>
               Cancel
-            </button>
-            <button className="primary-small-button" onClick={() => void choose()} disabled={choosing} autoFocus>
+            </Button>
+            <Button kind="primary" onClick={() => void choose()} disabled={choosing} autoFocus>
               {choosing ? "Choosing…" : "Choose a file…"}
-            </button>
+            </Button>
           </>
         }
       >
@@ -129,16 +130,16 @@ export function IgnoreReasonDialog({
       onCancel={onClose}
       buttons={
         <>
-          <button className="secondary-button" onClick={() => void choose()} disabled={choosing}>
+          <Button kind="secondary" onClick={() => void choose()} disabled={choosing}>
             Choose another file…
-          </button>
+          </Button>
           <span className="spacer" />
-          <button className="secondary-button" onClick={onClose}>
+          <Button kind="secondary" onClick={onClose}>
             Close
-          </button>
+          </Button>
           {rule && !reason?.tracked && (
-            <button
-              className="primary-small-button"
+            <Button
+              kind="primary"
               disabled={!canChange}
               onClick={() => {
                 onClose();
@@ -146,7 +147,7 @@ export function IgnoreReasonDialog({
               }}
             >
               Stage it anyway
-            </button>
+            </Button>
           )}
         </>
       }

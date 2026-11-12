@@ -9,6 +9,7 @@
 use std::collections::{HashMap, HashSet};
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use gix::bstr::ByteSlice;
 
@@ -19,16 +20,21 @@ pub const LONG_PATH: usize = 200;
 const MOST_FILES: usize = 5000;
 
 /// A new file whose name will cause trouble elsewhere.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct NameProblem {
     pub path: String,
+    /// caseClash: another file or folder has the same name but for capitals (`detail`: its path);
+    /// reserved: a name Windows keeps for devices, like CON (`detail`: the name);
+    /// character: a character Windows doesn't allow (`detail`: it);
+    /// trailingDot: a name ending in a dot or space (`detail`: the name);
+    /// tooLong: a long path (`detail`: its length).
     pub problem: Problem,
     /// The part of the path at fault: a name, a character, or for a clash, the other path.
     pub detail: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum Problem {
     /// Same name as another file or folder but for capitals.

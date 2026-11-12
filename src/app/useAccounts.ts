@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { gitHubStatus, gitLabStatus, signOutOfGitHub, signOutOfGitLab, type GitHubStatus, type GitLabStatus } from "../api";
 import { useStoredState } from "../lib/settings";
 import type { ToastMessage } from "../components/Toast";
-
-export type Forge = "github" | "gitlab";
+import type { Forge } from "../api/generated";
+export type { Forge };
 
 /** The GitLab server people sign in to unless they choose another. */
 export const GITLAB_COM = "gitlab.com";

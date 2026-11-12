@@ -5,6 +5,7 @@ use std::path::Path;
 use gix::ObjectId;
 use gix::bstr::ByteSlice;
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::remote::default_remote;
 use super::support::{ref_id, summary_of};
@@ -13,7 +14,7 @@ use crate::error::{Error, Result};
 use crate::git::Git;
 
 /// A local branch that could be pruned: its remote branch is gone, or it's merged.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PruneCandidate {
     pub name: String,
@@ -35,7 +36,7 @@ pub struct PruneCandidate {
 }
 
 /// What [`prune_candidates`] found.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PruneInfo {
     /// What "merged" is measured against, like `origin/main`.
@@ -45,7 +46,7 @@ pub struct PruneInfo {
 
 /// Commits that would be lost with a branch: on it, and on no other branch, remote
 /// branch or tag.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LostCommits {
     pub count: u32,
@@ -53,7 +54,7 @@ pub struct LostCommits {
     pub commits: Vec<CommitBrief>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitBrief {
     pub id: String,

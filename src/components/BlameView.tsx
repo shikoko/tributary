@@ -7,6 +7,7 @@ import { Avatar } from "./Avatar";
 import { FileKindIcon } from "./FileKindIcon";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, HistoryIcon } from "./Icons";
 import { Loader } from "./Loader";
+import { Button } from "./ui/Button";
 
 const ROW = 20;
 /** Rows drawn above and below the ones on screen. */
@@ -86,18 +87,18 @@ export function BlameView({ repoPath, path: startPath, at: startAt, onClose, onS
       <header className="diff-header">
         {versions.list.length > 1 && (
           <div className="diff-steps">
-            <button className="icon-button" onClick={() => go(-1)} disabled={versions.index === 0} title="Back to the newer version" aria-label="Back">
+            <Button kind="icon" onClick={() => go(-1)} disabled={versions.index === 0} title="Back to the newer version" aria-label="Back">
               <ChevronLeftIcon size={14} />
-            </button>
-            <button
-              className="icon-button"
+            </Button>
+            <Button
+              kind="icon"
               onClick={() => go(1)}
               disabled={versions.index === versions.list.length - 1}
               title="Forward to the older version"
               aria-label="Forward"
             >
               <ChevronRightIcon size={14} />
-            </button>
+            </Button>
           </div>
         )}
         <div className="diff-title" title={path}>
@@ -109,9 +110,9 @@ export function BlameView({ repoPath, path: startPath, at: startAt, onClose, onS
           </span>
           {blame && <span className="diff-source">{blame.commits.length === 1 ? "1 commit" : `${blame.commits.length} commits`}</span>}
         </div>
-        <button className="icon-button" onClick={onClose} title="Close (Esc)" aria-label="Close who changed each line">
+        <Button kind="icon" onClick={onClose} title="Close (Esc)" aria-label="Close who changed each line">
           <CloseIcon />
-        </button>
+        </Button>
       </header>
       <div className="diff-body">
         {error ? (

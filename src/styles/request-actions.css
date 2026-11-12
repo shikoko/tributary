@@ -1,0 +1,50 @@
+/* What else can be done with it, as one row of quieter buttons. */
+.request-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.request-toolbar .outline-button {
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-lg);
+  color: var(--text);
+}
+
+.request-toolbar .outline-button svg {
+  color: var(--text-muted);
+}
+
+.request-toolbar .outline-button.active {
+  border-color: var(--accent);
+}
+
+.request-toolbar .outline-button.quiet {
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.request-toolbar .outline-button.quiet:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.request-ask {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.request-ask .text-input {
+  flex: 1;
+}
+
+.request-card {
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-3xl);
+  background: rgb(var(--overlay-rgb) / 0.06);
+}

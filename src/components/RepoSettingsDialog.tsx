@@ -9,6 +9,7 @@ import { useIssueRows } from "./IssueSettingsRows";
 import { useTemplateRows } from "./TemplateSettingsRows";
 import { useUnityRows } from "./UnitySettingsRows";
 import { NameList, SettingsDialog, type SettingRow, type SettingsSection } from "./SettingsDialog";
+import { Button } from "./ui/Button";
 
 interface Props {
   /** The repository's folder name, and its folder. */
@@ -83,9 +84,9 @@ export function RepoSettingsDialog({ name, path, automaticTracker, protectedBran
             ? `Only in this repository. Everywhere else: ${usual}.`
             : "Your usual name and email, from git. To commit as someone else here (your work address, say), enter them below.",
           content: own ? (
-            <button className="outline-button" onClick={() => save("", "")} disabled={saving}>
+            <Button kind="outline" onClick={() => save("", "")} disabled={saving}>
               <span className="button-label">Use my usual one</span>
-            </button>
+            </Button>
           ) : null,
         },
         {
@@ -121,13 +122,13 @@ export function RepoSettingsDialog({ name, path, automaticTracker, protectedBran
           kind: "custom",
           label: "",
           content: (
-            <button
-              className="primary-small-button"
+            <Button
+              kind="primary"
               onClick={() => save(draft.name, draft.email)}
               disabled={saving || !changed || !draft.name.trim() || !draft.email.trim()}
             >
               {own ? "Save" : "Use for this repository"}
-            </button>
+            </Button>
           ),
         },
         ...templateRows,
@@ -303,9 +304,9 @@ function useSigningRows(path: string, run: (action: Action) => Promise<boolean>)
     kind: "custom",
     label: "",
     content: (
-      <button className="primary-small-button" onClick={() => void save()} disabled={saving || !changed || (draft.mode === "ssh" && !draft.key.trim())}>
+      <Button kind="primary" onClick={() => void save()} disabled={saving || !changed || (draft.mode === "ssh" && !draft.key.trim())}>
         Use for this repository
-      </button>
+      </Button>
     ),
   });
   return rows;

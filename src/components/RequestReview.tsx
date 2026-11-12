@@ -15,6 +15,9 @@ import { Avatar } from "./Avatar";
 import { Markdown } from "./Markdown";
 import { Dialog } from "./Dialog";
 import { MarkdownField } from "./MarkdownField";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
+import { Chip } from "./ui/Chip";
 
 const METHODS: Record<MergeMethod, { label: string; hint: string }> = {
   merge: { label: "Merge", hint: "Its commits as they are, joined by a merge commit." },
@@ -81,12 +84,12 @@ export function MergeRequestDialog({
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={running}>
+          <Button kind="secondary" onClick={onCancel} disabled={running}>
             Cancel
-          </button>
-          <button className="primary-button" onClick={merge} disabled={running}>
+          </Button>
+          <Button kind="primary" size="large" onClick={merge} disabled={running}>
             {running ? "Merging…" : METHODS[method].label}
-          </button>
+          </Button>
         </>
       }
     >
@@ -107,14 +110,12 @@ export function MergeRequestDialog({
       )}
       {method !== "rebase" && (
         <>
-          <label className="field">
-            <span>{method === "squash" ? "Commit summary" : "Merge commit summary"}</span>
+          <Field label={method === "squash" ? "Commit summary" : "Merge commit summary"}>
             <input className="text-input" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="The site's usual one" spellCheck />
-          </label>
-          <label className="field">
-            <span>Description</span>
+          </Field>
+          <Field label="Description">
             <textarea className="text-input request-body short" rows={3} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Optional" />
-          </label>
+          </Field>
         </>
       )}
       <label className="checkbox">
@@ -166,22 +167,22 @@ export function ReviewBox({
       />
       {error && <p className="review-error">{error}</p>}
       <div className="review-buttons">
-        <button className="link-button" onClick={onCancel} disabled={running !== null}>
+        <Button kind="link" onClick={onCancel} disabled={running !== null}>
           Cancel
-        </button>
+        </Button>
         <span className="spacer" />
-        <button className="outline-button" onClick={() => send("comment")} disabled={running !== null || !body.trim()}>
+        <Button kind="outline" onClick={() => send("comment")} disabled={running !== null || !body.trim()}>
           <span className="button-label">{running === "comment" ? "Sending…" : "Comment"}</span>
-        </button>
+        </Button>
         {!yours && conversation.canRequestChanges && (
-          <button className="outline-button review-changes" onClick={() => send("requestChanges")} disabled={running !== null || !body.trim()} title="Say what should change first">
+          <Button kind="outline" className="review-changes" onClick={() => send("requestChanges")} disabled={running !== null || !body.trim()} title="Say what should change first">
             <span className="button-label">{running === "requestChanges" ? "Sending…" : "Ask for changes"}</span>
-          </button>
+          </Button>
         )}
         {!yours && (
-          <button className="primary-small-button" onClick={() => send("approve")} disabled={running !== null}>
+          <Button kind="primary" onClick={() => send("approve")} disabled={running !== null}>
             {running === "approve" ? "Approving…" : "Approve"}
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -231,9 +232,9 @@ export function ConversationList({
                       onCancel={() => setReplying(null)}
                     />
                   ) : (
-                    <button className="link-button request-reply" onClick={() => setReplying(comment.thread)}>
+                    <Button kind="link" className="request-reply" onClick={() => setReplying(comment.thread)}>
                       Reply
-                    </button>
+                    </Button>
                   ))}
               </li>
             );
@@ -257,9 +258,7 @@ function CommentBody({ comment, openUrl }: { comment: RequestComment; openUrl: (
         </span>
         <strong className="chip-text">{comment.author}</strong>
         {comment.review && (
-          <span className={`request-review ${comment.review}`}>
-            <span className="chip-text">{VERDICTS[comment.review]}</span>
-          </span>
+          <Chip className={`request-review ${comment.review}`}>{VERDICTS[comment.review]}</Chip>
         )}
         {comment.path && !comment.reply && (
           <span className="request-comment-where mono" title={comment.path}>
@@ -337,14 +336,14 @@ function CommentBox({
       {error && <p className="review-error">{error}</p>}
       <div className="review-buttons">
         {onCancel && (
-          <button className="link-button" onClick={onCancel} disabled={running}>
+          <Button kind="link" onClick={onCancel} disabled={running}>
             Cancel
-          </button>
+          </Button>
         )}
         <span className="spacer" />
-        <button className="primary-small-button" onClick={send} disabled={running || !body.trim()}>
+        <Button kind="primary" onClick={send} disabled={running || !body.trim()}>
           {running ? "Sending…" : thread ? "Reply" : "Comment"}
-        </button>
+        </Button>
       </div>
     </div>
   );

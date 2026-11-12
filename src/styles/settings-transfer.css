@@ -1,0 +1,18 @@
+/* Settings in a git repository: the link, with room around it. */
+.dialog.settings-repository-window {
+  width: min(560px, 100%);
+  padding: 26px 28px 24px;
+}
+
+.dialog .settings-repository-lead {
+  margin: 0 0 22px;
+  line-height: 1.55;
+}
+
+.settings-repository-window .hint {
+  margin-top: 14px;
+}
+
+.settings-repository-window .dialog-buttons {
+  margin-top: 26px;
+}

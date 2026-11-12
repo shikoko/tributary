@@ -3,6 +3,8 @@ import { runAction, type FileChange, type WorktreeStatus } from "../api";
 import { plural } from "../lib/format";
 import { baseName, folderOf } from "../lib/paths";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
 
 interface Props {
   repoPath: string;
@@ -66,15 +68,15 @@ export function StashDialog({ repoPath, status, paths, onCancel, onDone }: Props
       onCancel={onCancel}
       buttons={
         <>
-          <button className="link-button dialog-note" onClick={() => setChosen(new Set(chosen.size === files.length ? [] : files.map((f) => f.path)))}>
+          <Button kind="link" className="dialog-note" onClick={() => setChosen(new Set(chosen.size === files.length ? [] : files.map((f) => f.path)))}>
             {chosen.size === files.length ? "Select none" : "Select all"}
-          </button>
-          <button className="secondary-button" onClick={onCancel} disabled={running}>
+          </Button>
+          <Button kind="secondary" onClick={onCancel} disabled={running}>
             Cancel
-          </button>
-          <button className="primary-small-button" onClick={stash} disabled={running || picked.length === 0}>
+          </Button>
+          <Button kind="primary" onClick={stash} disabled={running || picked.length === 0}>
             {running ? "Stashing…" : everything ? "Stash" : `Stash ${plural(picked.length, "file")}`}
-          </button>
+          </Button>
         </>
       }
     >
@@ -86,8 +88,7 @@ export function StashDialog({ repoPath, status, paths, onCancel, onDone }: Props
           stash();
         }}
       >
-        <label className="field">
-          <span>Message (optional)</span>
+        <Field label="Message (optional)">
           <input
             className="text-input"
             value={message}
@@ -95,7 +96,7 @@ export function StashDialog({ repoPath, status, paths, onCancel, onDone }: Props
             placeholder="What were you working on?"
             autoFocus
           />
-        </label>
+        </Field>
         <ul className="stash-files">
           {files.map((file) => (
             <li key={file.path}>

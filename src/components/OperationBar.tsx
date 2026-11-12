@@ -1,5 +1,6 @@
 import type { Operation } from "../api";
 import { plural } from "../lib/format";
+import { Button } from "./ui/Button";
 
 interface Props {
   operation: Operation;
@@ -39,9 +40,9 @@ export function OperationBar({ operation, branch, conflicts, sides, busy, onCont
         </span>{" "}
         {conflicts > 0 ? (
           <>
-            <button className="link-button" onClick={onShowFiles}>
+            <Button kind="link" onClick={onShowFiles}>
               {plural(conflicts, "file")} with conflicts
-            </button>
+            </Button>
             : pick a version of each, or fix and stage them, then {next}.
           </>
         ) : (
@@ -51,22 +52,22 @@ export function OperationBar({ operation, branch, conflicts, sides, busy, onCont
       <span className="operation-buttons">
         {conflicts > 0 ? (
           <>
-            <button className="secondary-button" onClick={() => onKeepAll("mine")} disabled={busy} title={`Keep ${sides.mine}'s version of every conflicted file`}>
+            <Button kind="secondary" onClick={() => onKeepAll("mine")} disabled={busy} title={`Keep ${sides.mine}'s version of every conflicted file`}>
               Keep all mine
-            </button>
-            <button className="secondary-button" onClick={() => onKeepAll("theirs")} disabled={busy} title={`Take ${sides.theirs}'s version of every conflicted file`}>
+            </Button>
+            <Button kind="secondary" onClick={() => onKeepAll("theirs")} disabled={busy} title={`Take ${sides.theirs}'s version of every conflicted file`}>
               Take all theirs
-            </button>
+            </Button>
           </>
         ) : (
-          <button className="primary-small-button" onClick={onContinue} disabled={busy}>
+          <Button kind="primary" onClick={onContinue} disabled={busy}>
             {operation.kind === "merge" ? "Commit merge" : "Continue"}
-          </button>
+          </Button>
         )}
         {operation.kind !== "merge" && (
-          <button className="secondary-button" onClick={onSkip} disabled={busy} title={operation.kind === "applyPatches" ? "Leave out this patch" : "Leave out this commit"}>
+          <Button kind="secondary" onClick={onSkip} disabled={busy} title={operation.kind === "applyPatches" ? "Leave out this patch" : "Leave out this commit"}>
             {operation.kind === "applyPatches" ? "Skip patch" : "Skip commit"}
-          </button>
+          </Button>
         )}
         <button className="danger-outline-button" onClick={onAbort} disabled={busy}>
           {operation.kind === "applyPatches" ? "Stop applying" : `Abort ${name}`}

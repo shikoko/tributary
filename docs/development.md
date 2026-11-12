@@ -51,6 +51,12 @@ The pictures in this README are taken the same way, from the demos. After changi
 npm run preview:screenshots
 ```
 
+### The catalogue
+
+The app's building blocks are on one page: the type scale, the corners, every colour of the theme, the graph's lane colours, each kind of button in its sizes, switches, fields, chips and every icon, dark and light side by side. Open the app with `?catalogue` added to its address, in the browser preview (<http://127.0.0.1:4173/?catalogue>) or with `npm run dev` (<http://localhost:1420/?catalogue>); `?catalogue&theme=light` (or `dark`) shows one theme. It reads the tokens from the stylesheets, so it's always complete, and it's only loaded when asked for. The smoke test opens it in both themes.
+
+When you make something, start from the parts in `src/components/ui`: `Button` (with its `kind`: primary, secondary, outline, danger, link, icon or tool, and a `size` where the kind has one), `Switch`, `Field` and `Chip`, and the steps in `theme.css` for sizes and corners. Chips come in two sizes and two shapes, all set in `chips.css`: a state (Open, Approved, Beta) is a pill with its words in bold, and a name (a branch) is a tag in the code font; their text is trimmed to its letters (`<Chip>`), so it sits in the middle. If the catalogue shows two things that should match but don't, that's worth fixing.
+
 ## Build installers for your platform
 
 ```bash
@@ -72,7 +78,11 @@ cargo run --manifest-path src-tauri/Cargo.toml -p tributary-setup
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-The integration tests create small repositories with the `git` command, so git needs to be installed to run them (and Git LFS, for the LFS tests; they're skipped without it). The interface's own logic has tests too:
+The integration tests create small repositories with the `git` command, so git needs to be installed to run them (and Git LFS, for the LFS tests; they're skipped without it).
+
+The TypeScript types for what the commands take and give back, and for the events, are made from the Rust types: `src/api/generated.ts`, which a test in `src-tauri/src/bindings.rs` writes, so the two sides can't drift apart. When you change a Rust type the interface sees, `cargo test` brings the file up to date and fails once, so the change shows up to commit; `npx tsc --noEmit` then shows what it means for the interface. A type to add derives `TS`, and if a command returns or takes it, goes in the list in `bindings.rs` (the types it uses are found by themselves). TypeScript can't know two things serde does, so they're marked: a field the backend leaves out when it's empty (`skip_serializing_if`) takes `#[ts(optional)]`, and in a type only the interface sends, a field it may leave out takes `#[ts(optional = nullable)]` (an `Option`) or `#[ts(as = "Option<_>", optional)]` (one with a serde default).
+
+The interface's own logic has tests too:
 
 ```bash
 npm test
@@ -121,7 +131,7 @@ Merge every pull request with **Create a merge commit**, never squash or rebase.
 
 Before merging a pull request into `develop`, rebase its branch onto the latest `develop` and push it (with `--force-with-lease`). The branch then starts from the tip of `develop`, and the history shows each change as a short loop that joins straight back in. If its checks had passed and the rebase had no conflicts, merge it straight away: there's no need to wait for them to run again, since each merge into `develop` is checked again as merged (see below). Pull requests from `develop` into `main` aren't rebased.
 
-Every pull request into `develop` or `main` runs the **Checks** workflow (`.github/workflows/checks.yml`): types, lint and unit tests; Rust formatting, clippy and tests on Linux, macOS and Windows; and the smoke test. Its first job, **What changed**, decides what runs. A pull request that only changes documentation (Markdown, `docs/`, the issue forms, the licence) skips all of them. One that changes nothing on the Rust side (`src-tauri/`, `package.json`, the workflow and its scripts) skips the Rust jobs, which take longest (Windows about 15 minutes); the smoke test still builds the Rust side on Linux. Each merge into `develop` runs the checks again as merged, with the same choices. Each merge has its own run, which the next merge doesn't cancel: otherwise a documentation-only merge straight after a code one would cancel the code's run, then skip everything itself. The Linux jobs install their system libraries with `.github/scripts/linux-libraries.sh`, which tries again with mirrors outside ubuntu.com (kernel.org's) when Ubuntu's can't be reached. A pull request into `main` also checks that it's ready to release (see below). A ruleset on `develop` and `main` makes the checks required, so a pull request merges only once they pass.
+Every pull request into `develop` or `main` runs the **Checks** workflow (`.github/workflows/checks.yml`): types, lint and unit tests; Rust formatting, clippy and tests on Linux, macOS and Windows; and the smoke test. Its first job, **What changed**, checks that every workflow's shell scripts read as bash (`.github/scripts/check-workflows.py`: a script is otherwise only read when its step runs, some only on a release), and decides what runs. A pull request that only changes documentation (Markdown, `docs/`, the issue forms, the licence) skips all of them. One that changes nothing on the Rust side (`src-tauri/`, the types made from it in `src/api/generated.ts`, `package.json`, the workflow and its scripts) skips the Rust jobs, which take longest (Windows about 15 minutes); the smoke test still builds the Rust side on Linux. Each merge into `develop` runs the checks again as merged, with the same choices. Each merge has its own run, which the next merge doesn't cancel: otherwise a documentation-only merge straight after a code one would cancel the code's run, then skip everything itself. The Linux jobs install their system libraries with `.github/scripts/linux-libraries.sh`, which tries again with mirrors outside ubuntu.com (kernel.org's) when Ubuntu's can't be reached. A pull request into `main` also checks that it's ready to release (see below). A ruleset on `develop` and `main` makes the checks required, so a pull request merges only once they pass. Every job in the workflows has a time limit of about twice its longest run (30 minutes for the Rust checks, 45 for building the installers, which can take twice as long without their cache), so one that hangs stops and frees its runner, instead of holding it, and the queue behind it, for GitHub's six hours.
 
 ## Release
 
@@ -187,6 +197,7 @@ npm run notices
 | `src-tauri/src/git/` | Runs the user's git: progress and cancel, Git LFS progress, the activity log, credentials |
 | `src-tauri/src/commands.rs` | The commands the frontend calls |
 | `src-tauri/src/error.rs` | The error every command can return |
+| `src-tauri/src/bindings.rs` | Makes `src/api/generated.ts`, the TypeScript types of what the commands take and give back, from the Rust ones (a test) |
 | `src-tauri/src/github/` | Open pull requests and their checks, opening one and reading one in full; signing in |
 | `src-tauri/src/gitlab/` | The same for merge requests on GitLab and their pipelines |
 | `src-tauri/src/requests.rs` | Pull and merge requests in the app, whichever site the repository is on |
@@ -206,11 +217,13 @@ npm run notices
 | `src-tauri/examples/headless.rs` | The app's commands without a window, for the browser preview |
 | `src/App.tsx` | Connects the parts: the tabs, the open repository or the start screen, and what opens over them |
 | `src/app/` | The app's state, in hooks (the open repository, tabs, selection, search, highlighting, actions, per-repository settings, …), and its screens, menus, command palette and dialogs |
-| `src/api/` | The commands the frontend calls, and the shapes of what they take and give back, one file per area |
+| `src/api/` | The commands the frontend calls, one file per area; the shapes of what they take and give back are in `generated.ts`, made from the Rust types (see [Test](#test)) |
 | `src/menus/` | The right-click menus of commits, branch and tag labels and the sidebar |
 | `src/components/` | The interface: the commit list (only the rows on screen are rendered; its layout, header, rows and canvases in `commitList/`), the sidebar (`sidebar/`), the changes panel (`worktree/`), the details panel, the dialogs, … |
+| `src/components/ui/` | The parts the interface is built from: `Button`, `Switch`, `Field` and `Chip` |
+| `src/catalogue/` | The catalogue page (`?catalogue`): the building blocks together, dark and light |
 | `src/lib/` | Logic without an interface (search, selection, undo, paths, diagnostics, …), with its tests |
-| `src/styles/` | The styles, an area per file (colours and themes in `theme.css`), applied in the order `src/styles.css` lists them |
+| `src/styles/` | The styles, an area per file, applied in the order `src/styles.css` lists them. `theme.css` holds the colours and themes, and the scales for text (`--type-xs` to `--type-4xl`) and corners (`--radius-xs` to `--radius-pill`): sizes and corners use those steps, never their own pixels, which a test checks (`src/lib/styles.test.ts`) |
 | `tools/preview/` | The browser preview, demo repositories and the smoke test |
 | `tools/e2e/` | End-to-end tests of the desktop app, through tauri-driver and WebDriver |
 | `tools/icons/` | Draws the app icon, light and dark, and renders it at every size |

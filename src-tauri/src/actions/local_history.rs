@@ -7,6 +7,7 @@ use std::path::Path;
 
 use gix::bstr::ByteSlice;
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::Extra;
 use super::snapshot::{identity_or_tributary, snapshot_commit};
@@ -19,7 +20,7 @@ use crate::git::Git;
 pub(super) const SNAPSHOTS: &str = "refs/tributary/snapshots/";
 
 /// A snapshot of uncommitted work.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     pub reference: String,
@@ -30,7 +31,7 @@ pub struct Snapshot {
     pub files: Vec<SnapshotFile>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SnapshotFile {
     pub path: String,

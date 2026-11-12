@@ -5,6 +5,7 @@
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::validate::revision_name;
 use crate::error::{Error, Result};
@@ -13,7 +14,8 @@ use crate::git::Git;
 /// At most this many changes are listed.
 const MOST_ITEMS: usize = 500;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// What went into a release, between the tag before it and its own.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ReleaseNotes {
     /// The tag (or commit) they start after; None when there's no earlier tag.
@@ -21,6 +23,7 @@ pub struct ReleaseNotes {
     pub to: String,
     /// The earlier tags in its history, newest first, to start from instead.
     pub earlier: Vec<String>,
+    /// Each change on the main line, newest first.
     pub items: Vec<ReleaseItem>,
     /// Who made its commits, most commits first.
     pub contributors: Vec<String>,
@@ -28,7 +31,7 @@ pub struct ReleaseNotes {
     pub commits: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ReleaseItem {
     pub title: String,

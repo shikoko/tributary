@@ -16,6 +16,7 @@
 //! link it draws, so the frontend can highlight one branch's history.
 
 use serde::ser::{Serialize, SerializeTuple, Serializer};
+use ts_rs::TS;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LineKind {
@@ -72,7 +73,40 @@ impl Serialize for Line {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+/// How a [`Line`] looks to the frontend, as its `Serialize` writes it.
+impl TS for Line {
+    type WithoutGenerics = Self;
+    type OptionInnerType = Self;
+
+    fn docs() -> Option<String> {
+        Some(
+            "/**\n * One segment of a row's graph: `[kind, from, to, child]`, with a fifth `1` when\n * it's dashed (a stash's or uncommitted changes'). The kind is 0 for a lane passing\n * through, 1 for one ending in the row's node, 2 for one leaving it towards a parent;\n * `child` is the row whose parent link it draws, or a list of rows sharing the lane.\n */\n"
+                .into(),
+        )
+    }
+
+    fn name(_: &ts_rs::Config) -> String {
+        "GraphLine".into()
+    }
+
+    fn inline(_: &ts_rs::Config) -> String {
+        "[0 | 1 | 2, number, number, number | number[]] | [0 | 1 | 2, number, number, number | number[], 1]".into()
+    }
+
+    fn decl(config: &ts_rs::Config) -> String {
+        format!("type GraphLine = {};", Self::inline(config))
+    }
+
+    fn decl_concrete(config: &ts_rs::Config) -> String {
+        Self::decl(config)
+    }
+
+    fn output_path() -> Option<std::path::PathBuf> {
+        Some("GraphLine.ts".into())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, TS)]
 pub struct GraphRow {
     /// The column of this row's commit node.
     pub column: u16,

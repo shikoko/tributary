@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { Progress } from "../api";
 import { formatBytes } from "../lib/format";
 import { smoothPath } from "../lib/team";
+import { Button } from "./ui/Button";
 
 interface Props {
   /** Like "Pulling". */
@@ -188,9 +189,9 @@ export function ProgressStrip({ label, progress, onCancel }: Props) {
       <ProgressText label={label} progress={progress} />
       <ProgressBars progress={progress} />
       {onCancel && (
-        <button className="secondary-button small" onClick={onCancel}>
+        <Button kind="secondary" size="small" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       )}
       {hovered && detailed && progress && <TransferPanel progress={progress} history={history.current} anchor={hovered} />}
     </div>

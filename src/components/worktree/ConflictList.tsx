@@ -2,6 +2,7 @@ import { isUnityYaml, type Action, type DiffSource, type FileChange, type Lock, 
 import { plural } from "../../lib/format";
 import { FileLine } from "../FileLine";
 import { PlusIcon } from "../Icons";
+import { Button } from "../ui/Button";
 
 interface Props {
   conflicted: FileChange[];
@@ -30,12 +31,12 @@ export function ConflictList({ conflicted, mine, theirs, busy, lockOf, onFileMen
         Conflicts
         <span className="hint">{plural(conflicted.length, "file")}</span>
         <span className="spacer" />
-        <button className="link-button" onClick={() => resolve(conflicted.map((file) => file.path), "mine")} disabled={busy} title={`Keep ${mine}'s version of every conflicted file`}>
+        <Button kind="link" onClick={() => resolve(conflicted.map((file) => file.path), "mine")} disabled={busy} title={`Keep ${mine}'s version of every conflicted file`}>
           All mine
-        </button>
-        <button className="link-button" onClick={() => resolve(conflicted.map((file) => file.path), "theirs")} disabled={busy} title={`Take ${theirs}'s version of every conflicted file`}>
+        </Button>
+        <Button kind="link" onClick={() => resolve(conflicted.map((file) => file.path), "theirs")} disabled={busy} title={`Take ${theirs}'s version of every conflicted file`}>
           All theirs
-        </button>
+        </Button>
       </h3>
       <div className="conflict-help">
         Pick a whole version of each file (best for files that can't be merged, like assets), or click a text file to resolve its conflicts one by one.

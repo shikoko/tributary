@@ -23,7 +23,7 @@ describe("suggestRequest", () => {
 
 describe("summarizeChecks", () => {
   it("counts the worst first", () => {
-    const check = (state: "success" | "failure" | "pending" | null) => ({ name: "x", state, url: null, detail: null });
+    const check = (state: "success" | "failure" | "pending" | null) => ({ name: "x", state, url: null, detail: null, startedAt: null, finishedAt: null, workflow: null, trigger: null });
     expect(summarizeChecks([check("success"), check("failure"), check("success"), check(null)])).toBe("1 failed, 2 passed, 1 skipped");
     expect(summarizeChecks([])).toBe("");
   });
@@ -57,7 +57,7 @@ describe("describeMergeable", () => {
   it("says why it can't be merged", () => {
     expect(describeMergeable(details({ mergeable: "ready" }))).toEqual({ text: "Ready to merge into main", tone: "good" });
     expect(describeMergeable(details({ mergeable: "conflicts" }))?.tone).toBe("bad");
-    expect(describeMergeable(details({ mergeable: "blocked", checks: [{ name: "test", state: "failure", url: null, detail: null }] }))?.text).toBe(
+    expect(describeMergeable(details({ mergeable: "blocked", checks: [{ name: "test", state: "failure", url: null, detail: null, startedAt: null, finishedAt: null, workflow: null, trigger: null }] }))?.text).toBe(
       "Can't be merged yet: checks failed",
     );
     expect(describeMergeable(details({ mergeable: "blocked" }))?.tone).toBe("waiting");
@@ -83,7 +83,7 @@ describe("describeReviews", () => {
 });
 
 describe("describeCheckProgress", () => {
-  const check = (state: "success" | "failure" | "pending" | null) => ({ name: "x", state, url: null, detail: null });
+  const check = (state: "success" | "failure" | "pending" | null) => ({ name: "x", state, url: null, detail: null, startedAt: null, finishedAt: null, workflow: null, trigger: null });
   it("counts passed, failed and running checks, not skipped ones", () => {
     expect(describeCheckProgress([check("success"), check("success"), check("pending"), check(null)])).toBe("2 of 3 checks passed, 1 still running");
     expect(describeCheckProgress([check("failure"), check("success")])).toBe("1 of 2 checks failed");
@@ -101,6 +101,8 @@ describe("check times", () => {
     detail: null,
     startedAt,
     finishedAt,
+    workflow: null,
+    trigger: null,
   });
   const start = "2026-11-10T10:00:00Z";
   const at = (iso: string) => Date.parse(iso);
@@ -201,6 +203,8 @@ describe("checkTimeline", () => {
     detail: null,
     startedAt,
     finishedAt,
+    workflow: null,
+    trigger: null,
   });
 
   it("puts every check on one clock, from the first start to the last end", () => {
@@ -236,7 +240,7 @@ describe("checkTimeline", () => {
 });
 
 describe("describeCheckProgress for one check", () => {
-  const check = (state: RequestCheck["state"]): RequestCheck => ({ name: "Build", state, url: null, detail: null });
+  const check = (state: RequestCheck["state"]): RequestCheck => ({ name: "Build", state, url: null, detail: null, startedAt: null, finishedAt: null, workflow: null, trigger: null });
   it("speaks of the check, not of counts", () => {
     expect(describeCheckProgress([check("pending")])).toBe("The check is still running");
     expect(describeCheckProgress([check("failure")])).toBe("The check failed");
@@ -245,7 +249,7 @@ describe("describeCheckProgress for one check", () => {
 });
 
 describe("checksVerdict", () => {
-  const check = (state: RequestCheck["state"]): RequestCheck => ({ name: "Build", state, url: null, detail: null });
+  const check = (state: RequestCheck["state"]): RequestCheck => ({ name: "Build", state, url: null, detail: null, startedAt: null, finishedAt: null, workflow: null, trigger: null });
   it("fails if any failed, runs while any run, and passes once all have", () => {
     expect(checksVerdict([check("success"), check("pending"), check("failure")])).toEqual({ tone: "failure", word: "Failing" });
     expect(checksVerdict([check("success"), check("pending")])).toEqual({ tone: "pending", word: "Running" });
@@ -254,7 +258,7 @@ describe("checksVerdict", () => {
 });
 
 describe("cancelled checks", () => {
-  const check = (state: RequestCheck["state"]): RequestCheck => ({ name: "Build", state, url: null, detail: null });
+  const check = (state: RequestCheck["state"]): RequestCheck => ({ name: "Build", state, url: null, detail: null, startedAt: null, finishedAt: null, workflow: null, trigger: null });
   it("are neither passed nor failed", () => {
     expect(describeCheckProgress([check("success"), check("cancelled")])).toBe("1 of 2 checks passed, 1 cancelled");
     expect(describeCheckProgress([check("cancelled")])).toBe("The check was cancelled");

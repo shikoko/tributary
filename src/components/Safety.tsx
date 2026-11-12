@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { lostCommits, type LostCommits } from "../api";
 import { compactTime, shortId } from "../lib/format";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
 
 /** The branches protected by default, until you change them for a repository. */
 export const DEFAULT_PROTECTED = ["main", "master", "develop"];
@@ -119,12 +120,12 @@ export function ProtectedActionDialog({
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel}>
+          <Button kind="secondary" onClick={onCancel}>
             Cancel
-          </button>
-          <button className="danger-button" disabled={!confirmed} onClick={onConfirm}>
+          </Button>
+          <Button kind="danger" disabled={!confirmed} onClick={onConfirm}>
             {confirmLabel}
-          </button>
+          </Button>
         </>
       }
     >

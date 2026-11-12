@@ -12,6 +12,7 @@ use std::path::Path;
 
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use serde::Serialize;
+use ts_rs::TS;
 
 /// Where the file can be, first found first used (as GitHub and GitLab look).
 const PLACES: [&str; 4] = [
@@ -22,7 +23,7 @@ const PLACES: [&str; 4] = [
 ];
 
 /// A file and who owns it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct FileOwners {
     pub path: String,
     pub owners: Vec<String>,

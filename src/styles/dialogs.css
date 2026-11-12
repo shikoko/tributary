@@ -1,0 +1,305 @@
+/* Confirmation dialog */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--scrim);
+}
+
+.dialog:focus-visible {
+  outline: none;
+}
+
+.dialog {
+  position: relative;
+  width: min(480px, 100%);
+  padding: 20px 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-2xl);
+  background: var(--bg-panel);
+  box-shadow: 0 20px 60px var(--shadow-strong);
+}
+
+.dialog h2 {
+  margin: 0 0 10px;
+  font-size: var(--type-lg);
+}
+
+/* The close button in the corner (Dialog's `closable`). */
+.dialog-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+
+.dialog p {
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.clone-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.clone-options legend {
+  padding: 0 6px;
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dialog .clone-options .hint {
+  margin: -4px 0 2px;
+}
+
+/* Lined up with the checkbox's label. */
+.dialog .clone-options .checkbox-hint {
+  margin-left: 24px;
+}
+
+.clone-options-toggle {
+  align-self: flex-start;
+}
+
+.sign-in-browser {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+
+.sign-in-browser .hint {
+  margin: 0;
+}
+
+.dialog .hint.warning {
+  color: var(--notice-text);
+}
+
+.diagnostics-text {
+  max-height: 46vh;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--type-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.dialog code {
+  font-family: var(--mono);
+  font-size: var(--type-sm);
+  color: var(--accent-text);
+}
+
+.commit-ref {
+  color: var(--text);
+}
+
+.dialog-consequences {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+}
+
+.dialog-consequences li + li {
+  margin-top: 6px;
+}
+
+.dialog-consequences .danger {
+  color: var(--danger-text);
+}
+
+.dialog .error-banner {
+  margin-top: 14px;
+}
+
+.dialog-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.dialog-buttons .spacer {
+  flex: 1;
+}
+
+.secondary-button,
+.danger-button,
+.danger-outline-button {
+  /* Room for an icon before the label, as every kind of button has. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+}
+
+.secondary-button {
+  border: 1px solid var(--border-strong);
+  background: var(--bg-raised);
+}
+
+.danger-button {
+  border: none;
+  background: var(--danger-solid);
+  color: #fff;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: var(--danger-solid-hover);
+}
+
+.secondary-button:disabled,
+.danger-button:disabled {
+  opacity: 0.6;
+}
+
+.details-actions {
+  margin-top: 16px;
+}
+
+.danger-outline-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgb(var(--danger-rgb) / 0.45);
+  background: transparent;
+  color: var(--danger-strong-text);
+  font-weight: 500;
+}
+
+.danger-outline-button:hover {
+  background: rgb(var(--danger-rgb) / 0.1);
+}
+
+/* A button's text, trimmed to its capital letters, so an icon next to it lines up with the
+   letters rather than with the font's line box (which differs from font to font). It stays
+   on one line and ends in "…" when it doesn't fit. Clipped sideways only: the trimmed box
+   is as tall as the capitals, and letters like "p" reach below it. */
+.button-label {
+  min-width: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-box: trim-both cap alphabetic;
+}
+
+/* A chip's text (a branch name, a state), trimmed like a button's so it sits in the middle
+   of the chip, next to its icon. */
+.chip-text {
+  min-width: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-box: trim-both cap alphabetic;
+}
+
+.details-actions .outline-button,
+.details-actions .danger-outline-button {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.details-actions svg {
+  flex: none;
+}
+
+/* Dialog forms */
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.text-input {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: var(--type-base);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.text-input:focus {
+  border-color: var(--accent);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.checkbox input {
+  accent-color: var(--accent);
+}
+
+.primary-small-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.primary-small-button:disabled {
+  opacity: 0.5;
+}
+
+.dialog .error-banner {
+  white-space: pre-wrap;
+}

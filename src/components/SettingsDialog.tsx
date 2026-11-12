@@ -3,6 +3,8 @@ import { stepFocus } from "../lib/inputMode";
 import { Dialog } from "./Dialog";
 import { CloseIcon } from "./Icons";
 import { Loader } from "./Loader";
+import { Button } from "./ui/Button";
+import { Switch } from "./ui/Switch";
 
 /** One setting: an on/off switch, a choice, or something of its own. */
 export type SettingRow =
@@ -56,9 +58,9 @@ export function SettingsDialog({
       className="settings-window"
       onCancel={onClose}
       buttons={
-        <button className="secondary-button" onClick={onClose} autoFocus>
+        <Button kind="secondary" onClick={onClose} autoFocus>
           Done
-        </button>
+        </Button>
       }
     >
       <div className="settings">
@@ -137,16 +139,7 @@ function SettingRowView({ row }: { row: SettingRow }) {
       </div>
       <div className="settings-control">
         {row.kind === "toggle" ? (
-          <button
-            role="switch"
-            aria-checked={row.value}
-            aria-label={row.label}
-            className={`switch${row.value ? " on" : ""}`}
-            onClick={() => row.set(!row.value)}
-            disabled={row.disabled}
-          >
-            <span className="switch-knob" />
-          </button>
+          <Switch on={row.value} onChange={row.set} label={row.label} disabled={row.disabled} />
         ) : row.kind === "select" ? (
           <select className="settings-select" value={row.value} onChange={(event) => row.set(event.target.value)} disabled={row.disabled} aria-label={row.label}>
             {row.options.map((option) => (
@@ -175,7 +168,7 @@ export function NameList({ names, onChange, placeholder }: { names: string[]; on
     <div className="name-list">
       {names.map((name) => (
         <span key={name} className="name-chip">
-          {name}
+          <span className="chip-text">{name}</span>
           <button onClick={() => onChange(names.filter((other) => other !== name))} aria-label={`Remove ${name}`} title={`Remove ${name}`}>
             <CloseIcon size={10} />
           </button>

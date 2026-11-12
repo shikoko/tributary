@@ -3,8 +3,9 @@
 use gix::ObjectId;
 use gix::bstr::ByteSlice;
 use serde::Serialize;
+use ts_rs::TS;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Operation {
     pub kind: OperationKind,
@@ -19,7 +20,7 @@ pub struct Operation {
     pub theirs: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum OperationKind {
     Merge,

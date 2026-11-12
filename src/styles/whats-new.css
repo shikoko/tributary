@@ -1,0 +1,148 @@
+/* What's new, after an update. */
+/* What's new: one thing at a time, large, with the list of them beside it; each in its
+   own graph colour (--wn-color). */
+.wn-spotlight {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  gap: 18px;
+  min-height: 330px;
+}
+
+.wn-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 14px;
+  border-right: 1px solid var(--border);
+}
+
+.wn-nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--type-base);
+  text-align: left;
+  cursor: pointer;
+}
+
+.wn-nav button:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.wn-nav button.on {
+  background: linear-gradient(90deg, var(--wn-soft), transparent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.wn-nav-tile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-lg);
+  background: var(--wn-faint);
+  color: var(--wn-color);
+}
+
+.wn-nav button.on .wn-nav-tile {
+  background: linear-gradient(135deg, var(--wn-light), var(--wn-color) 70%);
+  color: var(--on-lane);
+}
+
+.wn-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  animation: tour-in 220ms ease-out;
+}
+
+.wn-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 176px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-3xl);
+  background:
+    radial-gradient(70% 120% at 15% 0%, var(--wn-soft), transparent 65%),
+    radial-gradient(70% 120% at 95% 100%, var(--wn-next-soft), transparent 65%),
+    var(--sunken);
+}
+
+.wn-ring {
+  position: absolute;
+  border: 1px solid var(--wn-soft);
+  border-radius: 50%;
+}
+
+.wn-ring.one {
+  width: 120px;
+  height: 120px;
+}
+
+.wn-ring.two {
+  width: 200px;
+  height: 200px;
+  opacity: 0.7;
+}
+
+.wn-ring.three {
+  width: 290px;
+  height: 290px;
+  opacity: 0.4;
+}
+
+.wn-art-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border-radius: var(--radius-4xl);
+  background: linear-gradient(135deg, var(--wn-light), var(--wn-color) 70%);
+  box-shadow: 0 14px 36px var(--wn-glow);
+  color: var(--on-lane);
+}
+
+.wn-stage-version {
+  color: var(--wn-color);
+  font-size: var(--type-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wn-stage h3 {
+  margin: 0;
+  font-size: var(--type-xl);
+  letter-spacing: -0.01em;
+}
+
+.dialog .wn-stage p {
+  font-size: var(--type-md);
+  line-height: 1.6;
+}
+
+.wn-step {
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+}
+
+@keyframes tour-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}

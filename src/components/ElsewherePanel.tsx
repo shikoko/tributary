@@ -4,6 +4,7 @@ import { byBranch, people } from "../lib/elsewhere";
 import { plural, relativeTime } from "../lib/format";
 import { baseName, folderOf } from "../lib/paths";
 import { BranchIcon, ChevronDownIcon, CloseIcon, EyeIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 /** Files listed per branch before "and N more". */
 const MAX_FILES = 50;
@@ -88,9 +89,9 @@ export function ElsewherePanel({ overlaps, anchor, onClose, onShowCommit, onShow
             {plural(overlaps.length, "file")} you're changing, on {plural(branches.length, "branch", "branches")}, in the last 30 days
           </span>
         </div>
-        <button className="icon-button" onClick={onClose} aria-label="Close" title="Close (Esc)">
+        <Button kind="icon" onClick={onClose} aria-label="Close" title="Close (Esc)">
           <CloseIcon size={14} />
-        </button>
+        </Button>
       </header>
       <ul className="elsewhere-branches">
         {branches.map((entry) => {
@@ -107,9 +108,9 @@ export function ElsewherePanel({ overlaps, anchor, onClose, onShowCommit, onShow
                     {entry.assets > 0 && ` · ${entry.assets === entry.files.length ? (entry.assets === 1 ? "an asset" : "all assets") : plural(entry.assets, "asset")}`}
                   </span>
                 </button>
-                <button className="icon-button" onClick={() => onShowBranch(entry.branch)} title={`Highlight ${entry.branch}'s history`} aria-label={`Highlight ${entry.branch}`}>
+                <Button kind="icon" onClick={() => onShowBranch(entry.branch)} title={`Highlight ${entry.branch}'s history`} aria-label={`Highlight ${entry.branch}`}>
                   <EyeIcon size={14} />
-                </button>
+                </Button>
               </div>
               <div className="elsewhere-branch-who">
                 {people(entry.authors)} · {relativeTime(entry.latest)}

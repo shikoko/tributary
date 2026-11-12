@@ -1,6 +1,7 @@
 import type { Lock } from "../api";
 import { baseName } from "../lib/paths";
 import { CloseIcon, UnlockIcon } from "./Icons";
+import { Button } from "./ui/Button";
 
 interface Props {
   /** Your locks on files you've just pushed. */
@@ -26,15 +27,15 @@ export function LockReleaseBanner({ locks, busy, onRelease, onKeep, onAlways }: 
         You pushed your changes but still hold {what}. Release {locks.length === 1 ? "it" : "them"} so your teammates can work on{" "}
         {locks.length === 1 ? "it" : "them"}?
       </span>
-      <button className="link-button" onClick={onAlways} disabled={busy} title="Release them now, and after every push from now on (Settings, Large files and Git LFS)">
+      <Button kind="link" onClick={onAlways} disabled={busy} title="Release them now, and after every push from now on (Settings, Large files and Git LFS)">
         Always
-      </button>
+      </Button>
       <button className="notice-action" onClick={onRelease} disabled={busy}>
         Release {locks.length === 1 ? "lock" : "locks"}
       </button>
-      <button className="icon-button" onClick={onKeep} aria-label="Keep them" title="Keep them">
+      <Button kind="icon" onClick={onKeep} aria-label="Keep them" title="Keep them">
         <CloseIcon size={14} />
-      </button>
+      </Button>
     </div>
   );
 }

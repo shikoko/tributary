@@ -1,32 +1,7 @@
 // Issue trackers: GitHub or GitLab issues, Jira or Linear.
 import { invoke } from "@tauri-apps/api/core";
-
-export type TrackerKind = "github" | "gitlab" | "jira" | "linear";
-
-/** A repository's issue tracker, as set in its settings. */
-export interface Tracker {
-  kind: TrackerKind;
-  /** Jira's address (like https://studio.atlassian.net), or Linear's workspace (studio). */
-  site: string;
-  /** Project (or team) keys, like FEAST; empty for any. */
-  keys: string[];
-}
-
-export interface Issue {
-  /** Like "FEAST-12", or "#12". */
-  key: string;
-  title: string;
-  /** Like "In Progress". */
-  status: string | null;
-  /** Done, closed or cancelled. */
-  done: boolean;
-  url: string;
-}
-
-export interface TrackerStatus {
-  signedIn: boolean;
-  user: string | null;
-}
+import type { Issue, Tracker, TrackerKind, TrackerStatus } from "./generated";
+export type { Issue, Tracker, TrackerKind, TrackerStatus };
 
 /** The issues `keys` mentions, the ones that can be found. */
 export function issues(path: string, tracker: Tracker, keys: string[]): Promise<Issue[]> {

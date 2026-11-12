@@ -2,6 +2,8 @@ import { useState } from "react";
 import { exportSettingsToRepository, importSettingsFromRepository } from "../api";
 import { useStoredState } from "../lib/settings";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
 
 /** The repository the settings were last exported to or imported from. */
 const REPOSITORY_KEY = "settings.repository";
@@ -56,12 +58,12 @@ export function SettingsRepositoryDialog({ mode, contents, onImported, onDone, o
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel} disabled={busy}>
+          <Button kind="secondary" onClick={onCancel} disabled={busy}>
             Cancel
-          </button>
-          <button className="primary-small-button" onClick={() => void go()} disabled={busy || !url.trim()}>
+          </Button>
+          <Button kind="primary" onClick={() => void go()} disabled={busy || !url.trim()}>
             {busy ? (exporting ? "Exporting…" : "Importing…") : exporting ? "Export" : "Import"}
-          </button>
+          </Button>
         </>
       }
     >
@@ -77,8 +79,7 @@ export function SettingsRepositoryDialog({ mode, contents, onImported, onDone, o
           void go();
         }}
       >
-        <label className="field">
-          <span>Repository</span>
+        <Field label="Repository">
           <input
             className="text-input"
             value={url}
@@ -93,7 +94,7 @@ export function SettingsRepositoryDialog({ mode, contents, onImported, onDone, o
             autoFocus
             disabled={busy}
           />
-        </label>
+        </Field>
       </form>
       {exporting && (
         <p className="hint">

@@ -9,6 +9,7 @@ import { Avatar } from "./Avatar";
 import { FileKindIcon } from "./FileKindIcon";
 import { BranchIcon, CheckIcon, FetchIcon, HistoryIcon, LockIcon, PullIcon, PushIcon, ShelfIcon, ViewIcon, WarningIcon } from "./Icons";
 import type { CommitDraft } from "./worktree/CommitBox";
+import { Button } from "./ui/Button";
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -130,18 +131,18 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
           {status.text}
         </span>
         <span className="spacer" />
-        <button className="outline-button" onClick={() => openDialog({ kind: "shelves" })}>
+        <Button kind="outline" onClick={() => openDialog({ kind: "shelves" })}>
           <ShelfIcon size={14} />
           <span className="button-label">Shelves</span>
-        </button>
-        <button className="outline-button" onClick={() => openDialog({ kind: "localHistory" })}>
+        </Button>
+        <Button kind="outline" onClick={() => openDialog({ kind: "localHistory" })}>
           <HistoryIcon size={14} />
           <span className="button-label">Local history</span>
-        </button>
-        <button className="outline-button" onClick={onFullView} title="Branches, the commit graph and everything else">
+        </Button>
+        <Button kind="outline" onClick={onFullView} title="Branches, the commit graph and everything else">
           <ViewIcon size={14} />
           <span className="button-label">Full view</span>
-        </button>
+        </Button>
       </header>
 
       <div className="simple-columns">
@@ -155,10 +156,10 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
               {ahead > 0 ? (
                 <>
                   <p>{plural(ahead, "change")} saved here but not sent to the team yet.</p>
-                  <button className="primary-button" onClick={send} disabled={busy || !canChange}>
+                  <Button kind="primary" size="large" onClick={send} disabled={busy || !canChange}>
                     <PushIcon size={15} />
                     Send {ahead === 1 ? "it" : "them"}
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <p>No changes. Files you change in your project show up here, to submit for the team.</p>
@@ -237,15 +238,15 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
                 </p>
               )}
               <div className="simple-submit">
-                <button
-                  className="primary-button"
+                <Button
+                  kind="primary" size="large"
                   onClick={() => void submit()}
                   disabled={busy || !canChange || chosen.length === 0 || !draft.summary.trim() || lockedByOthers.length > 0}
                   title="Commit these files and send them to the team"
                 >
                   <PushIcon size={15} />
                   Submit {plural(chosen.length, "file")}
-                </button>
+                </Button>
               </div>
             </>
           )}
@@ -255,10 +256,10 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
           <section className="simple-card simple-latest" data-tour="simple-latest">
             <div className="simple-card-head">
               <h2>Get latest</h2>
-              <button className="link-button" onClick={() => void act({ kind: "fetch" }, "fetch")} disabled={busy || !snapshot.upstream}>
+              <Button kind="link" onClick={() => void act({ kind: "fetch" }, "fetch")} disabled={busy || !snapshot.upstream}>
                 <FetchIcon size={13} />
                 Check now
-              </button>
+              </Button>
             </div>
             <p className="simple-latest-text">
               {!snapshot.upstream
@@ -268,10 +269,10 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
                   : "You have everything the team has sent."}
               {snapshot.lastFetched ? <span className="simple-muted"> Checked {relativeTime(snapshot.lastFetched)}.</span> : null}
             </p>
-            <button className="primary-button simple-get" onClick={() => void act({ kind: "pull" }, "pull")} disabled={busy || !canChange || !snapshot.upstream}>
+            <Button kind="primary" size="large" className="simple-get" onClick={() => void act({ kind: "pull" }, "pull")} disabled={busy || !canChange || !snapshot.upstream}>
               <PullIcon size={16} />
               Get latest
-            </button>
+            </Button>
           </section>
 
           <section className="simple-card" data-tour="simple-team">

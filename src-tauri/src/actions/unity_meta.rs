@@ -9,9 +9,10 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use serde::Serialize;
+use ts_rs::TS;
 
 /// A file whose `.meta` is wrong.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct MetaProblem {
     /// The asset (or folder) or, for an orphan, the `.meta` file.
@@ -19,7 +20,7 @@ pub struct MetaProblem {
     pub problem: MetaKind,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum MetaKind {
     /// A new file or folder without its `.meta` (Unity hasn't seen it yet).

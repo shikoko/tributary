@@ -6,11 +6,12 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use super::Git;
 
 /// A git command Tributary ran, for the activity log.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LogEntry {
     pub id: u64,

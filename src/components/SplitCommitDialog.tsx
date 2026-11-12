@@ -5,6 +5,8 @@ import { baseName } from "../lib/paths";
 import { Dialog } from "./Dialog";
 import { FileKindIcon } from "./FileKindIcon";
 import { Loader } from "./Loader";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
 
 /**
  * Split a commit in two: choose the files that move into a new commit right after it, and
@@ -66,12 +68,12 @@ export function SplitCommitDialog({
       onCancel={onCancel}
       buttons={
         <>
-          <button className="secondary-button" onClick={onCancel}>
+          <Button kind="secondary" onClick={onCancel}>
             Cancel
-          </button>
-          <button className="primary-small-button" disabled={!ready} onClick={() => onSplit(paths, first, second)}>
+          </Button>
+          <Button kind="primary" disabled={!ready} onClick={() => onSplit(paths, first, second)}>
             Split it
-          </button>
+          </Button>
         </>
       }
     >
@@ -97,14 +99,10 @@ export function SplitCommitDialog({
               </li>
             ))}
           </ul>
-          <label className="field">
-            <span>
-              First commit: {plural(keeping, "file")}
-            </span>
+          <Field label={<>First commit: {plural(keeping, "file")}</>}>
             <textarea className="text-input" rows={2} value={first} onChange={(event) => setFirst(event.target.value)} spellCheck />
-          </label>
-          <label className="field">
-            <span>New commit: {plural(moving.size, "file")}</span>
+          </Field>
+          <Field label={<>New commit: {plural(moving.size, "file")}</>}>
             <textarea
               className="text-input"
               rows={2}
@@ -113,7 +111,7 @@ export function SplitCommitDialog({
               placeholder="What these files change"
               spellCheck
             />
-          </label>
+          </Field>
         </div>
       )}
     </Dialog>

@@ -8,6 +8,7 @@ import { GITLAB_COM, type Forge } from "./useAccounts";
 import type { Theme } from "../lib/appearance";
 import { FETCH_MINUTES, HISTORY_MINUTES, SCHEDULE_TIMES, ZOOM_LEVELS } from "./constants";
 import type { NewCommitNotices, Preferences, ReleaseLocks, SubmoduleUpdates } from "./usePreferences";
+import { Button } from "../components/ui/Button";
 
 /** The Settings section with the diff and merge tools, to open it at. */
 export const DIFF_SECTION = "Diff and merge";
@@ -282,10 +283,10 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
                 .join("")}`
             : "Not yet.",
           content: (
-            <button className="outline-button" onClick={onFetchLatestNow}>
+            <Button kind="outline" onClick={onFetchLatestNow}>
               <FetchIcon size={14} />
               <span className="button-label">Fetch latest now</span>
-            </button>
+            </Button>
           ),
         },
       ],
@@ -411,17 +412,17 @@ function accountRow({
             : signedOut,
     content: who ? (
       <span className="settings-buttons">
-        <button className="outline-button" onClick={() => onSignIn(forge)}>
+        <Button kind="outline" onClick={() => onSignIn(forge)}>
           <span className="button-label">Switch account…</span>
-        </button>
-        <button className="outline-button" onClick={() => onSignOut(forge)}>
+        </Button>
+        <Button kind="outline" onClick={() => onSignOut(forge)}>
           <span className="button-label">Sign out</span>
-        </button>
+        </Button>
       </span>
     ) : (
-      <button className="outline-button" onClick={() => onSignIn(forge)} disabled={!known && !error}>
+      <Button kind="outline" onClick={() => onSignIn(forge)} disabled={!known && !error}>
         <span className="button-label">{rejected ? "Sign in again…" : "Sign in…"}</span>
-      </button>
+      </Button>
     ),
   };
 }

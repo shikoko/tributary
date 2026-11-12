@@ -5,6 +5,7 @@ import { Dialog } from "./Dialog";
 import { CheckIcon } from "./Icons";
 import { TOUR_LOOKS } from "./TourOverlay";
 import type { CSSProperties } from "react";
+import { Button } from "./ui/Button";
 
 interface Props {
   /** The tours taken (finished or skipped). */
@@ -34,9 +35,9 @@ export function ToursDialog({ done, offered, setOffered, canStart, onStart, onCl
             Offer a tour when I come across something new
           </label>
           <span className="spacer" />
-          <button className="secondary-button" onClick={onClose}>
+          <Button kind="secondary" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </>
       }
     >
@@ -60,9 +61,9 @@ export function ToursDialog({ done, offered, setOffered, canStart, onStart, onCl
                   <CheckIcon size={13} />
                 </span>
               )}
-              <button className="outline-button" disabled={!canStart} onClick={() => onStart(tour.id)}>
+              <Button kind="outline" disabled={!canStart} onClick={() => onStart(tour.id)}>
                 <span className="button-label">{done.includes(tour.id) ? "Again" : "Start"}</span>
-              </button>
+              </Button>
             </li>
           );
         })}

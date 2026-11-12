@@ -7,23 +7,25 @@ use std::sync::{LazyLock, Mutex};
 use gix::ObjectId;
 use gix::bstr::ByteSlice;
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::git::Git;
 use crate::links;
 use crate::links::WebRemote;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct HiddenRef {
     pub name: String,
     pub kind: RefKind,
     /// The commit it points to.
     pub commit: String,
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub upstream: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Upstream {
     /// Like `origin/main`.
@@ -32,7 +34,7 @@ pub struct Upstream {
     pub commit: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RefLabel {
     pub name: String,
@@ -40,20 +42,26 @@ pub struct RefLabel {
     /// `true` for the branch that is checked out.
     pub current: bool,
     /// For a local branch: the remote branch it tracks, like `origin/main`.
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub upstream: Option<String>,
     /// For an annotated tag: the id of the tag object itself (`kind` points at its commit).
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
     /// For a local branch with an upstream: how far it is ahead of the upstream, and behind
     /// it, along each one's own line (first parents): a merged pull request counts once.
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ahead: Option<u32>,
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub behind: Option<u32>,
     /// The same as git counts it (`git status`): every commit, those a merge brought in too.
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ahead_commits: Option<u32>,
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub behind_commits: Option<u32>,
 }
@@ -71,7 +79,7 @@ impl RefLabel {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum RefKind {
     /// A detached `HEAD`.

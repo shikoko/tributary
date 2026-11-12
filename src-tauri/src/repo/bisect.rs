@@ -5,10 +5,12 @@ use std::path::Path;
 
 use gix::bstr::ByteSlice;
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::git::Git;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+/// A bisect under way: the commits marked good and bad, and the first bad one once found.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Bisect {
     /// Where it started (a branch, or a commit), to go back to.

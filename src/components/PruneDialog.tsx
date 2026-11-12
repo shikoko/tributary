@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { pruneCandidates, runAction, type BranchTip, type PruneCandidate, type PruneInfo } from "../api";
 import { compactTime } from "../lib/format";
 import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
 
 interface Props {
   repoPath: string;
@@ -93,16 +94,16 @@ export function PruneDialog({ repoPath, fetchFirst, pinned, protectedNames, onCa
       buttons={
         <>
           {candidates.length > 0 && (
-            <button className="link-button dialog-note" onClick={() => setChosen(new Set(allChosen ? [] : candidates.map((c) => c.name)))}>
+            <Button kind="link" className="dialog-note" onClick={() => setChosen(new Set(allChosen ? [] : candidates.map((c) => c.name)))}>
               {allChosen ? "Select none" : "Select all"}
-            </button>
+            </Button>
           )}
-          <button className="secondary-button" onClick={onCancel}>
+          <Button kind="secondary" onClick={onCancel}>
             Cancel
-          </button>
-          <button className="danger-button" disabled={chosen.size === 0} onClick={remove}>
+          </Button>
+          <Button kind="danger" disabled={chosen.size === 0} onClick={remove}>
             {chosen.size === 1 ? "Delete 1 branch" : `Delete ${chosen.size} branches`}
-          </button>
+          </Button>
         </>
       }
     >

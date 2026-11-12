@@ -21,6 +21,7 @@ import {
   ViewIcon,
 } from "./Icons";
 import { relativeTime } from "../lib/format";
+import { Button } from "./ui/Button";
 
 export type RemoteAction = "fetch" | "pull" | "push";
 
@@ -107,24 +108,24 @@ export function Toolbar(props: Props) {
   return (
     <header className="toolbar" data-tauri-drag-region>
       <div className="toolbar-repo" data-tauri-drag-region>
-        <button
-          className={`icon-button${props.sidebarOpen ? " active" : ""}`}
+        <Button
+          kind="icon" className={props.sidebarOpen ? "active" : undefined}
           onClick={props.onToggleSidebar}
           title={`${props.sidebarOpen ? "Hide" : "Show"} branches (${modKey}B)`}
           aria-label="Toggle the branches sidebar"
           aria-pressed={props.sidebarOpen}
         >
           <SidebarIcon />
-        </button>
+        </Button>
         {snapshot.headBranch ? (
           <span className="head-chip" title="Checked out branch" data-tour="head">
             <BranchIcon size={14} />
-            <span className="head-chip-name">{snapshot.headBranch}</span>
+            <span className="head-chip-name chip-text">{snapshot.headBranch}</span>
           </span>
         ) : snapshot.headCommit ? (
           <span className="head-chip detached" title="HEAD is detached">
             <CommitIcon size={14} />
-            <span className="head-chip-name">detached at {shortId(snapshot.headCommit)}</span>
+            <span className="head-chip-name chip-text">detached at {shortId(snapshot.headCommit)}</span>
           </span>
         ) : null}
       </div>
@@ -192,39 +193,39 @@ export function Toolbar(props: Props) {
                       ? `${search.current} of ${search.total}${search.notLoaded > 0 ? "+" : ""}`
                       : plural(search.total, "match", "matches") + (search.notLoaded > 0 ? "+" : "")}
             </span>
-            <button
-              className="icon-button small"
+            <Button
+              kind="icon" size="small"
               onClick={() => props.onSearchStep(-1)}
               disabled={search.total === 0}
               title="Previous match (Shift+Enter)"
               aria-label="Previous match"
             >
               <ChevronUpIcon size={14} />
-            </button>
-            <button
-              className="icon-button small"
+            </Button>
+            <Button
+              kind="icon" size="small"
               onClick={() => props.onSearchStep(1)}
               disabled={search.total === 0}
               title="Next match (Enter)"
               aria-label="Next match"
             >
               <ChevronDownIcon size={14} />
-            </button>
-            <button
-              className="icon-button small"
+            </Button>
+            <Button
+              kind="icon" size="small"
               onClick={() => props.onSearch("")}
               title="Clear search (Esc)"
               aria-label="Clear search"
             >
               <CloseIcon size={13} />
-            </button>
+            </Button>
           </>
         )}
       </div>
 
       <div className="toolbar-actions">
-        <button
-          className="tool-button"
+        <Button
+          kind="tool"
           data-tour="remote"
           onClick={() => props.onRemote("fetch")}
           disabled={fetchDisabled}
@@ -236,8 +237,8 @@ export function Toolbar(props: Props) {
         >
           <FetchIcon className={running === "fetch" ? "pulse" : undefined} />
           <span className="label">Fetch</span>
-        </button>
-        <button className="tool-button" data-tour="remote" onClick={() => props.onRemote("pull")} disabled={pullDisabled} title={pullTitle}>
+        </Button>
+        <Button kind="tool" data-tour="remote" onClick={() => props.onRemote("pull")} disabled={pullDisabled} title={pullTitle}>
           <PullIcon className={running === "pull" ? "pulse" : undefined} />
           <span className="label">Pull</span>
           {behind > 0 && (
@@ -245,9 +246,9 @@ export function Toolbar(props: Props) {
               <span>{behind}</span>
             </span>
           )}
-        </button>
+        </Button>
         <div className="split-button" data-tour="remote">
-          <button className="tool-button" onClick={() => props.onRemote("push")} disabled={pushDisabled} title={pushTitle}>
+          <Button kind="tool" onClick={() => props.onRemote("push")} disabled={pushDisabled} title={pushTitle}>
             <PushIcon className={running === "push" ? "pulse" : undefined} />
             <span className="label">Push</span>
             {ahead > 0 && (
@@ -255,23 +256,23 @@ export function Toolbar(props: Props) {
                 <span>{ahead}</span>
               </span>
             )}
-          </button>
-          <button
+          </Button>
+          <Button
             ref={pushMenuButton}
-            className="tool-button menu-toggle"
+            kind="tool" className="menu-toggle"
             onClick={() => pushMenuButton.current && props.onPushMenu(pushMenuButton.current)}
             disabled={pushDisabled}
             title="More push options"
             aria-label="More push options"
           >
             <ChevronDownIcon size={14} />
-          </button>
+          </Button>
         </div>
 
         <span className="toolbar-divider" />
 
-        <button
-          className={`icon-button${props.teamOpen ? " active" : ""}`}
+        <Button
+          kind="icon" className={props.teamOpen ? "active" : undefined}
           onClick={props.onToggleTeam}
           title={`Team activity: who's been working on what (${isMac ? "⇧⌘T" : "Ctrl+Shift+T"})`}
           aria-label="Team activity"
@@ -279,36 +280,36 @@ export function Toolbar(props: Props) {
           aria-pressed={props.teamOpen}
         >
           <TeamIcon />
-        </button>
-        <button
+        </Button>
+        <Button
           ref={viewButton}
-          className="icon-button"
+          kind="icon"
           onClick={() => viewButton.current && props.onViewMenu(viewButton.current)}
           title="View options"
           aria-label="View options"
         >
           <ViewIcon />
-        </button>
-        <button
-          className="icon-button"
+        </Button>
+        <Button
+          kind="icon"
           onClick={props.onSettings}
           title={`Settings for ${snapshot.name}: who you commit as, protected branches, Git LFS`}
           aria-label="Repository settings"
         >
           <GearIcon />
-        </button>
-        <button
+        </Button>
+        <Button
           ref={openButton}
-          className="icon-button"
+          kind="icon"
           onClick={() => openButton.current && props.onOpenMenu(openButton.current)}
           title={`Open ${snapshot.name}: on its website, in ${isMac ? "Finder" : "Explorer"}, in your editor or terminal`}
           aria-label="Open the repository elsewhere"
         >
           <ExternalLinkIcon />
-        </button>
-        <button className="icon-button" onClick={props.onClose} title="Close repository" aria-label="Close repository">
+        </Button>
+        <Button kind="icon" onClick={props.onClose} title="Close repository" aria-label="Close repository">
           <CloseIcon />
-        </button>
+        </Button>
       </div>
     </header>
   );

@@ -22,6 +22,7 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_updater::{Update, UpdaterExt};
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 
@@ -43,7 +44,7 @@ fn endpoints(beta: bool) -> Option<Vec<tauri::Url>> {
 }
 
 /// A newer version that can be installed.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
     pub version: String,
@@ -58,7 +59,7 @@ pub struct UpdateInfo {
 }
 
 /// How far the download has got, sent as `update-progress` events.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadProgress {
     pub downloaded: u64,

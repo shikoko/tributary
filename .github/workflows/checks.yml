@@ -34,6 +34,8 @@ jobs:
   changes:
     name: What changed
     runs-on: ubuntu-24.04
+    # Every job stops after about twice its longest run, so one that hangs frees its runner
+    # and the queue behind it, instead of holding them for GitHub's six hours.
     timeout-minutes: 5
     outputs:
       code: ${{ steps.files.outputs.code }}
@@ -42,6 +44,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # A workflow's scripts are only read when their step runs, some only on a release or a
+      # beta: a mistake in one is found here instead.
+      - name: Workflow scripts
+        run: |
+          python3 -c 'import yaml' 2>/dev/null || python3 -m pip install --quiet --break-system-packages pyyaml
+          python3 .github/scripts/check-workflows.py
 
       - name: Which parts?
         id: files
@@ -58,7 +67,7 @@ jobs:
             echo "::notice::Only documentation changed: the app isn't built or tested."
             code=false
             rust=false
-          elif [ -n "$changed" ] && ! grep -qE '^(src-tauri/|package\.json$|\.github/workflows/checks\.yml$|\.github/scripts/)' <<<"$changed"; then
+          elif [ -n "$changed" ] && ! grep -qE '^(src-tauri/|src/api/generated\.ts$|package\.json$|\.github/workflows/checks\.yml$|\.github/scripts/)' <<<"$changed"; then
             echo "::notice::Nothing on the Rust side changed: its checks on Linux, macOS and Windows are skipped (the smoke test still builds it)."
             rust=false
           fi
@@ -71,7 +80,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
@@ -95,7 +104,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.rust == 'true'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    # Windows took 10 minutes at most; more without its cache.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -155,7 +165,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -200,6 +210,7 @@ jobs:
     name: Ready to release
     if: github.base_ref == 'main'
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: read

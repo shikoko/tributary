@@ -8,6 +8,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use super::support::{LITERAL, in_batches};
 use crate::error::{Error, Result};
@@ -21,14 +22,14 @@ const LONG_PATH: usize = 180;
 /// How many examples a check lists.
 const EXAMPLES: usize = 5;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum Engine {
     Unreal,
     Unity,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum CheckStatus {
     Good,
@@ -37,7 +38,7 @@ pub enum CheckStatus {
 }
 
 /// A change that puts a check right.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum SetupFix {
     /// Add these lines to .gitignore.
@@ -57,7 +58,7 @@ pub enum SetupFix {
     InstallLfs,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SetupCheck {
     /// Stable, for the frontend ("ignore", "lfs", …).
@@ -72,7 +73,8 @@ pub struct SetupCheck {
     pub fix_label: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+/// How a repository is set up for a game project, check by check.
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectSetup {
     pub engine: Option<Engine>,

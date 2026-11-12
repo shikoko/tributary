@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::Git;
@@ -11,8 +12,10 @@ use crate::git::Git;
 /// At most this many commits are found.
 const LIMIT: usize = 2000;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+/// What to search commits for, besides their messages: a file's path, or code they added or removed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "CommitSearchMode")]
 pub enum SearchMode {
     /// Commits that changed a file or folder whose path contains the words (or matches a
     /// pattern like `*.psd`).
@@ -21,7 +24,7 @@ pub enum SearchMode {
     Code,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     /// Newest first.

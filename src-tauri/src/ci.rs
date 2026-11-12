@@ -8,6 +8,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::error::Result;
 use crate::github::CheckState;
@@ -37,7 +38,7 @@ fn holds_for(state: Option<CheckState>) -> Duration {
 }
 
 /// A commit's checks in full.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitChecks {
     pub checks: Vec<Check>,

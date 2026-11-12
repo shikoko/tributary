@@ -1,6 +1,7 @@
 import type { FileDiff } from "../../api";
 import { describeSizes as sizes } from "../../lib/media";
 import { ExternalLinkIcon } from "../Icons";
+import { Button } from "../ui/Button";
 
 interface Props {
   diff: FileDiff;
@@ -24,10 +25,10 @@ export function DiffBinary({ diff, tool, onOpen }: Props) {
             ? "Its contents aren't text, so they can't be shown line by line here."
             : "Tributary shows text, pictures, sounds, videos and 3D models, but not this kind of file."}
       </span>
-      <button className="outline-button diff-message-action" onClick={onOpen}>
+      <Button kind="outline" className="diff-message-action" onClick={onOpen}>
         <ExternalLinkIcon size={13} />
         <span className="button-label">{tool}</span>
-      </button>
+      </Button>
     </div>
   );
 }
