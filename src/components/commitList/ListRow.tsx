@@ -12,6 +12,7 @@ import type { CommitRow } from "../../api";
 import type { ChangeCounts as Counts } from "../../lib/changes";
 import type { CiDots } from "../../lib/appearance";
 import { laneColor } from "../../lib/colors";
+import { pillLane, type LaneLabel } from "../../lib/lanes";
 import { compactTime, fullDate, shortId } from "../../lib/format";
 import type { RefPill } from "../../lib/refs";
 import type { SelectHow } from "../../lib/selection";
@@ -31,8 +32,8 @@ export interface RowHandlers {
   /** The labels that didn't fit next to a commit: pick one for its menu. */
   onMorePills: (pills: RefPill[], commit: CommitRow, x: number, y: number) => void;
   onHover: (event: MouseEvent, commit: CommitRow) => void;
-  /** The pointer is on one of a commit's labels, or has left them (null): its lane lights up. */
-  onLaneHover: (commitId: string | null) => void;
+  /** The pointer is on a branch or tag label, or has left it (null): its lanes light up. */
+  onLaneHover: (label: LaneLabel | null) => void;
   onLeave: () => void;
 }
 
@@ -116,12 +117,7 @@ export const ListRow = memo(function ListRow(props: RowProps) {
       role="option"
       aria-selected={selected}
     >
-      <div
-        className="cell refs-cell"
-        // On one of its branch or tag labels, the commit's lane lights up.
-        onMouseOver={(event) => on().onLaneHover((event.target as Element).closest(".ref-pill:not(.more):not(.stash)") ? commit.id : null)}
-        onMouseLeave={() => on().onLaneHover(null)}
-      >
+      <div className="cell refs-cell">
         <RefPills
           refs={commit.refs}
           color={color}
@@ -132,6 +128,8 @@ export const ListRow = memo(function ListRow(props: RowProps) {
             on().onPillContextMenu(pill, commit, x, y);
           }}
           onFocusPill={(pill) => on().onPillFocus(pill, commit)}
+          // On a branch or tag label, its lanes light up.
+          onHoverPill={(pill) => on().onLaneHover(pill && pillLane(pill))}
           onMore={(pills, x, y) => {
             onSelect(commit.id);
             on().onMorePills(pills, commit, x, y);

@@ -39,13 +39,13 @@ interface GraphInput {
   laneWidth: number;
   /** Commits are authors' pictures (ListRow): the painter leaves them out. */
   avatars: boolean;
-  /** A branch's lane, lit up: the pointer is on one of its labels. */
-  lane: Lane | null;
+  /** A branch's lanes, lit up: the pointer is on one of its labels. */
+  litLanes: Lane[];
 }
 
 /** Draw the graph for the rendered rows. */
 export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, input: GraphInput) {
-  const { commits, slots, first, last, width, rowHeight, headId, selectedId, focusIds, colors, curves, laneWidth, avatars, lane } = input;
+  const { commits, slots, first, last, width, rowHeight, headId, selectedId, focusIds, colors, curves, laneWidth, avatars, litLanes } = input;
   useLayoutEffect(() => {
     if (!canvas.current) return;
     const ctx = prepare(canvas.current, width, Math.max(0, last - first) * rowHeight);
@@ -64,9 +64,9 @@ export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, inpu
       curves,
       avatars,
       pictureSize: nodeAvatarSize(rowHeight === DENSE_ROW_HEIGHT),
-      lane,
+      litLanes,
     });
-  }, [canvas, commits, slots, first, last, width, headId, selectedId, rowHeight, focusIds, colors, curves, laneWidth, avatars, lane]);
+  }, [canvas, commits, slots, first, last, width, headId, selectedId, rowHeight, focusIds, colors, curves, laneWidth, avatars, litLanes]);
 }
 
 /** A mark next to the scrollbar. */

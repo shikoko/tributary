@@ -33,8 +33,8 @@ export interface PaintOptions extends GraphMetrics {
   avatars?: boolean;
   /** How wide the authors' pictures are, without their rings. */
   pictureSize?: number;
-  /** A branch's lane, lit up: the pointer is on one of its labels. */
-  lane?: Lane | null;
+  /** A branch's lanes, lit up: the pointer is on one of its labels. */
+  litLanes?: Lane[];
 }
 
 
@@ -138,16 +138,17 @@ export function paintGraph(
       }
     }
   };
-  const lane = options.lane ?? null;
-  /** Part of the lit lane: from its own commits in its own column, and all from its oldest
+  const lit = options.litLanes ?? [];
+  /** Part of lit lane `lane`: from its own commits in its own column, and all from its oldest
       commit (down to where it was branched from). */
-  const inLane = (kind: number, from: number, to: number, child: number | number[]) => {
-    if (!lane) return false;
+  const inLane = (lane: Lane, kind: number, from: number, to: number, child: number | number[]) => {
     const ids = (Array.isArray(child) ? child : [child]).map((index) => commits[index]?.id);
     if (ids.includes(lane.last)) return true;
     const own = ids.some((id) => id !== undefined && lane.ids.has(id));
     return own && (kind === 0 ? from === lane.column : from === lane.column && to === lane.column);
   };
+  const inAnyLane = (kind: number, from: number, to: number, child: number | number[]) => lit.some((lane) => inLane(lane, kind, from, to, child));
+  const litCommit = (id: string) => lit.some((lane) => lane.ids.has(id));
   const focus = options.focusIds;
   // A line is part of the highlighted history when the commit it links from is.
   const inFocus = (child: number | number[]) =>
@@ -173,8 +174,8 @@ export function paintGraph(
 
     for (const [kind, from, to, child, dashed] of lines) {
       const color = laneColor(kind === 2 ? to : from, options.lanes);
-      // Outside the highlighted history, or the lit lane: faded.
-      const alpha = (focus && !inFocus(child)) || (lane && !inLane(kind, from, to, child)) ? FADED : 1;
+      // Outside the highlighted history, or the lit lanes: faded.
+      const alpha = (focus && !inFocus(child)) || (lit.length > 0 && !inAnyLane(kind, from, to, child)) ? FADED : 1;
       const key = `${color} ${alpha} ${dashed ? 1 : 0}`;
       let batch = batches.get(key);
       if (!batch) batches.set(key, (batch = { color, alpha, dashed: !!dashed, path: new Path2D() }));
@@ -196,7 +197,7 @@ export function paintGraph(
     if (typeof row !== "number") continue;
     const commit = commits[row];
     if (!commit) continue;
-    const faded = (focus !== null && !focus.has(commit.id)) || (lane !== null && !lane.ids.has(commit.id));
+    const faded = (focus !== null && !focus.has(commit.id)) || (lit.length > 0 && !litCommit(commit.id));
     const cx = x(commit.graph.column);
     const cy = (slot - first) * rowHeight + rowHeight / 2;
     const color = laneColor(commit.graph.column, options.lanes);
@@ -261,7 +262,7 @@ export function paintGraph(
     }
   }
   ctx.globalAlpha = 1;
-  if (lane) paintLane(lane);
+  for (const lane of lit) paintLane(lane);
 
   /**
    * The lit lane, over the graph (the rest of it faded): glowing in its colour, its lines and
@@ -282,7 +283,7 @@ export function paintGraph(
       const commit = typeof row === "number" ? commits[row] : commits[row.before];
       if (!commit) continue;
       const lines = typeof row === "number" ? commit.graph.lines : passingLines(commit);
-      for (const [kind, from, to, child] of lines) if (inLane(kind, from, to, child)) segment(path, kind, from, to, (slot - first) * rowHeight);
+      for (const [kind, from, to, child] of lines) if (inLane(lane, kind, from, to, child)) segment(path, kind, from, to, (slot - first) * rowHeight);
     }
     ctx.save();
     ctx.lineWidth = LINE_WIDTH + 0.5;
