@@ -168,7 +168,7 @@ export function NameList({ names, onChange, placeholder }: { names: string[]; on
     <div className="name-list">
       {names.map((name) => (
         <span key={name} className="name-chip">
-          {name}
+          <span className="chip-text">{name}</span>
           <button onClick={() => onChange(names.filter((other) => other !== name))} aria-label={`Remove ${name}`} title={`Remove ${name}`}>
             <CloseIcon size={10} />
           </button>

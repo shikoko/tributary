@@ -60,17 +60,10 @@
 }
 
 .head-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   min-width: 0;
   max-width: 220px;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: var(--radius-3xl);
   background: rgb(var(--accent-rgb) / 0.14);
   color: var(--accent-text);
-  font-weight: 600;
   white-space: nowrap;
   flex: none;
 }

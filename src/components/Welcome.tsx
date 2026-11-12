@@ -11,6 +11,7 @@ import { GitNeededCard, GitOldNote } from "./GitNeeded";
 import { BranchIcon, CloneIcon, CloseIcon, FolderIcon, Logo, NewRepoIcon, PinIcon, SearchIcon } from "./Icons";
 import { Loader } from "./Loader";
 import { Button } from "./ui/Button";
+import { Chip } from "./ui/Chip";
 
 interface Props {
   recent: RecentRepo[];
@@ -70,18 +71,18 @@ export function Welcome({ recent, summaries, opening, error, onPick, onClone, on
           <span className="recent-path">{repo.path}</span>
         </span>
         <span className="recent-state">
-          {missing && <span className="recent-chip missing">Folder not found</span>}
-          {summary?.found && summary.conflicts > 0 && <span className="recent-chip conflicts">{plural(summary.conflicts, "conflict")}</span>}
+          {missing && <Chip className="recent-chip missing">Folder not found</Chip>}
+          {summary?.found && summary.conflicts > 0 && <Chip className="recent-chip conflicts">{plural(summary.conflicts, "conflict")}</Chip>}
           {summary?.found && summary.changes > summary.conflicts && (
-            <span className="recent-chip changes" title={`${plural(summary.changes, "file")} with uncommitted changes`}>
+            <Chip className="recent-chip changes" title={`${plural(summary.changes, "file")} with uncommitted changes`}>
               {plural(summary.changes - summary.conflicts, "change")}
-            </span>
+            </Chip>
           )}
           {summary?.found && (summary.ahead > 0 || summary.behind > 0) && (
-            <span className="recent-chip sync" title={`${summary.ahead} to push, ${summary.behind} to pull (as of the last fetch) on ${summary.upstream}`}>
+            <Chip className="recent-chip sync" title={`${summary.ahead} to push, ${summary.behind} to pull (as of the last fetch) on ${summary.upstream}`}>
               {summary.ahead > 0 && <span>↑{summary.ahead}</span>}
               {summary.behind > 0 && <span>↓{summary.behind}</span>}
-            </span>
+            </Chip>
           )}
           {repo.openedAt && <span className="recent-when">{relativeTime(repo.openedAt / 1000)}</span>}
         </span>

@@ -55,7 +55,7 @@ npm run preview:screenshots
 
 The app's building blocks are on one page: the type scale, the corners, every colour of the theme, the graph's lane colours, each kind of button in its sizes, switches, fields, chips and every icon, dark and light side by side. Open the app with `?catalogue` added to its address, in the browser preview (<http://127.0.0.1:4173/?catalogue>) or with `npm run dev` (<http://localhost:1420/?catalogue>); `?catalogue&theme=light` (or `dark`) shows one theme. It reads the tokens from the stylesheets, so it's always complete, and it's only loaded when asked for. The smoke test opens it in both themes.
 
-When you make something, start from the parts in `src/components/ui`: `Button` (with its `kind`: primary, secondary, outline, danger, link, icon or tool, and a `size` where the kind has one), `Switch`, `Field` and `Chip`, and the steps in `theme.css` for sizes and corners. If the catalogue shows two things that should match but don't, that's worth fixing.
+When you make something, start from the parts in `src/components/ui`: `Button` (with its `kind`: primary, secondary, outline, danger, link, icon or tool, and a `size` where the kind has one), `Switch`, `Field` and `Chip`, and the steps in `theme.css` for sizes and corners. Chips come in two sizes and two shapes, all set in `chips.css`: a state (Open, Approved, Beta) is a pill with its words in bold, and a name (a branch) is a tag in the code font; their text is trimmed to its letters (`<Chip>`), so it sits in the middle. If the catalogue shows two things that should match but don't, that's worth fixing.
 
 ## Build installers for your platform
 

@@ -120,12 +120,12 @@ export function Toolbar(props: Props) {
         {snapshot.headBranch ? (
           <span className="head-chip" title="Checked out branch" data-tour="head">
             <BranchIcon size={14} />
-            <span className="head-chip-name">{snapshot.headBranch}</span>
+            <span className="head-chip-name chip-text">{snapshot.headBranch}</span>
           </span>
         ) : snapshot.headCommit ? (
           <span className="head-chip detached" title="HEAD is detached">
             <CommitIcon size={14} />
-            <span className="head-chip-name">detached at {shortId(snapshot.headCommit)}</span>
+            <span className="head-chip-name chip-text">detached at {shortId(snapshot.headCommit)}</span>
           </span>
         ) : null}
       </div>

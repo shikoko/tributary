@@ -89,15 +89,8 @@ textarea.request-body.short {
 }
 
 .request-review {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 8px;
-  border-radius: var(--radius-pill);
   background: rgb(var(--overlay-rgb) / 0.12);
   color: var(--text-secondary);
-  font-size: var(--type-sm);
-  font-weight: 600;
 }
 
 .request-review.approved {

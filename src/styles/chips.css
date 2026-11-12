@@ -1,0 +1,84 @@
+/* Chips: small labels for a state (Open, Approved, Beta, 3 changes…) or a name (a branch).
+   Their sizes and shapes are all here; each one's colours are with its area.
+   - Two heights: small (20px) beside text and in lists, medium (24px) on their own.
+   - States are pills, their words in bold; names are tags (rounded rectangles) in the code
+     font, as GitHub shows them.
+   - The text is trimmed to its letters (<Chip>, or `chip-text`), so it sits in the middle
+     whatever the font's spacing above and below. */
+.about-beta,
+.request-review,
+.recent-chip,
+.team-branch-chip,
+.request-state,
+.request-ref,
+.name-chip,
+.head-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Small. */
+.about-beta,
+.request-review,
+.recent-chip,
+.team-branch-chip {
+  height: 20px;
+  padding: 0 8px;
+  font-size: var(--type-xs);
+}
+
+/* Medium: with room before an icon, or after a remove button. */
+.request-state,
+.request-ref,
+.name-chip,
+.head-chip {
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  font-size: var(--type-sm);
+}
+
+.request-state,
+.head-chip {
+  padding-left: 8px;
+}
+
+.name-chip {
+  padding: 0 4px 0 9px;
+}
+
+/* States. */
+.about-beta,
+.request-review,
+.recent-chip,
+.request-state {
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+}
+
+/* Names. */
+.team-branch-chip,
+.request-ref,
+.name-chip,
+.head-chip {
+  font-family: var(--mono);
+  font-weight: 500;
+}
+
+.team-branch-chip {
+  border-radius: var(--radius-sm);
+}
+
+.request-ref,
+.name-chip,
+.head-chip {
+  border-radius: var(--radius-md);
+}
+
+/* Ahead and behind, apart. */
+.recent-chip.sync .chip-text span + span {
+  margin-left: 4px;
+}

@@ -184,13 +184,6 @@
 }
 
 .recent-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 7px;
-  border-radius: var(--radius-pill);
-  font-size: var(--type-sm);
-  font-weight: 500;
   white-space: nowrap;
 }
 
