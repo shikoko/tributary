@@ -193,7 +193,9 @@ pub async fn restart<R: Runtime>(app: &AppHandle<R>) -> Result<bool, Error> {
         (update, installer)
     };
     // On Windows the installer takes over from here (it closes Tributary and opens the new
-    // version); elsewhere the app is replaced in place, then started again.
+    // version); elsewhere the app is replaced in place, then started again. Either way the
+    // new version opens where the window is now.
+    crate::window_place::save(app);
     if let Err(e) = update.install(installer) {
         found(app).installing = false;
         return Err(format!("Couldn't install the update ({e})").into());
@@ -220,6 +222,7 @@ pub fn install_on_quit<R: Runtime>(app: &AppHandle<R>) {
         found.installing = true;
         (update, installer)
     };
+    crate::window_place::save(app);
     let _ = update.restart_after_install(false).install(installer);
 }
 
