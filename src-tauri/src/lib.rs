@@ -30,6 +30,7 @@ pub mod textures;
 pub mod unreal;
 pub mod updates;
 pub mod watch;
+mod window_place;
 
 use tauri::Emitter;
 
@@ -52,9 +53,12 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(window_place::plugin())
         .manage(updates::Pending::default())
         .manage(watch::Watching::default())
         .setup(|app| {
+            // The window goes back where it was (its display, place and size), and shows.
+            window_place::restore(app.handle());
             let handle = app.handle().clone();
             git::on_activity(move |entry| {
                 let _ = handle.emit("activity", entry);

@@ -26,6 +26,8 @@ tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
 # Installs new versions from the project's GitHub releases.
 tauri-plugin-updater = "2"
+# Remembers where the window was (its display, place, size, maximised), for the next start.
+tauri-plugin-window-state = "2"
 # Talks to GitHub, GitLab, Jira and Linear (the same HTTP client the updater uses).
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }

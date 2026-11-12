@@ -4,6 +4,7 @@
     "windows": [
       {
         "title": "Tributary",
+        "visible": false,
         "width": 1280,
         "height": 800,
         "minWidth": 900,
