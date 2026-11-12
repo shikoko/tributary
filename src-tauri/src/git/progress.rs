@@ -1,6 +1,7 @@
 //! Progress of fetches, pulls, pushes and clones, read from git's output (and Git LFS's
 //! progress log), and cancelling them.
 
+use std::path::{Path, PathBuf};
 use std::process::{Child, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -64,6 +65,8 @@ pub struct FileCount {
 /// A fetch, pull or push that is running, so it can be cancelled.
 struct Running {
     id: u64,
+    /// The folder it runs in (a repository, or one of its submodules).
+    workdir: PathBuf,
     child: Arc<Mutex<Child>>,
     cancelled: Arc<AtomicBool>,
 }
@@ -71,14 +74,29 @@ struct Running {
 static RUNNING: Mutex<Vec<Running>> = Mutex::new(Vec::new());
 static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-/// Stop every fetch, pull or push that is running. Returns false if there are none.
-pub fn cancel() -> bool {
+/// Stop the fetches, pulls and pushes running in the repository at `path` (and its
+/// submodules), or every one without a path. Returns false if there are none.
+pub fn cancel(path: Option<&Path>) -> bool {
+    let path = path.map(canonical);
     let running = RUNNING.lock().unwrap_or_else(|e| e.into_inner());
+    let mut stopped = false;
     for run in running.iter() {
+        if path
+            .as_ref()
+            .is_some_and(|path| !run.workdir.starts_with(path))
+        {
+            continue;
+        }
         run.cancelled.store(true, Ordering::SeqCst);
         let _ = run.child.lock().unwrap_or_else(|e| e.into_inner()).kill();
+        stopped = true;
     }
-    !running.is_empty()
+    stopped
+}
+
+/// `path` as the file system has it, to compare: the same however it was written.
+fn canonical(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
 /// "Receiving objects:  45% (450/1000), 1.2 MiB | 2.0 MiB/s" → "Receiving objects", 45%,
@@ -267,6 +285,7 @@ impl Git {
             .unwrap_or_else(|e| e.into_inner())
             .push(Running {
                 id,
+                workdir: canonical(&self.workdir),
                 child: child.clone(),
                 cancelled: cancelled.clone(),
             });
@@ -364,6 +383,49 @@ impl Git {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cancels_only_the_repository_asked_for() {
+        let dir = std::env::temp_dir().join(format!("tributary-cancel-{}", std::process::id()));
+        let (one, two) = (dir.join("one"), dir.join("two"));
+        std::fs::create_dir_all(&one).unwrap();
+        std::fs::create_dir_all(two.join("submodule")).unwrap();
+        // A git waiting for input until it's stopped, in each (in the second's submodule).
+        let start = |workdir: &Path| {
+            let child = std::process::Command::new("git")
+                .args(["hash-object", "--stdin"])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .spawn()
+                .unwrap();
+            let run = Running {
+                id: NEXT_ID.fetch_add(1, Ordering::SeqCst),
+                workdir: canonical(workdir),
+                child: Arc::new(Mutex::new(child)),
+                cancelled: Arc::new(AtomicBool::new(false)),
+            };
+            let started = (run.id, run.child.clone(), run.cancelled.clone());
+            RUNNING.lock().unwrap().push(run);
+            started
+        };
+        let (first, first_child, first_cancelled) = start(&one);
+        let (second, second_child, second_cancelled) = start(&two.join("submodule"));
+
+        assert!(cancel(Some(&two)));
+        assert!(second_cancelled.load(Ordering::SeqCst));
+        assert!(second_child.lock().unwrap().wait().is_ok());
+        assert!(!first_cancelled.load(Ordering::SeqCst));
+        assert!(first_child.lock().unwrap().try_wait().unwrap().is_none());
+
+        // Only this test's: others may be running git at the same time.
+        let _ = first_child.lock().unwrap().kill();
+        let _ = first_child.lock().unwrap().wait();
+        RUNNING
+            .lock()
+            .unwrap()
+            .retain(|run| run.id != first && run.id != second);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn reads_progress_lines() {

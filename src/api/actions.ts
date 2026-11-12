@@ -6,9 +6,9 @@ export type { Action, CloneOptions, LineMode, LogEntry, Outcome, Progress, Rebas
 
 /** Something that changes the repository. These run the installed git. */
 
-/** Stop the fetch, pull, push or clone that is running. */
-export function cancelAction(): Promise<boolean> {
-  return invoke<boolean>("cancel_action");
+/** Stop the fetch, pull or push running in the repository at `path`, or without one, everything (a clone). */
+export function cancelAction(path?: string): Promise<boolean> {
+  return invoke<boolean>("cancel_action", { path: path ?? null });
 }
 
 /** Watch the open repository for changes made outside the app (one at a time). */
@@ -25,9 +25,15 @@ export function onRepoChanged(handler: (path: string) => void): Promise<() => vo
   return listen<string>("repo-changed", (event) => handler(event.payload));
 }
 
-/** Calls `handler` with progress updates; resolves to a function that stops listening. */
-export function onProgress(handler: (progress: Progress) => void): Promise<() => void> {
-  return listen<Progress>("action-progress", (event) => handler(event.payload));
+/**
+ * Calls `handler` with progress updates, and the repository they're about (null for a
+ * clone): actions can run in several at once. Resolves to a function that stops listening.
+ */
+export function onProgress(handler: (progress: Progress, path: string | null) => void): Promise<() => void> {
+  return listen<Progress & { path?: string | null }>("action-progress", (event) => {
+    const { path, ...progress } = event.payload;
+    handler(progress, path ?? null);
+  });
 }
 
 /** Run `action`; resolves to a short message saying what happened. */

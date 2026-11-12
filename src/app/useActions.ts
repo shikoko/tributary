@@ -1,9 +1,10 @@
-import { useCallback, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import { onProgress, PAGE_SIZE, runActionFor, type Action, type Outcome, type Progress, type RepoSnapshot } from "../api";
 import { hookFailure, involvesUntrackedFiles, isLocalChangesError, NOT_ENOUGH_SPACE } from "../lib/errors";
 import { undoFor } from "../lib/undo";
 import { openInBrowser } from "../lib/weblinks";
 import { notifySystem } from "../lib/notify";
+import { overallPercent } from "../lib/progress";
 import type { ToastMessage } from "../components/Toast";
 import { splitRemoteBranch, type OpenDialog } from "../menus";
 import { checkoutTarget, LONG_ACTION, PROGRESS_DELAY, RETRYABLE, RUNNING_LABELS, type Running } from "./constants";
@@ -43,15 +44,59 @@ export interface ProgressState {
   cancellable: boolean;
 }
 
+/** What undoes `action`, which reported `outcome`, in the repository as it was `before`. */
+function undoOf(action: Action, outcome: Outcome, before: RepoSnapshot): Action | null {
+  const { backup } = outcome;
+  // Discarded files and lines are kept for a while, to put back.
+  const discarded = action.kind === "discardFiles" || action.kind === "discardAll" || action.kind === "applyLines" || (action.kind === "shelve" && !action.keep);
+  if (backup && discarded) return { kind: "restoreDiscarded", reference: backup };
+  // Restored from the local history: what the files were just before was kept too.
+  if (backup && action.kind === "restoreFromHistory") return { kind: "restoreFromHistory", reference: backup, paths: action.paths };
+  return undoFor(action, before);
+}
+
+/** For the tabs: what's running in each repository whose progress shows, and how far it is. */
+export function busyTabs(runs: ReadonlyMap<string, Run>): Record<string, { label: string; percent: number | null }> {
+  const busy: Record<string, { label: string; percent: number | null }> = {};
+  for (const [path, { progress }] of runs) if (progress?.visible) busy[path] = { label: progress.label, percent: overallPercent(progress.value) };
+  return busy;
+}
+
+/** An action running in a repository, and its progress. */
+export interface Run {
+  kind: Running;
+  progress: ProgressState | null;
+}
+
 /**
- * Running git actions: what's running, its progress, and after it ran, a reload and a
- * message (with Undo, Stash changes and retry, or Create pull request).
+ * Running git actions, one at a time in each repository and in several at once: what's
+ * running, its progress, and after it ran, a reload and a message (with Undo, Stash changes
+ * and retry, or Create pull request).
  */
 export function useActions({ snapshot, load, protectedHead, openDialog, setError, notify, blockFocusRefresh, after, showChanges, record }: Options) {
-  const [running, setRunning] = useState<Running>(null);
-  const [progress, setProgress] = useState<ProgressState | null>(null);
-  // The repository the action runs in (its progress shows there, and on its tab).
-  const [runningPath, setRunningPath] = useState<string | null>(null);
+  // What's running, by repository.
+  const [runs, setRuns] = useState<ReadonlyMap<string, Run>>(new Map());
+  const change = useCallback((path: string, update: (run: Run | undefined) => Run | undefined) => {
+    setRuns((current) => {
+      const next = new Map(current);
+      const run = update(current.get(path));
+      if (run) next.set(path, run);
+      else next.delete(path);
+      return next;
+    });
+  }, []);
+  // The repository on screen, now: an action can finish after you've gone to another.
+  const shown = useRef(snapshot?.path ?? null);
+  shown.current = snapshot?.path ?? null;
+  // What to do after actions that finished in repositories you'd left, for when you're back.
+  const waiting = useRef(new Map<string, (() => void)[]>());
+  useEffect(() => {
+    const path = snapshot?.path;
+    const later = path ? waiting.current.get(path) : undefined;
+    if (!path || !later) return;
+    waiting.current.delete(path);
+    for (const work of later) work();
+  }, [snapshot?.path]);
   // The latest callbacks, so `act` only changes with the repository.
   const callbacks = useRef({ openDialog, setError, notify, after, showChanges, record });
   callbacks.current = { openDialog, setError, notify, after, showChanges, record };
@@ -71,18 +116,21 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       const before = snapshot;
       const started = Date.now();
       let last: Progress | null = null;
-      setRunning(kind);
-      setRunningPath(before.path);
+      change(before.path, () => ({ kind, progress: null }));
       setError(null);
       blockFocusRefresh.current = true;
+      const setProgress = (update: (current: ProgressState | null) => ProgressState | null) =>
+        change(before.path, (run) => run && { ...run, progress: update(run.progress) });
 
       // Fetches, pulls, pushes and downloads show a progress bar, unless they finish quickly.
       let stopListening: (() => void) | undefined;
       let showTimer: number | undefined;
       if (kind && kind !== "other") {
-        setProgress({ label: kind === "checkout" ? `Checking out ${target}` : RUNNING_LABELS[kind], value: null, visible: false, cancellable: kind !== "checkout" });
+        setProgress(() => ({ label: kind === "checkout" ? `Checking out ${target}` : RUNNING_LABELS[kind], value: null, visible: false, cancellable: kind !== "checkout" }));
         showTimer = window.setTimeout(() => setProgress((current) => current && { ...current, visible: true }), PROGRESS_DELAY);
-        stopListening = await onProgress((value) => {
+        stopListening = await onProgress((value, path) => {
+          // Another repository's, or a clone's.
+          if (path !== before.path) return;
           last = value;
           setProgress((current) => current && { ...current, value });
         }).catch(() => undefined);
@@ -97,9 +145,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       }
       window.clearTimeout(showTimer);
       stopListening?.();
-      setProgress(null);
-      setRunning(null);
-      setRunningPath(null);
+      change(before.path, () => undefined);
       // A long one, finished while you were elsewhere: say so.
       if (kind && kind !== "other" && Date.now() - started > LONG_ACTION && !document.hasFocus() && failure !== "Cancelled.") {
         const files = (last as Progress | null)?.files;
@@ -107,6 +153,18 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
         const minutes = Math.round((Date.now() - started) / 60_000);
         const took = minutes >= 1 ? ` in ${minutes} min` : "";
         void notifySystem(before.name, failure ? `Didn't finish: ${failure.split("\n")[0]}` : `${outcome?.message ?? "Done"}${count}${took}`);
+      }
+      // You went to another repository while it ran: it's reloaded when you're back there
+      // (and what follows an action waits for then), and a message says how it went. Its
+      // undo is in that repository's history: the message's would run in this one.
+      if (shown.current !== before.path) {
+        const later = waiting.current.get(before.path) ?? [];
+        later.push(() => after(action, kind, outcome));
+        waiting.current.set(before.path, later);
+        const text = failure === "Cancelled." ? "Cancelled" : (failure?.split("\n")[0] ?? outcome?.message ?? "Done");
+        notify({ text: `${before.name}: ${text}` });
+        if (outcome?.message) callbacks.current.record?.(before.path, outcome.message, action, undoOf(action, outcome, before));
+        return failure === null;
       }
       // Reload even after a failure (a pull with conflicts still changes things), and only
       // then show the result, since reloading clears old errors.
@@ -133,12 +191,8 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
         setError({ message, retry: anyway ? undefined : retry, worktree, skipHooks, anyway });
         return false;
       }
-      const { message, pullRequest, backup } = outcome;
-      // Discarded files and lines are kept for a while, to put back.
-      const discarded = action.kind === "discardFiles" || action.kind === "discardAll" || action.kind === "applyLines" || (action.kind === "shelve" && !action.keep);
-      // Restored from the local history: what the files were just before was kept too.
-      const restoredOver = backup && action.kind === "restoreFromHistory" ? { kind: "restoreFromHistory" as const, reference: backup, paths: action.paths } : null;
-      const undo = backup && discarded ? { kind: "restoreDiscarded" as const, reference: backup } : (restoredOver ?? undoFor(action, before));
+      const { message, pullRequest } = outcome;
+      const undo = undoOf(action, outcome, before);
       if (message) callbacks.current.record?.(before.path, message, action, undo);
       if (action.kind === "merge" && action.mode === "squash") showChanges();
       if (pullRequest) {
@@ -158,7 +212,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       }
       return true;
     },
-    [snapshot, load, protectedHead, blockFocusRefresh],
+    [snapshot, load, protectedHead, blockFocusRefresh, change],
   );
 
   /** A dialog did its own action: show its message, with an undo, and reload. */
@@ -170,7 +224,9 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
     [act],
   );
 
-  return { act, running, runningPath, progress, finished };
+  // The repository on screen's.
+  const run = snapshot ? runs.get(snapshot.path) : undefined;
+  return { act, running: run?.kind ?? null, progress: run?.progress ?? null, runs, finished };
 }
 
 export type Actions = ReturnType<typeof useActions>;
