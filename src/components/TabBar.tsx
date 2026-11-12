@@ -28,8 +28,8 @@ interface Props {
   news?: Record<string, string>;
   /** Right-click on a repository's tab (or the menu key on it). */
   onContextMenu?: (path: string, x: number, y: number) => void;
-  /** A pull, fetch, push or checkout running in a repository: a ring on its tab, when it isn't the one shown. */
-  busy?: { path: string; label: string; percent: number | null };
+  /** Pulls, fetches, pushes and checkouts running, by repository: a ring on each one's tab, when it isn't the one shown. */
+  busy?: Record<string, { label: string; percent: number | null }>;
 }
 
 /** How far it is, as a ring that fills (or spins, when that isn't known). */
@@ -136,7 +136,7 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
             }}
             data-path={tab.path}
             className={`tab${tab.path === activePath ? " active" : ""}${news?.[tab.path] ? " has-news" : ""}`}
-            title={`${tab.path}${index < 9 ? `  (${modKey}${index + 1})` : ""}${news?.[tab.path] ? `\n${news[tab.path]}` : ""}${busy?.path === tab.path ? `\n${busy.label}${busy.percent === null ? "" : ` ${busy.percent}%`}` : ""}`}
+            title={`${tab.path}${index < 9 ? `  (${modKey}${index + 1})` : ""}${news?.[tab.path] ? `\n${news[tab.path]}` : ""}${busy?.[tab.path] ? `\n${busy[tab.path].label}${busy[tab.path].percent === null ? "" : ` ${busy[tab.path].percent}%`}` : ""}`}
             onMouseDown={(event) => {
               if (event.button === 0) onSelect(tab.path);
             }}
@@ -155,7 +155,7 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
               })
             }
           >
-            {busy?.path === tab.path && tab.path !== activePath && <ProgressRing percent={busy.percent} />}
+            {busy?.[tab.path] && tab.path !== activePath && <ProgressRing percent={busy[tab.path].percent} />}
             <span className="tab-name" data-text={tab.name}>
               <span>{tab.name}</span>
             </span>

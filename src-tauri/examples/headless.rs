@@ -83,9 +83,16 @@ fn to_json<T: serde::Serialize>(value: T) -> Result<Value> {
     serde_json::to_value(value).map_err(|e| Error::Message(e.to_string()))
 }
 
-/// Report fetch, pull, push and clone progress the way the app does.
+/// Report fetch, pull, push and clone progress the way the app does: with the repository
+/// it's about (none for a clone).
 fn progress(progress: git::Progress) {
     send(&json!({ "event": "action-progress", "payload": progress }));
+}
+
+fn progress_in(path: &std::path::Path, progress: git::Progress) {
+    let mut payload = serde_json::to_value(progress).unwrap_or_default();
+    payload["path"] = json!(path.display().to_string());
+    send(&json!({ "event": "action-progress", "payload": payload }));
 }
 
 fn handle(command: &str, args: &Value) -> Result<Value> {
@@ -121,7 +128,10 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         }
         "run_action" => {
             let action: Action = arg(args, "action")?;
-            to_json(actions::run_with_progress(&path()?, action, &progress)?)
+            let path = path()?;
+            to_json(actions::run_with_progress(&path, action, &|value| {
+                progress_in(&path, value)
+            })?)
         }
         "clone_repository" => {
             let url: String = arg(args, "url")?;
@@ -439,7 +449,7 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             Ok(Value::Null)
         }
         "take_recovery_note" => Ok(Value::Null),
-        "cancel_action" => to_json(git::cancel()),
+        "cancel_action" => to_json(git::cancel(optional::<PathBuf>(args, "path")?.as_deref())),
         "activity_log" => to_json(git::activity()),
         other => Err(Error::Message(format!(
             "The headless app has no command {other}."
