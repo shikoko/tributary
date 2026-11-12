@@ -114,3 +114,24 @@
   background: var(--bg-raised);
   transform: translateY(-50%) rotate(45deg);
 }
+
+/* The marks the pointer is on light up: drawn here instead of on the strip's canvas, in
+   their own place and shape, brighter, glowing in their colour, over the scrollbar. */
+.mark-glow {
+  position: fixed;
+  z-index: 14;
+  background: color-mix(in srgb, var(--mark) 35%, white);
+  box-shadow:
+    0 0 3px 1px var(--mark),
+    0 0 10px 3px var(--mark),
+    0 0 22px 6px color-mix(in srgb, var(--mark) 40%, transparent);
+  pointer-events: none;
+  animation: mark-glow-in 0.16s ease-out;
+}
+
+@keyframes mark-glow-in {
+  from {
+    background: var(--mark);
+    box-shadow: none;
+  }
+}

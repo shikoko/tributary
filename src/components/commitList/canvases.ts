@@ -124,16 +124,25 @@ const MARK_SIZE: Record<ScrollMark["kind"], { size: number; inset: number }> = {
 };
 
 /**
+ * Where a mark is drawn on a strip `width` wide: its rectangle, in pixels from the strip's
+ * top left. The insets are for the 12px strip beside a scrollbar: a narrower one takes less off.
+ */
+export function markRect(mark: ScrollMark, width: number) {
+  const { size } = MARK_SIZE[mark.kind];
+  const inset = MARK_SIZE[mark.kind].inset * Math.min(1, width / 12);
+  return { x: inset, y: Math.round(mark.y - size / 2), width: width - inset * 2, height: size };
+}
+
+/**
  * Draws the marks next to the scrollbar: branch tips, search matches, the checked-out commit
- * and the selection. The ones for the commits in `lit` (the pointer is on them) stand out as
- * a selected commit's dot does in the graph: a little bigger, with a ring right around them.
+ * and the selection. The marks of the commits in `lit` are left out: the pointer is on them,
+ * and they're drawn glowing over the scrollbar instead (MarkHover).
  */
 export function useScrollMarkers(
   canvas: RefObject<HTMLCanvasElement | null>,
   marks: ScrollMark[],
   viewport: { height: number; scrollbar: number },
   lit: ReadonlySet<number>,
-  ring: string,
 ) {
   useLayoutEffect(() => {
     // Under the scrollbar; with scrollbars that overlay the content, a thin strip at the edge.
@@ -142,27 +151,11 @@ export function useScrollMarkers(
     if (!canvas.current || !height) return;
     const ctx = prepare(canvas.current, width, height);
     if (!ctx) return;
-    // The insets are for the 12px strip beside a scrollbar: a narrower one takes less off.
-    const narrow = Math.min(1, width / 12);
     for (const mark of marks) {
-      const { size } = MARK_SIZE[mark.kind];
-      const inset = MARK_SIZE[mark.kind].inset * narrow;
+      if (lit.has(mark.index)) continue;
+      const rect = markRect(mark, width);
       ctx.fillStyle = mark.color;
-      ctx.fillRect(inset, Math.round(mark.y - size / 2), width - inset * 2, size);
+      ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
     }
-    // On top: the lit commits, each as one mark 2px taller and the full width, on a ring 2px
-    // wider still. Its colour is the branch's if it has one (as the card's stripe is), so a
-    // selected commit's mark (drawn in the ring's colour) doesn't vanish into its ring.
-    const rank: ScrollMark["kind"][] = ["branch", "head", "selected", "match"];
-    for (const index of lit) {
-      const own = marks.filter((mark) => mark.index === index);
-      if (own.length === 0) continue;
-      const top = rank.map((kind) => own.find((mark) => mark.kind === kind)).find(Boolean)!;
-      const size = Math.max(...own.map((mark) => MARK_SIZE[mark.kind].size)) + 2;
-      ctx.fillStyle = ring;
-      ctx.fillRect(0, Math.round(top.y - size / 2 - 2), width, size + 4);
-      ctx.fillStyle = top.color;
-      ctx.fillRect(1.5, Math.round(top.y - size / 2), width - 3, size);
-    }
-  }, [canvas, viewport, marks, lit, ring]);
+  }, [canvas, viewport, marks, lit]);
 }
