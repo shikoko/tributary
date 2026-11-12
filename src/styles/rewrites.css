@@ -1,0 +1,231 @@
+/* What changed when a branch was rewritten. */
+
+.rewrite-choice {
+  width: auto;
+  max-width: 420px;
+  height: 28px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.rewrite-pairs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rewrite-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rewrite-row:disabled {
+  cursor: default;
+}
+
+.rewrite-row:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.rewrite-chevron {
+  display: inline-flex;
+  width: 12px;
+  flex: none;
+  color: var(--text-muted);
+}
+
+.rewrite-status {
+  flex: none;
+  width: 64px;
+  padding: 1px 0;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.rewrite-status.same {
+  background: var(--bg-active);
+  color: var(--text-muted);
+}
+
+.rewrite-status.changed {
+  background: rgb(var(--warning-rgb) / 0.14);
+  color: var(--warning-text);
+}
+
+.rewrite-status.added {
+  background: rgb(var(--added-rgb) / 0.14);
+  color: var(--success-text);
+}
+
+.rewrite-status.removed {
+  background: rgb(var(--removed-rgb) / 0.14);
+  color: var(--danger-text);
+}
+
+.rewrite-pair.same .rewrite-summary {
+  color: var(--text-secondary);
+}
+
+.rewrite-pair.removed .rewrite-summary {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.rewrite-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rewrite-ids {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.rewrite-changes {
+  margin: 2px 0 8px 30px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-panel);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.rewrite-changes .added {
+  color: var(--added);
+}
+
+.rewrite-changes .removed {
+  color: var(--removed);
+}
+
+.rewrite-changes .header {
+  color: var(--text-muted);
+}
+
+/* An open request's controls: draft, reviewers, auto-merge. */
+.request-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.request-control-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.request-ask {
+  display: flex;
+  gap: 6px;
+  max-width: 520px;
+}
+
+.request-ask .text-input {
+  flex: 1;
+}
+
+.request-comment-when::before {
+  content: "·";
+  margin-right: 8px;
+}
+
+
+/* A name that slides along to show the rest while its row is pointed at (SlidingText). At
+   rest it's cut short with an ellipsis, as before; sliding, it's whole, moved along by
+   --slide, and rests at either end to be read. */
+/* The end with more of the name past it fades, so letters slide in and out softly: the right
+   end at first, the left one once it has slid along. */
+@property --fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 14px;
+}
+
+.sliding-text.sliding {
+  /* Room above and below for the letters' tails and an underline, which the fade would
+     otherwise cut off where the box is trimmed to the letters (the margins keep it in place). */
+  padding-block: 4px;
+  margin-block: -4px;
+  text-overflow: clip;
+  mask-image: linear-gradient(90deg, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent);
+  animation: sliding-text-fade var(--slide-time, 4s) ease-in-out 0.35s infinite;
+}
+
+@keyframes sliding-text-fade {
+  0%,
+  18% {
+    --fade-start: 0px;
+    --fade-end: 14px;
+  }
+  50%,
+  68% {
+    --fade-start: 14px;
+    --fade-end: 0px;
+  }
+  100% {
+    --fade-start: 0px;
+    --fade-end: 14px;
+  }
+}
+
+.sliding-text.sliding > .sliding-text-inner {
+  display: inline-block;
+  /* An underline of the row's carries on (an inline block doesn't take it by itself). */
+  text-decoration: inherit;
+  animation: sliding-text var(--slide-time, 4s) ease-in-out 0.35s infinite;
+}
+
+@keyframes sliding-text {
+  0%,
+  18% {
+    transform: translateX(0);
+  }
+  50%,
+  68% {
+    transform: translateX(var(--slide, 0));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sliding-text.sliding {
+    text-overflow: ellipsis;
+    mask-image: none;
+    animation: none;
+  }
+
+  .sliding-text.sliding > .sliding-text-inner {
+    display: inline;
+    animation: none;
+  }
+}

@@ -1,0 +1,171 @@
+/* Why a file is ignored: an introduction in three steps, then the rule that leaves it out. */
+/* Roomy: the explanation, the steps and the buttons each get space of their own. */
+.dialog.ignore-window {
+  width: min(640px, 100%);
+  padding: 26px 28px 24px;
+}
+
+.ignore-window h2 {
+  margin-bottom: 14px;
+  font-size: 18px;
+}
+
+.dialog .ignore-lead {
+  margin: 0 0 26px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.ignore-lead strong {
+  color: var(--text);
+}
+
+.ignore-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ignore-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.ignore-steps strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.ignore-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Blue, pink and green, as in the logo; tints that suit either theme. */
+.ignore-steps li:nth-child(1) .ignore-step-number {
+  background: rgb(var(--accent-rgb) / 0.18);
+  color: var(--accent-text);
+}
+
+.ignore-steps li:nth-child(2) .ignore-step-number {
+  background: rgb(var(--pink-rgb) / 0.18);
+  color: rgb(var(--pink-rgb));
+}
+
+.ignore-steps li:nth-child(3) .ignore-step-number {
+  background: rgb(var(--success-rgb) / 0.18);
+  color: var(--success-text);
+}
+
+.ignore-skip {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.ignore-window .dialog-buttons {
+  margin-top: 30px;
+}
+
+.ignore-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.dialog .ignore-file {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.ignore-file svg {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.ignore-rule-card {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.ignore-rule-card figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.ignore-rule-line {
+  color: var(--text-muted);
+}
+
+.ignore-rule-card pre {
+  display: flex;
+  margin: 0;
+  padding: 16px 14px 16px 0;
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ignore-gutter {
+  flex: none;
+  min-width: 34px;
+  padding-right: 12px;
+  color: var(--text-faint);
+  text-align: right;
+  user-select: none;
+}
+
+.dialog .ignore-note {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.ignore-clear {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid rgb(var(--success-rgb) / 0.35);
+  border-radius: 10px;
+  background: rgb(var(--success-rgb) / 0.08);
+  line-height: 1.5;
+}
+
+.ignore-clear svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--success);
+}
