@@ -7,13 +7,15 @@ import "@fontsource-variable/google-sans";
 import "@fontsource-variable/jetbrains-mono";
 import "@fontsource-variable/jetbrains-mono/wght-italic.css";
 import "./styles.css";
-import { isMac } from "./lib/platform";
+import { isMac, isWindows } from "./lib/platform";
 import { applyStoredAppearance } from "./app/useAppearance";
 import { ErrorBoundary } from "./components/ErrorScreen";
 import { watchForProblems } from "./lib/problems";
 
 // On macOS the window has no title bar: the tab bar makes room for the window buttons.
 if (isMac) document.documentElement.classList.add("mac");
+// On Windows, the system draws letters a little differently (see .chip-text).
+if (isWindows) document.documentElement.classList.add("windows");
 // The remembered theme and accent, before anything is drawn.
 applyStoredAppearance();
 
