@@ -77,6 +77,11 @@ text that contrasts enough with what's behind it. It needs Playwright with Chrom
 npm install --no-save playwright axe-core && npx playwright install chromium
 ```
 
+`-- --browser webkit` runs it in WebKit instead, Safari's engine, which draws the Mac app's window
+(`npx playwright install webkit` first); the checks run it that way on a Mac. On a Mac, the page is told
+it's on Linux: Tributary's menus are in the Mac's own menu bar there, which a page in a browser hasn't got,
+and the steps open them from the window's.
+
 ## Scripting the fakes
 
 A test can set `window.__PREVIEW__` before the page loads (Playwright's `addInitScript`):

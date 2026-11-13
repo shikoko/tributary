@@ -1,7 +1,7 @@
 // End-to-end tests of the real desktop app (not the browser preview): the Tauri backend,
 // its permissions, and the window. They drive the app through tauri-driver and the
 // platform's WebDriver, so they run on Linux and Windows (macOS has no WebDriver for its
-// web views). Run them on your computer, not on GitHub Actions:
+// web views). The checks run them on Windows; on your computer:
 //
 //   npm run e2e               build the app, then test it
 //   npm run e2e -- --no-build test the app already built
@@ -10,7 +10,8 @@
 //   cargo install tauri-driver --locked
 //   Linux:   the WebKit WebDriver (Debian and Ubuntu: sudo apt install webkit2gtk-driver),
 //            and xvfb-run to test without a screen (it's used when there's no $DISPLAY)
-//   Windows: msedgedriver.exe matching your Edge's version, on the PATH
+//   Windows: msedgedriver.exe matching WebView2's version (Edge's), on the PATH
+//            (.github/scripts/edge-driver.sh downloads it)
 //
 // The app runs with its own temporary home folder and git settings: your real settings,
 // repositories and Tributary's own data aren't touched. It's built with an identifier of its
@@ -59,13 +60,27 @@ if (missing) {
 const IDENTIFIER = "io.github.shikoko.tributary.e2e";
 const target = join(root, "src-tauri", "target", "e2e");
 const binary = join(target, "debug", windows ? "tributary.exe" : "tributary");
+// On Windows, msedgedriver asks WebView2 for a debugging port to drive it through, in
+// WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS. WebView2 takes the arguments the app's window gives
+// instead, though, and the window always gives some (Tauri's, from wry). So the window of
+// this build asks for a port itself: a free one, which WebView2 writes down in the data
+// folder msedgedriver gives it (WEBVIEW2_USER_DATA_FOLDER, which it does follow). The rest
+// are wry's own. Other systems ignore them.
+const WEBVIEW2_ARGUMENTS = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port=0";
+// Its own identifier, and its windows' arguments: the config's windows are replaced whole,
+// so they're the app's own with the arguments added.
+function testConfig() {
+  const config = JSON.parse(readFileSync(join(root, "src-tauri", "tauri.conf.json"), "utf8"));
+  const windows = config.app.windows.map((window) => ({ ...window, additionalBrowserArgs: WEBVIEW2_ARGUMENTS }));
+  return JSON.stringify({ identifier: IDENTIFIER, app: { windows } });
+}
 if (!process.argv.includes("--no-build")) {
   console.log("Building the app…");
   execFileSync("npm", ["run", "build"], { cwd: root, stdio: "inherit", shell: windows });
   execFileSync("cargo", ["build", "--manifest-path", "src-tauri/Cargo.toml", "--features", "tauri/custom-protocol", "--target-dir", target], {
     cwd: root,
     stdio: "inherit",
-    env: { ...process.env, TAURI_CONFIG: JSON.stringify({ identifier: IDENTIFIER }) },
+    env: { ...process.env, TAURI_CONFIG: testConfig() },
   });
 }
 if (!existsSync(binary)) {
