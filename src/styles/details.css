@@ -824,9 +824,14 @@ button.commit-check-row:hover svg {
   color: var(--text);
 }
 
-/* List or Tree, at the end of the Changed files heading. */
+/* List or Tree, at the end of the Changed files heading, or in the Working tree panel's header. */
 .details-section-head .files-layout {
   margin-left: auto;
+}
+
+/* In the Working tree panel's header, before its buttons. */
+.details-header .files-layout {
+  margin-right: var(--space-4);
 }
 
 .files-layout button {

@@ -5,6 +5,7 @@ import { ActorNames, useActorNames } from "../lib/actorNames";
 import { useUnitySetup } from "./UnitySettingsRows";
 import { FILTER_FROM, filterFiles } from "../lib/fileFilter";
 import { FileFilter } from "./FileList";
+import { FilesLayoutSwitch } from "./FilesLayoutSwitch";
 import { CloseIcon, MinusIcon, PlusIcon, ShelfIcon, StashIcon, TrashIcon } from "./Icons";
 import { ChangeWarnings } from "./worktree/ChangeWarnings";
 import { CommitBox, type CommitDraft } from "./worktree/CommitBox";
@@ -87,6 +88,7 @@ export function WorktreeDetailsPanel(props: Props) {
         <header className="details-header">
           <span className="details-label">Working tree</span>
           <span className="spacer" />
+          {total > 1 && <FilesLayoutSwitch />}
           <Button kind="icon" onClick={props.onShelve} disabled={busy} title="Shelve changes for the team…" aria-label="Shelve changes">
             <ShelfIcon />
           </Button>
@@ -133,6 +135,7 @@ export function WorktreeDetailsPanel(props: Props) {
             onFileMenu={onFileMenu}
             elsewhereOf={elsewhereOf}
             fileAction={(file) => ({ label: "Unstage", icon: <MinusIcon size={13} />, onClick: () => quietly({ kind: "unstage", paths: paths(file) }) })}
+            folderAction={(files) => ({ label: "Unstage folder", icon: <MinusIcon size={13} />, onClick: () => quietly({ kind: "unstage", paths: files.flatMap(paths) }) })}
             busy={busy}
           />
           <FileSection
@@ -150,6 +153,7 @@ export function WorktreeDetailsPanel(props: Props) {
             onFileMenu={onFileMenu}
             elsewhereOf={elsewhereOf}
             fileAction={(file) => ({ label: "Stage", icon: <PlusIcon size={13} />, onClick: () => quietly({ kind: "stage", paths: paths(file) }) })}
+            folderAction={(files) => ({ label: "Stage folder", icon: <PlusIcon size={13} />, onClick: () => quietly({ kind: "stage", paths: files.flatMap(paths) }) })}
             busy={busy}
           />
         </div>

@@ -138,9 +138,10 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
 
 /**
  * A folder in the changed files' tree: open or closed (a click), with how many of the files
- * in it were added, changed and deleted.
+ * in it were added, changed and deleted, and (when given) a button for everything in it, like
+ * "Stage folder", shown on hover as a file's is.
  */
-export function FolderLine({ row, onToggle }: { row: FolderRow; onToggle: () => void }) {
+export function FolderLine({ row, onToggle, action }: { row: FolderRow; onToggle: () => void; action?: { label: string; icon: ReactNode; onClick: () => void; disabled?: boolean } }) {
   const { added, changed, deleted } = row.counts;
   // Shown as "+2 −1", read out as words ("2 added, 1 deleted") after the folder's name.
   const said = [added > 0 && `${added.toLocaleString()} added`, changed > 0 && `${changed.toLocaleString()} changed`, deleted > 0 && `${deleted.toLocaleString()} deleted`];
@@ -162,6 +163,11 @@ export function FolderLine({ row, onToggle }: { row: FolderRow; onToggle: () => 
           {deleted > 0 && <span className="deleted">−{deleted.toLocaleString()}</span>}
         </span>
       </button>
+      {action && (
+        <button className="file-action" onClick={action.onClick} disabled={action.disabled} title={action.label} aria-label={`${action.label} ${row.path}`}>
+          {action.icon}
+        </button>
+      )}
     </li>
   );
 }

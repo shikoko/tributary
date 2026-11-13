@@ -333,6 +333,36 @@ try {
     await view.waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("shows your changes in a tree, and stages and unstages a folder", async () => {
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" });
+    const staged = () => git("diff", "--cached", "--name-only").trim().split("\n").filter(Boolean).sort().join(", ");
+    const before = staged();
+    await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+    const panel = page.locator("aside.details[aria-label='Uncommitted changes']");
+    await panel.getByRole("button", { name: "Tree", exact: true }).click();
+    // The new file's folders, with nothing else in them, are one row in Unstaged.
+    const unstaged = panel.locator("section.files").nth(1);
+    const folder = unstaged.locator(".file-folder", { has: page.locator(".file-folder-toggle[title='src/ui/onboarding']") });
+    await folder.waitFor({ timeout: 5000 });
+    await accessible("your changes as a tree");
+    await folder.hover();
+    await panel.getByRole("button", { name: "Stage folder src/ui/onboarding", exact: true }).click();
+    await folder.waitFor({ state: "detached", timeout: 10_000 });
+    expect(staged() === "src/ui/onboarding/tour.tsx, src/ui/onboarding/welcome.tsx", `staged ${staged()}`);
+    // Both files are in the folder in Staged now, and its button unstages them both.
+    const stagedFolder = panel.locator("section.files").first().locator(".file-folder", { has: page.locator(".file-folder-toggle[title='src/ui/onboarding']") });
+    await stagedFolder.hover();
+    await panel.getByRole("button", { name: "Unstage folder src/ui/onboarding", exact: true }).click();
+    await stagedFolder.waitFor({ state: "detached", timeout: 10_000 });
+    expect(staged() === "", `still staged: ${staged()}`);
+    // Back as it was, and to the list, which the steps after expect (the choice is remembered).
+    git("add", "src/ui/onboarding/welcome.tsx");
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await panel.getByRole("button", { name: "List", exact: true }).click();
+    await panel.locator(".file-folder").first().waitFor({ state: "detached", timeout: 5000 });
+    expect(staged() === before, `staged ${staged()}, not ${before}`);
+  });
+
   await step("stages two chosen lines, then discards a hunk and puts it back", async () => {
     const store = join(demos.notebook, "src", "store.ts");
     const before = readFileSync(store, "utf8");
