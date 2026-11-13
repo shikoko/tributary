@@ -1,4 +1,4 @@
-import { memo, useContext, type MouseEvent, type RefObject } from "react";
+import { memo, useContext, type CSSProperties, type MouseEvent, type RefObject } from "react";
 import { BisectMarksContext, type BisectMark } from "../../lib/bisect";
 import { CiStatesContext, describeCiState } from "../../lib/ciStates";
 
@@ -63,6 +63,8 @@ interface RowProps {
   dimmed: boolean;
   /** In the lane that's lit up: the pointer is on one of its branch's labels. */
   lit: boolean;
+  /** You just jumped to this commit: it pulses (a new number each time, 0 when not). */
+  arrival: number;
   handlers: RefObject<RowHandlers>;
 }
 
@@ -73,7 +75,7 @@ interface RowProps {
  */
 export const ListRow = memo(function ListRow(props: RowProps) {
   const { commit, top, height, metrics, lanes, visible, options, ciDots, changes, narrow, dense, handlers } = props;
-  const { selected, primary, dimmed, authorNode, head, lit } = props;
+  const { selected, primary, dimmed, authorNode, head, lit, arrival } = props;
   const bisectMark = useContext(BisectMarksContext).get(commit.id);
   const ci = useContext(CiStatesContext).get(commit.id);
   const on = () => handlers.current!;
@@ -117,6 +119,8 @@ export const ListRow = memo(function ListRow(props: RowProps) {
       role="option"
       aria-selected={selected}
     >
+      {/* You jumped here: the row's edge lights up in its lane's colour. A new key starts it again. */}
+      {arrival > 0 && <span key={arrival} className="arrival" style={{ "--lane": color } as CSSProperties} aria-hidden />}
       <div className="cell refs-cell">
         <RefPills
           refs={commit.refs}
