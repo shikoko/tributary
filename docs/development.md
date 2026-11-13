@@ -96,13 +96,13 @@ ESLint checks the interface's code, with React's rules of hooks:
 npm run lint
 ```
 
-A smoke test clicks through the main parts of the app in Chromium, on fresh demo repositories (it needs Playwright, see [tools/preview](../tools/preview/README.md)):
+A smoke test clicks through the main parts of the app in Chromium, on fresh demo repositories (it needs Playwright, see [tools/preview](../tools/preview/README.md)). `npm run preview:smoke -- --browser webkit` runs it in WebKit, Safari's engine, which draws the Mac app's window:
 
 ```bash
 npm run preview:smoke
 ```
 
-End-to-end tests drive the real desktop app (its backend, its permissions and its window, not the browser preview) through WebDriver, on fresh demo repositories with a temporary home folder, so your own settings aren't touched. They run on Linux and Windows (macOS has no WebDriver for the app's web view), and need [tauri-driver](https://v2.tauri.app/develop/tests/webdriver/) and the platform's WebDriver, once:
+End-to-end tests drive the real desktop app (its backend, its permissions and its window, not the browser preview) through WebDriver, on fresh demo repositories with a temporary home folder, so your own settings aren't touched. They run on Linux and Windows (macOS has no WebDriver for the app's web view); the checks run them on Windows. On your computer, they need [tauri-driver](https://v2.tauri.app/develop/tests/webdriver/) and the platform's WebDriver, once:
 
 ```bash
 cargo install tauri-driver --locked
@@ -114,7 +114,7 @@ On Debian and Ubuntu, also the WebKit WebDriver (and `xvfb-run` from the `xvfb` 
 sudo apt install webkit2gtk-driver xvfb
 ```
 
-On Windows, `msedgedriver.exe` matching your Edge's version, on the `PATH`. Then:
+On Windows, `msedgedriver.exe` matching the version of WebView2 (which is Edge's), on the `PATH`: `.github/scripts/edge-driver.sh` downloads it, as the checks do. Then:
 
 ```bash
 npm run e2e
@@ -122,7 +122,7 @@ npm run e2e
 
 That builds the app first; `npm run e2e -- --no-build` tests the one already built. When a step fails, a screenshot of the window goes into `tools/e2e/output/`.
 
-These desktop tests don't run on GitHub Actions, so run them before you build.
+The checks run them on Windows, and keep a screenshot of each step that failed as the run's `desktop-test-failures` artifact.
 
 ## Branches
 
@@ -133,7 +133,7 @@ Merge every pull request with **Create a merge commit**, never squash or rebase.
 
 Before merging a pull request into `develop`, rebase its branch onto the latest `develop` and push it (with `--force-with-lease`). The branch then starts from the tip of `develop`, and the history shows each change as a short loop that joins straight back in. If its checks had passed and the rebase had no conflicts, merge it straight away: there's no need to wait for them to run again, since each merge into `develop` is checked again as merged (see below). Pull requests from `develop` into `main` aren't rebased.
 
-Every pull request into `develop` or `main` runs the **Checks** workflow (`.github/workflows/checks.yml`): types, lint and unit tests; Rust formatting, clippy and tests on Linux, macOS and Windows; and the smoke test. Its first job, **What changed**, checks that every workflow's shell scripts read as bash (`.github/scripts/check-workflows.py`: a script is otherwise only read when its step runs, some only on a release), and decides what runs. A pull request that only changes documentation (Markdown, `docs/`, the issue forms, the licence) skips all of them. One that changes nothing on the Rust side (`src-tauri/`, the types made from it in `src/api/generated.ts`, `package.json`, the workflow and its scripts) skips the Rust jobs, which take longest (Windows about 15 minutes); the smoke test still builds the Rust side on Linux. Each merge into `develop` runs the checks again as merged, with the same choices. Each merge has its own run, which the next merge doesn't cancel: otherwise a documentation-only merge straight after a code one would cancel the code's run, then skip everything itself. The Linux jobs install their system libraries with `.github/scripts/linux-libraries.sh`, which tries again with mirrors outside ubuntu.com (kernel.org's) when Ubuntu's can't be reached. A pull request into `main` also checks that it's ready to release (see below). A ruleset on `develop` and `main` makes the checks required, so a pull request merges only once they pass. Every job in the workflows has a time limit of about twice its longest run (30 minutes for the Rust checks, 45 for building the installers, which can take twice as long without their cache), so one that hangs stops and frees its runner, instead of holding it, and the queue behind it, for GitHub's six hours.
+Every pull request into `develop` or `main` runs the **Checks** workflow (`.github/workflows/checks.yml`): types, lint and unit tests; Rust formatting, clippy and tests on Linux, macOS and Windows; the smoke test, in Chromium on Linux and in WebKit on a Mac; and the desktop end-to-end tests on Windows. They run on GitHub's standard runners, which are free for public repositories. Its first job, **What changed**, checks that every workflow's shell scripts read as bash (`.github/scripts/check-workflows.py`: a script is otherwise only read when its step runs, some only on a release), and decides what runs. A pull request that only changes documentation (Markdown, `docs/`, the issue forms, the licence) skips all of them. One that changes nothing on the Rust side (`src-tauri/`, the types made from it in `src/api/generated.ts`, `package.json`, the workflow and its scripts) skips the Rust jobs, which take longest (Windows about 15 minutes); the smoke test still builds the Rust side on Linux. Each merge into `develop` runs the checks again as merged, with the same choices. Each merge has its own run, which the next merge doesn't cancel: otherwise a documentation-only merge straight after a code one would cancel the code's run, then skip everything itself. The Linux jobs install their system libraries with `.github/scripts/linux-libraries.sh`, which tries again with mirrors outside ubuntu.com (kernel.org's) when Ubuntu's can't be reached. A pull request into `main` also checks that it's ready to release (see below). A ruleset on `develop` and `main` makes the checks required, so a pull request merges only once they pass. Every job in the workflows has a time limit of about twice its longest run (30 minutes for the Rust checks, 45 for building the installers, which can take twice as long without their cache), so one that hangs stops and frees its runner, instead of holding it, and the queue behind it, for GitHub's six hours.
 
 ## Release
 

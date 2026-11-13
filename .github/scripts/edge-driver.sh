@@ -3,7 +3,9 @@
 # of the WebView2 runtime that draws the app's window, as the driver won't drive another
 # version. Installs the runtime first if it isn't there.
 #
-#   .github/scripts/edge-driver.sh    (in Git Bash on a GitHub Actions Windows runner)
+#   .github/scripts/edge-driver.sh    (in Git Bash)
+#
+# On GitHub Actions it's added to the job's PATH; elsewhere it says which folder to add.
 set -euo pipefail
 
 # WebView2's version, as Windows records it for everyone or for this user.
@@ -16,7 +18,7 @@ webview_version() {
     }' | tr -d '\r'
 }
 
-temp=$(cygpath -u "$RUNNER_TEMP")
+temp=$(cygpath -u "${RUNNER_TEMP:-$TEMP}")
 version=$(webview_version)
 if [ -z "$version" ]; then
   echo "WebView2 isn't installed: installing it."
@@ -49,4 +51,8 @@ fi
 [ -f "$folder/msedgedriver.exe" ] || { echo "::error::There's no msedgedriver for WebView2 $version."; exit 1; }
 
 "$folder/msedgedriver.exe" --version
-cygpath -w "$folder" >> "$GITHUB_PATH"
+if [ -n "${GITHUB_PATH:-}" ]; then
+  cygpath -w "$folder" >> "$GITHUB_PATH"
+else
+  echo "Add $(cygpath -w "$folder") to your PATH."
+fi

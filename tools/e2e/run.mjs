@@ -1,7 +1,7 @@
 // End-to-end tests of the real desktop app (not the browser preview): the Tauri backend,
 // its permissions, and the window. They drive the app through tauri-driver and the
 // platform's WebDriver, so they run on Linux and Windows (macOS has no WebDriver for its
-// web views). Run them on your computer, not on GitHub Actions:
+// web views). The checks run them on Windows; on your computer:
 //
 //   npm run e2e               build the app, then test it
 //   npm run e2e -- --no-build test the app already built
@@ -10,7 +10,8 @@
 //   cargo install tauri-driver --locked
 //   Linux:   the WebKit WebDriver (Debian and Ubuntu: sudo apt install webkit2gtk-driver),
 //            and xvfb-run to test without a screen (it's used when there's no $DISPLAY)
-//   Windows: msedgedriver.exe matching your Edge's version, on the PATH
+//   Windows: msedgedriver.exe matching WebView2's version (Edge's), on the PATH
+//            (.github/scripts/edge-driver.sh downloads it)
 //
 // The app runs with its own temporary home folder and git settings: your real settings,
 // repositories and Tributary's own data aren't touched. It's built with an identifier of its
