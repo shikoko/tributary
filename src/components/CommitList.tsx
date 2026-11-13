@@ -7,11 +7,13 @@ import type { RefPill } from "../lib/refs";
 import type { SelectHow } from "../lib/selection";
 import { ThemeContext } from "../app/useAppearance";
 import { lanesOf, laneTips, type LaneLabel } from "../lib/lanes";
-import { marksNear, scrollMarks, useGraphCanvas, useScrollMarkers } from "./commitList/canvases";
+import { useGraphCanvas } from "./commitList/canvases";
 import { DENSE_ROW_HEIGHT, FOOTER_HEIGHT, GRAPH_PADDING, laneWidthFor, ROW_HEIGHT, useColumnLayout, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
 import { ListHeader } from "./commitList/ListHeader";
 import { DaySeparator, ListRow, type RowHandlers } from "./commitList/ListRow";
 import { glowRect, MarkGlow, MarkHover } from "./commitList/MarkHover";
+import { useMarkStrip } from "./commitList/useMarkStrip";
+import { useRevealSelected } from "./commitList/useReveal";
 import { CommitPreview } from "./CommitPreview";
 import { Loader } from "./Loader";
 import { Button } from "./ui/Button";
@@ -20,8 +22,6 @@ export { DEFAULT_COLUMNS, type ColumnOptions, type ColumnWidths } from "./commit
 
 /** How long the pointer rests on a commit before its preview shows, in milliseconds. */
 const PREVIEW_DELAY = 650;
-/** How long a commit you jump to pulses when it arrives, in milliseconds. */
-const ARRIVAL = 1300;
 /** How long the list's width has to stay put before its columns ease again. */
 const WIDTH_SETTLE = 160;
 
@@ -177,76 +177,9 @@ export function CommitList(props: Props) {
   const litLanes = useMemo(() => lanesOf(commits, indexById, tipIds), [commits, indexById, tipIds]);
   useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: brightIds, colors, curves, laneWidth, avatars, litLanes });
   const marked = useMemo(() => selectedIds ?? new Set(selectedId ? [selectedId] : []), [selectedIds, selectedId]);
-  const marks = useMemo(
-    () => scrollMarks({ commits, slotOf, indexById, rowHeight, contentHeight, height: viewport.height, matchIds, headId: headCommit, selectedIds: marked, colors }),
-    [commits, slotOf, indexById, rowHeight, contentHeight, viewport.height, matchIds, headCommit, marked, colors],
-  );
-  // The pointer on the marks beside the scrollbar: they stand out, and a card says what they are.
-  const [markAt, setMarkAt] = useState<{ y: number; strip: { top: number; right: number; bottom: number; width: number } } | null>(null);
-  const near = useMemo(() => (markAt ? marksNear(marks, markAt.y) : []), [marks, markAt]);
-  // The lit branch's tips light up beside the scrollbar too (not those the pointer is on,
-  // which MarkHover lights).
-  const tipMarks = useMemo(() => {
-    const tips = new Set(tipIds.map((id) => indexById.get(id)));
-    const pointedAt = new Set(near.map((mark) => mark.index));
-    return marks.filter((mark) => tips.has(mark.index) && !pointedAt.has(mark.index));
-  }, [marks, tipIds, indexById, near]);
-  const lit = useMemo(() => new Set([...near, ...tipMarks].map((mark) => mark.index)), [near, tipMarks]);
-  useScrollMarkers(markerCanvas, marks, viewport, lit);
-  const body = useRef<HTMLDivElement>(null);
-  const [tipStrip, setTipStrip] = useState<{ top: number; right: number; bottom: number; width: number } | null>(null);
-  useLayoutEffect(() => {
-    const rect = tipMarks.length > 0 ? body.current?.getBoundingClientRect() : undefined;
-    setTipStrip(rect ? { top: rect.top, right: rect.right, bottom: rect.top + viewport.height, width: viewport.scrollbar || 6 } : null);
-  }, [tipMarks, viewport]);
-
-
-  // Bring the selected commit into view when it changes (or the rows change height), once:
-  // as soon as it's on the list, which may take more commits to load. Refreshes (a fetch,
-  // files changing, checks updating) recompute the rows too, but they don't move the list:
-  // otherwise scrolling away from the selected commit kept snapping back to it.
-  const reveal = useRef<string | null>(selectedId);
-  // A commit you jump to (from the sidebar, a search, a link in the details…) pulses when it
-  // arrives, so your eye finds it; not one picked in the list, where you're looking already,
-  // nor the one selected when the list opens.
-  const fromList = useRef(true);
-  const arriving = useRef<string | null>(null);
-  const [arrival, setArrival] = useState<{ id: string; key: number } | null>(null);
-  useEffect(() => {
-    arriving.current = fromList.current ? null : selectedId;
-    fromList.current = false;
-  }, [selectedId]);
-  useEffect(() => {
-    if (!arrival) return;
-    const timer = window.setTimeout(() => setArrival(null), ARRIVAL);
-    return () => window.clearTimeout(timer);
-  }, [arrival]);
-  useEffect(() => {
-    reveal.current = selectedId;
-  }, [selectedId, rowHeight]);
-  useEffect(() => {
-    const element = scroller.current;
-    if (!element || selectedIndex < 0 || reveal.current !== selectedId) return;
-    reveal.current = null;
-    if (selectedId && arriving.current === selectedId) {
-      arriving.current = null;
-      setArrival((current) => ({ id: selectedId, key: (current?.key ?? 0) + 1 }));
-    }
-    const top = slotOf[selectedIndex] * rowHeight;
-    const bottom = top + rowHeight;
-    const viewTop = element.scrollTop;
-    const viewBottom = viewTop + element.clientHeight;
-    if (top >= viewTop && bottom <= viewBottom) return;
-    const nearby = top >= viewTop - 2 * rowHeight && bottom <= viewBottom + 2 * rowHeight;
-    if (!nearby) {
-      // A jump (for example to a parent commit): centre it.
-      element.scrollTop = top - element.clientHeight / 2 + rowHeight / 2;
-    } else if (top < viewTop) {
-      element.scrollTop = top;
-    } else {
-      element.scrollTop = bottom - element.clientHeight;
-    }
-  }, [selectedIndex, slotOf, rowHeight, selectedId]);
+  // The marks beside the scrollbar, and the card for those the pointer is on.
+  const { markAt, setMarkAt, near, tipMarks, tipStrip, body } = useMarkStrip(markerCanvas, { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId: headCommit, marked, colors, tipIds });
+  const { arrival, pickedHere } = useRevealSelected(scroller, selectedId, selectedIndex, slotOf, rowHeight);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (commits.length === 0) return;
@@ -257,7 +190,7 @@ export function CommitList(props: Props) {
     } else if (event.key in moves) {
       const from = selectedIndex < 0 ? (moves[event.key] > 0 ? -1 : commits.length) : selectedIndex;
       const next = Math.min(commits.length - 1, Math.max(0, from + moves[event.key]));
-      fromList.current = true;
+      pickedHere();
       onSelect(commits[next].id, { extend: event.shiftKey });
     } else {
       return;
@@ -272,7 +205,7 @@ export function CommitList(props: Props) {
   handlers.current = {
     onSelect: (id, how) => {
       hidePreview();
-      fromList.current = true;
+      pickedHere();
       onSelect(id, how);
     },
     onContextMenu: (commit, x, y) => {

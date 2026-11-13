@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RefEntry } from "../../lib/refs";
-import { branchGroups, group, stashLabel } from "./refTree";
+import { branchCount, branchGroups, group, shortName, stashLabel } from "./refTree";
 
 const entry = (name: string): RefEntry => ({ kind: "branch", name, commitId: "c", current: false, summary: "" });
 const grouped = (...names: string[]) => group(names.map((name) => ({ entry: entry(name), label: name })));
@@ -63,5 +63,29 @@ describe("branchGroups", () => {
 
   it("knows which branches are only on this computer", () => {
     expect([...groups.localOnly]).toEqual(["sketch"]);
+  });
+});
+
+describe("shortName", () => {
+  const branches = ["feat/world-build-tools", "feat/barbershop", "maya/barbershop", "main"].map(entry);
+
+  it("is a branch's last part", () => {
+    expect(shortName(branches[0], branches)).toBe("world-build-tools");
+    expect(shortName(branches[3], branches)).toBe("main");
+  });
+
+  it("is the whole name when another branch ends the same way", () => {
+    expect(shortName(branches[1], branches)).toBe("feat/barbershop");
+  });
+});
+
+describe("branchCount", () => {
+  it("counts a branch and its copies on remotes once", () => {
+    expect(branchCount(["refs/heads/main", "refs/remotes/origin/main", "refs/remotes/upstream/main", "refs/heads/sketch"], ["origin", "upstream"])).toBe(2);
+  });
+
+  it("tells a remote's name from a folder", () => {
+    expect(branchCount(["refs/remotes/origin/feat/a", "refs/heads/origin/feat/a"], ["origin"])).toBe(2);
+    expect(branchCount([], ["origin"])).toBe(0);
   });
 });

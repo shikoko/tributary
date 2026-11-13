@@ -114,3 +114,25 @@ export function branchGroups(branches: RefEntry[], remotes: Map<string, RefEntry
       .filter(([, entries]) => entries.length > 0),
   };
 }
+
+/**
+ * How a branch at the top of the list is labelled, out of its folder: by its last part
+ * ("world-build-tools"), unless another branch's ends the same way.
+ */
+export function shortName(entry: RefEntry, branches: RefEntry[]): string {
+  const last = (name: string) => name.slice(name.lastIndexOf("/") + 1);
+  return branches.filter((other) => last(other.name) === last(entry.name)).length === 1 ? last(entry.name) : entry.name;
+}
+
+/**
+ * How many branches `refs` (full names, like "refs/heads/main" or "refs/remotes/origin/main")
+ * are: a branch and its copies on remotes count once.
+ */
+export function branchCount(refs: string[], remotes: string[]): number {
+  const branchOf = (name: string) => {
+    if (name.startsWith("refs/heads/")) return name.slice("refs/heads/".length);
+    const remote = remotes.find((remote) => name.startsWith(`refs/remotes/${remote}/`));
+    return remote ? name.slice(`refs/remotes/${remote}/`.length) : name;
+  };
+  return new Set(refs.map(branchOf)).size;
+}
