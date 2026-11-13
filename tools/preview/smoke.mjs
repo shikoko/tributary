@@ -3,10 +3,12 @@
 // search commits, check out a branch (with uncommitted changes in the way), undo it,
 // fetch, open a second tab, and look at Git LFS locks and big files.
 //
-//   npm run preview:build && npm run preview:smoke [-- --screenshots <folder>]
+//   npm run preview:build && npm run preview:smoke [-- --browser webkit] [--screenshots <folder>]
 //
-// Needs Playwright with Chromium and axe-core (`npm install --no-save playwright axe-core`
-// and `npx playwright install chromium`, if they aren't installed already).
+// It runs in Chromium, or with --browser webkit in WebKit, Safari's engine, which the Mac
+// app's window uses. Needs Playwright with that browser, and axe-core (`npm install --no-save
+// playwright axe-core` and `npx playwright install chromium`, or webkit, if they aren't
+// installed already).
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -18,12 +20,23 @@ import { describe as describeAligned, misaligned } from "./aligned.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
 
+const browserAt = process.argv.indexOf("--browser");
+const browserName = browserAt > 0 ? process.argv[browserAt + 1] : "chromium";
+
+/** The browser's own user agent, with Linux in place of the Mac it runs on. */
+async function notOnAMac(browser) {
+  const probe = await browser.newPage();
+  const agent = await probe.evaluate(() => navigator.userAgent);
+  await probe.close();
+  return agent.replace(/\(Macintosh;[^)]*\)/, "(X11; Linux x86_64)");
+}
+
 function loadPlaywright() {
   try {
     // Through require, so a globally installed Playwright (NODE_PATH) is found too.
     return createRequire(import.meta.url)("playwright");
   } catch {
-    console.error("The smoke test needs Playwright: npm install --no-save playwright && npx playwright install chromium");
+    console.error(`The smoke test needs Playwright: npm install --no-save playwright && npx playwright install ${browserName}`);
     process.exit(2);
   }
 }
@@ -43,13 +56,21 @@ const screenshotsAt = process.argv.indexOf("--screenshots");
 const screenshots = screenshotsAt > 0 ? resolve(process.argv[screenshotsAt + 1]) : null;
 if (screenshots) mkdirSync(screenshots, { recursive: true });
 
-const { chromium } = loadPlaywright();
+const engine = loadPlaywright()[browserName];
+if (!engine?.launch) {
+  console.error(`There's no browser called ${browserName} in Playwright: chromium or webkit.`);
+  process.exit(2);
+}
 const folder = mkdtempSync(join(tmpdir(), "tributary-smoke-"));
 const locks = await startLockServer({ port: 0 });
 const demos = buildDemos(folder, { lockServer: locks.url });
 const preview = await startPreview({ port: 0, quiet: true, env: demoEnv(demos) });
-const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1440, height: 860 } });
+const browser = await engine.launch();
+// On a Mac, Tributary's menus are in the Mac's own menu bar, which a page in a browser hasn't
+// got, and the steps open them from the window's: so the page is told it's on Linux. The
+// engine drawing it and running it is still the browser's own.
+const userAgent = process.platform === "darwin" ? await notOnAMac(browser) : undefined;
+const page = await browser.newPage({ viewport: { width: 1440, height: 860 }, userAgent });
 const errors = [];
 page.on("pageerror", (error) => errors.push(String(error)));
 await page.addInitScript((pick) => {
