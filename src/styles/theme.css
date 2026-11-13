@@ -283,7 +283,8 @@
 /* Sizes, so the same kinds of things match everywhere: pick a step, not a number of pixels.
    Text in nine steps: most of the interface is --type-sm, captions and counts --type-xs,
    text to read --type-base, and titles from --type-lg up. Corners grow with what they
-   round: marks and tags, then buttons and fields, then cards and windows. */
+   round: marks and tags, then buttons and fields, then cards and windows. Space (padding,
+   margins and gaps) in steps named for their size: every 2px up to 16, then wider apart. */
 :root {
   --type-xs: 11px;
   --type-sm: 12px;
@@ -307,6 +308,23 @@
   --radius-4xl: 20px;
   /* Ends rounded right off, whatever the height. */
   --radius-pill: 999px;
+
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+  --space-96: 96px;
 }
 
 html,

@@ -2,16 +2,16 @@
 /* Roomy: the explanation, the steps and the buttons each get space of their own. */
 .dialog.ignore-window {
   width: min(640px, 100%);
-  padding: 26px 28px 24px;
+  padding: var(--space-28) var(--space-28) var(--space-24);
 }
 
 .ignore-window h2 {
-  margin-bottom: 14px;
+  margin-bottom: var(--space-14);
   font-size: var(--type-xl);
 }
 
 .dialog .ignore-lead {
-  margin: 0 0 26px;
+  margin: 0 0 var(--space-28);
   color: var(--text-secondary);
   line-height: 1.6;
 }
@@ -23,7 +23,7 @@
 .ignore-steps {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  gap: var(--space-14);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -32,8 +32,8 @@
 .ignore-steps li {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 18px 18px 20px;
+  gap: var(--space-8);
+  padding: var(--space-20) var(--space-20) var(--space-20);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--bg);
@@ -53,7 +53,7 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  margin-bottom: 6px;
+  margin-bottom: var(--space-6);
   border-radius: 50%;
   font-size: var(--type-sm);
   font-weight: 700;
@@ -81,19 +81,19 @@
 }
 
 .ignore-window .dialog-buttons {
-  margin-top: 30px;
+  margin-top: var(--space-32);
 }
 
 .ignore-answer {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--space-20);
 }
 
 .dialog .ignore-file {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-8);
   margin: 0;
   color: var(--text-secondary);
   font-size: var(--type-base);
@@ -116,8 +116,8 @@
 .ignore-rule-card figcaption {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: var(--space-10);
+  padding: var(--space-10) var(--space-14);
   border-bottom: 1px solid var(--border);
   color: var(--text-secondary);
   font-size: var(--type-sm);
@@ -130,7 +130,7 @@
 .ignore-rule-card pre {
   display: flex;
   margin: 0;
-  padding: 16px 14px 16px 0;
+  padding: var(--space-16) var(--space-14) var(--space-16) 0;
   border-left: 3px solid var(--accent);
   color: var(--text);
   font-size: var(--type-md);
@@ -141,7 +141,7 @@
 .ignore-gutter {
   flex: none;
   min-width: 34px;
-  padding-right: 12px;
+  padding-right: var(--space-12);
   color: var(--text-faint);
   text-align: right;
   user-select: none;
@@ -156,8 +156,8 @@
 .ignore-clear {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 18px;
+  gap: var(--space-12);
+  padding: var(--space-20);
   border: 1px solid rgb(var(--success-rgb) / 0.35);
   border-radius: var(--radius-xl);
   background: rgb(var(--success-rgb) / 0.08);
@@ -166,6 +166,6 @@
 
 .ignore-clear svg {
   flex: none;
-  margin-top: 2px;
+  margin-top: var(--space-2);
   color: var(--success);
 }

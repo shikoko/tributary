@@ -7,7 +7,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: var(--space-24);
   background: var(--scrim);
 }
 
@@ -18,7 +18,7 @@
 .dialog {
   position: relative;
   width: min(480px, 100%);
-  padding: 20px 22px;
+  padding: var(--space-20) var(--space-24);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-2xl);
   background: var(--bg-panel);
@@ -26,7 +26,7 @@
 }
 
 .dialog h2 {
-  margin: 0 0 10px;
+  margin: 0 0 var(--space-10);
   font-size: var(--type-lg);
 }
 
@@ -46,15 +46,15 @@
 .clone-options {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 4px 0 0;
-  padding: 10px 12px 12px;
+  gap: var(--space-8);
+  margin: var(--space-4) 0 0;
+  padding: var(--space-10) var(--space-12) var(--space-12);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
 
 .clone-options legend {
-  padding: 0 6px;
+  padding: 0 var(--space-6);
   color: var(--text-muted);
   font-size: var(--type-xs);
   font-weight: 600;
@@ -63,12 +63,12 @@
 }
 
 .dialog .clone-options .hint {
-  margin: -4px 0 2px;
+  margin: calc(var(--space-4) * -1) 0 var(--space-2);
 }
 
 /* Lined up with the checkbox's label. */
 .dialog .clone-options .checkbox-hint {
-  margin-left: 24px;
+  margin-left: var(--space-24);
 }
 
 .clone-options-toggle {
@@ -78,8 +78,8 @@
 .sign-in-browser {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 14px 0 4px;
+  gap: var(--space-10);
+  margin: var(--space-14) 0 var(--space-4);
 }
 
 .sign-in-browser .hint {
@@ -92,8 +92,8 @@
 
 .diagnostics-text {
   max-height: 46vh;
-  margin: 12px 0 0;
-  padding: 10px 12px;
+  margin: var(--space-12) 0 0;
+  padding: var(--space-10) var(--space-12);
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -119,13 +119,13 @@
 }
 
 .dialog-consequences {
-  margin: 14px 0 0;
-  padding-left: 18px;
+  margin: var(--space-14) 0 0;
+  padding-left: var(--space-20);
   color: var(--text-secondary);
 }
 
 .dialog-consequences li + li {
-  margin-top: 6px;
+  margin-top: var(--space-6);
 }
 
 .dialog-consequences .danger {
@@ -133,15 +133,15 @@
 }
 
 .dialog .error-banner {
-  margin-top: 14px;
+  margin-top: var(--space-14);
 }
 
 .dialog-buttons {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
+  gap: var(--space-8);
+  margin-top: var(--space-20);
 }
 
 .dialog-buttons .spacer {
@@ -155,9 +155,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--space-6);
   height: 32px;
-  padding: 0 14px;
+  padding: 0 var(--space-14);
   border-radius: var(--radius-md);
   font-weight: 600;
 }
@@ -183,15 +183,15 @@
 }
 
 .details-actions {
-  margin-top: 16px;
+  margin-top: var(--space-16);
 }
 
 .danger-outline-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   height: 28px;
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   border: 1px solid rgb(var(--danger-rgb) / 0.45);
   background: transparent;
   color: var(--danger-strong-text);
@@ -241,20 +241,20 @@
 .dialog-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 14px;
+  gap: var(--space-12);
+  margin-top: var(--space-14);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-6);
   color: var(--text-secondary);
 }
 
 .text-input {
   height: 34px;
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   outline: none;
@@ -274,7 +274,7 @@
 .checkbox {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   color: var(--text-secondary);
 }
 
@@ -286,9 +286,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--space-6);
   height: 32px;
-  padding: 0 14px;
+  padding: 0 var(--space-14);
   border: none;
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, var(--accent), var(--accent-2));

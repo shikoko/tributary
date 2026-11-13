@@ -4,23 +4,23 @@
 .wn-spotlight {
   display: grid;
   grid-template-columns: 210px 1fr;
-  gap: 18px;
+  gap: var(--space-20);
   min-height: 330px;
 }
 
 .wn-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding-right: 14px;
+  gap: var(--space-2);
+  padding-right: var(--space-14);
   border-right: 1px solid var(--border);
 }
 
 .wn-nav button {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 8px;
+  gap: var(--space-10);
+  padding: var(--space-8) var(--space-8);
   border: none;
   border-radius: var(--radius-lg);
   background: none;
@@ -61,7 +61,7 @@
 .wn-stage {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-6);
   min-width: 0;
   animation: tour-in 220ms ease-out;
 }
@@ -71,7 +71,7 @@
   display: grid;
   place-items: center;
   height: 176px;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-8);
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-3xl);

@@ -6,7 +6,7 @@
   position: fixed;
   z-index: 15;
   width: 288px;
-  padding: 4px;
+  padding: var(--space-4);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-2xl);
   background: var(--bg-raised);
@@ -27,7 +27,7 @@
 
 .mark-entry {
   position: relative;
-  padding: 8px 10px 9px 16px;
+  padding: var(--space-8) var(--space-10) var(--space-10) var(--space-16);
 }
 
 .mark-entry + .mark-entry {
@@ -37,7 +37,7 @@
 .mark-entry-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   min-width: 0;
 }
 
@@ -59,7 +59,7 @@
 }
 
 .mark-entry-states {
-  margin-top: 3px;
+  margin-top: var(--space-4);
   color: var(--text-muted);
   font-size: var(--type-xs);
   font-weight: 600;
@@ -68,7 +68,7 @@
 }
 
 .mark-entry-summary {
-  margin-top: 3px;
+  margin-top: var(--space-4);
   overflow: hidden;
   color: var(--text);
   text-overflow: ellipsis;
@@ -78,14 +78,14 @@
 .mark-entry-author {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 6px;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
   color: var(--text-muted);
   font-size: var(--type-xs);
 }
 
 .mark-entry-more {
-  padding: 6px 16px 7px;
+  padding: var(--space-6) var(--space-16) var(--space-8);
   border-top: 1px solid var(--border);
   color: var(--text-faint);
   font-size: var(--type-xs);

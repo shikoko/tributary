@@ -33,9 +33,9 @@
 .diff-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
   height: 44px;
-  padding: 0 10px 0 8px;
+  padding: 0 var(--space-10) 0 var(--space-8);
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
   flex: none;
@@ -44,12 +44,12 @@
 .diff-steps {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-2);
   flex: none;
 }
 
 .diff-count {
-  margin-left: 4px;
+  margin-left: var(--space-4);
   color: var(--text-muted);
   font-size: var(--type-sm);
   white-space: nowrap;
@@ -60,7 +60,7 @@
   min-width: 0;
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-8);
   overflow: hidden;
   white-space: nowrap;
 }
@@ -85,7 +85,7 @@
 
 .diff-source {
   flex: none;
-  padding: 1px 7px;
+  padding: 1px var(--space-8);
   border-radius: var(--radius-xl);
   background: var(--bg-raised);
   color: var(--text-secondary);
@@ -146,7 +146,7 @@
 
 .diff-lines {
   min-width: max-content;
-  padding-bottom: 16px;
+  padding-bottom: var(--space-16);
   font-family: var(--mono);
   /* Show the characters as typed: "=>" and "===" stay as they are. */
   font-variant-ligatures: none;
@@ -156,11 +156,11 @@
 
 .diff-hunk-header {
   display: flex;
-  gap: 10px;
+  gap: var(--space-10);
   height: 26px;
   align-items: center;
-  margin-top: 8px;
-  padding: 0 12px;
+  margin-top: var(--space-8);
+  padding: 0 var(--space-12);
   background: rgb(var(--accent-rgb) / 0.06);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
@@ -182,10 +182,10 @@
   right: 12px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   margin-left: auto;
   /* Over the heading when it's long: the header's own colour, so the heading goes under. */
-  padding-left: 10px;
+  padding-left: var(--space-10);
   background: linear-gradient(rgb(var(--accent-rgb) / 0.06), rgb(var(--accent-rgb) / 0.06)) var(--bg);
   box-shadow: -10px 0 8px -4px var(--bg);
   font-family: var(--font);
@@ -200,7 +200,7 @@
 
 .hunk-button {
   height: 20px;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--bg-panel);
@@ -259,8 +259,8 @@
   z-index: 3;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 6px 6px 14px;
+  gap: var(--space-8);
+  padding: var(--space-6) var(--space-6) var(--space-6) var(--space-14);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-xl);
   background: var(--bg-raised);
@@ -287,7 +287,7 @@
 }
 
 .diff-number {
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   text-align: right;
   color: var(--text-faint);
   user-select: none;
@@ -311,7 +311,7 @@
 }
 
 .diff-text {
-  padding-right: 24px;
+  padding-right: var(--space-24);
   white-space: pre;
   tab-size: 4;
 }
@@ -381,7 +381,7 @@
 }
 
 .diff-half .diff-text {
-  padding-right: 12px;
+  padding-right: var(--space-12);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -453,9 +453,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--space-6);
   min-height: 60%;
-  padding: 24px;
+  padding: var(--space-24);
   text-align: center;
   color: var(--text-secondary);
 }
@@ -470,7 +470,7 @@
   align-items: center;
   justify-content: center;
   min-height: 160px;
-  padding: 12px;
+  padding: var(--space-12);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   /* A checkerboard, so transparent parts show. */
@@ -489,7 +489,7 @@
 }
 
 .diff-binary-sizes {
-  margin: 14px 0 0;
+  margin: var(--space-14) 0 0;
   color: var(--text-secondary);
   text-align: center;
 }

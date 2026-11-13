@@ -22,9 +22,9 @@
 .tool-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   height: 28px;
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--bg-raised);
@@ -44,9 +44,9 @@
 .primary-button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   height: 40px;
-  padding: 0 18px;
+  padding: 0 var(--space-20);
   border: none;
   border-radius: var(--radius-lg);
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
@@ -65,8 +65,8 @@
 }
 
 .primary-button kbd {
-  margin-left: 6px;
-  padding: 1px 6px;
+  margin-left: var(--space-6);
+  padding: 1px var(--space-6);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.18);
   font-family: var(--mono);
@@ -75,7 +75,7 @@
 }
 
 .error-banner {
-  padding: 10px 12px;
+  padding: var(--space-10) var(--space-12);
   border: 1px solid rgb(var(--danger-rgb) / 0.4);
   border-radius: var(--radius-lg);
   background: rgb(var(--danger-rgb) / 0.1);
@@ -88,8 +88,8 @@
 .error-banner.inline {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 8px 12px 0;
+  gap: var(--space-8);
+  margin: var(--space-8) var(--space-12) 0;
 }
 
 .error-banner.inline span {
@@ -107,14 +107,14 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-6);
   min-width: 0;
 }
 
 .hook-output {
   max-height: 180px;
   margin: 0;
-  padding: 8px 10px;
+  padding: var(--space-8) var(--space-10);
   overflow: auto;
   border-radius: var(--radius-md);
   background: rgb(0 0 0 / 0.2);
