@@ -724,10 +724,19 @@ try {
     // The shortcut opens it under the View button, and closes it again.
     await page.keyboard.press("Control+Shift+O");
     await panel.waitFor({ timeout: 5000 });
-    const [at, under] = await Promise.all([panel.boundingBox(), page.getByRole("button", { name: "View options" }).boundingBox()]);
+    const button = page.getByRole("button", { name: "View options" });
+    const [at, under] = await Promise.all([panel.boundingBox(), button.boundingBox()]);
     expect(Math.abs(at.y - (under.y + under.height + 6)) < 2, `the panel is at ${at.y}, not under the button at ${under.y}`);
     await page.keyboard.press("Control+Shift+O");
     await panel.waitFor({ state: "detached", timeout: 5000 });
+    // With nothing focused (as on a Mac, where a click doesn't focus a button), the focus
+    // goes to the View button when it closes, not back to the page.
+    await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+    await page.keyboard.press("Control+Shift+O");
+    await panel.waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await panel.waitFor({ state: "detached", timeout: 5000 });
+    expect(await button.evaluate((element) => element === document.activeElement), "the focus didn't go to the View button");
     // View Options in the command palette, with its shortcut beside it.
     await page.keyboard.press("Control+k");
     const palette = page.getByRole("dialog", { name: "Commands" });
