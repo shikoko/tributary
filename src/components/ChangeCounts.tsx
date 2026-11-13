@@ -13,8 +13,10 @@ export function ChangeCounts({ counts }: { counts: Counts }) {
     <span className="change-counts">
       {chips.map((chip) => (
         <span key={chip.key} className={`change-count ${chip.key}`} title={`${chip.value} ${chip.label}`}>
-          {chip.sign}
-          {chip.value}
+          <span className="chip-text">
+            {chip.sign}
+            {chip.value}
+          </span>
         </span>
       ))}
     </span>

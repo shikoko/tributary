@@ -88,7 +88,7 @@ export function CommandPalette({ commands, onClose }: { commands: Command[]; onC
               <span className="palette-icon">{command.icon}</span>
               <span className="palette-label">{command.label}</span>
               {command.group && <span className="palette-group">{command.group}</span>}
-              {command.shortcut && <kbd>{command.shortcut}</kbd>}
+              {command.shortcut && <kbd><span className="chip-text">{command.shortcut}</span></kbd>}
             </li>
           ))}
         </ul>

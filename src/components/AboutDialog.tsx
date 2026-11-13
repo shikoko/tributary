@@ -179,15 +179,15 @@ export function AboutDialog({ version, updates, auto, setAuto, beta, setBeta, on
       <nav className="about-links" aria-label="More about Tributary">
         <button className="about-link" onClick={onWhatsNew}>
           <SparkleIcon size={14} />
-          What's New
+          <span className="button-label">What's New</span>
         </button>
         <button className="about-link" onClick={onLicences}>
           <NotesIcon size={14} />
-          Licences
+          <span className="button-label">Licences</span>
         </button>
         <button className="about-link" onClick={() => openInBrowser(SOURCE)} data-url={SOURCE}>
           <ExternalLinkIcon size={14} />
-          Source code
+          <span className="button-label">Source code</span>
         </button>
       </nav>
     </Dialog>

@@ -106,9 +106,9 @@ export function BlameView({ repoPath, path: startPath, at: startAt, onClose, onS
           <span className="diff-name">{path.slice(slash + 1)}</span>
           {slash > 0 && <span className="diff-dir">{path.slice(0, slash)}</span>}
           <span className="diff-source" title={version.before ? `The version before ${shortId(version.before.id ?? "")}: ${version.before.summary}` : undefined}>
-            {version.before ? `Before ${shortId(version.before.id ?? "")}` : at ? `At ${shortId(at)}` : "Your version"}
+            <span className="chip-text">{version.before ? `Before ${shortId(version.before.id ?? "")}` : at ? `At ${shortId(at)}` : "Your version"}</span>
           </span>
-          {blame && <span className="diff-source">{blame.commits.length === 1 ? "1 commit" : `${blame.commits.length} commits`}</span>}
+          {blame && <span className="diff-source"><span className="chip-text">{blame.commits.length === 1 ? "1 commit" : `${blame.commits.length} commits`}</span></span>}
         </div>
         <Button kind="icon" onClick={onClose} title="Close (Esc)" aria-label="Close who changed each line">
           <CloseIcon />

@@ -120,7 +120,7 @@ export function WhatsNewDialog({ releases, onClose }: { releases: Release[]; onC
             isShown(release) ? (
               <div key={release.version} className="wn-version open">
                 <div className="wn-version-head">
-                  <span className="wn-tag">{release.version}</span>
+                  <span className="wn-tag"><span className="chip-text">{release.version}</span></span>
                 </div>
                 {slides.map((entry, index) =>
                   entry.version === release.version ? (
@@ -132,7 +132,7 @@ export function WhatsNewDialog({ releases, onClose }: { releases: Release[]; onC
                       onClick={() => setAt(index)}
                     >
                       <span className={`wn-nav-dot${entry.kind === "rest" ? " rest" : ""}`}>{entry.kind === "rest" && <CheckIcon size={11} />}</span>
-                      {name(entry)}
+                      <span className="button-label">{name(entry)}</span>
                     </button>
                   ) : null,
                 )}
@@ -147,7 +147,7 @@ export function WhatsNewDialog({ releases, onClose }: { releases: Release[]; onC
                 }}
               >
                 <span className="wn-version-head">
-                  <span className="wn-tag">{release.version}</span>
+                  <span className="wn-tag"><span className="chip-text">{release.version}</span></span>
                   <span className="wn-version-counts">{counts(release)}</span>
                 </span>
                 <span className="wn-version-headline">{release.headline}</span>

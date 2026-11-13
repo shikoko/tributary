@@ -70,8 +70,11 @@
 }
 
 .primary-button kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
   margin-left: var(--space-6);
-  padding: 1px var(--space-6);
+  padding: 0 var(--space-6);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--on-accent-fill) 18%, transparent);
   font-family: var(--mono);

@@ -413,12 +413,15 @@
   outline: none;
 }
 
+/* No colours yet: a plus, in the middle of a sample's height. */
 .lane-sample-empty {
+  display: inline-flex;
+  align-items: center;
   width: auto !important;
   height: auto !important;
+  min-height: 18px;
   padding: 0 var(--space-10);
   color: var(--text-muted);
-  line-height: 18px;
 }
 
 /* Your own graph colours: each one a swatch to click and change. */
