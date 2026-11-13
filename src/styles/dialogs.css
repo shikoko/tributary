@@ -202,12 +202,18 @@
   background: rgb(var(--danger-rgb) / 0.1);
 }
 
-/* A button's text, trimmed to its capital letters, so an icon next to it lines up with the
-   letters rather than with the font's line box (which differs from font to font). It stays
-   on one line and ends in "…" when it doesn't fit. Clipped sideways only: the trimmed box
-   is as tall as the capitals, and letters like "p" reach below it. */
+/* A button's text, trimmed to its capital letters, so it sits in the middle of the button,
+   and an icon next to it lines up with the letters, rather than with the font's line box
+   (which has more room below the letters than above, and differs from font to font).
+   Centred on its capitals, a word of mostly small letters ("Reset main") looks low, and
+   centred on its small letters, capitals look high: moved up a quarter of the difference
+   between the two heights, it's halfway, where it looks centred. (Moved, not padded: the
+   layout puts text on whole pixels, and this is less than one.) It stays on one line and
+   ends in "…" when it doesn't fit. Clipped sideways only: letters like "p" reach below the
+   trimmed box. */
 .button-label {
   min-width: 0;
+  translate: 0 calc((1ex - 1cap) / 4);
   overflow-x: clip;
   overflow-y: visible;
   text-overflow: ellipsis;

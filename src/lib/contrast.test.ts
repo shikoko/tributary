@@ -34,6 +34,9 @@ const COUNTS = [
   ["--deleted-ink", "--danger"],
 ];
 
+// Text on a solid colour, and the colour (and its hover) it's on.
+const ON_SOLID = [["--on-danger-solid", "--danger-solid", "--danger-solid-hover"]];
+
 /** `text`'s lowest contrast on the surfaces, in `theme`. */
 function lowest(theme: Record<string, string>, text: string): number {
   return Math.min(...SURFACES.map((surface) => contrast(parseHex(theme[text])!, parseHex(theme[surface])!)));
@@ -50,6 +53,13 @@ describe("the themes' text", () => {
     it(`counts changed files readably, in the ${name} theme`, () => {
       const tint = (colour: string, surface: string) => parseHex(theme[colour])!.map((value, i) => value * 0.13 + parseHex(theme[surface])![i] * 0.87) as [number, number, number];
       const weak = COUNTS.filter(([ink, colour]) => SURFACES.some((surface) => contrast(parseHex(theme[ink])!, tint(colour, surface)) < 4.5)).map(([ink]) => ink);
+      expect(weak).toEqual([]);
+    });
+
+    it(`reads on solid buttons, pointed at or not, in the ${name} theme`, () => {
+      const weak = ON_SOLID.flatMap(([text, ...under]) =>
+        under.filter((colour) => contrast(parseHex(theme[text])!, parseHex(theme[colour])!) < 4.5).map((colour) => `${text} on ${colour}`),
+      );
       expect(weak).toEqual([]);
     });
 
