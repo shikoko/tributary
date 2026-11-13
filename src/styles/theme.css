@@ -347,8 +347,14 @@ button:disabled {
   cursor: default;
 }
 
+/* Keyboard focus, the same everywhere: a ring in the accent colour, just inside what has it,
+   where nothing around it can cut it off. Fields show it in their border instead. */
+:root {
+  --focus-ring: 2px solid var(--accent);
+}
+
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: var(--focus-ring);
   outline-offset: -2px;
 }
 

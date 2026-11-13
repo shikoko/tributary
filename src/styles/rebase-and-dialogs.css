@@ -177,11 +177,6 @@ textarea.text-input {
   border-bottom: none;
 }
 
-.rebase-row:focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: -1px;
-}
-
 .rebase-row.lifted {
   background: var(--bg-selected);
   box-shadow: 0 6px 18px var(--shadow);
