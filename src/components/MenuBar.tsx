@@ -26,7 +26,7 @@ export function MenuBar({ menus, onOpen }: Props) {
             onOpen(menu, event.currentTarget);
           }}
         >
-          {menu.label}
+          <span className="button-label">{menu.label}</span>
         </button>
       ))}
     </nav>

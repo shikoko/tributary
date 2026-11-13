@@ -54,32 +54,32 @@ export function StatusBar(props: Props) {
       {link && (
         <span className="status-link" aria-hidden>
           <ExternalLinkIcon size={12} />
-          <span>{link}</span>
+          <span className="button-label">{link}</span>
         </span>
       )}
       <span className="status-item strong" title={snapshot.headBranch ? `On ${snapshot.headBranch}` : "Detached HEAD"}>
         {snapshot.headBranch ? <BranchIcon size={12} /> : <CommitIcon size={12} />}
-        {snapshot.headBranch ?? `HEAD at ${snapshot.headCommit?.slice(0, 7) ?? "nothing"}`}
+        <span className="button-label">{snapshot.headBranch ?? `HEAD at ${snapshot.headCommit?.slice(0, 7) ?? "nothing"}`}</span>
       </span>
       {snapshot.headBranch &&
         (snapshot.upstream ? (
           <span className="status-item" title={`${ahead} to push, ${behind} to pull`}>
             <CloudIcon size={12} />
-            {snapshot.upstream.name}
-            {ahead > 0 && <span className="status-count">↑{ahead}</span>}
-            {behind > 0 && <span className="status-count">↓{behind}</span>}
-            {ahead === 0 && behind === 0 && <span className="muted">up to date</span>}
+            <span className="button-label">{snapshot.upstream.name}</span>
+            {ahead > 0 && <span className="status-count button-label">↑{ahead}</span>}
+            {behind > 0 && <span className="status-count button-label">↓{behind}</span>}
+            {ahead === 0 && behind === 0 && <span className="muted button-label">up to date</span>}
           </span>
         ) : (
-          snapshot.remotes.length > 0 && <span className="status-item muted">Not pushed yet</span>
+          snapshot.remotes.length > 0 && <span className="status-item muted"><span className="button-label">Not pushed yet</span></span>
         ))}
       {snapshot.remotes.length > 0 &&
         (onFetch ? (
           <button className="status-item status-button" onClick={onFetch} title="Fetch now">
-            {fetched}
+            <span className="button-label">{fetched}</span>
           </button>
         ) : (
-          <span className="status-item muted">{fetched}</span>
+          <span className="status-item muted"><span className="button-label">{fetched}</span></span>
         ))}
       {props.pruneHint && props.onPrune && (
         <span className="status-item status-hint">
@@ -89,8 +89,8 @@ export function StatusBar(props: Props) {
             title="Their remote branches were deleted, usually because their pull requests were merged"
           >
             <BroomIcon size={12} />
-            {props.pruneHint.count} {props.pruneHint.count === 1 ? "branch" : "branches"} gone from {props.pruneHint.remote}
-            <span className="status-hint-action">Clean up</span>
+            <span className="button-label">{props.pruneHint.count} {props.pruneHint.count === 1 ? "branch" : "branches"} gone from {props.pruneHint.remote}</span>
+            <span className="status-hint-action button-label">Clean up</span>
           </button>
           <button className="status-hint-close" onClick={props.onDismissPruneHint} aria-label="Hide this" title="Hide this until another branch goes">
             <CloseIcon size={10} />
@@ -106,21 +106,23 @@ export function StatusBar(props: Props) {
           aria-haspopup="dialog"
         >
           <BranchIcon size={12} />
-          {props.elsewhere.count} {props.elsewhere.count === 1 ? "file" : "files"} also changed elsewhere
+          <span className="button-label">{props.elsewhere.count} {props.elsewhere.count === 1 ? "file" : "files"} also changed elsewhere</span>
         </button>
       )}
-      {running && <span className="status-item running">{running}…</span>}
+      {running && <span className="status-item running"><span className="button-label">{running}…</span></span>}
       {snapshot.operation && (
         <span className="status-item warning">
-          {{ merge: "Merge", rebase: "Rebase", cherryPick: "Cherry-pick", revert: "Revert", applyPatches: "Applying patches", other: "Git operation" }[snapshot.operation.kind]}
-          {snapshot.operation.kind === "applyPatches" ? "" : " in progress"}
+          <span className="button-label">
+            {{ merge: "Merge", rebase: "Rebase", cherryPick: "Cherry-pick", revert: "Revert", applyPatches: "Applying patches", other: "Git operation" }[snapshot.operation.kind]}
+            {snapshot.operation.kind === "applyPatches" ? "" : " in progress"}
+          </span>
         </span>
       )}
       <span className="status-fill" />
       {hiddenCount > 0 && (
         <button className="status-item status-button" onClick={props.onShowAll} title="Show every branch">
           <EyeOffIcon size={12} />
-          {soloing ? `Showing ${hiddenCount} soloed` : `${hiddenCount} hidden`}
+          <span className="button-label">{soloing ? `Showing ${hiddenCount} soloed` : `${hiddenCount} hidden`}</span>
         </button>
       )}
       {props.pulse && props.pulse.people > 0 && (
@@ -131,12 +133,14 @@ export function StatusBar(props: Props) {
           title={`${plural(props.pulse.commits, "commit")} on any branch in the last 7 days: show team activity`}
         >
           <TeamIcon size={12} />
-          {props.pulse.people === 1 ? "1 person" : `${props.pulse.people} people`} this week
+          <span className="button-label">{props.pulse.people === 1 ? "1 person" : `${props.pulse.people} people`} this week</span>
         </button>
       )}
       <span className="status-item muted">
-        {commits.toLocaleString()}
-        {snapshot.truncated ? "+" : ""} {commits === 1 ? "commit" : "commits"}
+        <span className="button-label">
+          {commits.toLocaleString()}
+          {snapshot.truncated ? "+" : ""} {commits === 1 ? "commit" : "commits"}
+        </span>
       </span>
       <button
         className={`status-item status-button${activityOpen ? " active" : ""}`}
@@ -145,7 +149,7 @@ export function StatusBar(props: Props) {
         title="Show the git commands Tributary ran"
       >
         <ActivityIcon size={12} />
-        Activity
+        <span className="button-label">Activity</span>
         {activityFailed && <span className="status-dot" aria-label="The last command failed" />}
       </button>
       <button className="status-item status-button path" onClick={props.onReveal} title={isMac ? "Show in Finder" : "Show in Explorer"}>

@@ -43,9 +43,6 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   ref?: Ref<HTMLButtonElement>;
 };
 
-/** The kinds drawn as a box, whose words sit in its middle. */
-const BOXED = new Set<ButtonKind>(["primary", "secondary", "outline", "danger"]);
-
 /**
  * Words in a button, trimmed to their letters (`button-label`): a box centres the font's
  * whole line, which has more room below the letters than above, so "Cancel" sat high.
@@ -78,7 +75,8 @@ export function Button({ kind, size, className, children, ...rest }: Props) {
   if (className) classes.push(className);
   return (
     <button className={classes.filter(Boolean).join(" ")} {...rest}>
-      {BOXED.has(kind) ? labelled(children) : children}
+      {/* An icon has no words, and a link's words have no box to sit in the middle of. */}
+      {kind === "icon" || kind === "link" ? children : labelled(children)}
     </button>
   );
 }

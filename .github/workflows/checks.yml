@@ -215,30 +215,3 @@ jobs:
           name: catalogue-changes
           path: catalogue-changes
           if-no-files-found: ignore
-
-  # A pull request into main makes a release when it's merged: this says which version,
-  # and checks its notes are written.
-  release:
-    name: Ready to release
-    if: github.base_ref == 'main'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      issues: read
-      pull-requests: read
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: The version, and its notes
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          tag="v$(node .github/scripts/next-version.mjs)"
-          if [ ! -f "docs/release-notes/$tag.md" ]; then
-            echo "::error::Merging this releases $tag, which has no notes yet: write them in docs/release-notes/$tag.md."
-            exit 1
-          fi
-          echo "::notice::Merging this releases $tag."

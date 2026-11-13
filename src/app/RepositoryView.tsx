@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useContext, useEffect, useRef, useState, useMemo } from "react";
 import { usePresence } from "../lib/usePresence";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { fullRefName, PAGE_SIZE, teamPulse, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type PullRequest, type RepoSnapshot, type Worktree } from "../api";
@@ -21,7 +21,6 @@ import { EMPTY_DRAFT } from "../components/worktree/CommitBox";
 import { ListOverlays, type RewriteShown } from "./ListOverlays";
 import { useStacks } from "./useStacks";
 import { useRepositoryMenus } from "./useRepositoryMenus";
-import type { MenuItem } from "../components/ContextMenu";
 import { BranchIcon, EyeIcon, PlusIcon, StashIcon, TagIcon } from "../components/Icons";
 import { MessageTools } from "../components/MessageTools";
 import { ResizeHandle } from "../components/ResizeHandle";
@@ -55,6 +54,8 @@ import type { Search } from "./useSearch";
 import type { Submodules } from "./useSubmodules";
 import type { Selection } from "./useSelection";
 import type { ActivityLog } from "./useWindowEvents";
+import { ThemeContext } from "./useAppearance";
+import { ViewPanel } from "../components/ViewPanel";
 
 const REMOTE_ACTIONS: Record<RemoteAction, Action> = {
   fetch: { kind: "fetch" },
@@ -89,8 +90,6 @@ interface Props {
   dialog: OpenDialog;
   openDialog: (dialog: OpenDialog) => void;
   menu: ContextMenuState;
-  /** The View menu's commands, for the toolbar's view button. */
-  viewMenu: MenuItem[];
   /** Open a repository (another working tree, say) in its tab. */
   openTab: (path: string) => void;
   closeTab: (path: string) => void;
@@ -241,6 +240,9 @@ export function RepositoryView(props: Props) {
   const notLoaded = () => props.notify({ text: "That commit isn't loaded: load more commits, or fetch" });
   /** The status bar's "changed elsewhere": the branches, and your files on each. */
   const [elsewhereAt, setElsewhereAt] = useState<HTMLElement | null>(null);
+  // The View panel, open under the toolbar's View button (where it is), or not.
+  const [viewAt, setViewAt] = useState<HTMLElement | null>(null);
+  const { theme } = useContext(ThemeContext);
   // The branch or tag label the pointer is on: its lanes light up in the graph.
   const [laneLabel, hoverLane] = useLaneHover();
   const showBranch = (branch: string) => {
@@ -363,7 +365,6 @@ export function RepositoryView(props: Props) {
           lastFetch={snapshot.lastFetched ? snapshot.lastFetched * 1000 : null}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          onViewMenu={(anchor) => menu.under(anchor, props.viewMenu, 320)}
           teamOpen={props.teamOpen}
           onToggleTeam={props.onToggleTeam}
           onOpenMenu={(anchor) => menu.under(anchor, openMenu())}
@@ -426,6 +427,7 @@ export function RepositoryView(props: Props) {
           <div className="center-pane" data-tour="graph">
             <CommitList
               key={snapshot.path}
+              onViewMenu={(anchor) => setViewAt((open) => (open ? null : anchor))}
               snapshot={snapshot}
               selectedId={selection.selectedId}
               selectedIds={selectedIds}
@@ -548,6 +550,24 @@ export function RepositoryView(props: Props) {
           onCleanUpLfs={() => openDialog({ kind: "pruneLfs" })}
           onClose={() => openDialog(null)}
           section={props.dialog.section}
+        />
+      )}
+      {viewAt && (
+        <ViewPanel
+          anchor={viewAt}
+          theme={theme}
+          appearance={preferences.appearance}
+          setAppearance={preferences.setAppearance}
+          columns={preferences.columnOptions}
+          setColumns={preferences.setColumnOptions}
+          dense={preferences.dense}
+          setDense={preferences.setDense}
+          daySeparators={preferences.daySeparators}
+          setDaySeparators={preferences.setDaySeparators}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          onSettings={() => props.openSettings("Appearance")}
+          onClose={() => setViewAt(null)}
         />
       )}
       {elsewhereAt && props.overlaps.length > 0 && (

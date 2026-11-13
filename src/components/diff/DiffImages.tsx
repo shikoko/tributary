@@ -54,7 +54,7 @@ export function DiffImages({ diff, media }: { diff: FileDiff; media: Media }) {
         <div className="diff-switch diff-image-modes" role="group" aria-label="Compare the pictures">
           {MODES.map(({ mode: each, label, title }) => (
             <button key={each} className={mode === each ? "selected" : undefined} aria-pressed={mode === each} onClick={() => setMode(each)} title={title}>
-              {label}
+              <span className="button-label">{label}</span>
             </button>
           ))}
         </div>

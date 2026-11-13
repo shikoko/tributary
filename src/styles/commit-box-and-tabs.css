@@ -86,7 +86,9 @@
   min-width: 90px;
   max-width: 220px;
   height: 30px;
-  padding: 0 var(--space-6) 0 var(--space-12);
+  /* 1px below, to balance the border above (it has none below, where it joins the window): its
+     name is in the middle of the whole tab. */
+  padding: 0 var(--space-6) 1px var(--space-12);
   border: 1px solid transparent;
   border-bottom: none;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -123,7 +125,11 @@
 .tab-name > span,
 .tab-name::after {
   grid-area: 1 / 1;
-  overflow: hidden;
+  /* Trimmed to its capitals, so it sits in the middle (see .button-label), and clipped sideways
+     only: the tails of letters like "p" reach below the trimmed box. */
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -186,6 +192,17 @@
 
 .tab-bar-fill {
   flex: 1;
+}
+
+/* Tributary on GitHub, at the bar's end: the app's own link, in every tab. */
+.tab-bar-github {
+  align-self: center;
+  margin: 0 var(--space-4);
+  color: var(--text-muted);
+}
+
+.tab-bar-github:hover {
+  color: var(--text);
 }
 
 .app > .welcome {

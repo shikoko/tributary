@@ -152,3 +152,6 @@ export function coAuthors(body: string): { name: string; email: string }[] {
   }
   return people;
 }
+
+/** Tributary's own page on GitHub: its code, issues and releases. */
+export const TRIBUTARY_ON_GITHUB = "https://github.com/shikoko/tributary";

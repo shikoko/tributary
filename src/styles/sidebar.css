@@ -76,6 +76,11 @@
   transform: rotate(-90deg);
 }
 
+/* A section's name, trimmed to its capitals so it sits in the middle (see .button-label). */
+.sidebar-heading > span:not(.sidebar-count) {
+  text-box: trim-both cap alphabetic;
+}
+
 .sidebar-count {
   margin-left: auto;
   color: var(--text-faint);
@@ -130,7 +135,11 @@
 
 .sidebar-name {
   min-width: 0;
-  overflow: hidden;
+  /* Trimmed to its capitals, so it sits in the middle (see .button-label), and clipped sideways
+     only: the tails of letters like "p" reach below the trimmed box. */
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -147,7 +156,11 @@
 .menu-label {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  /* Trimmed to its capitals, so it sits in the middle (see .button-label), and clipped sideways
+     only: the tails of letters like "p" reach below the trimmed box. */
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
   text-overflow: ellipsis;
 }
 

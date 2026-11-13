@@ -65,6 +65,12 @@
   min-width: 0;
 }
 
+/* A section's name on its own, trimmed to its capitals so it sits in the middle (see
+   .button-label). One with a subtitle under it is left as two lines. */
+.settings-tab-text > span:only-child {
+  text-box: trim-both cap alphabetic;
+}
+
 .settings-tab-subtitle {
   overflow: hidden;
   color: var(--text-muted);
@@ -407,12 +413,15 @@
   outline: none;
 }
 
+/* No colours yet: a plus, in the middle of a sample's height. */
 .lane-sample-empty {
+  display: inline-flex;
+  align-items: center;
   width: auto !important;
   height: auto !important;
+  min-height: 18px;
   padding: 0 var(--space-10);
   color: var(--text-muted);
-  line-height: 18px;
 }
 
 /* Your own graph colours: each one a swatch to click and change. */

@@ -93,10 +93,10 @@ export function ActivityPanel({ entries, folder, onClear, onClose, history, canU
         <strong>Activity</strong>
         <div className="diff-switch" role="tablist" aria-label="Show">
           <button role="tab" className={tab === "actions" ? "selected" : undefined} aria-selected={tab === "actions"} onClick={() => setTab("actions")}>
-            Your actions
+            <span className="button-label">Your actions</span>
           </button>
           <button role="tab" className={tab === "commands" ? "selected" : undefined} aria-selected={tab === "commands"} onClick={() => setTab("commands")}>
-            Git commands
+            <span className="button-label">Git commands</span>
           </button>
         </div>
         <span className="muted">{tab === "actions" ? "What you did here, with Undo while it's still safe." : "Every git command Tributary runs, and what git said."}</span>

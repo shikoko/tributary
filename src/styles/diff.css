@@ -84,8 +84,11 @@
 }
 
 .diff-source {
+  display: inline-flex;
   flex: none;
-  padding: 1px var(--space-8);
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--space-8);
   border-radius: var(--radius-xl);
   background: var(--bg-raised);
   color: var(--text-secondary);
@@ -200,6 +203,8 @@
 }
 
 .hunk-button {
+  display: inline-flex;
+  align-items: center;
   height: 20px;
   padding: 0 var(--space-8);
   border: 1px solid var(--border-strong);

@@ -117,15 +117,15 @@ export function DiffLines({
                         onClick={() => picking.onApply("discard", keys)}
                         title="Undo these changes in the file (you can put them back)"
                       >
-                        Discard
+                        <span className="button-label">Discard</span>
                       </button>
                       <button className="hunk-button primary" disabled={picking.busy} onClick={() => picking.onApply("stage", keys)} title="Stage these changes">
-                        Stage
+                        <span className="button-label">Stage</span>
                       </button>
                     </>
                   ) : (
                     <button className="hunk-button primary" disabled={picking.busy} onClick={() => picking.onApply("unstage", keys)} title="Take these changes out of what's staged">
-                      Unstage
+                      <span className="button-label">Unstage</span>
                     </button>
                   )}
                   {chosenHere.length > 0 && <span className="hunk-chosen">{chosenHere.length} chosen</span>}

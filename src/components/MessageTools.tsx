@@ -30,7 +30,7 @@ export function MessageTools({ commits, you, onUseMessage, onAddCoAuthor, openMe
         title="Start from one of your recent commit messages"
       >
         <HistoryIcon size={12} />
-        Recent messages
+        <span className="button-label">Recent messages</span>
       </button>
       <button
         className="message-tool"
@@ -45,7 +45,7 @@ export function MessageTools({ commits, you, onUseMessage, onAddCoAuthor, openMe
         title="Credit someone who worked on this with you"
       >
         <UserIcon size={12} />
-        Add co-author
+        <span className="button-label">Add co-author</span>
       </button>
     </div>
   );

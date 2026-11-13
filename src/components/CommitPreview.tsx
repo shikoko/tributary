@@ -73,9 +73,9 @@ export function CommitPreview({ commit, x, y, loadDetails }: Props) {
         ) : (
           <>
             <span>{plural(details.files.length, "file")}</span>
-            {counts!.added > 0 && <span className="change-count added">+{counts!.added}</span>}
-            {counts!.modified > 0 && <span className="change-count modified">~{counts!.modified}</span>}
-            {counts!.deleted > 0 && <span className="change-count deleted">−{counts!.deleted}</span>}
+            {counts!.added > 0 && <span className="change-count added"><span className="chip-text">+{counts!.added}</span></span>}
+            {counts!.modified > 0 && <span className="change-count modified"><span className="chip-text">~{counts!.modified}</span></span>}
+            {counts!.deleted > 0 && <span className="change-count deleted"><span className="chip-text">−{counts!.deleted}</span></span>}
           </>
         )}
       </div>

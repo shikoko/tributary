@@ -14,6 +14,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { buildDemos, demoEnv, STUDIO_PULL_REQUEST_CONVERSATIONS, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
+import { describe as describeAligned, misaligned } from "./aligned.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
 
@@ -91,6 +92,22 @@ async function accessible(where, frame = page) {
     );
   }, ".refs-cell .ref-pill:not(.current)");
   expect(problems.length === 0, `${where}: ${[...new Set(problems)].slice(0, 6).join("; ")}`);
+  await centred(where, frame);
+}
+
+/**
+ * The words on what's on screen (buttons, menu items, tabs, chips, badges) sit in the middle
+ * of them, at every display scale (aligned.mjs). With ALIGNED=report, what isn't is listed at
+ * the end instead of failing the step.
+ */
+const offCentre = new Map();
+async function centred(where, frame = page) {
+  const found = describeAligned(await misaligned(frame));
+  if (process.env.ALIGNED === "report") {
+    for (const line of found) offCentre.set(line, [...(offCentre.get(line) ?? []), where]);
+    return;
+  }
+  expect(found.length === 0, `${where}: ${[...new Set(found)].slice(0, 6).join("; ")}`);
 }
 
 function expect(condition, message) {
@@ -642,6 +659,36 @@ try {
     await page.locator(".arrival").waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("shows About Tributary, and what's new from it", async () => {
+    await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "About Tributary" }).click();
+    const whatsNew = page.locator(".about-link", { hasText: "What's New" });
+    await whatsNew.waitFor({ timeout: 5000 });
+    await accessible("About Tributary");
+    await whatsNew.click();
+    const dialog = page.locator(".whats-new-dialog");
+    await dialog.waitFor({ timeout: 5000 });
+    await accessible("What's New");
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "detached", timeout: 5000 });
+  });
+
+  await step("changes how the window looks from the View panel, and closes it with Esc", async () => {
+    const button = page.getByRole("button", { name: "View options" });
+    await button.click();
+    const panel = page.locator(".view-panel");
+    await panel.waitFor({ timeout: 5000 });
+    await accessible("the View panel");
+    // Compact rows, straight away; then back.
+    await panel.getByRole("button", { name: "Compact" }).click();
+    await page.locator(".commit-list.dense").waitFor({ timeout: 5000 });
+    await panel.getByRole("button", { name: "Roomy" }).click();
+    await page.locator(".commit-list.dense").waitFor({ state: "detached", timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await panel.waitFor({ state: "detached", timeout: 5000 });
+    expect(await button.evaluate((element) => element === document.activeElement), "the focus didn't go back to the View button");
+  });
+
   await step("opens a second repository in a new tab", async () => {
     // The pull requests' comments from the start: news is what changes after the first look.
     await page.evaluate(
@@ -785,6 +832,28 @@ try {
     await names.first().waitFor({ timeout: 10_000 });
     const listed = await names.allInnerTexts();
     expect(["SM_Bench_Old", "SM_Bench_Long", "PointLight_Hearth", "BP_Fireplace"].every((name) => listed.includes(name)), listed.join(", "));
+  });
+
+  await step("shows a commit's files in a tree of their folders, and closes one", async () => {
+    // The fireplace commit, from the step before: actors in the level's folders, the folders
+    // with nothing else in them joined into one row, with what changed inside it.
+    const files = page.locator(".details .files");
+    await files.getByRole("button", { name: "Tree", exact: true }).click();
+    const top = files.locator(".file-folder-toggle").first();
+    await top.waitFor({ timeout: 5000 });
+    const said = await top.evaluate((button) => `${button.querySelector(".file-folder-name").textContent}: ${document.getElementById(button.getAttribute("aria-describedby")).textContent}`);
+    expect(/^Content\/__ExternalActors__\/Maps\/Tavern: .*\d+ changed/.test(said), `said "${said}"`);
+    const open = await files.locator(".file").count();
+    expect(open > 2, `${open} rows`);
+    await files.locator(".file-name.actor", { hasText: "SM_Bench_Long" }).waitFor({ timeout: 5000 });
+    await accessible("a commit's files as a tree");
+    await top.click();
+    expect((await top.getAttribute("aria-expanded")) === "false" && (await files.locator(".file").count()) === 1, "closed");
+    await top.click();
+    expect((await files.locator(".file").count()) === open, "open again");
+    // Back to the list, which the steps after expect (the choice is remembered).
+    await files.getByRole("button", { name: "List", exact: true }).click();
+    await top.waitFor({ state: "detached", timeout: 5000 });
   });
 
   await step("shows a sound, a video, a Blender file's preview and a 3D model as what they are", async () => {
@@ -1332,5 +1401,9 @@ try {
   rmSync(folder, { recursive: true, force: true });
 }
 
+if (offCentre.size > 0) {
+  console.log(`\nWords off the middle of their controls (${offCentre.size}):`);
+  for (const [line, where] of offCentre) console.log(`  ${line}  [${[...new Set(where)].join(", ")}]`);
+}
 console.log(failed ? `${failed} failed` : "All good");
 process.exit(failed ? 1 : 0);

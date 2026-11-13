@@ -240,7 +240,11 @@
 }
 
 .status-path {
-  overflow: hidden;
+  /* Trimmed to its capitals, so it sits in the middle (see .button-label), and clipped sideways
+     only: the tails of letters like "p" reach below the trimmed box. */
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
   text-overflow: ellipsis;
   direction: ltr;
 }
@@ -405,7 +409,11 @@
   background: var(--border-strong);
 }
 
+/* Its name is trimmed to its letters (.button-label), so they sit in the middle of the
+   highlight, not the font's line, which has more room below the letters than above. */
 .menu-bar-item {
+  display: inline-flex;
+  align-items: center;
   height: 26px;
   padding: 0 var(--space-10);
   border: none;

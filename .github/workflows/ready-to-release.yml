@@ -1,0 +1,54 @@
+name: Ready to release
+
+# A pull request into main makes a release when it's merged. This says which version, checks
+# its notes are written, and lists the items on the release checklist in the pull request's
+# description that aren't ticked yet (.github/release-checklist.md), as warnings: they're
+# reminders, and don't stop the release. It's a workflow of its own so it can run again when
+# the description is edited, without running the other checks.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, reopened, synchronize]
+
+# An edit or a push cancels the run before it: only the newest description counts.
+concurrency:
+  group: ready-to-release-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Ready to release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: The version, and its notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$(node .github/scripts/next-version.mjs)"
+          if [ ! -f "docs/release-notes/$tag.md" ]; then
+            echo "::error::Merging this releases $tag, which has no notes yet: write them in docs/release-notes/$tag.md."
+            exit 1
+          fi
+          echo "::notice::Merging this releases $tag."
+
+      # The description as it is now, not as the event saw it: re-running the check after
+      # ticking a box sees the tick.
+      - name: The release checklist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$NUMBER" --jq '.body // ""' > description.md
+          node .github/scripts/release-checklist.mjs description.md

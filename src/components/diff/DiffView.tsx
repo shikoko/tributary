@@ -180,7 +180,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
             </span>
           )}
           {actor?.level ? <span className="diff-dir">{actor.level}</span> : slash > 0 && <span className="diff-dir">{path.slice(0, slash)}</span>}
-          <span className="diff-source">{target.label}</span>
+          <span className="diff-source"><span className="chip-text">{target.label}</span></span>
           {owners.length > 0 && (
             <span className="diff-source diff-owners" title={`Its owners, by CODEOWNERS: ${owners.join(", ")}`}>
               Owned by {describeOwners(owners)}
@@ -195,10 +195,10 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         {both && (
           <div className="diff-switch" role="group" aria-label="Show as">
             <button className={showMedia ? "selected" : undefined} onClick={() => setAsText(false)} aria-pressed={showMedia}>
-              3D
+              <span className="button-label">3D</span>
             </button>
             <button className={!showMedia ? "selected" : undefined} onClick={() => setAsText(true)} aria-pressed={!showMedia}>
-              Text
+              <span className="button-label">Text</span>
             </button>
           </div>
         )}
