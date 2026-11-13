@@ -21,7 +21,7 @@
 }
 
 .about-hero .logo-tile {
-  filter: drop-shadow(0 10px 24px rgb(0 0 0 / 0.35));
+  filter: drop-shadow(0 10px 24px rgb(0 0 0 / 0.35)); /* the logo's own shadow, in both themes */
 }
 
 .about-name {

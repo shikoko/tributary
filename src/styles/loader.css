@@ -47,7 +47,7 @@
 
 /* The commit glows as the light arrives. */
 .loader-glow {
-  fill: #ffad1f;
+  fill: #ffad1f; /* the logo's orange branch (Icons.tsx) */
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;

@@ -120,7 +120,7 @@
 .mark-glow {
   position: fixed;
   z-index: 14;
-  background: color-mix(in srgb, var(--mark) 35%, white);
+  background: color-mix(in srgb, var(--mark) 35%, white); /* a lighter tint of the mark's colour */
   box-shadow:
     0 0 3px 1px var(--mark),
     0 0 10px 3px var(--mark),

@@ -1,7 +1,7 @@
 /* Guided tours: the window dimmed but for what's being explained, a card beside it, and
    offers in the corner. --tour-color is the tour's own graph colour. */
 .tour {
-  --tour-dim: rgb(0 0 0 / 0.36);
+  --tour-dim: rgb(0 0 0 / 0.36); /* lighter than a dialog's scrim: the window stays readable */
   position: fixed;
   inset: 0;
   z-index: 80;

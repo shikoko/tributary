@@ -38,4 +38,17 @@ describe("the stylesheets", () => {
     const spacing = /(?<![-\w])(?:padding|margin|gap|row-gap|column-gap)(?:-[a-z-]+)?\s*:[^;{}]*?(?<![0-9.])(?:[2-9]|[1-9][0-9]+)(?:\.[0-9]+)?px[^;{}]*;(?![ \t]*\/\*)/g;
     expect(found(spacing)).toEqual([]);
   });
+
+  // Colours come from the theme (theme.css), so they change with it. One that's the same in
+  // every theme on purpose, like Windows' red close button, has its reason beside it. Masks
+  // are shapes, not colours.
+  it("colour things with the theme's colours", () => {
+    const raw = /#[0-9a-fA-F]{3,8}\b|rgba?\(\s*[0-9.]|hsla?\(|(?<![-\w])(?:white|black)(?![-\w])/;
+    const own = sheets
+      .filter(([name]) => name !== "theme.css")
+      .flatMap(([name, css]) => css.split("\n").map((line) => [name, line] as const))
+      .filter(([, line]) => !/^\s*(?:-webkit-)?mask/.test(line) && !line.includes("/*") && raw.test(line))
+      .map(([name, line]) => `${name}: ${line.trim()}`);
+    expect(own).toEqual([]);
+  });
 });
