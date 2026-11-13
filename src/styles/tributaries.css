@@ -4,7 +4,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 200px;
   align-items: center;
-  gap: 22px;
+  gap: var(--space-24);
 }
 
 .tributaries-streams {
@@ -308,7 +308,7 @@
   position: relative;
   grid-column: 1 / -1;
   height: 20px;
-  margin: 2px 0 8px;
+  margin: var(--space-2) 0 var(--space-8);
 }
 
 .tributaries-caption {
@@ -317,7 +317,7 @@
   top: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   height: 20px;
   color: var(--text-muted);
   font-size: var(--type-base);
@@ -387,7 +387,7 @@
 .tributaries-verdict {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: var(--space-10);
   min-width: 0;
 }
 

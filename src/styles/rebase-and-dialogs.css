@@ -2,20 +2,20 @@
 .welcome-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 .secondary-button.large {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   height: 40px;
-  padding: 0 16px;
+  padding: 0 var(--space-16);
   font-size: var(--type-md);
 }
 
 .welcome-hint {
-  margin: -4px 0 0;
+  margin: calc(var(--space-4) * -1) 0 0;
   color: var(--text-faint);
   font-size: var(--type-sm);
 }
@@ -23,15 +23,15 @@
 .recent-heading {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 .recent-filter {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   margin-left: auto;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   height: 26px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -53,19 +53,19 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
 }
 
 .recent-text .recent-name {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .recent-branch {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
   color: var(--text-muted);
   font-size: var(--type-sm);
   font-weight: 400;
@@ -93,7 +93,7 @@
 
 .recent-divider {
   height: 1px;
-  margin: 4px 0;
+  margin: var(--space-4) 0;
   background: var(--border);
 }
 
@@ -102,7 +102,7 @@
 }
 
 .recent-none {
-  padding: 8px 10px;
+  padding: var(--space-8) var(--space-10);
   text-align: left;
 }
 
@@ -113,7 +113,7 @@
 
 .field-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .field-row .text-input {
@@ -123,7 +123,7 @@
 
 .dialog .hint,
 .details .hint {
-  margin: 10px 0 0;
+  margin: var(--space-10) 0 0;
   color: var(--text-muted);
   font-size: var(--type-sm);
 }
@@ -135,8 +135,8 @@
 }
 
 .dialog-warning {
-  margin-top: 10px;
-  padding: 8px 10px;
+  margin-top: var(--space-10);
+  padding: var(--space-8) var(--space-10);
   border-radius: var(--radius-md);
   background: rgb(var(--warning-rgb) / 0.1);
   color: var(--warning-soft-text);
@@ -146,20 +146,20 @@
 .clone-progress {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-8);
   font-size: var(--type-sm);
 }
 
 textarea.text-input {
   height: auto;
-  padding: 8px 10px;
+  padding: var(--space-8) var(--space-10);
   resize: vertical;
   font-family: inherit;
 }
 
 /* Interactive rebase */
 .rebase-list {
-  margin: 12px 0 0;
+  margin: var(--space-12) 0 0;
   padding: 0;
   max-height: min(420px, 55vh);
   overflow-y: auto;
@@ -185,14 +185,14 @@ textarea.text-input {
 .rebase-main {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
   height: 38px;
-  padding: 0 10px 0 6px;
+  padding: 0 var(--space-10) 0 var(--space-6);
 }
 
 .rebase-grip {
   display: inline-flex;
-  padding: 4px 2px;
+  padding: var(--space-4) var(--space-2);
   color: var(--text-faint);
   cursor: grab;
   touch-action: none;
@@ -205,7 +205,7 @@ textarea.text-input {
 
 .rebase-action {
   height: 26px;
-  padding: 0 6px;
+  padding: 0 var(--space-6);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--bg-raised);
@@ -245,12 +245,12 @@ textarea.text-input {
 .rebase-message {
   display: block;
   width: calc(100% - 20px);
-  margin: 0 10px 10px;
+  margin: 0 var(--space-10) var(--space-10);
 }
 
 /* Several commits selected */
 .selected-commits {
-  margin: 14px 0 0;
+  margin: var(--space-14) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -258,7 +258,7 @@ textarea.text-input {
 .selected-commits li {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   height: 28px;
   font-size: var(--type-sm);
 }
@@ -287,7 +287,7 @@ textarea.text-input {
 .sha-link.inline {
   display: inline;
   height: auto;
-  padding: 0 2px;
+  padding: 0 var(--space-2);
   font-size: inherit;
 }
 
@@ -295,7 +295,7 @@ textarea.text-input {
 .setup-check {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .setup-summary {
@@ -317,8 +317,8 @@ textarea.text-input {
 .setup-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-14);
 }
 
 .setup-item + .setup-item {
@@ -354,7 +354,7 @@ textarea.text-input {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-4);
   min-width: 0;
   font-size: var(--type-base);
 }
@@ -365,7 +365,7 @@ textarea.text-input {
 }
 
 .setup-examples {
-  margin: 2px 0 0;
+  margin: var(--space-2) 0 0;
   padding: 0;
   color: var(--text-muted);
   font-size: var(--type-sm);
@@ -382,5 +382,5 @@ textarea.text-input {
   display: flex;
   flex: none;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-6);
 }

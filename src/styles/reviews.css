@@ -3,8 +3,8 @@
 .comment-box {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
+  gap: var(--space-8);
+  margin-top: var(--space-10);
 }
 
 .review-box textarea,
@@ -18,7 +18,7 @@ textarea.request-body.short {
 .review-buttons {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .review-buttons .spacer {
@@ -39,7 +39,7 @@ textarea.request-body.short {
 .request-conversation {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-20);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -47,7 +47,7 @@ textarea.request-body.short {
 
 .request-comment-body {
   position: relative;
-  padding-left: 40px;
+  padding-left: var(--space-40);
 }
 
 /* Beside the head's line (20px): its middle on the line's. */
@@ -59,14 +59,14 @@ textarea.request-body.short {
 }
 
 .request-comment.reply {
-  margin: -8px 0 0 40px;
-  padding: 12px 14px;
+  margin: calc(var(--space-8) * -1) 0 0 var(--space-40);
+  padding: var(--space-12) var(--space-14);
   border-radius: var(--radius-xl);
   background: var(--sunken);
 }
 
 .request-comment.reply .request-comment-body {
-  padding-left: 32px;
+  padding-left: var(--space-32);
 }
 
 .request-comment.reply .request-comment-avatar {
@@ -78,7 +78,7 @@ textarea.request-body.short {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 8px;
+  gap: var(--space-6) var(--space-8);
   min-height: 20px;
   font-size: var(--type-base);
 }
@@ -108,7 +108,7 @@ textarea.request-body.short {
   align-items: center;
   height: 20px;
   max-width: 260px;
-  padding: 0 7px;
+  padding: 0 var(--space-8);
   border-radius: var(--radius-md);
   background: rgb(var(--overlay-rgb) / 0.12);
   color: var(--text-secondary);
@@ -120,13 +120,13 @@ textarea.request-body.short {
 }
 
 .request-comment-text {
-  margin-top: 4px;
+  margin-top: var(--space-4);
 }
 
 /* The lines a comment is about. */
 .request-hunk {
-  margin: 8px 0 6px;
-  padding: 8px 10px;
+  margin: var(--space-8) 0 var(--space-6);
+  padding: var(--space-8) var(--space-10);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--bg);
@@ -147,14 +147,14 @@ textarea.request-body.short {
 }
 
 .request-reply {
-  margin: 6px 0 0 40px;
+  margin: var(--space-6) 0 0 var(--space-40);
   font-size: var(--type-sm);
 }
 
 .request-comment.reply .request-reply {
-  margin-left: 32px;
+  margin-left: var(--space-32);
 }
 
 .request-section > .comment-box {
-  margin-top: 22px;
+  margin-top: var(--space-24);
 }

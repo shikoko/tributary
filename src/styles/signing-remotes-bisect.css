@@ -2,7 +2,7 @@
 .signature-line {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   min-width: 0;
   cursor: help;
 }
@@ -10,9 +10,9 @@
 .signature-mark {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
   flex: none;
-  padding: 1px 8px 1px 6px;
+  padding: 1px var(--space-8) 1px var(--space-6);
   border: 1px solid;
   border-radius: var(--radius-pill);
   font-size: var(--type-sm);
@@ -53,14 +53,14 @@
 .signing-key {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 /* Remotes, in a repository's settings. */
 .remote-form {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-6);
   width: min(360px, 100%);
 }
 
@@ -69,7 +69,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 .remote-confirm {
@@ -93,7 +93,7 @@
 
 .bisect-button {
   height: 32px;
-  padding: 0 16px;
+  padding: 0 var(--space-16);
   border: 1px solid;
   border-radius: var(--radius-md);
   font-weight: 600;
@@ -117,8 +117,8 @@
 
 .bisect-tag {
   flex: none;
-  margin-right: 8px;
-  padding: 0 6px;
+  margin-right: var(--space-8);
+  padding: 0 var(--space-6);
   border-radius: var(--radius-sm);
   font-size: var(--type-xs);
   font-weight: 700;
@@ -150,8 +150,8 @@
 .bisect-ends {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 6px 12px;
-  margin: 0 0 12px;
+  gap: var(--space-6) var(--space-12);
+  margin: 0 0 var(--space-12);
 }
 
 .bisect-ends dt {
@@ -178,7 +178,7 @@
 .recent-state {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   flex: none;
   margin-left: auto;
 }
@@ -214,7 +214,7 @@
 .unity-tool {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .unity-tool .settings-select {
@@ -226,15 +226,15 @@
 .sparse-folders {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
   max-height: 240px;
   min-width: 240px;
-  padding: 6px 10px;
+  padding: var(--space-6) var(--space-10);
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
 
 .sparse-folder.nested {
-  padding-left: 20px;
+  padding-left: var(--space-20);
 }

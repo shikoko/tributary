@@ -12,8 +12,8 @@
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 14px;
+  gap: var(--space-12);
+  padding: var(--space-8) var(--space-14);
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
   font-size: var(--type-base);
@@ -36,8 +36,8 @@
 .conflict-segments {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 10px 14px 40px;
+  gap: var(--space-2);
+  padding: var(--space-10) var(--space-14) var(--space-40);
 }
 
 .conflict-clean,
@@ -55,14 +55,14 @@
 }
 
 .conflict-clean {
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   color: var(--text-muted);
 }
 
 .conflict-fold {
   align-self: flex-start;
-  margin: 2px 6px;
-  padding: 1px 8px;
+  margin: var(--space-2) var(--space-6);
+  padding: 1px var(--space-8);
   border: none;
   border-radius: var(--radius-sm);
   background: rgb(var(--overlay-rgb) / 0.05);
@@ -82,7 +82,7 @@
 }
 
 .conflict-card {
-  margin: 8px 0;
+  margin: var(--space-8) 0;
   border: 1px solid rgb(var(--warning-rgb) / 0.45);
   border-radius: var(--radius-lg);
   background: var(--bg-panel);
@@ -97,8 +97,8 @@
 .conflict-card-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 8px 6px 12px;
+  gap: var(--space-10);
+  padding: var(--space-6) var(--space-8) var(--space-6) var(--space-12);
   border-bottom: 1px solid var(--border);
   font-size: var(--type-sm);
 }
@@ -125,7 +125,7 @@
 
 .conflict-choices button {
   height: 24px;
-  padding: 0 9px;
+  padding: 0 var(--space-10);
   border: none;
   border-left: 1px solid var(--border-strong);
   background: transparent;
@@ -162,7 +162,7 @@
 }
 
 .conflict-side-label {
-  padding: 5px 10px 3px;
+  padding: var(--space-6) var(--space-10) var(--space-4);
   color: var(--text-muted);
   font-size: var(--type-xs);
   font-weight: 600;
@@ -171,7 +171,7 @@
 }
 
 .conflict-side-label span {
-  margin-left: 4px;
+  margin-left: var(--space-4);
   font-family: var(--mono);
   font-weight: 500;
   letter-spacing: 0;
@@ -179,7 +179,7 @@
 }
 
 .conflict-side pre {
-  padding: 2px 10px 8px;
+  padding: var(--space-2) var(--space-10) var(--space-8);
 }
 
 .conflict-side.mine pre {
@@ -199,7 +199,7 @@
 }
 
 .conflict-result {
-  padding: 6px 12px 8px;
+  padding: var(--space-6) var(--space-12) var(--space-8);
   background: rgb(var(--accent-rgb) / 0.05);
 }
 
@@ -210,26 +210,26 @@
 }
 
 .conflict-base {
-  padding: 4px 12px 8px;
+  padding: var(--space-4) var(--space-12) var(--space-8);
   border-top: 1px dashed var(--border);
   font-size: var(--type-sm);
 }
 
 .conflict-base pre {
-  margin-top: 4px;
+  margin-top: var(--space-4);
   color: var(--text-muted);
 }
 
 .conflict-edit {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px;
+  gap: var(--space-8);
+  padding: var(--space-8);
 }
 
 .conflict-textarea {
   width: 100%;
-  padding: 8px 10px;
+  padding: var(--space-8) var(--space-10);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--bg);
@@ -250,7 +250,7 @@
 .conflict-edit-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 /* Two commits or branches compared, in the details panel. */
@@ -258,14 +258,14 @@
 .compare-sides {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: var(--space-6);
+  margin-bottom: var(--space-12);
 }
 
 .compare-side {
   min-width: 0;
   overflow: hidden;
-  padding: 3px 8px;
+  padding: var(--space-4) var(--space-8);
   border-radius: var(--radius-md);
   background: var(--bg-raised);
   font-size: var(--type-sm);
@@ -283,17 +283,17 @@
 }
 
 .compare-how {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-12);
 }
 
 .compare-facts {
-  margin-bottom: 14px;
+  margin-bottom: var(--space-14);
   font-size: var(--type-base);
   line-height: 1.5;
 }
 
 .compare-facts p {
-  margin: 0 0 6px;
+  margin: 0 0 var(--space-6);
 }
 
 .compare-facts strong {

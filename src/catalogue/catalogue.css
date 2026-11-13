@@ -18,7 +18,7 @@
 .catalogue {
   height: 100vh;
   overflow: auto;
-  padding: 28px 32px 64px;
+  padding: var(--space-28) var(--space-32) var(--space-64);
   background: var(--bg);
   color: var(--text);
   font-size: var(--type-sm);
@@ -27,8 +27,8 @@
 .catalogue-head {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 8px;
+  gap: var(--space-14);
+  margin-bottom: var(--space-8);
 }
 
 .catalogue h1 {
@@ -39,12 +39,12 @@
 
 .catalogue-head p,
 .catalogue-section > p {
-  margin: 4px 0 0;
+  margin: var(--space-4) 0 0;
   color: var(--text-muted);
 }
 
 .catalogue-section {
-  padding: 22px 0;
+  padding: var(--space-24) 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -55,14 +55,14 @@
 }
 
 .catalogue h3 {
-  margin: 18px 0 8px;
+  margin: var(--space-20) 0 var(--space-8);
   font-size: var(--type-sm);
   font-weight: 600;
   color: var(--text-secondary);
 }
 
 .catalogue-section > p {
-  margin-bottom: 14px;
+  margin-bottom: var(--space-14);
 }
 
 .catalogue code {
@@ -78,7 +78,7 @@
 
 .catalogue code small {
   display: block;
-  margin-top: 3px;
+  margin-top: var(--space-4);
   font-family: var(--font);
 }
 
@@ -86,25 +86,25 @@
   display: grid;
   grid-template-columns: 200px 1fr;
   align-items: center;
-  gap: 16px;
-  padding: 7px 0;
+  gap: var(--space-16);
+  padding: var(--space-8) 0;
 }
 
 .catalogue-wrap {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 .catalogue-wrap + .catalogue-wrap {
-  margin-top: 12px;
+  margin-top: var(--space-12);
 }
 
 .catalogue-corner {
   display: grid;
   justify-items: center;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 .catalogue-corner > span {
@@ -117,13 +117,13 @@
 .catalogue-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 8px 14px;
+  gap: var(--space-8) var(--space-14);
 }
 
 .catalogue-colour {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   min-width: 0;
 }
 
@@ -150,20 +150,20 @@
 .catalogue-fields {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 14px 20px;
+  gap: var(--space-14) var(--space-20);
 }
 
 .catalogue-icons {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 .catalogue-icons > div {
   display: grid;
   justify-items: center;
-  gap: 6px;
-  padding: 10px 4px 8px;
+  gap: var(--space-6);
+  padding: var(--space-10) var(--space-4) var(--space-8);
   border-radius: var(--radius-md);
   color: var(--text);
 }

@@ -223,7 +223,7 @@ npm run notices
 | `src/components/ui/` | The parts the interface is built from: `Button`, `Switch`, `Field` and `Chip` |
 | `src/catalogue/` | The catalogue page (`?catalogue`): the building blocks together, dark and light |
 | `src/lib/` | Logic without an interface (search, selection, undo, paths, diagnostics, …), with its tests |
-| `src/styles/` | The styles, an area per file, applied in the order `src/styles.css` lists them. `theme.css` holds the colours and themes, and the scales for text (`--type-xs` to `--type-4xl`) and corners (`--radius-xs` to `--radius-pill`): sizes and corners use those steps, never their own pixels, which a test checks (`src/lib/styles.test.ts`). Keyboard focus shows the same ring everywhere (`--focus-ring`), which `src/lib/focus.test.ts` checks |
+| `src/styles/` | The styles, an area per file, applied in the order `src/styles.css` lists them. `theme.css` holds the colours and themes, and the scales for text (`--type-xs` to `--type-4xl`), corners (`--radius-xs` to `--radius-pill`) and space (`--space-2` to `--space-96`): sizes, corners, padding, margins and gaps use those steps, never their own pixels, which a test checks (`src/lib/styles.test.ts`). An offset that lines something up with something else can stay in pixels, with its reason in a comment beside it. Keyboard focus shows the same ring everywhere (`--focus-ring`), which `src/lib/focus.test.ts` checks |
 | `tools/preview/` | The browser preview, demo repositories and the smoke test |
 | `tools/e2e/` | End-to-end tests of the desktop app, through tauri-driver and WebDriver |
 | `tools/icons/` | Draws the app icon, light and dark, and renders it at every size |

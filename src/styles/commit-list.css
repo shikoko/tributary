@@ -23,13 +23,13 @@
 }
 
 .list-header > div {
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   white-space: nowrap;
   overflow: hidden;
 }
 
 .list-header .refs-heading {
-  padding-left: 14px;
+  padding-left: var(--space-14);
 }
 
 .list-scroller {
@@ -122,7 +122,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 
 .cell {
   min-width: 0;
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -138,7 +138,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
   z-index: 1;
   display: flex;
   justify-content: flex-end;
-  padding-right: 8px;
+  padding-right: var(--space-8);
 }
 
 .refs-cell .ref-pills {
@@ -206,13 +206,13 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 
 .change-counts {
   display: inline-flex;
-  gap: 4px;
-  margin-left: 10px;
+  gap: var(--space-4);
+  margin-left: var(--space-10);
   flex: none;
 }
 
 .change-count {
-  padding: 0 6px;
+  padding: 0 var(--space-6);
   border-radius: var(--radius-sm);
   font-family: var(--mono);
   font-size: var(--type-xs);
@@ -239,7 +239,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 .author {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   color: var(--text-secondary);
 }
 
@@ -265,7 +265,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 }
 
 .list-empty {
-  padding: 48px 24px;
+  padding: var(--space-48) var(--space-24);
   color: var(--text-muted);
   text-align: center;
 }
@@ -277,7 +277,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: var(--space-12);
   border-top: 1px solid var(--border);
   color: var(--text-muted);
 }
@@ -304,7 +304,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 
 .ref-pills {
   display: inline-flex;
-  gap: 4px;
+  gap: var(--space-4);
   min-width: 0;
   flex: none;
   max-width: 60%;
@@ -313,11 +313,11 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 .ref-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
   min-width: 0;
   max-width: 200px;
   height: 20px;
-  padding: 0 7px;
+  padding: 0 var(--space-8);
   border: 1px solid;
   border-radius: var(--radius-md);
   color: var(--text);
@@ -367,7 +367,7 @@ button.ref-pill.more:focus-visible {
 
 .ref-where {
   display: inline-flex;
-  gap: 2px;
+  gap: var(--space-2);
   opacity: 0.75;
 }
 
@@ -375,7 +375,7 @@ button.ref-pill.more:focus-visible {
 .ref-sync {
   display: inline-flex;
   flex: none;
-  gap: 3px;
+  gap: var(--space-4);
   margin-left: 1px;
   font-size: var(--type-xs);
   font-weight: 600;

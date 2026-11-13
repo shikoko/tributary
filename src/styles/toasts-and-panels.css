@@ -14,8 +14,8 @@
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
+  gap: var(--space-8);
+  padding: var(--space-10) var(--space-14);
   border: 1px solid rgb(var(--success-rgb) / 0.35);
   border-radius: var(--radius-lg);
   background: linear-gradient(rgb(var(--success-rgb) / 0.1), rgb(var(--success-rgb) / 0.1)) var(--bg);
@@ -67,7 +67,7 @@
   position: relative;
   right: auto;
   width: 5px;
-  margin: 0 -2px;
+  margin: 0 calc(var(--space-2) * -1);
   flex: none;
 }
 
