@@ -18,7 +18,6 @@ import {
   SearchIcon,
   SidebarIcon,
   TeamIcon,
-  ViewIcon,
 } from "./Icons";
 import { relativeTime } from "../lib/format";
 import { Button } from "./ui/Button";
@@ -69,7 +68,6 @@ interface Props {
   lastFetch: number | null;
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
-  onViewMenu: (anchor: HTMLElement) => void;
   /** Team activity: who's been working on what. */
   teamOpen: boolean;
   onToggleTeam: () => void;
@@ -83,7 +81,6 @@ interface Props {
 export function Toolbar(props: Props) {
   const { snapshot, running, ahead, behind, search, searchInput } = props;
   const pushMenuButton = useRef<HTMLButtonElement>(null);
-  const viewButton = useRef<HTMLButtonElement>(null);
   const openButton = useRef<HTMLButtonElement>(null);
   const commitCount = snapshot.commits.filter((c) => c.kind === "commit").length;
 
@@ -280,15 +277,6 @@ export function Toolbar(props: Props) {
           aria-pressed={props.teamOpen}
         >
           <TeamIcon />
-        </Button>
-        <Button
-          ref={viewButton}
-          kind="icon"
-          onClick={() => viewButton.current && props.onViewMenu(viewButton.current)}
-          title="View options"
-          aria-label="View options"
-        >
-          <ViewIcon />
         </Button>
         <Button
           kind="icon"

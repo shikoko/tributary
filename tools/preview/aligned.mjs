@@ -22,8 +22,9 @@ export const CONTROLS = [
   "[class*='chip']",
   "[class*='badge']",
   "[class*='pill']",
-  // The status bar's words, which line up with its buttons.
+  // The status bar's words, which line up with its buttons, and the commit list's column headings.
   ".status-item",
+  ".list-header > div",
 ].join(", ");
 
 /**
