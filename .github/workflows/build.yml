@@ -384,3 +384,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: .github/scripts/beta-channel.sh latest.json
+
+      # What everyone is offered now, read back the way Tributary reads it: the latest release
+      # is this one, its latest.json is this version's, every platform's file downloads, the
+      # update window's notes have no pictures, and the pictures on its page load. (The
+      # platforms are latest-json.mjs's.)
+      - name: Check what was published
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ needs.version.outputs.version }}
+        run: .github/scripts/check-release.sh "$TAG"
