@@ -1,8 +1,10 @@
 import { useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
-import { CloseIcon, Logo, PlusIcon } from "./Icons";
+import { CloseIcon, GitHubIcon, Logo, PlusIcon } from "./Icons";
+import { Button } from "./ui/Button";
 import { stepFocus } from "../lib/inputMode";
 import { growIn, shrinkAway } from "../lib/motion";
 import { isWindows, modKey } from "../lib/platform";
+import { openInBrowser, TRIBUTARY_ON_GITHUB } from "../lib/weblinks";
 import { WindowControls } from "./WindowControls";
 
 export interface Tab {
@@ -185,6 +187,9 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
       </button>
       <div className="tab-bar-fill" data-tauri-drag-region />
       {extra}
+      <Button kind="icon" className="tab-bar-github" onClick={() => openInBrowser(TRIBUTARY_ON_GITHUB)} title="Tributary on GitHub" aria-label="Tributary on GitHub" data-url={TRIBUTARY_ON_GITHUB}>
+        <GitHubIcon size={15} />
+      </Button>
       {isWindows && <WindowControls />}
     </div>
   );

@@ -2,14 +2,14 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { isBeta, type Updates } from "../lib/updates";
 import { relativeTime } from "../lib/format";
 import { useNow } from "../lib/useNow";
-import { openInBrowser } from "../lib/weblinks";
+import { openInBrowser, TRIBUTARY_ON_GITHUB } from "../lib/weblinks";
 import { Dialog } from "./Dialog";
 import { CheckIcon, DownloadIcon, ExternalLinkIcon, InfoIcon, Logo, NotesIcon, RefreshIcon, SparkleIcon, WarningIcon } from "./Icons";
 import { Button } from "./ui/Button";
 import { Switch } from "./ui/Switch";
 import { Chip } from "./ui/Chip";
 
-const SOURCE = "https://github.com/shikoko/tributary";
+const SOURCE = TRIBUTARY_ON_GITHUB;
 /** Opening About checks again when the last check is older than this. */
 const STALE = 10 * 60 * 1000;
 
