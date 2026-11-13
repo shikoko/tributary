@@ -201,6 +201,12 @@
   color: var(--text);
 }
 
+/* Graph line bends: a commit and its two branches, drawn as the graph draws them. */
+.bend-sample {
+  width: 58px;
+  height: 36px;
+}
+
 /* Checks on dots: a little merge in the graph's colours, its dot showing its checks. */
 .ci-dot-sample {
   /* The lane a little left of the middle, so the lane and the merged one are centred. */
