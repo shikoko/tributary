@@ -384,8 +384,8 @@
   height: 18px;
   padding: 0 var(--space-6);
   border-radius: var(--radius-xl);
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--accent-fill);
+  color: var(--on-accent-fill);
   font-size: var(--type-xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;

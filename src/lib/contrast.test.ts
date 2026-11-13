@@ -35,7 +35,10 @@ const COUNTS = [
 ];
 
 // Text on a solid colour, and the colour (and its hover) it's on.
-const ON_SOLID = [["--on-danger-solid", "--danger-solid", "--danger-solid-hover"]];
+const ON_SOLID = [
+  ["--on-danger-solid", "--danger-solid", "--danger-solid-hover"],
+  ["--on-accent-fill", "--accent-fill", "--accent-fill-2"],
+];
 
 /** `text`'s lowest contrast on the surfaces, in `theme`. */
 function lowest(theme: Record<string, string>, text: string): number {

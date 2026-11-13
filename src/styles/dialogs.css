@@ -297,8 +297,8 @@
   padding: 0 var(--space-14);
   border: none;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: var(--on-accent);
+  background: linear-gradient(135deg, var(--accent-fill), var(--accent-fill-2));
+  color: var(--on-accent-fill);
   font-weight: 600;
 }
 
