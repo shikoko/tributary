@@ -44,6 +44,15 @@ export function SidebarSection({ id, title, count, filtering, folding, action, e
   );
 }
 
+/** A small button beside a section's heading, with an icon for its face. */
+export function HeadingAction({ label, title = label, onClick, children }: { label: string; title?: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <button className="sidebar-heading-action" onClick={onClick} title={title} aria-label={label}>
+      {children}
+    </button>
+  );
+}
+
 interface TreeProps {
   /** Keeps folders of different sections apart. */
   id: string;
