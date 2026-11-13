@@ -98,6 +98,8 @@ export function RepoSettingsDialog({ name, path, automaticTracker, protectedBran
               value={draft.name}
               placeholder={identity?.globalName ?? "Your name"}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+              // Until what's set here is read, as reading it fills these in over what was typed.
+              disabled={identity === null}
               spellCheck={false}
               aria-label="Name for commits in this repository"
             />
@@ -112,6 +114,7 @@ export function RepoSettingsDialog({ name, path, automaticTracker, protectedBran
               value={draft.email}
               placeholder={identity?.globalEmail ?? "you@example.com"}
               onChange={(event) => setDraft({ ...draft, email: event.target.value })}
+              disabled={identity === null}
               spellCheck={false}
               autoCapitalize="off"
               aria-label="Email for commits in this repository"
