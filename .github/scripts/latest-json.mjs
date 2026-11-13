@@ -44,6 +44,9 @@ if (mac) {
   platforms["darwin-aarch64"] = mac;
   platforms["darwin-x86_64"] = mac;
 }
+// The AppImage, which replaces itself.
+const linux = signed(".AppImage");
+if (linux) platforms["linux-x86_64"] = linux;
 if (Object.keys(platforms).length === 0) {
   console.log("No signed installers (is the TAURI_SIGNING_PRIVATE_KEY secret set?): no latest.json.");
   process.exit(0);

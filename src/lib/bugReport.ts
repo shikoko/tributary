@@ -5,7 +5,7 @@ export const NEW_ISSUE = "https://github.com/shikoko/tributary/issues/new";
 const MAX_URL = 7000;
 
 /** The bug report form's System choices. */
-export type ReportSystem = "macOS" | "Windows" | "Linux (built from source)";
+export type ReportSystem = "macOS" | "Windows" | "Linux";
 
 /**
  * A new bug report on GitHub, filled in: its title and the form's fields (by their ids in

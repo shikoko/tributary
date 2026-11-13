@@ -28,7 +28,7 @@ if [ -z "$url" ] || ! curl -fsSL --retry 3 -o "$manifest" "$url"; then
 fi
 version=$(jq -r .version "$manifest")
 [ "$version" = "${tag#v}" ] || problem "latest.json says $version, not ${tag#v}."
-for platform in darwin-aarch64 darwin-x86_64 windows-x86_64 windows-x86_64-nsis; do
+for platform in darwin-aarch64 darwin-x86_64 windows-x86_64 windows-x86_64-nsis linux-x86_64; do
   file=$(jq -r --arg platform "$platform" '.platforms[$platform].url // empty' "$manifest")
   if [ -z "$file" ]; then
     problem "latest.json has nothing for $platform."

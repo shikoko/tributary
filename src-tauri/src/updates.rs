@@ -43,6 +43,12 @@ fn endpoints(beta: bool) -> Option<Vec<tauri::Url>> {
     })
 }
 
+/// Whether this copy can install an update: on Linux, only an AppImage (which sets `APPIMAGE`
+/// to its own path) can.
+fn can_update() -> bool {
+    !cfg!(target_os = "linux") || std::env::var_os("APPIMAGE").is_some()
+}
+
 /// A newer version that can be installed.
 #[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -95,6 +101,11 @@ pub async fn check<R: Runtime>(
     app: &AppHandle<R>,
     beta: bool,
 ) -> Result<Option<UpdateInfo>, Error> {
+    // On Linux an update replaces the AppImage it runs from: a copy built from source, or
+    // installed some other way, isn't offered one it couldn't install.
+    if !can_update() {
+        return Ok(None);
+    }
     let mut builder = app.updater_builder().timeout(Duration::from_secs(30));
     if let Some(urls) = endpoints(beta) {
         builder = builder.endpoints(urls).map_err(|e| e.to_string())?;
