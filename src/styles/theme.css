@@ -57,6 +57,11 @@
   --accent-rgb: 31 181 255;
   /* Where buttons' gradients end. */
   --accent-2: #4d7cff;
+  /* A button filled with the accent: deep enough for white text, which the bright accent
+     isn't (set from the accent you pick, in useAppearance; these are the default's). */
+  --accent-fill: #136e9b;
+  --accent-fill-2: #3c61c7;
+  --on-accent-fill: #ffffff;
   --accent-pair: #a77bff;
   --accent-pair-rgb: 167 123 255;
   --on-accent: #ffffff;

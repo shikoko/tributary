@@ -159,6 +159,8 @@ function readable(color: Rgb, background: Rgb, toward: Rgb, min = 4.5): Rgb {
 }
 
 const WHITE: Rgb = [255, 255, 255];
+/** White on a button's fill, at least: 4.5 to 1 once it brightens by 8% when pointed at. */
+export const FILL_CONTRAST = 5.2;
 const BLACK: Rgb = [0, 0, 0];
 const DARK_TEXT: Rgb = [228, 231, 238];
 const LIGHT_TEXT: Rgb = [27, 31, 38];
@@ -194,6 +196,10 @@ export function accentRoles(accent: string, theme: Theme): Record<string, string
     "--on-accent": onAccent,
     "--accent-ink": legible(color),
     "--accent-text": legible(text.text),
+    // A button filled with the accent: its colours deepened until white reads on them, with
+    // room to spare for the button brightening when it's pointed at.
+    "--accent-fill": toHex(readable(color, WHITE, BLACK, FILL_CONTRAST)),
+    "--accent-fill-2": toHex(readable(end, WHITE, BLACK, FILL_CONTRAST)),
     "--accent-soft-text": legible(text.soft),
     "--accent-strong-text": legible(text.strong),
   };
