@@ -40,10 +40,11 @@ const slug = (title) => title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
 const dataUrl = (png) => `data:image/png;base64,${png.toString("base64")}`;
 
 const preview = await startPreview({ port: 0, quiet: true });
-// Text drawn without the hinting the system asks for, which differs between machines (GitHub's
-// runners hint it slightly): hinted, a word can come out a pixel wider, and wrap or be cut
-// short sooner.
-const browser = await chromium.launch({ args: ["--font-render-hinting=none"] });
+// Drawn the same on any machine, whatever its own settings ask for (GitHub's runners' differ
+// from others'): text without hinting, which can make a word a pixel wider so it wraps or is
+// cut short sooner; letters shaded in grey, not in coloured LCD fringes; and colours as they
+// are, in sRGB.
+const browser = await chromium.launch({ args: ["--font-render-hinting=none", "--disable-lcd-text", "--force-color-profile=srgb"] });
 const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, deviceScaleFactor: 1, reducedMotion: "reduce" });
 const compare = await browser.newPage();
 const taken = new Set();
