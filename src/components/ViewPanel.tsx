@@ -36,7 +36,7 @@ function Segmented<T extends string>({ label, value, options, onChange }: { labe
     <div className="diff-switch view-segmented" role="group" aria-label={label}>
       {options.map((option) => (
         <button key={option.value} className={value === option.value ? "selected" : undefined} aria-pressed={value === option.value} onClick={() => onChange(option.value)}>
-          {option.label}
+          <span className="button-label">{option.label}</span>
         </button>
       ))}
     </div>
@@ -90,7 +90,7 @@ export function ViewPanel(props: Props) {
     return (
       <button key={key} className={`view-chip${on ? " on" : ""}`} aria-pressed={on} onClick={() => props.setColumns({ ...props.columns, [key]: !on })}>
         {on && <CheckIcon size={11} />}
-        {label}
+        <span className="button-label">{label}</span>
       </button>
     );
   };
@@ -190,7 +190,7 @@ export function ViewPanel(props: Props) {
         }}
       >
         <GearIcon size={13} />
-        More in Settings
+        <span className="button-label">More in Settings</span>
       </button>
     </div>
   );

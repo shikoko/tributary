@@ -219,7 +219,7 @@ export function CommitDetailsPanel(props: Props) {
                     disabled={!hasCommit(parent)}
                     title={hasCommit(parent) ? "Go to parent" : "Not loaded"}
                   >
-                    {shortId(parent)}
+                    <span className="button-label">{shortId(parent)}</span>
                   </button>
                 ))}
               </dd>
@@ -250,7 +250,7 @@ export function CommitDetailsPanel(props: Props) {
                 <div className="diff-switch files-layout" role="group" aria-label="Show the files">
                   {LAYOUTS.map((entry) => (
                     <button key={entry.value} className={layout === entry.value ? "selected" : undefined} aria-pressed={layout === entry.value} onClick={() => setLayout(entry.value)} title={entry.title}>
-                      {entry.label}
+                      <span className="button-label">{entry.label}</span>
                     </button>
                   ))}
                 </div>

@@ -14,6 +14,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { buildDemos, demoEnv, STUDIO_PULL_REQUEST_CONVERSATIONS, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
+import { describe as describeAligned, misaligned } from "./aligned.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
 
@@ -91,6 +92,22 @@ async function accessible(where, frame = page) {
     );
   }, ".refs-cell .ref-pill:not(.current)");
   expect(problems.length === 0, `${where}: ${[...new Set(problems)].slice(0, 6).join("; ")}`);
+  await centred(where, frame);
+}
+
+/**
+ * The words on what's on screen (buttons, menu items, tabs, chips, badges) sit in the middle
+ * of them, at every display scale (aligned.mjs). With ALIGNED=report, what isn't is listed at
+ * the end instead of failing the step.
+ */
+const offCentre = new Map();
+async function centred(where, frame = page) {
+  const found = describeAligned(await misaligned(frame));
+  if (process.env.ALIGNED === "report") {
+    for (const line of found) offCentre.set(line, [...(offCentre.get(line) ?? []), where]);
+    return;
+  }
+  expect(found.length === 0, `${where}: ${[...new Set(found)].slice(0, 6).join("; ")}`);
 }
 
 function expect(condition, message) {
@@ -1370,5 +1387,9 @@ try {
   rmSync(folder, { recursive: true, force: true });
 }
 
+if (offCentre.size > 0) {
+  console.log(`\nWords off the middle of their controls (${offCentre.size}):`);
+  for (const [line, where] of offCentre) console.log(`  ${line}  [${[...new Set(where)].join(", ")}]`);
+}
 console.log(failed ? `${failed} failed` : "All good");
 process.exit(failed ? 1 : 0);

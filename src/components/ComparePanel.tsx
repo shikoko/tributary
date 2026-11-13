@@ -72,10 +72,10 @@ export function ComparePanel({ comparing, onOpenFile, isShown, onSelect, hasComm
           </div>
           <div className="diff-switch compare-how" role="group" aria-label="Compare">
             <button className={split ? "selected" : undefined} aria-pressed={split} onClick={() => comparing.setSplit(true)} title={`What ${to.label} changed since the two split, like a pull request`}>
-              Since they split
+              <span className="button-label">Since they split</span>
             </button>
             <button className={!split ? "selected" : undefined} aria-pressed={!split} onClick={() => comparing.setSplit(false)} title={`Everything that's different between ${from.label} and ${to.label}`}>
-              Directly
+              <span className="button-label">Directly</span>
             </button>
           </div>
           {comparison && <Facts comparison={comparison} from={from.label} to={to.label} split={split} onSelect={onSelect} hasCommit={hasCommit} />}
@@ -123,7 +123,7 @@ function Facts({ comparison, from, to, split, onSelect, hasCommit }: { compariso
         <p className="muted">
           They split at{" "}
           <button className="sha-link" onClick={() => onSelect(splitAt)} disabled={!hasCommit(splitAt)} title={hasCommit(splitAt) ? "Go to that commit" : "Not loaded"}>
-            {shortId(splitAt)}
+            <span className="button-label">{shortId(splitAt)}</span>
           </button>
           {split ? `: the files below are ${to}'s changes since then.` : "."}
         </p>

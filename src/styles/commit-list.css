@@ -354,7 +354,11 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 
 .ref-name {
   min-width: 0;
-  overflow: hidden;
+  /* Trimmed to its capitals, so it sits in the middle (see .button-label), and clipped sideways
+     only: the tails of letters like "p" reach below the trimmed box. */
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
   text-overflow: ellipsis;
 }
 

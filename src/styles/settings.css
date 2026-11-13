@@ -65,6 +65,12 @@
   min-width: 0;
 }
 
+/* A section's name on its own, trimmed to its capitals so it sits in the middle (see
+   .button-label). One with a subtitle under it is left as two lines. */
+.settings-tab-text > span:only-child {
+  text-box: trim-both cap alphabetic;
+}
+
 .settings-tab-subtitle {
   overflow: hidden;
   color: var(--text-muted);
