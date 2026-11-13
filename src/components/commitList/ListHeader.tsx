@@ -1,7 +1,8 @@
-import { useRef } from "react";
+import { useRef, type RefObject } from "react";
 import { ViewIcon } from "../Icons";
 import { ResizeHandle } from "../ResizeHandle";
 import { Button } from "../ui/Button";
+import { isMac } from "../../lib/platform";
 import { clamp, MAX_DRAGGED_GRAPH_WIDTH, MAX_REFS_WIDTH, MIN_GRAPH_WIDTH, MIN_REFS_WIDTH, type ColumnOptions, type ColumnWidths, type VisibleColumns } from "./layout";
 
 interface Props {
@@ -17,16 +18,17 @@ interface Props {
   /** Room for the scrollbar on the right. */
   scrollbar: number;
   onContextMenu: (x: number, y: number) => void;
-  /** Opens the View panel under the button at the end of the headings. */
-  onViewMenu: (anchor: HTMLElement) => void;
+  /** The View button at the end of the headings, which the View panel opens under. */
+  viewButton: RefObject<HTMLButtonElement | null>;
+  /** Opens the View panel, or closes it. */
+  onViewMenu: () => void;
 }
 
 /**
  * The column headings, where the branch and graph columns can be dragged wider (double-click
  * resets them), and at their end the View button: how the list and its graph look.
  */
-export function ListHeader({ columns, visible, options, narrow, refsWidth, graphWidth, columnWidths, onColumnWidths, scrollbar, onContextMenu, onViewMenu }: Props) {
-  const view = useRef<HTMLButtonElement>(null);
+export function ListHeader({ columns, visible, options, narrow, refsWidth, graphWidth, columnWidths, onColumnWidths, scrollbar, onContextMenu, viewButton, onViewMenu }: Props) {
   /** Column widths when a drag started. */
   const dragStart = useRef({ refs: 0, graph: 0 });
   const startDrag = () => (dragStart.current = { refs: refsWidth, graph: graphWidth });
@@ -76,7 +78,7 @@ export function ListHeader({ columns, visible, options, narrow, refsWidth, graph
           <span className="list-heading-text">SHA</span>
         </div>
       )}
-      <Button ref={view} kind="icon" className="list-header-view" style={{ right: scrollbar }} onClick={() => view.current && onViewMenu(view.current)} title="View options" aria-label="View options">
+      <Button ref={viewButton} kind="icon" className="list-header-view" style={{ right: scrollbar }} onClick={onViewMenu} title={`View options (${isMac ? "⇧⌘O" : "Ctrl+Shift+O"})`} aria-label="View options">
         <ViewIcon size={14} />
       </Button>
     </div>

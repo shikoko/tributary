@@ -97,6 +97,10 @@ export default function App() {
   /** The team activity view, over the commit list. */
   const [teamOpen, setTeamOpen] = useState(false);
   const closeTeam = useCallback(() => setTeamOpen(false), []);
+  /** The View panel: how the window looks, under the View button at the end of the column headings. */
+  const [viewOpen, setViewOpen] = useState(false);
+  const closeView = useCallback(() => setViewOpen(false), []);
+  const toggleView = useCallback(() => setViewOpen((open) => !open), []);
   /** A pull request shown over the commit list. */
   const [shownRequest, setShownRequest] = useState<PullRequest | null>(null);
   const closeRequest = useCallback(() => setShownRequest(null), []);
@@ -357,6 +361,7 @@ export default function App() {
       showAllBranches: settings.showAllBranches,
       highlightMine: highlight.highlightMine,
       team: () => setTeamOpen((open) => !open),
+      viewOptions: toggleView,
       resetLayout: () => {
         preferences.setColumnWidths({ refs: null, graph: null });
         preferences.setColumnOptions(DEFAULT_COLUMNS);
@@ -394,6 +399,7 @@ export default function App() {
     toggleSidebar: () => preferences.setSidebarOpen((open) => !open),
     toggleActivity: () => preferences.setActivityOpen((open) => !open),
     toggleTeam: () => setTeamOpen((open) => !open),
+    toggleView: () => snapshot && toggleView(),
     zoom: zoomBy,
     showShortcuts: () => overlays.show("shortcuts"),
     openMenuBar: menuBar.openFirst,
@@ -509,6 +515,9 @@ export default function App() {
               teamOpen={teamOpen}
               onCloseTeam={closeTeam}
               onToggleTeam={() => setTeamOpen((open) => !open)}
+              viewOpen={viewOpen}
+              onToggleView={toggleView}
+              onCloseView={closeView}
               request={shownRequest}
               onShowRequest={showRequest}
               onCloseRequest={closeRequest}

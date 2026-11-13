@@ -14,6 +14,7 @@ const SHORTCUTS: [string, string][] = [
   [`${modKey}B`, "Show or hide the branch sidebar"],
   [isMac ? "⇧⌘L" : "Ctrl+Shift+L", "Show or hide the activity log (the git commands Tributary ran)"],
   [isMac ? "⇧⌘T" : "Ctrl+Shift+T", "Show or hide team activity (who's been working on what)"],
+  [isMac ? "⇧⌘O" : "Ctrl+Shift+O", "Show or hide the View options (theme, graph, columns, rows)"],
   [`${modKey}Enter`, "Commit, in the commit message box"],
   [`${modKey}+ / ${modKey}− / ${modKey}0`, "Zoom in, zoom out, actual size"],
   ["↑ ↓ Page Up/Down Home End", "Move through commits"],

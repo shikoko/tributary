@@ -1,7 +1,7 @@
 import { open as openFile } from "@tauri-apps/plugin-dialog";
 import type { Action, CommitRow, InstalledApp, RepoSnapshot } from "../api";
 import { WORKTREE_ID } from "../api";
-import { BranchIcon, BroomIcon, CheckIcon, CloneIcon, CloseIcon, CodeIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, FetchIcon, FileHistoryIcon, FolderIcon, GearIcon, HistoryIcon, IgnoreIcon, InfoIcon, KeyboardIcon, LockIcon, NewRepoIcon, NotesIcon, PlusIcon, PullIcon, PullRequestIcon, PushIcon, RecoverIcon, RefreshIcon, SearchIcon, ShelfIcon, StashIcon, TagIcon, TerminalIcon } from "../components/Icons";
+import { BranchIcon, BroomIcon, CheckIcon, CloneIcon, CloseIcon, CodeIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, FetchIcon, FileHistoryIcon, FolderIcon, GearIcon, HistoryIcon, IgnoreIcon, InfoIcon, KeyboardIcon, LockIcon, NewRepoIcon, NotesIcon, PlusIcon, PullIcon, PullRequestIcon, PushIcon, RecoverIcon, RefreshIcon, SearchIcon, ShelfIcon, StashIcon, TagIcon, TerminalIcon, ViewIcon } from "../components/Icons";
 import type { NativeMenu } from "../lib/nativeMenu";
 import { isMac } from "../lib/platform";
 import { newPullRequestUrl, openInBrowser, siteName, webRemote } from "../lib/weblinks";
@@ -51,6 +51,8 @@ export interface MenuBarContext {
     showAllBranches: () => void;
     highlightMine: () => void;
     team: () => void;
+    /** The View panel, under the View button at the end of the column headings. */
+    viewOptions: () => void;
     resetLayout: () => void;
     refresh: () => void;
     act: (action: Action, kind?: Exclude<Running, null>) => void;
@@ -167,6 +169,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           { id: "mine", label: "Highlight My Commits", checked: ctx.highlightingMine, enabled: Boolean(snapshot.user), run: run.highlightMine },
           { id: "team", label: "Team Activity", keys: "CmdOrCtrl+Shift+T", checked: ctx.teamOpen, run: run.team },
           "-",
+          { id: "view-options", label: "View Options…", keys: "CmdOrCtrl+Shift+O", icon: <ViewIcon />, keywords: "theme accent graph columns rows appearance look", run: run.viewOptions },
           { id: "day-separators", label: "Day Separators", checked: daySeparators, run: () => setDaySeparators(!daySeparators) },
           { id: "dense", label: "Compact Rows", checked: dense, run: () => setDense(!dense) },
           ...settingCommands.slice(0, 2),
