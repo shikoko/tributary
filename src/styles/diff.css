@@ -200,6 +200,8 @@
 }
 
 .hunk-button {
+  display: inline-flex;
+  align-items: center;
   height: 20px;
   padding: 0 var(--space-8);
   border: 1px solid var(--border-strong);

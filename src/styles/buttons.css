@@ -32,6 +32,11 @@
   white-space: nowrap;
 }
 
+/* Its words, trimmed to their capitals so they sit in the middle (see .button-label). */
+.tool-button .label {
+  text-box: trim-both cap alphabetic;
+}
+
 .tool-button:hover:not(:disabled) {
   border-color: var(--border-hover);
   color: var(--text);

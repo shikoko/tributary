@@ -195,10 +195,10 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         {both && (
           <div className="diff-switch" role="group" aria-label="Show as">
             <button className={showMedia ? "selected" : undefined} onClick={() => setAsText(false)} aria-pressed={showMedia}>
-              3D
+              <span className="button-label">3D</span>
             </button>
             <button className={!showMedia ? "selected" : undefined} onClick={() => setAsText(true)} aria-pressed={!showMedia}>
-              Text
+              <span className="button-label">Text</span>
             </button>
           </div>
         )}

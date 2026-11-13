@@ -351,8 +351,12 @@
   gap: var(--space-6);
 }
 
+/* A commit's short SHA as a link: its letters trimmed (.button-label) and in its middle. */
 .sha-link {
-  padding: 1px var(--space-6);
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--space-6);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--bg-raised);
@@ -488,7 +492,11 @@
 
 .file-folder-name {
   min-width: 0;
-  overflow: hidden;
+  /* Trimmed to its capitals, so it sits in the middle (see .button-label), and clipped sideways
+     only: the tails of letters like "p" reach below the trimmed box. */
+  overflow-x: clip;
+  overflow-y: visible;
+  text-box: trim-both cap alphabetic;
   white-space: nowrap;
   text-overflow: ellipsis;
   /* Like a file's folder, a long one is cut at its start: its last folders tell it apart. */

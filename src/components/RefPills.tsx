@@ -72,11 +72,11 @@ export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocu
               onMore(hidden, event.clientX, event.clientY);
             }}
           >
-            +{hidden.length}
+            <span className="ref-name">+{hidden.length}</span>
           </span>
         ) : (
           <span className="ref-pill more" title={hidden.map(describePill).join("\n")}>
-            +{hidden.length}
+            <span className="ref-name">+{hidden.length}</span>
           </span>
         ))}
     </span>

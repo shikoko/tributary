@@ -137,7 +137,7 @@ export function TeamView({ repoPath, version, user, locks, overlaps, onClose, on
         <div className="diff-switch" role="group" aria-label="Period">
           {PERIODS.map((period) => (
             <button key={period} className={days === period ? "selected" : undefined} aria-pressed={days === period} onClick={() => setDays(period)}>
-              {period} days
+              <span className="button-label">{period} days</span>
             </button>
           ))}
         </div>
