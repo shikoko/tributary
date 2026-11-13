@@ -12,7 +12,9 @@ import { CommitChecks } from "./CommitChecks";
 import { MentionedIssues } from "./MentionedIssues";
 import { MessageText } from "./MessageText";
 import { RefPills } from "./RefPills";
-import { FileLine } from "./FileLine";
+import { FileLine, FolderLine } from "./FileLine";
+import { fileTreeRows } from "../lib/fileTree";
+import { useStoredState } from "../lib/settings";
 import { FileFilter, FileList } from "./FileList";
 import { ActorNames, useActorNames } from "../lib/actorNames";
 import { FILTER_FROM, filterFiles } from "../lib/fileFilter";
@@ -100,6 +102,28 @@ export function CommitDetailsPanel(props: Props) {
   // Unreal actors among the files, named as they are in the editor.
   const actors = useActorNames(repoPath, commit.id, null, details?.files);
   const files = useMemo(() => filterFiles(highlightedFirst(details?.files ?? [], isHighlighted), query, actors), [details, isHighlighted, query, actors]);
+  // The files as a list, or as a tree of their folders (remembered); a new commit starts with every folder open.
+  const [layout, setLayout] = useStoredState<FilesLayout>("files.layout", "list");
+  const [closedFolders, setClosedFolders] = useState({ id: commit.id, paths: new Set<string>() });
+  const closed = closedFolders.id === commit.id ? closedFolders.paths : NONE_CLOSED;
+  const toggleFolder = (path: string) => {
+    const next = new Set(closed);
+    if (next.has(path)) next.delete(path);
+    else next.add(path);
+    setClosedFolders({ id: commit.id, paths: next });
+  };
+  const rows = useMemo(() => (layout === "tree" ? fileTreeRows(files, closed) : null), [layout, files, closed]);
+  const fileLine = (file: FileChange, depth?: number) => (
+    <FileLine
+      file={file}
+      depth={depth}
+      highlighted={isHighlighted?.(file.path) || (file.oldPath ? isHighlighted?.(file.oldPath) : false)}
+      lock={lockOf?.(file.path)}
+      onContextMenu={onFileMenu}
+      onOpen={onOpenFile}
+      shown={isShown?.(file.path)}
+    />
+  );
   const author: Person = details?.author ?? {
     name: commit.authorName,
     email: commit.authorEmail,
@@ -222,6 +246,15 @@ export function CommitDetailsPanel(props: Props) {
               <h3>Changed files</h3>
               {details && <span className="details-section-note">{details.files.length.toLocaleString()}</span>}
               {commit.parents.length > 1 && <span className="details-section-note">· compared to the first parent</span>}
+              {details && details.files.length > 1 && (
+                <div className="diff-switch files-layout" role="group" aria-label="Show the files">
+                  {LAYOUTS.map((entry) => (
+                    <button key={entry.value} className={layout === entry.value ? "selected" : undefined} aria-pressed={layout === entry.value} onClick={() => setLayout(entry.value)} title={entry.title}>
+                      {entry.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {current.error ? (
               <div className="details-error">{current.error}</div>
@@ -232,20 +265,15 @@ export function CommitDetailsPanel(props: Props) {
             ) : (
               <>
                 {details.files.length > FILTER_FROM && <FileFilter value={query} onChange={setQuery} shown={files.length} total={details.files.length} />}
-                <FileList
-                  items={files}
-                  keyOf={(file) => `${file.status}:${file.oldPath ?? ""}:${file.path}`}
-                  render={(file) => (
-                    <FileLine
-                      file={file}
-                      highlighted={isHighlighted?.(file.path) || (file.oldPath ? isHighlighted?.(file.oldPath) : false)}
-                      lock={lockOf?.(file.path)}
-                      onContextMenu={onFileMenu}
-                      onOpen={onOpenFile}
-                      shown={isShown?.(file.path)}
-                    />
-                  )}
-                />
+                {rows ? (
+                  <FileList
+                    items={rows}
+                    keyOf={(row) => (row.kind === "folder" ? `folder:${row.path}` : `${row.file.status}:${row.file.oldPath ?? ""}:${row.file.path}`)}
+                    render={(row) => (row.kind === "folder" ? <FolderLine row={row} onToggle={() => toggleFolder(row.path)} /> : fileLine(row.file, row.depth))}
+                  />
+                ) : (
+                  <FileList items={files} keyOf={(file) => `${file.status}:${file.oldPath ?? ""}:${file.path}`} render={(file) => fileLine(file)} />
+                )}
                 {files.length === 0 && <div className="muted">No files match “{query.trim()}”.</div>}
               </>
             )}
@@ -255,6 +283,13 @@ export function CommitDetailsPanel(props: Props) {
     </ActorNames.Provider>
   );
 }
+
+type FilesLayout = "list" | "tree";
+const LAYOUTS: { value: FilesLayout; label: string; title: string }[] = [
+  { value: "list", label: "List", title: "Every file, with its folder beside it" },
+  { value: "tree", label: "Tree", title: "In their folders, one inside another" },
+];
+const NONE_CLOSED: ReadonlySet<string> = new Set();
 
 function PersonLine({ role, person, exact }: { role: string; person: Person; exact: boolean }) {
   return (

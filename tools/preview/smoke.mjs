@@ -803,6 +803,28 @@ try {
     expect(["SM_Bench_Old", "SM_Bench_Long", "PointLight_Hearth", "BP_Fireplace"].every((name) => listed.includes(name)), listed.join(", "));
   });
 
+  await step("shows a commit's files in a tree of their folders, and closes one", async () => {
+    // The fireplace commit, from the step before: actors in the level's folders, the folders
+    // with nothing else in them joined into one row, with what changed inside it.
+    const files = page.locator(".details .files");
+    await files.getByRole("button", { name: "Tree", exact: true }).click();
+    const top = files.locator(".file-folder-toggle").first();
+    await top.waitFor({ timeout: 5000 });
+    const said = await top.evaluate((button) => `${button.querySelector(".file-folder-name").textContent}: ${document.getElementById(button.getAttribute("aria-describedby")).textContent}`);
+    expect(/^Content\/__ExternalActors__\/Maps\/Tavern: .*\d+ changed/.test(said), `said "${said}"`);
+    const open = await files.locator(".file").count();
+    expect(open > 2, `${open} rows`);
+    await files.locator(".file-name.actor", { hasText: "SM_Bench_Long" }).waitFor({ timeout: 5000 });
+    await accessible("a commit's files as a tree");
+    await top.click();
+    expect((await top.getAttribute("aria-expanded")) === "false" && (await files.locator(".file").count()) === 1, "closed");
+    await top.click();
+    expect((await files.locator(".file").count()) === open, "open again");
+    // Back to the list, which the steps after expect (the choice is remembered).
+    await files.getByRole("button", { name: "List", exact: true }).click();
+    await top.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("shows a sound, a video, a Blender file's preview and a 3D model as what they are", async () => {
     await row("A slower door with a longer creak").click();
     await page.locator(".details .file", { hasText: "DoorCreak.wav" }).click();

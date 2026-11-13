@@ -1,11 +1,12 @@
-import type { ReactNode } from "react";
+import { useId, type CSSProperties, type ReactNode } from "react";
 import type { FileChange, Lock, Overlap } from "../api";
 import { describeActor, useActorName } from "../lib/actorNames";
 import { overlapTitle } from "../lib/elsewhere";
 import { lockOwner } from "../lib/locks";
 import { relativeTime } from "../lib/format";
 import { FileKindIcon } from "./FileKindIcon";
-import { BranchIcon, LockIcon } from "./Icons";
+import { BranchIcon, ChevronRightIcon, FolderIcon, LockIcon } from "./Icons";
+import type { FolderRow } from "../lib/fileTree";
 
 /** Each status's letter, and its colour role in the stylesheet (--added, --added-rgb, …). */
 const STATUS: Record<FileChange["status"], { letter: string; role: string; label: string }> = {
@@ -35,6 +36,8 @@ interface FileLineProps {
   onOpen?: (file: FileChange) => void;
   /** Its changes are the ones shown. */
   shown?: boolean;
+  /** In a tree, this many folders in: its name alone, indented (its folder is above it). */
+  depth?: number;
 }
 
 /** "Locked by you" or "Locked by rosa 2 days ago". */
@@ -43,7 +46,8 @@ export function lockTitle(lock: Lock): string {
   return `Locked by ${lockOwner(lock)}${Number.isNaN(when) ? "" : ` ${relativeTime(when / 1000)}`}`;
 }
 
-export function FileLine({ file, action, choices, lock, highlighted, onContextMenu, elsewhere, onOpen, shown }: FileLineProps) {
+export function FileLine({ file, action, choices, lock, highlighted, onContextMenu, elsewhere, onOpen, shown, depth }: FileLineProps) {
+  const inTree = depth !== undefined;
   const status = STATUS[file.status];
   // Untracked folders are listed as "dir/" when everything inside them is new.
   const isFolder = file.path.endsWith("/");
@@ -54,12 +58,13 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
   const actor = useActorName(file.path);
   const actorName = actor && (actor.label ?? actor.class);
   const name = actorName ?? path.slice(slash + 1) + (isFolder ? "/" : "");
-  const dir = actor && actorName ? [actor.label && actor.class, actor.level].filter(Boolean).join(" · ") : slash >= 0 ? path.slice(0, slash) : "";
+  const dir = actor && actorName ? [actor.label && actor.class, actor.level].filter(Boolean).join(" · ") : slash >= 0 && !inTree ? path.slice(0, slash) : "";
   const title = `${file.oldPath ? `${status.label}: ${file.oldPath} → ${file.path}` : `${status.label}: ${file.path}`}${actor && actorName ? `\n${describeActor(actor)}` : ""}`;
   const open = onOpen && !isFolder ? () => onOpen(file) : undefined;
   return (
     <li
-      className={`file${highlighted ? " highlighted" : ""}${choices ? " with-choices" : ""}${open ? " openable" : ""}${shown ? " shown" : ""}`}
+      className={`file${highlighted ? " highlighted" : ""}${choices ? " with-choices" : ""}${open ? " openable" : ""}${shown ? " shown" : ""}${inTree ? " in-tree" : ""}`}
+      style={inTree ? ({ "--depth": depth } as CSSProperties) : undefined}
       title={lock ? `${title}\n${lockTitle(lock)}` : title}
       tabIndex={open ? 0 : undefined}
       aria-current={shown || undefined}
@@ -127,6 +132,36 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
           {action.icon}
         </button>
       )}
+    </li>
+  );
+}
+
+/**
+ * A folder in the changed files' tree: open or closed (a click), with how many of the files
+ * in it were added, changed and deleted.
+ */
+export function FolderLine({ row, onToggle }: { row: FolderRow; onToggle: () => void }) {
+  const { added, changed, deleted } = row.counts;
+  // Shown as "+2 −1", read out as words ("2 added, 1 deleted") after the folder's name.
+  const said = [added > 0 && `${added.toLocaleString()} added`, changed > 0 && `${changed.toLocaleString()} changed`, deleted > 0 && `${deleted.toLocaleString()} deleted`];
+  const countsId = useId();
+  return (
+    <li className="file in-tree file-folder" style={{ "--depth": row.depth } as CSSProperties}>
+      <span id={countsId} hidden>
+        {said.filter(Boolean).join(", ")}
+      </span>
+      <button className="file-folder-toggle" aria-expanded={row.open} aria-describedby={countsId} onClick={onToggle} title={row.path}>
+        <ChevronRightIcon size={12} className={`file-folder-chevron${row.open ? " open" : ""}`} />
+        <FolderIcon size={14} className="file-folder-icon" />
+        <span className="file-folder-name">
+          <bdi>{row.name}</bdi>
+        </span>
+        <span className="file-folder-counts" aria-hidden="true">
+          {added > 0 && <span className="added">+{added.toLocaleString()}</span>}
+          {changed > 0 && <span className="changed">~{changed.toLocaleString()}</span>}
+          {deleted > 0 && <span className="deleted">−{deleted.toLocaleString()}</span>}
+        </span>
+      </button>
     </li>
   );
 }
