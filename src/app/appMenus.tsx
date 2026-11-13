@@ -107,7 +107,7 @@ const IN_APP_MENU = new Set(["about"]);
 export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
   const { snapshot, preferences } = ctx;
   const { previews, setPreviews, profilePictures, setProfilePictures, fetchMinutes, autoFetch, setAutoFetch } = preferences;
-  const { reopenTabs, setReopenTabs, zoom, sidebarOpen, setSidebarOpen, activityOpen, setActivityOpen } = preferences;
+  const { zoom, sidebarOpen, setSidebarOpen, activityOpen, setActivityOpen } = preferences;
   const { firstParentOnly, setFirstParentOnly, daySeparators, setDaySeparators, dense, setDense, simpleMode, setSimpleMode } = preferences;
   const run = ctx.do;
   const fileCommands = startCommands(ctx);
@@ -123,7 +123,6 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
     { id: "previews", label: "Previews on Hover", checked: previews, run: () => setPreviews(!previews) },
     { id: "pictures", label: "Profile Pictures (GitHub, GitLab, Gravatar)", checked: profilePictures, run: () => setProfilePictures(!profilePictures) },
     { id: "auto-fetch", label: `Fetch Every ${fetchMinutes === 1 ? "Minute" : `${fetchMinutes} Minutes`}`, checked: autoFetch, run: () => setAutoFetch(!autoFetch) },
-    { id: "reopen", label: "Reopen Tabs on Launch", checked: reopenTabs, run: () => setReopenTabs(!reopenTabs) },
   ];
 
   /** The menu bar: on macOS the system's own, elsewhere one in the tab bar. */
@@ -278,7 +277,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           settingCommands[2],
         ],
       },
-      { label: "Help", entries: [...helpCommands, "-", settingCommands[3], "-", ...aboutCommands] },
+      { label: "Help", entries: [...helpCommands, "-", ...aboutCommands] },
     ];
   };
   return menus();

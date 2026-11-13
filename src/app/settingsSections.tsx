@@ -80,7 +80,13 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
           value: !preferences.skipIgnoreIntro,
           set: (shown) => preferences.setSkipIgnoreIntro(!shown),
         },
-        { kind: "toggle", label: "Reopen tabs on launch", value: reopenTabs, set: setReopenTabs },
+        {
+          kind: "toggle",
+          label: "Reopen tabs on launch",
+          hint: "The repositories you had open when you last quit open again.",
+          value: reopenTabs,
+          set: setReopenTabs,
+        },
         ...apps,
         {
           kind: "select",
