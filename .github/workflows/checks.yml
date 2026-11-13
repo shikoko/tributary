@@ -293,10 +293,6 @@ jobs:
       - name: Desktop tests
         run: npm run e2e
 
-      - name: Why the app didn't start (temporary)
-        if: failure()
-        run: .github/scripts/e2e-debug.sh
-
       # A screenshot of the window for each step that failed.
       - name: Keep the screenshots of what failed
         if: failure()
