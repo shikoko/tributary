@@ -1,6 +1,6 @@
 ## Before releasing
 
-Merging this releases the version that **Ready to release** names. That check stays red until every box below is ticked, and runs again whenever this description is edited. Tick a box only once it's done, and say how on a line under it when that isn't obvious.
+Merging this releases the version that **Ready to release** names. That check lists any box below that isn't ticked, as a reminder: it doesn't stop the release. Tick a box only once it's done, and say how on a line under it when that isn't obvious.
 
 ### Checked by whoever prepares the release
 

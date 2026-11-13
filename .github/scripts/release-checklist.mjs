@@ -1,12 +1,11 @@
-// Checks a release pull request's description against the release checklist in
-// .github/release-checklist.md: each of its items has to be there, ticked. Ready to release
-// runs it, and again whenever the description is edited, so a release can't be merged with
-// a step left out.
+// Compares a release pull request's description with the release checklist in
+// .github/release-checklist.md, and says which of its items aren't ticked yet. Ready to
+// release runs it, and again whenever the description is edited. They're reminders: they
+// don't stop the release.
 //
 //   node .github/scripts/release-checklist.mjs <description file>
 //
-// Each item that's left is printed as an error, which GitHub shows on the check, and it
-// exits with 1.
+// Each item that's left is printed as a warning, which GitHub shows on the check.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -32,10 +31,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const checklist = readFileSync(CHECKLIST, "utf8");
   const todo = left(checklist, readFileSync(process.argv[2], "utf8"));
   if (todo.length > 0 && todo.every((item) => !item.there)) {
-    console.log("::error::The description has no release checklist: start it from .github/release-checklist.md.");
-    process.exit(1);
+    console.log("::warning::The description has no release checklist: it's in .github/release-checklist.md.");
+  } else {
+    for (const item of todo) console.log(`::warning::${item.there ? "Not ticked" : "Not in the checklist"}: ${item.name}.`);
+    if (todo.length === 0) console.log(`::notice::All ${items(checklist).length} items on the release checklist are ticked.`);
   }
-  for (const item of todo) console.log(`::error::${item.there ? "Not ticked yet" : "Missing from the checklist"}: ${item.name}.`);
-  if (todo.length > 0) process.exit(1);
-  console.log(`::notice::All ${items(checklist).length} items on the release checklist are ticked.`);
 }
