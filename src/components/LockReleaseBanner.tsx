@@ -31,7 +31,7 @@ export function LockReleaseBanner({ locks, busy, onRelease, onKeep, onAlways }: 
         Always
       </Button>
       <button className="notice-action" onClick={onRelease} disabled={busy}>
-        Release {locks.length === 1 ? "lock" : "locks"}
+        <span className="button-label">Release {locks.length === 1 ? "lock" : "locks"}</span>
       </button>
       <Button kind="icon" onClick={onKeep} aria-label="Keep them" title="Keep them">
         <CloseIcon size={14} />
