@@ -804,6 +804,10 @@ button.commit-check-row:hover svg {
 }
 
 /* Shows a pull request the commit mentions in the app, beside its link to the site. */
+/* Show, beside the state chip: its words the chip's size, which puts them in the middle on
+   Windows at 100% too. There, letters land on whole screen pixels: at 12px their capitals are
+   9 pixels tall, which can't sit in the middle of the 20 inside the button (they were a pixel
+   low), while 11px capitals are 8, as the chip's are, with 6 above and 6 below. */
 .mentioned-issue-show {
   display: inline-flex;
   flex: none;
@@ -815,7 +819,7 @@ button.commit-check-row:hover svg {
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
-  font-size: var(--type-sm);
+  font-size: var(--type-xs);
 }
 
 .mentioned-issue-show:hover {
