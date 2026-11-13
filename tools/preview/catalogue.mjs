@@ -40,7 +40,10 @@ const slug = (title) => title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
 const dataUrl = (png) => `data:image/png;base64,${png.toString("base64")}`;
 
 const preview = await startPreview({ port: 0, quiet: true });
-const browser = await chromium.launch();
+// Text drawn without the hinting the system asks for, which differs between machines (GitHub's
+// runners hint it slightly): hinted, a word can come out a pixel wider, and wrap or be cut
+// short sooner.
+const browser = await chromium.launch({ args: ["--font-render-hinting=none"] });
 const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, deviceScaleFactor: 1, reducedMotion: "reduce" });
 const compare = await browser.newPage();
 const taken = new Set();
