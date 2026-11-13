@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { commitDetails, type CommitDetails, type CommitRow, type CommitSignature, type FileChange, type Lock, type Person, type WebRemote } from "../api";
 import { useThemeColors } from "../app/useAppearance";
 import { laneColor } from "../lib/colors";
@@ -10,6 +10,8 @@ import { CheckIcon, CloseIcon, CopyIcon, KeyIcon } from "./Icons";
 import { describeSignature } from "../lib/signatures";
 import { CommitChecks } from "./CommitChecks";
 import { MentionedIssues } from "./MentionedIssues";
+import { PullRequestsContext } from "../lib/pullRequests";
+import { refPills } from "../lib/refs";
 import { MessageText } from "./MessageText";
 import { RefPills } from "./RefPills";
 import { FileLine, FolderLine } from "./FileLine";
@@ -101,6 +103,12 @@ export function CommitDetailsPanel(props: Props) {
   const setQuery = (value: string) => setFilter({ id: commit.id, query: value });
   // Unreal actors among the files, named as they are in the editor.
   const actors = useActorNames(repoPath, commit.id, null, details?.files);
+  // The open pull requests of the branches here, as their labels' badges show them.
+  const pullRequests = useContext(PullRequestsContext);
+  const openRequests = useMemo(() => {
+    const found = refPills(commit.refs).flatMap((pill) => (pill.kind === "branch" ? (pullRequests?.find(pill.name, pill.local, pill.remotes) ?? []) : []));
+    return [...new Map(found.map((pr) => [`${pr.remote}/${pr.number}`, pr])).values()];
+  }, [commit.refs, pullRequests]);
   const files = useMemo(() => filterFiles(highlightedFirst(details?.files ?? [], isHighlighted), query, actors), [details, isHighlighted, query, actors]);
   // The files as a list, or as a tree of their folders (remembered); a new commit starts with every folder open.
   const [layout] = useFilesLayout();
@@ -179,7 +187,7 @@ export function CommitDetailsPanel(props: Props) {
                 })}
               </div>
             )}
-            <MentionedIssues text={`${details?.summary ?? commit.summary}\n${details?.body ?? ""}\n${commit.refs.map((ref) => ref.name).join("\n")}`} />
+            <MentionedIssues text={`${details?.summary ?? commit.summary}\n${details?.body ?? ""}\n${commit.refs.map((ref) => ref.name).join("\n")}`} open={openRequests} />
           </section>
 
           {props.notify && <CommitChecks repoPath={repoPath} id={commit.id} notify={props.notify} />}

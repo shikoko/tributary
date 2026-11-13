@@ -979,6 +979,20 @@ try {
     await view.waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("shows an open pull request from its branch's commit", async () => {
+    // The commit at the tip of fix/door: its pull request, open, with Show beside it.
+    await page.locator(".commit-row", { has: page.locator(".pr-badge", { hasText: "#14" }) }).first().click();
+    const mention = page.locator(".details .mentioned-issue", { hasText: "#14" });
+    await mention.locator(".mentioned-issue-status", { hasText: "Open" }).waitFor({ timeout: 5000 });
+    await mention.locator(".mentioned-issue-title", { hasText: "Make the door creak" }).waitFor({ timeout: 5000 });
+    await accessible("an open pull request in a commit's details");
+    await mention.getByRole("button", { name: "Show" }).click();
+    const view = page.locator(".request-view");
+    await view.locator(".request-merge", { hasText: "changes were asked for" }).waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("comments on, approves and merges a pull request", async () => {
     await page.locator(".pr-badge", { hasText: "#12" }).first().click();
     const view = page.locator(".request-view");
