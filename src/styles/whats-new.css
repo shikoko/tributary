@@ -42,17 +42,23 @@
   color: var(--text);
 }
 
+/* The same height on every page, so the window doesn't jump as you step through (it's
+   centred: it would move by half of any change). What doesn't fit scrolls: the list, a new
+   thing's words, the fixes. */
 .wn-spotlight {
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
   grid-template-columns: 200px 1fr;
   gap: var(--space-20);
-  min-height: 330px;
+  height: min(560px, calc(100vh - 220px));
 }
 
 .wn-nav {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  min-height: 0;
+  overflow-y: auto;
   padding-right: var(--space-14);
   border-right: 1px solid var(--border);
 }
@@ -118,6 +124,7 @@
   flex-direction: column;
   gap: var(--space-6);
   min-width: 0;
+  min-height: 0;
   animation: tour-in 220ms ease-out;
 }
 
@@ -125,6 +132,7 @@
    recordings; on a short window, smaller. */
 .wn-picture {
   display: block;
+  flex: none;
   width: 100%;
   max-height: 46vh;
   margin-bottom: var(--space-8);
@@ -137,6 +145,7 @@
 }
 
 .wn-art {
+  flex: none;
   height: 176px;
   margin-bottom: var(--space-8);
   overflow: hidden;
@@ -200,6 +209,8 @@
 }
 
 .dialog .wn-stage p {
+  min-height: 0;
+  overflow-y: auto;
   font-size: var(--type-md);
   line-height: 1.6;
 }
@@ -208,7 +219,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-14);
-  max-height: min(56vh, 520px);
+  min-height: 0;
   margin-top: var(--space-8);
   overflow-y: auto;
 }
