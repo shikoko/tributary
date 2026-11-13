@@ -170,7 +170,7 @@
 .danger-button {
   border: none;
   background: var(--danger-solid);
-  color: #fff;
+  color: var(--on-danger-solid);
 }
 
 .danger-button:hover:not(:disabled) {

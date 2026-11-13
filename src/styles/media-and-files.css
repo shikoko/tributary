@@ -82,7 +82,7 @@
   max-height: 56vh;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: #000;
+  background: #000; /* letterboxed in black, like a video player */
 }
 
 .diff-model-frame {
@@ -238,7 +238,7 @@
   width: 2px;
   margin-left: -1px;
   background: var(--accent);
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35); /* stands out on any picture */
   pointer-events: none;
 }
 

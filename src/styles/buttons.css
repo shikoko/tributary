@@ -68,7 +68,7 @@
   margin-left: var(--space-6);
   padding: 1px var(--space-6);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.18);
+  background: color-mix(in srgb, var(--on-accent) 18%, transparent);
   font-family: var(--mono);
   font-size: var(--type-xs);
   font-weight: 500;
@@ -117,7 +117,7 @@
   padding: var(--space-8) var(--space-10);
   overflow: auto;
   border-radius: var(--radius-md);
-  background: rgb(0 0 0 / 0.2);
+  background: rgb(0 0 0 / 0.2); /* a well, darker than around it in both themes */
   color: var(--text);
   font-size: var(--type-sm);
   line-height: 1.5;

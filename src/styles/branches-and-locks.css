@@ -507,10 +507,10 @@
 }
 
 .window-control.close:hover {
-  background: #c42b1c;
-  color: #fff;
+  background: #c42b1c; /* Windows' own close button */
+  color: #fff; /* Windows' own close button */
 }
 
 .window-control.close:active {
-  background: #c8463a;
+  background: #c8463a; /* Windows' own close button */
 }

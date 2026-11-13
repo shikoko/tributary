@@ -107,7 +107,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-3xl);
   background: var(--bg-panel);
-  box-shadow: 0 8px 28px rgb(0 0 0 / 0.12);
+  box-shadow: 0 8px 28px var(--shadow);
 }
 
 .simple-card-head {

@@ -225,7 +225,7 @@
    ring, as the lane's lines are. The graph glows under it (graphPainter); the row would cut
    off a glow of its own. */
 :root:not([data-theme="light"]) .graph-node.lit {
-  --ring: color-mix(in srgb, var(--lane) 65%, white);
+  --ring: color-mix(in srgb, var(--lane) 65%, white); /* a lighter tint of the lane's colour */
 }
 
 /* A faded commit, or one outside the lit lane: its picture faint on the list's background
