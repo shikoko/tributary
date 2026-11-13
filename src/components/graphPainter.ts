@@ -38,13 +38,13 @@ export interface PaintOptions extends GraphMetrics {
 }
 
 
-type Point = [number, number];
+export type Point = [number, number];
 
 /**
  * From `start` along a straight line to the corner `at`, turning there, and along a straight
  * line to `end`, in `style`. `radius` is the corner's size for round corners.
  */
-function turn(path: Path2D, start: Point, at: Point, end: Point, radius: number, style: Exclude<CurveStyle, "mixed">) {
+export function turn(path: Path2D, start: Point, at: Point, end: Point, radius: number, style: Exclude<CurveStyle, "mixed">) {
   const toward = (from: Point, to: Point, distance: number): Point => {
     const length = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
     return [to[0] + ((from[0] - to[0]) / length) * distance, to[1] + ((from[1] - to[1]) / length) * distance];

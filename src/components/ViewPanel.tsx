@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
-import { ACCENTS, CURVE_STYLES, DEFAULT_APPEARANCE, LANE_PALETTES, type Appearance, type CurveStyle, type LanePaletteName, type Theme, type ThemeChoice } from "../lib/appearance";
+import { ACCENTS, CI_DOTS, CURVE_STYLES, DEFAULT_APPEARANCE, LANE_PALETTES, type Appearance, type CiDots, type CurveStyle, type LanePaletteName, type Theme, type ThemeChoice } from "../lib/appearance";
 import type { ColumnOptions } from "./CommitList";
 import { CheckIcon, GearIcon } from "./Icons";
 import { Switch } from "./ui/Switch";
@@ -32,6 +32,9 @@ const THEMES: { value: ThemeChoice; label: string }[] = [
 ];
 
 const BENDS: Record<CurveStyle, string> = { mixed: "Mixed", round: "Round", smooth: "Smooth", tight: "Tight", sweep: "Sweep" };
+
+/** How a dot on the graph shows its checks (Settings → Appearance shows each). */
+const CI_DOT_NAMES: Record<CiDots, string> = { beside: "Beside", ringed: "Ringed", halo: "Halo", filled: "Filled" };
 
 /** One of a few choices, as a row of buttons. */
 function Segmented<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (value: T) => void }) {
@@ -143,6 +146,10 @@ export function ViewPanel(props: Props) {
             ]}
             onChange={(nodes) => change({ nodes })}
           />
+        </div>
+        <div className="view-row">
+          <span>Checks</span>
+          <Segmented label="Checks on dots" value={look.ciDots} options={CI_DOTS.map((value) => ({ value, label: CI_DOT_NAMES[value] }))} onChange={(ciDots) => change({ ciDots })} />
         </div>
         <div className="view-row">
           <span>Lines bend</span>
