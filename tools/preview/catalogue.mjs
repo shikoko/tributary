@@ -45,6 +45,27 @@ const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, dev
 const compare = await browser.newPage();
 const taken = new Set();
 const changed = [];
+const drawnWith = new Map();
+
+/** The fonts the page's text is drawn with, and how many letters each: to tell why a machine draws it differently. */
+async function fontsUsed() {
+  const client = await page.context().newCDPSession(page);
+  await client.send("DOM.enable");
+  await client.send("CSS.enable");
+  const { root } = await client.send("DOM.getDocument", { depth: -1 });
+  const visit = async (node) => {
+    if (node.nodeType === 1) {
+      const { fonts } = await client.send("CSS.getPlatformFontsForNode", { nodeId: node.nodeId }).catch(() => ({ fonts: [] }));
+      for (const font of fonts) {
+        const name = `${font.familyName}${font.isCustomFont ? "" : " (the system's)"}`;
+        drawnWith.set(name, (drawnWith.get(name) ?? 0) + font.glyphCount);
+      }
+    }
+    for (const child of node.children ?? []) await visit(child);
+  };
+  await visit(root);
+  await client.detach();
+}
 
 /** How `before` and `after` differ: their sizes, and the changed pixels in red over a faded `after`. */
 async function difference(before, after) {
@@ -82,7 +103,12 @@ try {
   for (const theme of ["dark", "light"]) {
     await page.goto(`${preview.url}?catalogue&theme=${theme}`);
     await page.locator(".catalogue-section h2", { hasText: "Buttons" }).waitFor({ timeout: 20_000 });
-    await page.evaluate(() => document.fonts.ready);
+    // The fonts each loaded, not just asked for: until then the text is in another font.
+    await page.evaluate(async () => {
+      await Promise.all(["400 12px 'Google Sans Variable'", "700 12px 'Google Sans Variable'", "400 12px 'JetBrains Mono Variable'", "italic 400 12px 'JetBrains Mono Variable'"].map((font) => document.fonts.load(font)));
+      await document.fonts.ready;
+    });
+    if (!update) await fontsUsed();
     for (const section of await page.locator(".catalogue-section").all()) {
       const name = `${theme}-${slug(await section.locator("h2").innerText())}.png`;
       taken.add(name);
@@ -123,6 +149,7 @@ if (update) {
   console.log(`Saved ${taken.size} screenshots of the catalogue in ${expected}`);
 } else if (changed.length > 0) {
   console.log(`The catalogue looks different:\n  ${changed.join("\n  ")}\nBefore, after and the changed pixels are in ${out}`);
+  console.log(`Its text was drawn with: ${[...drawnWith].map(([name, letters]) => `${name} (${letters} letters)`).join(", ")}`);
   process.exit(1);
 } else {
   console.log(`The catalogue looks the same (${taken.size} screenshots)`);
