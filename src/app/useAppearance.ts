@@ -42,7 +42,7 @@ const FALLBACK: ThemeInfo = {
     accent: "#1fb5ff",
     ring: "#ffffff",
     match: "#ffd23f",
-    faint: "#596071",
+    faint: "#8b92a3",
     border: "#282d38",
     borderStrong: "#353b48",
     lanes: LANE_PALETTES.vivid.dark,
