@@ -226,10 +226,10 @@ export function lanePalette(appearance: Appearance, theme: Theme): string[] {
   return appearance.lanes === "custom" ? appearance.customLanes : LANE_PALETTES[appearance.lanes][theme];
 }
 
-/** Text that reads on `color`: near-black on light colours, white on dark ones. */
+/** Text that reads on `color`: near-black or white, whichever contrasts with it more. */
 export function textOn(color: string): string {
   const rgb = parseHex(color);
-  return rgb && luminance(rgb) > 0.4 ? "#0d0f13" : "#ffffff";
+  return rgb && contrast(rgb, [13, 15, 19]) > contrast(rgb, [255, 255, 255]) ? "#0d0f13" : "#ffffff";
 }
 
 /** Switch the page to these colours. */

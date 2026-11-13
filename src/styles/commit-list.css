@@ -221,18 +221,18 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 }
 
 .change-count.added {
-  color: var(--added);
+  color: var(--added-ink);
   background: rgb(var(--added-rgb) / 0.13);
 }
 
 .change-count.modified {
-  color: var(--warning);
+  color: var(--modified-ink);
   background: rgb(var(--warning-rgb) / 0.13);
 }
 
 .change-count.deleted,
 .change-count.conflicted {
-  color: var(--danger);
+  color: var(--deleted-ink);
   background: rgb(var(--danger-rgb) / 0.13);
 }
 
@@ -343,13 +343,11 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
   color: var(--text-muted);
 }
 
-button.ref-pill.more {
-  font: inherit;
+.ref-pill.more.openable {
   cursor: pointer;
 }
 
-button.ref-pill.more:hover,
-button.ref-pill.more:focus-visible {
+.ref-pill.more.openable:hover {
   border-color: var(--border-hover);
   color: var(--text);
 }

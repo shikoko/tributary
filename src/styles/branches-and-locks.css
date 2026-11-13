@@ -389,7 +389,7 @@
   max-width: 45%;
   margin-left: auto;
   overflow: hidden;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--type-xs);
   text-overflow: ellipsis;
   flex: none;

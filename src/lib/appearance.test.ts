@@ -86,5 +86,9 @@ describe("appearance", () => {
   it("picks label text that reads on any colour", () => {
     expect(textOn("#ffe24a")).toBe("#0d0f13");
     expect(textOn("#1b3a8a")).toBe("#ffffff");
+    // A middling blue, the light theme's first lane: white reads at only 3.7 to 1 on it.
+    expect(textOn("#0a8bd1")).toBe("#0d0f13");
+    for (const palette of Object.values(LANE_PALETTES))
+      for (const color of [...palette.dark, ...palette.light]) expect(contrast(rgb(textOn(color)), rgb(color))).toBeGreaterThan(4.3);
   });
 });

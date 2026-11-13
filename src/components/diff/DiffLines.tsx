@@ -99,10 +99,16 @@ export function DiffLines({
         return (
           <div key={hunkIndex} className="diff-hunk" role="rowgroup">
             <div className="diff-hunk-header" role="row">
-              <span className="diff-hunk-dots">⋯</span>
-              {hunk.section && <span className="diff-hunk-section">{hunk.section}</span>}
+              <span className="diff-hunk-dots" role="cell">
+                ⋯
+              </span>
+              {hunk.section && (
+                <span className="diff-hunk-section" role="cell">
+                  {hunk.section}
+                </span>
+              )}
               {picking && keys.length > 0 && (
-                <span className="diff-hunk-actions">
+                <span className="diff-hunk-actions" role="cell">
                   {picking.side === "unstaged" ? (
                     <>
                       <button
@@ -143,8 +149,9 @@ export function DiffLines({
                     : undefined;
                   const number = side === "left" ? line.old : line.new;
                   return (
-                    <div className={`diff-half ${line.kind}${key ? " pickable" : ""}${chosen ? " chosen" : ""}`} aria-selected={key ? chosen : undefined}>
-                      <span className="diff-number" aria-label={number ? `Line ${number} ${side === "left" ? "before" : "after"}` : undefined} {...pick}>
+                    // A cell of the row: whether its line is chosen is in its number's name.
+                    <div className={`diff-half ${line.kind}${key ? " pickable" : ""}${chosen ? " chosen" : ""}`} role="cell">
+                      <span className="diff-number" aria-label={number ? `Line ${number} ${side === "left" ? "before" : "after"}${chosen ? ", chosen" : ""}` : undefined} {...pick}>
                         {number ?? ""}
                       </span>
                       <span className="diff-sign" aria-hidden {...pick}>
@@ -176,16 +183,16 @@ export function DiffLines({
                 : undefined;
               return (
                 <div key={lineIndex} className={`diff-row ${line.kind}${key ? " pickable" : ""}${chosen ? " chosen" : ""}`} role="row" aria-selected={key ? chosen : undefined}>
-                  <span className="diff-number" aria-label={line.old ? `Line ${line.old} before` : undefined} {...pick}>
+                  <span className="diff-number" role="cell" aria-label={line.old ? `Line ${line.old} before` : undefined} {...pick}>
                     {line.old ?? ""}
                   </span>
-                  <span className="diff-number" aria-label={line.new ? `Line ${line.new} after` : undefined} {...pick}>
+                  <span className="diff-number" role="cell" aria-label={line.new ? `Line ${line.new} after` : undefined} {...pick}>
                     {line.new ?? ""}
                   </span>
                   <span className="diff-sign" aria-hidden {...pick}>
                     {SIGNS[line.kind]}
                   </span>
-                  <span className="diff-text">
+                  <span className="diff-text" role="cell">
                     <LineText parts={pieces(line.text, syntax?.[hunkIndex][lineIndex] ?? null, parts)} />
                   </span>
                 </div>

@@ -16,6 +16,11 @@
   line-height: 20px;
 }
 
+/* Around the gutter, for the table's structure only. */
+.blame-cell {
+  display: contents;
+}
+
 .blame-row.start {
   border-top: 1px solid var(--border);
 }

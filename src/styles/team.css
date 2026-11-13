@@ -609,6 +609,11 @@
   font-weight: 600;
 }
 
+/* On the grey of "other", in either theme, the theme's own text reads best. */
+.team-kind.kind-other .team-kind-share {
+  color: var(--text);
+}
+
 .team-kind-legend {
   display: flex;
   flex-wrap: wrap;

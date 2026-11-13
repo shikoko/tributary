@@ -11,7 +11,14 @@ function colours(selector: string): Record<string, string> {
   return Object.fromEntries([...block.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)].map((match) => [match[1], match[2]]));
 }
 const dark = colours(":root");
-const themes = { dark, light: { ...dark, ...colours(':root[data-theme="light"]') } };
+const light = { ...dark, ...colours(':root[data-theme="light"]') };
+const themes = {
+  dark,
+  light,
+  // Diffs in blue and orange, for red-green colour blindness.
+  "dark blue-orange": { ...dark, ...colours(':root[data-diff-colors="blue-orange"]') },
+  "light blue-orange": { ...light, ...colours(':root[data-theme="light"][data-diff-colors="blue-orange"]') },
+};
 
 // What text sits on: the window and its panels, menus and cards, and rows pointed at or
 // selected. (Not the moment a button is pressed.)
@@ -19,6 +26,13 @@ const SURFACES = ["--bg", "--bg-panel", "--bg-raised", "--bg-hover", "--bg-selec
 // Text, from the brightest grey down, and coloured text.
 const GREYS = ["--text", "--text-secondary", "--text-muted", "--text-faint"];
 const COLOURED = ["--accent-ink", "--accent-text", "--danger-strong-text", "--added-number", "--removed-number", "--syntax-comment"];
+
+// Counts of added, changed and deleted files, and the colour they sit on a 13% tint of.
+const COUNTS = [
+  ["--added-ink", "--added"],
+  ["--modified-ink", "--warning"],
+  ["--deleted-ink", "--danger"],
+];
 
 /** `text`'s lowest contrast on the surfaces, in `theme`. */
 function lowest(theme: Record<string, string>, text: string): number {
@@ -30,6 +44,12 @@ describe("the themes' text", () => {
     // WCAG AA: 4.5 to 1 for text of the size most of the interface is.
     it(`reads on every surface, in the ${name} theme`, () => {
       const weak = [...GREYS, ...COLOURED].filter((text) => lowest(theme, text) < 4.5).map((text) => `${text} ${lowest(theme, text).toFixed(2)}`);
+      expect(weak).toEqual([]);
+    });
+
+    it(`counts changed files readably, in the ${name} theme`, () => {
+      const tint = (colour: string, surface: string) => parseHex(theme[colour])!.map((value, i) => value * 0.13 + parseHex(theme[surface])![i] * 0.87) as [number, number, number];
+      const weak = COUNTS.filter(([ink, colour]) => SURFACES.some((surface) => contrast(parseHex(theme[ink])!, tint(colour, surface)) < 4.5)).map(([ink]) => ink);
       expect(weak).toEqual([]);
     });
 

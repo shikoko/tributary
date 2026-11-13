@@ -5,8 +5,8 @@
 //
 //   npm run preview:build && npm run preview:smoke [-- --screenshots <folder>]
 //
-// Needs Playwright with Chromium (`npm install --no-save playwright` and
-// `npx playwright install chromium`, if they aren't installed already).
+// Needs Playwright with Chromium and axe-core (`npm install --no-save playwright axe-core`
+// and `npx playwright install chromium`, if they aren't installed already).
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -26,6 +26,17 @@ function loadPlaywright() {
     process.exit(2);
   }
 }
+
+// axe-core, which checks a page against WCAG's success criteria, as a script for the page.
+function loadAxe() {
+  try {
+    return readFileSync(createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8");
+  } catch {
+    console.error("The smoke test needs axe-core: npm install --no-save axe-core");
+    process.exit(2);
+  }
+}
+const axeSource = loadAxe();
 
 const screenshotsAt = process.argv.indexOf("--screenshots");
 const screenshots = screenshotsAt > 0 ? resolve(process.argv[screenshotsAt + 1]) : null;
@@ -62,6 +73,26 @@ async function step(name, run) {
   }
   if (screenshots) await page.screenshot({ path: join(screenshots, `${String(++shot).padStart(2, "0")}.png`) }).catch(() => {});
 }
+/**
+ * What's on screen meets WCAG 2.1's level A and AA criteria that can be checked automatically.
+ * Other branches' labels in the graph are left out of the contrast check: they're faded on
+ * purpose until their row is pointed at or selected.
+ */
+async function accessible(where, frame = page) {
+  // Once what's moving has stopped: halfway through fading in, text reads as fainter than it is.
+  await frame.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== "running" || animation.effect?.getComputedTiming().iterations === Infinity), null, { timeout: 5000 });
+  if (!(await frame.evaluate(() => "axe" in window))) await frame.addScriptTag({ content: axeSource });
+  const problems = await frame.evaluate(async (faded) => {
+    const { violations } = await window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] } });
+    return violations.flatMap((violation) =>
+      violation.nodes
+        .filter((node) => violation.id !== "color-contrast" || !document.querySelector(node.target.join(" "))?.closest(faded))
+        .map((node) => `${violation.id} at ${node.target.join(" ")}${violation.id === "color-contrast" ? ` (${node.any[0]?.data?.contrastRatio} to 1)` : ""}`),
+    );
+  }, ".refs-cell .ref-pill:not(.current)");
+  expect(problems.length === 0, `${where}: ${[...new Set(problems)].slice(0, 6).join("; ")}`);
+}
+
 function expect(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -84,6 +115,7 @@ try {
 
   await step("shows the welcome screen", async () => {
     await page.getByText("Open repository").first().waitFor();
+    await accessible("the welcome screen");
   });
 
   await step("opens a repository", async () => {
@@ -120,6 +152,7 @@ try {
     await scrollList("end");
     await row("Add the note model").click();
     await page.locator(".details", { hasText: "Sam Okafor" }).waitFor({ timeout: 5000 });
+    await accessible("a commit's details");
     await scrollList("top");
   });
 
@@ -180,6 +213,7 @@ try {
     await row("Add the note model").click({ button: "right" });
     await page.locator(".menu-item", { hasText: "New tag here" }).click();
     await page.getByPlaceholder("v1.2.0").fill("v0.0.9");
+    await accessible("the new tag dialog");
     await page.getByRole("button", { name: "Create tag" }).click();
     const tag = page.locator(".ref-pill", { hasText: "v0.0.9" });
     await tag.first().waitFor({ timeout: 10_000 });
@@ -246,6 +280,7 @@ try {
     await view.locator(".diff-row.added mark").first().waitFor({ timeout: 10_000 });
     const stats = await view.locator(".diff-stats").innerText();
     expect(/^\+\d+ −\d+$/.test(stats.trim()), `stats "${stats}"`);
+    await accessible("a file's changes");
     // Side by side: a removed line next to the line that replaced it, then back to one column.
     await view.getByRole("button", { name: "Side by side" }).click();
     await view.locator(".diff-split-row", { has: page.locator(".diff-half.removed") }).filter({ has: page.locator(".diff-half.added") }).first().waitFor({ timeout: 5000 });
@@ -264,6 +299,7 @@ try {
     const view = page.locator(".diff-view");
     await view.locator(".diff-row.added", { hasText: "Onboarding" }).first().waitFor({ timeout: 10_000 });
     await view.locator(".diff-source", { hasText: "Not staged" }).waitFor({ timeout: 5000 });
+    await accessible("your changes");
     // Step to another file and back with [ and ].
     const [at, of] = (await view.locator(".diff-count").innerText()).split(" of ").map(Number);
     await page.keyboard.press(at < of ? "]" : "[");
@@ -487,6 +523,7 @@ try {
     const view = page.locator(".blame-view");
     await view.locator(".blame-gutter", { hasText: "Maya Chen" }).first().waitFor({ timeout: 10_000 });
     expect((await view.locator(".blame-gutter", { hasText: "Priya Nair" }).count()) > 0, "Priya's lines aren't credited to her");
+    await accessible("who changed each line");
     // Step back to the version before Priya's change: those lines were Maya's then.
     const priya = view.locator(".blame-gutter-cell", { has: page.locator(".blame-gutter", { hasText: "Priya Nair" }) }).first();
     await priya.hover();
@@ -641,6 +678,7 @@ try {
 
   await step("shows who holds Git LFS locks", async () => {
     await page.locator(".sidebar-locked", { hasText: "Tavern" }).waitFor({ timeout: 15_000 });
+    await accessible("the repository, with its locks");
   });
 
   await step("warns about big files that aren't in Git LFS", async () => {
@@ -680,6 +718,7 @@ try {
     const barber = view.locator(".team-branch-card", { has: page.locator(".team-branch-card-name", { hasText: "art/barber-v2" }) });
     await barber.locator(".team-overlap", { hasText: "1 of your files" }).waitFor({ timeout: 5000 });
     await view.locator(".team-lock-card", { hasText: "Tavern.umap" }).waitFor({ timeout: 10_000 });
+    await accessible("the team's activity");
     await barber.click();
     await view.waitFor({ state: "detached", timeout: 5000 });
     await page.locator(".view-banner", { hasText: "art/barber-v2" }).waitFor({ timeout: 5000 });
@@ -813,6 +852,7 @@ try {
     await view.locator(".request-status-said", { hasText: "diego-ramos asked for changes" }).waitFor({ timeout: 5000 });
     // The description and comments are Markdown, shown as such.
     await view.locator(".request-comment-text").first().waitFor({ timeout: 5000 });
+    await accessible("a pull request");
     // A check's name opens its page.
     await view.locator(".request-check", { hasText: "Audio loudness" }).getByRole("button").click();
     expect((await page.evaluate(() => window.__PREVIEW__.opened)).some((url) => url.endsWith("/actions/runs/7")), "the check's page didn't open");
@@ -936,6 +976,7 @@ try {
     const second = await focused();
     await page.keyboard.press("ArrowRight");
     const nextMenu = await focused();
+    await accessible("a menu");
     await page.keyboard.press("Escape");
     await page.locator(".context-menu").waitFor({ state: "detached" });
     expect(first && second && first !== second && nextMenu !== second, `focus went ${first} → ${second} → ${nextMenu}`);
@@ -1251,6 +1292,24 @@ try {
     await reloaded;
   });
 
+  await step("reads well in the light theme", async () => {
+    await page.keyboard.press("Control+,");
+    const settings = page.locator(".settings-window");
+    await settings.locator(".settings-nav").getByText("Appearance").click();
+    await settings.locator(".theme-choice", { hasText: "Light" }).click();
+    await page.waitForFunction(() => document.documentElement.dataset.theme === "light");
+    await accessible("the light theme's Settings");
+    await page.keyboard.press("Escape");
+    await settings.waitFor({ state: "detached", timeout: 5000 });
+    await row("Speed up opening large notebooks").click();
+    await accessible("the repository in the light theme");
+    await page.keyboard.press("Control+,");
+    await settings.locator(".settings-nav").getByText("Appearance").click();
+    await settings.locator(".theme-choice", { hasText: "Dark" }).click();
+    await page.keyboard.press("Escape");
+    await settings.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("shows the catalogue of the building blocks, in both themes", async () => {
     await page.goto(`${preview.url}?catalogue`);
     for (const theme of ["Dark", "Light"]) {
@@ -1259,6 +1318,7 @@ try {
       expect((await inside.locator(".catalogue-icons > div").count()) > 50, `${theme}: the icons are missing`);
       expect((await inside.locator(".catalogue-colour").count()) > 40, `${theme}: the colours are missing`);
       expect((await inside.locator(".catalogue-row code", { hasText: "--type-sm" }).count()) === 1, `${theme}: the type scale is missing`);
+      await accessible(`the catalogue, ${theme.toLowerCase()}`, page.frames().find((frame) => frame.url().includes(`theme=${theme.toLowerCase()}`)));
     }
   });
 

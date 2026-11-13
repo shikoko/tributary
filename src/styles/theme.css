@@ -108,6 +108,10 @@
   --removed: #ff5c6c;
   --removed-rgb: 255 92 108;
   --removed-number: #cc7a83;
+  /* Counts of added, changed and deleted files, on a tint of their colour. */
+  --added-ink: #36e07c;
+  --modified-ink: #ffad1f;
+  --deleted-ink: #ff7381;
 
   --purple: #a77bff;
   --purple-rgb: 167 123 255;
@@ -234,6 +238,9 @@
   --removed: #d63040;
   --removed-rgb: 214 48 64;
   --removed-number: #a44a55;
+  --added-ink: #106b38;
+  --modified-ink: #875100;
+  --deleted-ink: #a92633;
 
   --purple: #7a4ce3;
   --purple-rgb: 122 76 227;
@@ -267,15 +274,17 @@
   --removed: #ff8f2e;
   --removed-rgb: 255 143 46;
   --removed-number: #d29a66;
+  --added-ink: #55a9ff;
 }
 
 :root[data-theme="light"][data-diff-colors="blue-orange"] {
   --added: #0969da;
   --added-rgb: 9 105 218;
-  --added-number: #3c77bf;
+  --added-number: #3468a6;
   --removed: #c25100;
   --removed-rgb: 194 81 0;
-  --removed-number: #a5693c;
+  --removed-number: #8e5a34;
+  --added-ink: #0757b5;
 }
 
 * {

@@ -306,8 +306,11 @@ export function CommitList(props: Props) {
           }}
           onKeyDown={onKeyDown}
           role="listbox"
+          aria-label="Commits"
           aria-multiselectable
-          aria-activedescendant={selectedId ? `commit-${selectedId}` : undefined}
+          // Only while its row is drawn: the list draws the rows in view, and a name for one that
+          // isn't there points at nothing.
+          aria-activedescendant={selectedId && selectedIndex >= 0 && slotOf[selectedIndex] >= first && slotOf[selectedIndex] < last ? `commit-${selectedId}` : undefined}
         >
           {commits.length === 0 ? (
             <div className="list-empty">This repository doesn't have any commits yet.</div>
