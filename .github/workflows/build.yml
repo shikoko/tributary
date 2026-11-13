@@ -45,14 +45,23 @@ jobs:
           fetch-depth: 0
 
       # A merge into develop of only words and pictures (Markdown, docs/, the issue forms,
-      # the licence) would be a beta just like the one before: it isn't built.
+      # the licence) would be a beta just like the one before: it isn't built. What changed is
+      # counted since the last beta or release that was published, not since the push before:
+      # each merge cancels the build of the one before, so a merge of only documentation right
+      # after merges of code would otherwise build nothing, and the code would have no beta.
       - name: Anything to build?
         id: changes
         env:
+          GH_TOKEN: ${{ github.token }}
           BEFORE: ${{ github.event.before }}
           DEVELOP: ${{ github.ref == 'refs/heads/develop' && github.event_name == 'push' }}
         run: |
-          changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA" 2>/dev/null || true)
+          published=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" --jq '[.[] | select((.draft | not) and (.tag_name | test("^v[0-9]")))][0].target_commitish // empty' 2>/dev/null || true)
+          since=$BEFORE
+          if [ -n "$published" ] && git cat-file -e "$published^{commit}" 2>/dev/null; then
+            since=$published
+          fi
+          changed=$(git diff --name-only "$since" "$GITHUB_SHA" 2>/dev/null || true)
           if [ "$DEVELOP" = true ] && [ -n "$changed" ] && ! grep -qvE '(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/)' <<<"$changed"; then
             echo "::notice::Only documentation changed: no beta."
             echo "build=false" >> "$GITHUB_OUTPUT"
