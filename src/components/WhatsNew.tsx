@@ -47,9 +47,12 @@ export function WhatsNewDialog({ releases, onClose }: { releases: Release[]; onC
     return rest.length > 0 ? [...news, { kind: "rest", sections: rest, version: release.version }] : news;
   });
   const [at, setAt] = useState(0);
-  // A long list scrolls: it follows the page you're on.
+  // A long list scrolls: it follows the page you're on. (In braces: scrollIntoView returns a
+  // promise now, which React would take for the effect's clean-up and call.)
   const nav = useRef<HTMLDivElement>(null);
-  useEffect(() => nav.current?.querySelector(".on")?.scrollIntoView({ block: "nearest" }), [at]);
+  useEffect(() => {
+    nav.current?.querySelector(".on")?.scrollIntoView({ block: "nearest" });
+  }, [at]);
   const slide = slides[at];
   const last = at === slides.length - 1;
   // The arrow keys step through them, wherever the focus is in the dialog.
