@@ -10,7 +10,7 @@ import { openInBrowser } from "../lib/weblinks";
 import { Button } from "./ui/Button";
 
 /** The bug report form's System for this computer. */
-export const thisSystem = (): ReportSystem => (isMac ? "macOS" : isWindows ? "Windows" : "Linux (built from source)");
+export const thisSystem = (): ReportSystem => (isMac ? "macOS" : isWindows ? "Windows" : "Linux");
 
 /**
  * Opens a new bug report on GitHub with the error and the diagnostics filled in, to read,

@@ -191,6 +191,7 @@ Get the latest version from the [releases page](https://github.com/shikoko/tribu
 
 - **macOS:** the `.dmg`, one app for Apple Silicon and Intel.
 - **Windows:** the `-setup.exe` (64-bit). **Install** puts Tributary in your user folder, with no administrator needed; **Custom install** installs it for everyone on the PC (in Program Files) or somewhere else. For IT tools it installs silently: `/S` for the person running it, `/S /ALLUSERS` for everyone (from an administrator), and `/D=<folder>` for another folder. Uninstalling (Settings → Apps) opens Tributary's own window, which can remove your settings too.
+- **Linux:** the `.AppImage` (64-bit). Make it executable (`chmod +x Tributary_*.AppImage`, or in the file's Properties) and open it. It runs on most distributions from 2022 on, like Ubuntu 22.04 and newer. It's less tested than the Mac and Windows versions: reports and fixes are welcome.
 
 Tributary updates itself after that. It needs [git](https://git-scm.com) installed (and [Git LFS](https://git-lfs.com) for repositories that use it).
 
@@ -202,7 +203,7 @@ The installers aren't code-signed yet, so the first launch needs one extra step:
 
 It's only needed once: the updates Tributary installs itself open straight away.
 
-**Linux** is experimental: Tributary builds and runs there from source (see below), but there are no Linux installers or automatic updates yet, and it isn't tested on every release. Reports and fixes are welcome.
+On Linux, only the AppImage updates itself: a copy built from source (see below) isn't offered updates.
 
 ## Build from source
 

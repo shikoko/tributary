@@ -9,7 +9,7 @@ Merging this releases the version that **Ready to release** names. That check li
 - [ ] **Recordings:** each new thing's recording shows it working, and ends the way it starts.
 - [ ] **What's New:** seen as this version shows it after updating from the last one, in the light and the dark theme. Every page reads well, the recordings play, and the window keeps its size.
 - [ ] **Update notes and release page:** the update window's notes stop before Installing and have no pictures, and the release page links the pictures (`release-notes.mjs` and `latest-json.mjs`, run on the notes).
-- [ ] **Latest beta:** develop's latest Build run passed on macOS and Windows, and published its beta.
+- [ ] **Latest beta:** develop's latest Build run passed on macOS, Windows and Linux, and published its beta.
 
 ### Checked on real computers by the maintainer
 

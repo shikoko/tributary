@@ -40,6 +40,6 @@ body:
       options:
         - macOS
         - Windows
-        - Linux (built from source)
+        - Linux
     validations:
       required: true

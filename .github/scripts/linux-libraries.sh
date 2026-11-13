@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Installs the libraries Tauri needs on Linux, for the Rust checks and the smoke test.
+# Installs the libraries Tauri needs on Linux, for the Rust checks, the smoke test and the
+# AppImage.
 #
 # Ubuntu's mirrors sometimes can't be reached from GitHub's runners, or their names
 # (azure.archive.ubuntu.com, archive.ubuntu.com, security.ubuntu.com) can't be looked up, for
