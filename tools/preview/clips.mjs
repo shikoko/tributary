@@ -66,10 +66,14 @@ const POINTER = () => {
   else addEventListener("DOMContentLoaded", draw);
 };
 
-/** A new window on the preview (`width` by `height`), opening `repo` (or the start screen without one). */
-async function open(repo, { theme = "dark", storage = {}, fakes = {}, width = 1280, height = 780 } = {}) {
+/** A new window on the preview (`width` by `height`, as `version` if given), opening `repo` (or the start screen without one). */
+async function open(repo, { theme = "dark", storage = {}, fakes = {}, width = 1280, height = 780, version } = {}) {
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 2 });
   page.on("pageerror", (error) => console.error("  page error:", String(error)));
+  // The version the app says it is (the preview's own otherwise): set first, so the preview's stays out.
+  if (version) {
+    await page.addInitScript((version) => Object.defineProperty(window, "__PREVIEW_VERSION__", { get: () => version, set: () => {}, configurable: false }), version);
+  }
   await page.addInitScript(
     ([pick, fakes, storage, theme]) => {
       window.__PREVIEW__ = { pick, pullRequests: [], ...fakes };
@@ -115,7 +119,8 @@ async function record(page, name, region, actions) {
   const shooting = (async () => {
     while (running) {
       const before = Date.now();
-      const data = await page.screenshot({ clip: region });
+      // JPEG, nearly lossless: three times as fast as PNG for a big part of the window.
+      const data = await page.screenshot({ clip: region, type: "jpeg", quality: 95 });
       shots.push({ data, time: (before + Date.now()) / 2 });
     }
   })();
@@ -136,13 +141,13 @@ async function record(page, name, region, actions) {
     for (let tick = 0; tick < count; tick++) {
       const time = start + (tick * 1000) / FPS;
       while (at + 1 < shots.length && shots[at + 1].time <= time) at++;
-      writeFileSync(join(folder, `${String(tick).padStart(5, "0")}.png`), shots[at].data);
+      writeFileSync(join(folder, `${String(tick).padStart(5, "0")}.jpg`), shots[at].data);
     }
     const file = join(out, `${name}.webp`);
     execFileSync("ffmpeg", [
       "-y", "-loglevel", "error",
       "-framerate", String(FPS),
-      "-i", join(folder, "%05d.png"),
+      "-i", join(folder, "%05d.jpg"),
       "-vf", `scale=${Math.min(WIDTH, region.width * 2)}:-2:flags=lanczos`,
       "-c:v", "libwebp_anim", "-quality", "80", "-compression_level", "6", "-loop", "0",
       file,
