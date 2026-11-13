@@ -25,8 +25,8 @@
 
   --text: #e4e7ee;
   --text-secondary: #aab1bf;
-  --text-muted: #7b8393;
-  --text-faint: #596071;
+  --text-muted: #9aa1ad;
+  --text-faint: #8b92a3;
 
   --scrollbar: rgba(88, 97, 116, 0.6);
   --scrollbar-hover: rgba(110, 120, 140, 0.75);
@@ -105,7 +105,7 @@
   --added-number: #5fbf86;
   --removed: #ff5c6c;
   --removed-rgb: 255 92 108;
-  --removed-number: #c9737d;
+  --removed-number: #cc7a83;
 
   --purple: #a77bff;
   --purple-rgb: 167 123 255;
@@ -122,7 +122,7 @@
   --syntax-keyword: #c792ea;
   --syntax-string: #a5d98a;
   --syntax-number: #f0a36e;
-  --syntax-comment: #7d8697;
+  --syntax-comment: #8992a1;
   --syntax-function: #6cb6ff;
   --syntax-type: #e8c47a;
   --syntax-attribute: #5ccfe6;
@@ -165,8 +165,8 @@
 
   --text: #1b1f26;
   --text-secondary: #464e5c;
-  --text-muted: #667083;
-  --text-faint: #959cab;
+  --text-muted: #535b6b;
+  --text-faint: #5f6778;
 
   --scrollbar: rgba(120, 128, 145, 0.45);
   --scrollbar-hover: rgba(95, 103, 120, 0.6);
@@ -192,8 +192,8 @@
   --accent-2: #4d7cff;
   --accent-pair: #a77bff;
   --accent-pair-rgb: 167 123 255;
-  --accent-ink: #0f77a9;
-  --accent-text: #0f6fa3;
+  --accent-ink: #0e6d9b;
+  --accent-text: #0f6da0;
   --accent-soft-text: #1b6690;
   --accent-strong-text: #0b4c70;
 
@@ -205,7 +205,7 @@
   --danger: #d63040;
   --danger-rgb: 214 48 64;
   --danger-text: #a3202d;
-  --danger-strong-text: #c42a39;
+  --danger-strong-text: #c32a39;
   --danger-bright-text: #8a1a25;
   --danger-solid: #d63040;
   --danger-solid-hover: #bf2534;
@@ -228,17 +228,17 @@
 
   --added: #189e52;
   --added-rgb: 24 158 82;
-  --added-number: #2b8452;
+  --added-number: #267549;
   --removed: #d63040;
   --removed-rgb: 214 48 64;
-  --removed-number: #b0505b;
+  --removed-number: #a44a55;
 
   --purple: #7a4ce3;
   --purple-rgb: 122 76 227;
   --syntax-keyword: #a626a4;
   --syntax-string: #2f7d32;
   --syntax-number: #b45309;
-  --syntax-comment: #6b7280;
+  --syntax-comment: #616774;
   --syntax-function: #1d5fd1;
   --syntax-type: #8a5a00;
   --syntax-attribute: #0f7f8f;
