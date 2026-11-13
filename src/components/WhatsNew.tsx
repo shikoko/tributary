@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { featured, type NoteItem, type NoteSection, type Release } from "../lib/whatsNew";
+import { compareVersions, featured, RELEASES, type NoteItem, type NoteSection, type Release } from "../lib/whatsNew";
 import { withAlpha } from "../lib/colors";
 import { openInBrowser } from "../lib/weblinks";
 import { useThemeColors } from "../app/useAppearance";
@@ -34,25 +34,43 @@ const Line = ({ text }: { text: string }) => <MarkdownLine text={text} openUrl={
 /** A new thing, or the rest of a version (its fixes, and what got better), together. */
 type Slide = { kind: "item"; item: NoteItem; version: string } | { kind: "rest"; sections: NoteSection[]; version: string };
 
-/**
- * What changed, after an update (or from What's New in About Tributary): each new thing in
- * turn, large, with a picture of it working and the list of them beside it; then the fixes
- * together. The words and pictures are each version's release notes.
- */
-export function WhatsNewDialog({ releases, onClose }: { releases: Release[]; onClose: () => void }) {
-  const colors = useItemColors();
-  const slides: Slide[] = releases.flatMap((release) => {
+/** A version's pages: each new thing, then the rest together. */
+function slidesOf(releases: Release[]): Slide[] {
+  return releases.flatMap((release) => {
     const { items, rest } = featured(release);
     const news: Slide[] = items.map((item) => ({ kind: "item", item, version: release.version }));
     return rest.length > 0 ? [...news, { kind: "rest", sections: rest, version: release.version }] : news;
   });
+}
+
+/** How many new things and fixes a version brings, in a few words: "3 new · 7 fixes". */
+export function counts(release: Release): string {
+  const { items, rest } = featured(release);
+  const others = rest.reduce((sum, section) => sum + section.items.length, 0);
+  const parts = [items.length > 0 && `${items.length} new`, others > 0 && `${others} ${others === 1 ? "fix" : "fixes"}`].filter(Boolean);
+  return parts.join(" · ");
+}
+
+/**
+ * What changed, after an update (or from What's New in About Tributary): each new thing in
+ * turn, large, with a picture of it working; then the fixes together. The list beside them is
+ * the changelog: every version up to this one, the one shown open with its pages, the others
+ * folded to what they brought. The words and pictures are each version's release notes.
+ */
+export function WhatsNewDialog({ releases, onClose }: { releases: Release[]; onClose: () => void }) {
+  const colors = useItemColors();
+  // Every version up to the newest one shown, newest first.
+  const newest = releases[0]?.version;
+  const versions = RELEASES.filter((release) => !newest || compareVersions(release.version, newest) <= 0);
+  const [shown, setShown] = useState(releases);
+  const slides = slidesOf(shown);
   const [at, setAt] = useState(0);
   // A long list scrolls: it follows the page you're on. (In braces: scrollIntoView returns a
   // promise now, which React would take for the effect's clean-up and call.)
-  const nav = useRef<HTMLDivElement>(null);
+  const nav = useRef<HTMLElement>(null);
   useEffect(() => {
     nav.current?.querySelector(".on")?.scrollIntoView({ block: "nearest" });
-  }, [at]);
+  }, [at, shown]);
   const slide = slides[at];
   const last = at === slides.length - 1;
   // The arrow keys step through them, wherever the focus is in the dialog.
@@ -68,10 +86,10 @@ export function WhatsNewDialog({ releases, onClose }: { releases: Release[]; onC
     return () => window.removeEventListener("keydown", onKey);
   }, [count]);
   if (!slide) return null;
-  const title = releases.length === 1 ? `What's new in Tributary ${releases[0].version}` : "What's new in Tributary";
-  // The rest by their sections' names: "Fixes", "Better and Fixes" (in 0.4.0, when there are several versions).
-  const name = (entry: Slide) =>
-    entry.kind === "item" ? entry.item.title : `${entry.sections.map((section) => section.name).join(" and ")}${releases.length > 1 ? ` in ${entry.version}` : ""}`;
+  const title = shown.length === 1 ? `What's new in Tributary ${shown[0].version}` : "What's new in Tributary";
+  // The rest by their sections' names: "Fixes", "Better and Fixes".
+  const name = (entry: Slide) => (entry.kind === "item" ? entry.item.title : entry.sections.map((section) => section.name).join(" and "));
+  const isShown = (release: Release) => shown.some((other) => other.version === release.version);
   return (
     <Dialog
       title={title}
@@ -97,29 +115,50 @@ export function WhatsNewDialog({ releases, onClose }: { releases: Release[]; onC
       }
     >
       <div className="wn-spotlight">
-        <div ref={nav} className="wn-nav" role="tablist" aria-orientation="vertical">
-          {slides.map((entry, index) => (
-            <button
-              key={`${entry.version}-${name(entry)}`}
-              role="tab"
-              aria-selected={index === at}
-              className={index === at ? "on" : undefined}
-              style={colors(index)}
-              onClick={() => setAt(index)}
-            >
-              <span className={`wn-nav-dot${entry.kind === "rest" ? " rest" : ""}`}>{entry.kind === "rest" && <CheckIcon size={11} />}</span>
-              {name(entry)}
-            </button>
-          ))}
-        </div>
-        <div className="wn-stage" key={at} style={colors(at)} role="tabpanel">
+        <nav ref={nav} className="wn-nav" aria-label="Versions">
+          {versions.map((release) =>
+            isShown(release) ? (
+              <div key={release.version} className="wn-version open">
+                <div className="wn-version-head">
+                  <span className="wn-tag">{release.version}</span>
+                </div>
+                {slides.map((entry, index) =>
+                  entry.version === release.version ? (
+                    <button
+                      key={`${entry.version}-${name(entry)}`}
+                      className={index === at ? "on" : undefined}
+                      aria-current={index === at ? "page" : undefined}
+                      style={colors(index)}
+                      onClick={() => setAt(index)}
+                    >
+                      <span className={`wn-nav-dot${entry.kind === "rest" ? " rest" : ""}`}>{entry.kind === "rest" && <CheckIcon size={11} />}</span>
+                      {name(entry)}
+                    </button>
+                  ) : null,
+                )}
+              </div>
+            ) : (
+              <button
+                key={release.version}
+                className="wn-version"
+                onClick={() => {
+                  setShown([release]);
+                  setAt(0);
+                }}
+              >
+                <span className="wn-version-head">
+                  <span className="wn-tag">{release.version}</span>
+                  <span className="wn-version-counts">{counts(release)}</span>
+                </span>
+                <span className="wn-version-headline">{release.headline}</span>
+              </button>
+            ),
+          )}
+        </nav>
+        <div className="wn-stage" key={`${shown[0]?.version}-${at}`} style={colors(at)}>
           {slide.kind === "item" ? (
             <>
-              {slide.item.picture?.src ? (
-                <img className="wn-picture" src={slide.item.picture.src} alt={slide.item.picture.alt} />
-              ) : (
-                <LaneArt index={at} />
-              )}
+              {slide.item.picture?.src ? <img className="wn-picture" src={slide.item.picture.src} alt={slide.item.picture.alt} /> : <LaneArt index={at} />}
               <span className="wn-stage-version">New in {slide.version}</span>
               <h3>{slide.item.title}</h3>
               <p>
