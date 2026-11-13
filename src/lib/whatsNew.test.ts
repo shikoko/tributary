@@ -41,6 +41,13 @@ describe("what's new", () => {
     expect(notes.sections[1].items[1]).toEqual({ title: "", text: "A line with no name." });
   });
 
+  it("reads notes with Windows line endings the same", () => {
+    // The Windows installer is built on Windows, where git checks the notes out with them.
+    const notes = "A headline.\n\n## New\n\n- **A thing:** it works.\n\n  ![It, working](v1.2.0/thing.webp)\n\n## Fixes\n\n- **A fix,** fixed.\n";
+    expect(parseNotes("1.2.0", notes.replace(/\n/g, "\r\n"))).toEqual(parseNotes("1.2.0", notes));
+    expect(parseNotes("1.2.0", notes.replace(/\n/g, "\r\n")).sections.map((section) => section.items.length)).toEqual([1, 1]);
+  });
+
   it("has every version's notes from docs/release-notes, newest first", () => {
     const versions = RELEASES.map((r) => r.version);
     expect(versions).toContain("0.5.0");

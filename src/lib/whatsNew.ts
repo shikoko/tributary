@@ -41,7 +41,8 @@ const END = "<!-- release page only";
 export function parseNotes(version: string, markdown: string): Release {
   const headline: string[] = [];
   const sections: NoteSection[] = [];
-  for (const line of markdown.split(END)[0].split("\n")) {
+  // Windows line endings, as git checks the notes out on Windows (where the Windows installer is built).
+  for (const line of markdown.replace(/\r\n?/g, "\n").split(END)[0].split("\n")) {
     const heading = /^##\s+(.+)$/.exec(line);
     const bullet = /^-\s+(.+)$/.exec(line);
     // A picture of an item: on its own line, indented under it.
