@@ -44,10 +44,11 @@ driver=$!
 sleep 3
 win=$(cygpath -w "$app" | sed 's/\\/\\\\/g')
 (sleep 25; echo "-- 25 seconds into the session:"; webviews; echo "-- DevToolsActivePort files:"; find "$local_data" "$temp" "$(cygpath -u "$TEMP")" -name DevToolsActivePort 2>/dev/null) &
+watcher=$!
 curl -s --max-time 120 -X POST http://127.0.0.1:9515/session -H 'content-type: application/json' \
   -d "{\"capabilities\":{\"alwaysMatch\":{\"browserName\":\"webview2\",\"ms:edgeChromium\":true,\"ms:edgeOptions\":{\"binary\":\"$win\",\"args\":[]}}}}" | head -c 300
 echo
-wait
+wait "$watcher"
 kill "$driver" 2>/dev/null
 echo "-- msedgedriver's log, what it set and what happened:"
 grep -v '^ \|^{\|^}' "$RUNNER_TEMP/msedgedriver.log" | grep -v "Populating" | cut -c 1-1200 | head -40

@@ -91,7 +91,10 @@ async function step(name, run) {
     console.log(`  ✓ ${name}`);
   } catch (error) {
     failed++;
-    console.log(`  ✗ ${name}\n      ${String(error.message ?? error).split("\n").slice(0, 3).join("\n      ")}`);
+    // What went wrong, and where Playwright's call log ended up (what it was waiting for).
+    const lines = String(error.message ?? error).split("\n");
+    const said = lines.length > 8 ? [...lines.slice(0, 3), "…", ...lines.slice(-4)] : lines;
+    console.log(`  ✗ ${name}\n      ${said.join("\n      ")}`);
     if (screenshots) await page.screenshot({ path: join(screenshots, `${String(++shot).padStart(2, "0")}.png`) }).catch(() => {});
     await recover();
     return;
@@ -372,11 +375,15 @@ try {
     await page.locator(".details .file", { hasText: "README.md" }).hover();
     await page.getByRole("button", { name: "Stage README.md", exact: true }).click();
     await view.locator(".diff-source", { hasText: "Staged" }).waitFor({ timeout: 10_000 });
-    // The row moved to Staged, under the pointer or not: a move away first, so the pointer's
-    // arrival on it is one the browser sees (WebKit doesn't look again by itself).
-    await page.mouse.move(0, 0);
-    await page.locator(".details .file.shown", { hasText: "README.md" }).hover();
-    await page.getByRole("button", { name: "Unstage README.md", exact: true }).click();
+    // The row moved to Staged, under the pointer or not: the pointer moves away and onto it
+    // until its button shows, as WebKit only looks at what's under the pointer when it moves.
+    const unstage = page.getByRole("button", { name: "Unstage README.md", exact: true });
+    for (let tries = 0; tries < 5 && !(await unstage.isVisible()); tries++) {
+      await page.mouse.move(0, 0);
+      await page.locator(".details .file.shown", { hasText: "README.md" }).hover();
+      await page.waitForTimeout(200);
+    }
+    await unstage.click();
     await view.locator(".diff-source", { hasText: "Not staged" }).waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");
     await view.waitFor({ state: "detached", timeout: 5000 });
