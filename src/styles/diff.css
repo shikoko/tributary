@@ -112,13 +112,14 @@
   white-space: nowrap;
 }
 
-/* When the changes are narrow, the tool button shows only its icon (its name is in the tooltip). */
+/* When the changes are narrow, the tool button shows only its icon (its name is in the tooltip).
+   (Only a button with an icon: one with just words keeps them.) */
 .diff-header {
   container: diff-header / inline-size;
 }
 
 @container diff-header (max-width: 760px) {
-  .diff-header .outline-button.tool-button .button-label {
+  .diff-header .outline-button.tool-button:has(svg) .button-label {
     display: none;
   }
 }
@@ -509,7 +510,7 @@
     display: none;
   }
 
-  .diff-view .outline-button .button-label {
+  .diff-view .outline-button:has(svg) .button-label {
     display: none;
   }
 }

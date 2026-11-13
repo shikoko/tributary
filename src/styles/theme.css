@@ -78,8 +78,8 @@
   --danger-text: #ffb3bb;
   --danger-strong-text: #ff8a96;
   --danger-bright-text: #ffd5da;
-  --danger-solid: #e5484d;
-  --danger-solid-hover: #f05a5f;
+  --danger-solid: #cf2f3c;
+  --danger-solid-hover: #d9363f;
   /* Text on --danger-solid: a button that deletes or discards. */
   --on-danger-solid: #ffffff;
 
