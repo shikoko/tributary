@@ -5,7 +5,7 @@ import { CheckIcon, GearIcon } from "./Icons";
 import { Switch } from "./ui/Switch";
 
 interface Props {
-  /** The button it opens from: it opens under it, its right edge on the button's (and a click on it closes it). */
+  /** The button it opens from: it opens under it, lined up with it (and a click on it closes it). */
   anchor: HTMLElement;
   theme: Theme;
   appearance: Partial<Appearance>;
@@ -54,11 +54,13 @@ export function ViewPanel(props: Props) {
   const change = (value: Partial<Appearance>) => setAppearance({ ...appearance, ...value });
   const panel = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<CSSProperties>({ visibility: "hidden" });
-  // Under the button, its right edge on the button's, inside the window.
+  // Under the button, inside the window: from a button in the window's right half, its right edge
+  // on the button's; from one in the left half, its left edge on the button's.
   useLayoutEffect(() => {
     const width = panel.current?.offsetWidth ?? 340;
     const button = props.anchor.getBoundingClientRect();
-    const left = Math.max(8, Math.min(button.right - width, window.innerWidth - width - 8));
+    const wanted = button.left + button.width / 2 > window.innerWidth / 2 ? button.right - width : button.left;
+    const left = Math.max(8, Math.min(wanted, window.innerWidth - width - 8));
     setPlace({ left, top: button.bottom + 6 });
   }, [props.anchor]);
   // The focus goes into it, and back to where it was (the View button) when it closes.

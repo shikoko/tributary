@@ -42,6 +42,8 @@ interface Props {
   daySeparators: boolean;
   /** Right-click on the column headings. */
   onHeaderContextMenu: (x: number, y: number) => void;
+  /** Opens the View panel under `anchor`, the button at the end of the column headings. */
+  onViewMenu: (anchor: HTMLElement) => void;
   /** Right-click on a row, at window coordinates (x, y). */
   onContextMenu: (commit: CommitRow, x: number, y: number) => void;
   /** Double-click on a branch label. */
@@ -279,6 +281,7 @@ export function CommitList(props: Props) {
         onColumnWidths={onColumnWidths}
         scrollbar={viewport.scrollbar}
         onContextMenu={props.onHeaderContextMenu}
+        onViewMenu={props.onViewMenu}
       />
       <div
         ref={body}

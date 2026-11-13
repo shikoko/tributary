@@ -365,7 +365,6 @@ export function RepositoryView(props: Props) {
           lastFetch={snapshot.lastFetched ? snapshot.lastFetched * 1000 : null}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          onViewMenu={(anchor) => setViewAt((open) => (open ? null : anchor))}
           teamOpen={props.teamOpen}
           onToggleTeam={props.onToggleTeam}
           onOpenMenu={(anchor) => menu.under(anchor, openMenu())}
@@ -428,6 +427,7 @@ export function RepositoryView(props: Props) {
           <div className="center-pane" data-tour="graph">
             <CommitList
               key={snapshot.path}
+              onViewMenu={(anchor) => setViewAt((open) => (open ? null : anchor))}
               snapshot={snapshot}
               selectedId={selection.selectedId}
               selectedIds={selectedIds}

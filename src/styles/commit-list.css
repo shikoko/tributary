@@ -9,6 +9,7 @@
 }
 
 .list-header {
+  position: relative;
   display: grid;
   align-items: center;
   height: 30px;
@@ -23,9 +24,34 @@
 }
 
 .list-header > div {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
   padding: 0 var(--space-10);
   white-space: nowrap;
   overflow: hidden;
+}
+
+/* A heading's name, trimmed to its capitals so it's in the middle of the row (see .button-label). */
+.list-heading-text {
+  min-width: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-overflow: ellipsis;
+  text-box: trim-both cap alphabetic;
+}
+
+/* The last heading's name stops short of the View button at the end of the row. */
+.list-header > div:last-of-type {
+  padding-right: var(--space-32);
+}
+
+/* The View panel's button, at the end of the headings: what it changes is under it. */
+.list-header-view {
+  position: absolute;
+  top: 50%;
+  margin-right: var(--space-4);
+  translate: 0 -50%;
 }
 
 .list-header .refs-heading {
