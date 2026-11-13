@@ -25,6 +25,11 @@ updates:
         applies-to: version-updates
         patterns: ["*"]
         update-types: [minor, patch]
+    ignore:
+      # TypeScript 7 (the native port) until typescript-eslint, which the lint step uses,
+      # supports it: its 8.x supports TypeScript below 6.1. Remove this to get it again.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
 
   # The app and its setup (src-tauri/setup) share one Cargo.lock.
   - package-ecosystem: cargo
