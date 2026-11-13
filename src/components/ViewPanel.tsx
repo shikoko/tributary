@@ -70,12 +70,15 @@ export function ViewPanel(props: Props) {
     const left = Math.max(8, Math.min(wanted, window.innerWidth - width - 8));
     setPlace({ left, top: button.bottom + 6 });
   }, [anchor, onClose]);
-  // The focus goes into it, and back to where it was (the View button) when it closes.
+  // The focus goes into it, and back to where it was when it closes: the View button, or
+  // what had it when the shortcut opened it. On a Mac a click doesn't give a button the focus,
+  // so after one there's nothing to go back to but the page: then it's the View button too.
   useEffect(() => {
-    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const active = document.activeElement;
+    const before = active instanceof HTMLElement && active !== document.body ? active : anchor.current;
     panel.current?.querySelector<HTMLElement>("button")?.focus();
     return () => before?.focus();
-  }, []);
+  }, [anchor]);
   // A click outside, or Esc, closes it. (A click on its button closes it too, as the button's own.)
   useEffect(() => {
     const onDown = (event: MouseEvent) => {
