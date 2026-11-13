@@ -92,8 +92,33 @@ async function step(name, run) {
   } catch (error) {
     failed++;
     console.log(`  ✗ ${name}\n      ${String(error.message ?? error).split("\n").slice(0, 3).join("\n      ")}`);
+    if (screenshots) await page.screenshot({ path: join(screenshots, `${String(++shot).padStart(2, "0")}.png`) }).catch(() => {});
+    await recover();
+    return;
   }
   if (screenshots) await page.screenshot({ path: join(screenshots, `${String(++shot).padStart(2, "0")}.png`) }).catch(() => {});
+}
+
+/**
+ * After a step that failed: what it left open (a dialog, a menu, a file's changes) is said, for
+ * the log, then closed with Esc, so the steps after it start from the repository's view
+ * rather than failing behind it.
+ */
+async function recover() {
+  const open = await page
+    .evaluate(() =>
+      [...document.querySelectorAll(".dialog, [role='dialog'], [role='menu'], .diff-view")]
+        .filter((element) => element.getClientRects().length > 0)
+        .map((element) => element.innerText.replace(/\s+/g, " ").trim().slice(0, 300)),
+    )
+    .catch(() => []);
+  for (const text of open) console.log(`      left open: ${text}`);
+  for (let tries = 0; tries < 4; tries++) {
+    const still = await page.locator(".dialog, [role='dialog'], [role='menu'], .diff-view").count().catch(() => 0);
+    if (still === 0) break;
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.waitForTimeout(300);
+  }
 }
 /**
  * What's on screen meets WCAG 2.1's level A and AA criteria that can be checked automatically.
@@ -347,6 +372,9 @@ try {
     await page.locator(".details .file", { hasText: "README.md" }).hover();
     await page.getByRole("button", { name: "Stage README.md", exact: true }).click();
     await view.locator(".diff-source", { hasText: "Staged" }).waitFor({ timeout: 10_000 });
+    // The row moved to Staged, under the pointer or not: a move away first, so the pointer's
+    // arrival on it is one the browser sees (WebKit doesn't look again by itself).
+    await page.mouse.move(0, 0);
     await page.locator(".details .file.shown", { hasText: "README.md" }).hover();
     await page.getByRole("button", { name: "Unstage README.md", exact: true }).click();
     await view.locator(".diff-source", { hasText: "Not staged" }).waitFor({ timeout: 10_000 });
