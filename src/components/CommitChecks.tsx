@@ -66,7 +66,7 @@ export function CommitChecks({ repoPath, id, notify }: { repoPath: string; id: s
         {checks.canRerun && failed > 0 && (
           <button className="commit-checks-rerun" disabled={busy} onClick={rerun}>
             <RefreshIcon size={12} />
-            {busy ? "Asking…" : "Re-run failed"}
+            <span className="button-label">{busy ? "Asking…" : "Re-run failed"}</span>
           </button>
         )}
       </div>
