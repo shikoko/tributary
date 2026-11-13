@@ -1,7 +1,7 @@
 /* About Tributary: the logo and version large, the update check under them, then the links. */
 .dialog.about-window {
   width: min(500px, 100%);
-  padding: 34px 32px 22px;
+  padding: var(--space-32) var(--space-32) var(--space-24);
 }
 
 /* The window's name is for screen readers: the logo and name say it. */
@@ -21,11 +21,11 @@
 }
 
 .about-hero .logo-tile {
-  filter: drop-shadow(0 10px 24px rgb(0 0 0 / 0.35));
+  filter: drop-shadow(0 10px 24px rgb(0 0 0 / 0.35)); /* the logo's own shadow, in both themes */
 }
 
 .about-name {
-  margin-top: 18px;
+  margin-top: var(--space-20);
   font-size: var(--type-3xl);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -35,8 +35,8 @@
 .about-version {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+  gap: var(--space-8);
+  margin-top: var(--space-6);
   font-size: var(--type-md);
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
@@ -54,12 +54,12 @@
 }
 
 .about-tagline {
-  margin-top: 12px;
+  margin-top: var(--space-12);
   color: var(--text-muted);
 }
 
 .about-updates {
-  margin-top: 32px;
+  margin-top: var(--space-32);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: rgb(var(--overlay-rgb) / 0.02);
@@ -68,8 +68,8 @@
 .about-status {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 18px 18px;
+  gap: var(--space-14);
+  padding: var(--space-20) var(--space-20);
 }
 
 .about-status-icon {
@@ -101,7 +101,7 @@
 .about-status-text {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-4);
   flex: 1;
   min-width: 0;
 }
@@ -124,35 +124,35 @@
 .about-auto {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px 18px 18px;
+  gap: var(--space-16);
+  padding: var(--space-16) var(--space-20) var(--space-20);
   border-top: 1px solid var(--border);
 }
 
 .about-auto + .about-auto {
-  padding-top: 14px;
+  padding-top: var(--space-14);
 }
 
 .about-auto-text {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-4);
   flex: 1;
 }
 
 .about-links {
   display: flex;
   justify-content: center;
-  gap: 6px;
-  margin-top: 24px;
+  gap: var(--space-6);
+  margin-top: var(--space-24);
 }
 
 .about-link {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-8);
   height: 32px;
-  padding: 0 12px;
+  padding: 0 var(--space-12);
   border: none;
   border-radius: var(--radius-lg);
   background: none;
@@ -166,8 +166,8 @@
 
 .about-window .dialog-buttons {
   justify-content: center;
-  margin-top: 26px;
-  padding-top: 18px;
+  margin-top: var(--space-28);
+  padding-top: var(--space-20);
   border-top: 1px solid var(--border);
 }
 

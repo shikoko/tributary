@@ -1,14 +1,14 @@
 /* Commit box */
 
 .details-scroll.worktree {
-  padding-top: 4px;
+  padding-top: var(--space-4);
 }
 
 .commit-box {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px 14px;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-16) var(--space-14);
   border-top: 1px solid var(--border);
   flex: none;
 }
@@ -19,7 +19,7 @@
 
 .commit-box textarea.text-input {
   height: auto;
-  padding: 8px 10px;
+  padding: var(--space-8) var(--space-10);
   resize: vertical;
   min-height: 56px;
 }
@@ -28,7 +28,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .commit-row-controls .checkbox {
@@ -37,7 +37,7 @@
 
 .details-scroll.worktree .files:first-child {
   margin-top: 0;
-  padding-top: 8px;
+  padding-top: var(--space-8);
   border-top: none;
 }
 
@@ -47,7 +47,7 @@
   display: flex;
   align-items: stretch;
   height: 36px;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   background: var(--chrome);
   border-bottom: 1px solid var(--border);
   flex: none;
@@ -56,7 +56,7 @@
 
 .mac .tab-bar,
 .mac .window-drag-strip {
-  padding-left: 80px;
+  padding-left: 80px; /* room for the window buttons */
 }
 
 .window-drag-strip {
@@ -68,13 +68,13 @@
 .tab-logo {
   display: inline-flex;
   align-items: center;
-  padding: 0 8px 0 4px;
+  padding: 0 var(--space-8) 0 var(--space-4);
 }
 
 .tabs {
   display: flex;
   align-items: flex-end;
-  gap: 2px;
+  gap: var(--space-2);
   min-width: 0;
   overflow: hidden;
 }
@@ -82,11 +82,11 @@
 .tab {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   min-width: 90px;
   max-width: 220px;
   height: 30px;
-  padding: 0 6px 0 12px;
+  padding: 0 var(--space-6) 0 var(--space-12);
   border: 1px solid transparent;
   border-bottom: none;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -161,7 +161,8 @@
   color: var(--text);
 }
 
-/* The + is a small tab at the end of the row, on the same bottom edge as the tabs. */
+/* The + is a small tab at the end of the row, on the same bottom edge as the tabs. (It's
+   after their list, so the list's gap isn't before it: its margin is the gap and its own.) */
 .tab-new {
   display: inline-flex;
   align-items: center;
@@ -169,7 +170,7 @@
   align-self: flex-end;
   width: 34px;
   height: 30px;
-  margin-left: 2px;
+  margin-left: var(--space-4);
   padding: 0;
   border: none;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;

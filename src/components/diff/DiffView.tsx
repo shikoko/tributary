@@ -251,7 +251,8 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           <CloseIcon />
         </Button>
       </header>
-      <div className="diff-body" ref={body}>
+      {/* It scrolls: from the keyboard too, once it has focus. */}
+      <div className="diff-body" ref={body} tabIndex={0}>
         {conflicted && live ? (
           <ConflictEditor repoPath={repoPath} path={path} mine={sides.mine} theirs={sides.theirs} version={version} run={run} />
         ) : error ? (

@@ -189,7 +189,7 @@ jobs:
         timeout-minutes: 15
         run: |
           npm ci
-          npm install --no-save playwright@1.63.0
+          npm install --no-save playwright@1.63.0 axe-core@4.14.0
           # Its system libraries come from Ubuntu's mirror too: try again if it can't be reached.
           for attempt in 1 2 3; do
             npx playwright install --with-deps chromium && exit 0
@@ -203,6 +203,18 @@ jobs:
 
       - name: Smoke test
         run: npm run preview:smoke
+
+      - name: Catalogue screenshots
+        run: npm run preview:catalogue -- --out catalogue-changes
+
+      # The screenshots it compared with, the new ones and the pixels that changed.
+      - name: Keep what changed in the catalogue
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: catalogue-changes
+          path: catalogue-changes
+          if-no-files-found: ignore
 
   # A pull request into main makes a release when it's merged: this says which version,
   # and checks its notes are written.

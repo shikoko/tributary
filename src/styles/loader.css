@@ -4,10 +4,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 26px;
+  gap: var(--space-28);
   height: 100%;
   min-height: 0;
-  padding: 24px;
+  padding: var(--space-24);
   /* Only after a moment, so a quick load doesn't flash. */
   animation: loader-in 0.3s ease 0.15s both;
 }
@@ -47,7 +47,7 @@
 
 /* The commit glows as the light arrives. */
 .loader-glow {
-  fill: #ffad1f;
+  fill: #ffad1f; /* the logo's orange branch (Icons.tsx) */
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
@@ -99,7 +99,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-10);
   max-width: min(560px, 100%);
   text-align: center;
 }
@@ -126,8 +126,8 @@
 
 /* In a panel or a dialog: smaller, closer together. */
 .loader.small {
-  gap: 16px;
-  padding: 20px 16px;
+  gap: var(--space-16);
+  padding: var(--space-20) var(--space-16);
 }
 
 .loader.small .loader-title {
@@ -140,7 +140,7 @@
 .loader.inline {
   flex-direction: row;
   justify-content: flex-start;
-  gap: 10px;
+  gap: var(--space-10);
   height: auto;
   padding: 0;
 }

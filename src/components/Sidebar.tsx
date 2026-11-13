@@ -3,14 +3,15 @@ import type { BranchSync } from "../lib/branchSync";
 import type { Stacked } from "../api";
 import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Submodule, type Visibility, type Worktree } from "../api";
 import { stepFocus } from "../lib/inputMode";
+import type { LaneLabel } from "../lib/lanes";
 import type { RefEntry } from "../lib/refs";
 import { useStoredState } from "../lib/settings";
-import { BranchIcon, BroomIcon, CloudIcon, EyeOffIcon, GearIcon, PinIcon, PlusIcon, SearchIcon, StashIcon, TagIcon, UnlockIcon } from "./Icons";
+import { BranchIcon, BroomIcon, CloudIcon, GearIcon, PinIcon, PlusIcon, StashIcon, TagIcon, UnlockIcon } from "./Icons";
 import { LockedFileList, SubmoduleList, WorktreeList } from "./sidebar/OtherLists";
 import { RefItem, type RefHandlers } from "./sidebar/RefItem";
-import { branchGroups, sidebarLists, stashLabel } from "./sidebar/refTree";
-import { RefTree, SidebarGroup, SidebarSection, type Folding } from "./sidebar/SidebarSection";
-import { Button } from "./ui/Button";
+import { branchCount, branchGroups, shortName, sidebarLists, stashLabel } from "./sidebar/refTree";
+import { HeadingAction, RefTree, SidebarGroup, SidebarSection, type Folding } from "./sidebar/SidebarSection";
+import { SidebarFilter, VisibilityBar } from "./sidebar/SidebarTop";
 
 interface Props {
   /** The repository's folder. */
@@ -31,6 +32,8 @@ interface Props {
   onFocus: (entry: RefEntry) => void;
   /** The eye button: hide or show the entry in the graph. */
   onToggleVisible: (entry: RefEntry) => void;
+  /** The pointer is on a branch or tag, or has left it (null): its lanes light up. */
+  onLaneHover: (label: LaneLabel | null) => void;
   /** Show every branch again. */
   onShowAll: () => void;
   /** Open the prune branches dialog (null while that can't be done). */
@@ -114,10 +117,6 @@ export function Sidebar(props: Props) {
   const top = groups.top.filter(matches);
   const rest = groups.rest.filter(matches);
   const remoteOnly = groups.remoteOnly.map(([remote, entries]) => [remote, entries.filter(matches)] as const).filter(([, entries]) => entries.length > 0);
-  // The branches at the top are out of their folders: they go by their last part
-  // ("world-build-tools"), unless another branch's ends the same way. The whole name is on hover.
-  const last = (name: string) => name.slice(name.lastIndexOf("/") + 1);
-  const shortName = (entry: RefEntry) => (lists.branches.filter((other) => last(other.name) === last(entry.name)).length === 1 ? last(entry.name) : entry.name);
   const tags = lists.tags.filter(matches);
   const stashes = lists.stashes.filter(matches);
   const locks = props.locks?.filter((lock) => !needle || lock.path.toLowerCase().includes(needle)) ?? null;
@@ -128,12 +127,7 @@ export function Sidebar(props: Props) {
     .filter((entry): entry is RefEntry => entry !== undefined && matches(entry));
   const soloing = visibility.solo.length > 0;
   // A branch is hidden (or shown alone) with its copies on remotes: they count once.
-  const branchOf = (name: string) => {
-    if (name.startsWith("refs/heads/")) return name.slice("refs/heads/".length);
-    const remote = [...lists.remotes.keys()].find((remote) => name.startsWith(`refs/remotes/${remote}/`));
-    return remote ? name.slice(`refs/remotes/${remote}/`.length) : name;
-  };
-  const hiddenCount = new Set((soloing ? visibility.solo : visibility.hidden).map(branchOf)).size;
+  const hiddenCount = branchCount(soloing ? visibility.solo : visibility.hidden, [...lists.remotes.keys()]);
   const section = { filtering, folding };
 
   return (
@@ -153,31 +147,8 @@ export function Sidebar(props: Props) {
         }
       }}
     >
-      <div className="sidebar-filter">
-        <SearchIcon size={13} />
-        <input
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              event.stopPropagation();
-              setFilter("");
-            }
-          }}
-          placeholder="Filter branches and tags"
-          spellCheck={false}
-          aria-label="Filter branches and tags"
-        />
-      </div>
-      {hiddenCount > 0 && (
-        <div className="sidebar-visibility">
-          <EyeOffIcon size={13} />
-          <span>{soloing ? `Showing only ${hiddenCount === 1 ? "one branch" : `${hiddenCount} branches`}` : `${hiddenCount} hidden`}</span>
-          <Button kind="link" onClick={props.onShowAll}>
-            Show all
-          </Button>
-        </div>
-      )}
+      <SidebarFilter value={filter} onChange={setFilter} />
+      {hiddenCount > 0 && <VisibilityBar count={hiddenCount} soloing={soloing} onShowAll={props.onShowAll} />}
       <div className="sidebar-scroll">
         {pinned.length > 0 && (
           <SidebarSection id="pinned" title="Pinned" count={pinned.length} {...section}>
@@ -197,21 +168,22 @@ export function Sidebar(props: Props) {
             (props.onManageRemotes || props.onPrune) && (
               <>
                 {props.onManageRemotes && (
-                  <button className="sidebar-heading-action" onClick={props.onManageRemotes} title="Add, rename or remove remotes" aria-label="Manage remotes">
+                  <HeadingAction label="Manage remotes" title="Add, rename or remove remotes" onClick={props.onManageRemotes}>
                     <GearIcon size={13} />
-                  </button>
+                  </HeadingAction>
                 )}
                 {props.onPrune && (
-                  <button className="sidebar-heading-action" onClick={props.onPrune} title="Prune branches: clean up merged ones and ones gone from the remote" aria-label="Prune branches">
+                  <HeadingAction label="Prune branches" title="Prune branches: clean up merged ones and ones gone from the remote" onClick={props.onPrune}>
                     <BroomIcon size={13} />
-                  </button>
+                  </HeadingAction>
                 )}
               </>
             )
           }
         >
           <ul>
-            {top.map((entry) => item(entry, shortName(entry), branchIcon))}
+            {/* Out of their folders, by their last part: the whole name is on hover. */}
+            {top.map((entry) => item(entry, shortName(entry, lists.branches), branchIcon))}
             {top.length > 0 && rest.length > 0 && <li className="sidebar-divider" aria-hidden />}
             <li>{tree("branches", rest, (e) => e.name, branchIcon)}</li>
             {remoteOnly.map(([remote, entries]) => (
@@ -254,14 +226,14 @@ export function Sidebar(props: Props) {
             action={
               <>
                 {props.onReleaseMine && (
-                  <button className="sidebar-heading-action" onClick={props.onReleaseMine} title="Release all my locks" aria-label="Release all my locks">
+                  <HeadingAction label="Release all my locks" onClick={props.onReleaseMine}>
                     <UnlockIcon size={13} />
-                  </button>
+                  </HeadingAction>
                 )}
                 {props.onLockFiles && (
-                  <button className="sidebar-heading-action" onClick={props.onLockFiles} title="Lock files…" aria-label="Lock files">
+                  <HeadingAction label="Lock files" title="Lock files…" onClick={props.onLockFiles}>
                     <PlusIcon size={13} />
-                  </button>
+                  </HeadingAction>
                 )}
               </>
             }

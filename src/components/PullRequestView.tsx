@@ -283,7 +283,7 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
                   })
                 }
               />
-              <span className="request-into" aria-label="into">
+              <span className="request-into" role="img" aria-label="into">
                 <ChevronRightIcon size={14} />
               </span>
               <BranchChip

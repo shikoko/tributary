@@ -2,15 +2,15 @@
 .merge-methods {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 12px 0;
+  gap: var(--space-6);
+  margin: var(--space-12) 0;
 }
 
 .merge-method {
   display: grid;
   grid-template-columns: auto 1fr;
-  column-gap: 8px;
-  padding: 8px 10px;
+  column-gap: var(--space-8);
+  padding: var(--space-8) var(--space-10);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   cursor: pointer;
@@ -22,7 +22,7 @@
 
 .merge-method input {
   grid-row: span 2;
-  margin: 2px 0 0;
+  margin: var(--space-2) 0 0;
   accent-color: var(--accent);
 }
 
@@ -44,8 +44,8 @@
 .patch-files {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin: 0 0 10px;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-10);
   padding: 0;
   list-style: none;
 }
@@ -54,7 +54,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .patch-commit-summary {
@@ -66,7 +66,7 @@
 }
 
 .patch-files {
-  padding: 8px 10px;
+  padding: var(--space-8) var(--space-10);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   font-size: var(--type-sm);
@@ -75,7 +75,7 @@
 .patch-files li {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .patch-file {
@@ -96,7 +96,7 @@
 .request-owners {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-4);
 }
 
 .request-owners-label {
@@ -107,5 +107,5 @@
 .request-owner-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px 14px;
+  gap: var(--space-2) var(--space-14);
 }

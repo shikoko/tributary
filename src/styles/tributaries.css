@@ -4,7 +4,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 200px;
   align-items: center;
-  gap: 22px;
+  gap: var(--space-24);
 }
 
 .tributaries-streams {
@@ -41,7 +41,7 @@
 /* While something runs, the water moves along it. */
 .tributaries-river-flow {
   fill: none;
-  stroke: rgb(255 255 255 / 0.6);
+  stroke: rgb(255 255 255 / 0.6); /* light running along the river */
   stroke-width: 1.2;
   stroke-linecap: round;
   stroke-dasharray: 6 10;
@@ -61,7 +61,7 @@
 
 .tributaries-river-sweep {
   fill: none;
-  stroke: #fff;
+  stroke: #fff; /* light running along the river */
   stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 12 120;
@@ -211,7 +211,7 @@
 /* All passed: a light runs along every wave into the braid, which glows, and the word with it. */
 .tributaries-stream-sweep {
   fill: none;
-  stroke: #fff;
+  stroke: #fff; /* light running along the river */
   stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 9 120;
@@ -308,7 +308,7 @@
   position: relative;
   grid-column: 1 / -1;
   height: 20px;
-  margin: 2px 0 8px;
+  margin: var(--space-2) 0 var(--space-8);
 }
 
 .tributaries-caption {
@@ -317,7 +317,7 @@
   top: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   height: 20px;
   color: var(--text-muted);
   font-size: var(--type-base);
@@ -387,7 +387,7 @@
 .tributaries-verdict {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: var(--space-10);
   min-width: 0;
 }
 

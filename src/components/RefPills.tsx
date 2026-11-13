@@ -20,6 +20,8 @@ interface Props {
   onContextMenu?: (pill: RefPill, x: number, y: number) => void;
   /** Alt+click on a label: highlight its history. */
   onFocusPill?: (pill: RefPill) => void;
+  /** The pointer is on a label, or has left it (null). */
+  onHoverPill?: (pill: RefPill | null) => void;
   /** Labels can be dragged onto commits (to merge or rebase). */
   draggable?: boolean;
   /** Click on the "+N" pill: the labels that didn't fit, to pick one. */
@@ -31,7 +33,7 @@ export function revisionOf(pill: RefPill): string | null {
   return pill.kind === "branch" || pill.kind === "tag" ? pill.name : null;
 }
 
-export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocusPill, draggable, onMore }: Props) {
+export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocusPill, onHoverPill, draggable, onMore }: Props) {
   const pills = useMemo(() => refPills(refs), [refs]);
   if (pills.length === 0) return null;
   const shown = limit ? pills.slice(0, limit) : pills;
@@ -47,15 +49,17 @@ export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocu
           onActivate={onActivate}
           onContextMenu={onContextMenu}
           onFocusPill={onFocusPill}
+          onHoverPill={onHoverPill}
           draggable={draggable}
         />
       ))}
       {hidden.length > 0 &&
         (onMore ? (
-          <button
-            className="ref-pill more"
+          // Like the other labels, for the pointer: they're all in the sidebar, menus and all.
+          // (A commit's row is a single control: a button in it couldn't be reached.)
+          <span
+            className="ref-pill more openable"
             title={`${hidden.map(describePill).join("\n")}\nClick for their menus`}
-            aria-label={`${hidden.length} more ${hidden.length === 1 ? "label" : "labels"}`}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
@@ -69,7 +73,7 @@ export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocu
             }}
           >
             +{hidden.length}
-          </button>
+          </span>
         ) : (
           <span className="ref-pill more" title={hidden.map(describePill).join("\n")}>
             +{hidden.length}
@@ -85,10 +89,11 @@ interface PillProps {
   onActivate?: (pill: RefPill) => void;
   onContextMenu?: (pill: RefPill, x: number, y: number) => void;
   onFocusPill?: (pill: RefPill) => void;
+  onHoverPill?: (pill: RefPill | null) => void;
   draggable?: boolean;
 }
 
-function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }: PillProps) {
+function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, onHoverPill, draggable }: PillProps) {
   const revision = revisionOf(pill);
   const pullRequests = useContext(PullRequestsContext);
   const pr = pill.kind === "branch" ? pullRequests?.find(pill.name, pill.local, pill.remotes) : undefined;
@@ -121,6 +126,8 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, draggable }
         (syncText ? `\n${syncText}` : "") +
         (onActivate && pill.kind === "branch" && !pill.current ? "\nDouble-click to check out" : "")
       }
+      onMouseEnter={() => onHoverPill?.(pill)}
+      onMouseLeave={() => onHoverPill?.(null)}
       onDoubleClick={(event) => {
         if (!onActivate) return;
         event.stopPropagation();

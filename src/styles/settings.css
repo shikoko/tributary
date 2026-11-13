@@ -9,7 +9,7 @@
 .settings {
   display: flex;
   height: min(640px, 76vh);
-  margin: 4px -22px 0;
+  margin: var(--space-4) calc(var(--space-24) * -1) 0;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
@@ -17,10 +17,10 @@
 .settings-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-4);
   width: 236px;
   flex: none;
-  padding: 16px 12px;
+  padding: var(--space-16) var(--space-12);
   overflow-y: auto;
   border-right: 1px solid var(--border);
   background: var(--sunken);
@@ -30,8 +30,8 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 9px 12px;
+  gap: var(--space-12);
+  padding: var(--space-10) var(--space-12);
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
@@ -76,7 +76,7 @@
 .settings-panel {
   flex: 1;
   min-width: 0;
-  padding: 24px 34px 28px;
+  padding: var(--space-24) var(--space-32) var(--space-28);
   overflow-y: auto;
   /* Another section eases in rather than swapping at once. */
   animation: lift-in 0.16s ease-out;
@@ -85,8 +85,8 @@
 .settings-panel h3 {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin: 0 0 12px;
+  gap: var(--space-8);
+  margin: 0 0 var(--space-12);
   color: var(--text);
   font-size: var(--type-xl);
   font-weight: 600;
@@ -105,9 +105,9 @@
 .settings-row {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: var(--space-28);
   min-height: 60px;
-  padding: 14px 0;
+  padding: var(--space-14) 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -118,7 +118,7 @@
 .settings-label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-4);
   min-width: 0;
   flex: 1;
 }
@@ -140,7 +140,7 @@
 .settings-select {
   height: 30px;
   max-width: 100%;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--bg);
@@ -156,7 +156,7 @@
 
 .settings-checks {
   display: flex;
-  gap: 14px;
+  gap: var(--space-14);
 }
 
 /* Appearance: theme, accent and graph colour pickers. */
@@ -164,7 +164,7 @@
 .theme-picker,
 .lane-picker {
   display: flex;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .theme-choice,
@@ -172,8 +172,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 5px 5px 4px;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-4) var(--space-4);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--bg);
@@ -256,8 +256,8 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 4px;
-  padding: 6px 5px;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-6);
 }
 
 .theme-sample-rows > span {
@@ -266,40 +266,40 @@
 }
 
 .theme-sample.dark {
-  background: #14161b;
+  background: #14161b; /* the dark theme's, whichever is on */
 }
 
 .theme-sample.dark .theme-sample-sidebar {
-  background: #1a1d24;
+  background: #1a1d24; /* the dark theme's */
 }
 
 .theme-sample.dark .theme-sample-rows > span {
-  background: #3a4050;
+  background: #3a4050; /* the dark theme's */
 }
 
 .theme-sample.light {
-  background: #ffffff;
+  background: #ffffff; /* the light theme's, whichever is on */
 }
 
 .theme-sample.light .theme-sample-sidebar {
-  background: #eceef2;
+  background: #eceef2; /* the light theme's */
 }
 
 .theme-sample.light .theme-sample-rows > span {
-  background: #d3d7df;
+  background: #d3d7df; /* the light theme's */
 }
 
 /* Half and half. */
 .theme-sample.system {
-  background: linear-gradient(135deg, #14161b 50%, #ffffff 50%);
+  background: linear-gradient(135deg, #14161b 50%, #ffffff 50%); /* both themes' */
 }
 
 .theme-sample.system .theme-sample-sidebar {
-  background: #1a1d24;
+  background: #1a1d24; /* the dark theme's */
 }
 
 .theme-sample.system .theme-sample-rows > span {
-  background: #8a909c;
+  background: #8a909c; /* between the two themes' */
 }
 
 /* The first row is selected, in the accent colour. */
@@ -312,7 +312,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--space-6);
   max-width: 300px;
 }
 
@@ -326,7 +326,7 @@
   padding: 0;
   border: none;
   border-radius: 50%;
-  color: #fff;
+  color: #fff; /* the tick, on every accent colour */
   box-shadow: inset 0 0 0 1px rgb(var(--overlay-rgb) / 0.12);
   transition: transform 0.12s;
 }
@@ -340,12 +340,12 @@
 }
 
 .accent-swatch svg {
-  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.6));
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.6)); /* so it shows on light swatches too */
 }
 
 /* Any colour: a rainbow ring until one is picked. */
 .accent-custom {
-  background: conic-gradient(#ff4f9a, #ffad1f, #ffe24a, #36e07c, #1fb5ff, #a77bff, #ff4f9a);
+  background: conic-gradient(#ff4f9a, #ffad1f, #ffe24a, #36e07c, #1fb5ff, #a77bff, #ff4f9a); /* every colour: pick your own */
   cursor: pointer;
 }
 
@@ -371,15 +371,16 @@
   cursor: pointer;
 }
 
+/* Round swatches: the ring goes around them, where it doesn't cover the colour. */
 .accent-custom:focus-within {
-  outline: 2px solid var(--accent);
+  outline: var(--focus-ring);
   outline-offset: 2px;
 }
 
 .lane-sample {
   display: flex;
-  gap: 2px;
-  padding: 3px 0;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
 }
 
 /* The accent swatches with the colour as a hex code next to them. */
@@ -387,13 +388,13 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .hex-field {
   width: 88px;
   height: 26px;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--bg);
@@ -409,7 +410,7 @@
 .lane-sample-empty {
   width: auto !important;
   height: auto !important;
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   color: var(--text-muted);
   line-height: 18px;
 }
@@ -419,7 +420,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-8);
   max-width: 320px;
 }
 
@@ -536,7 +537,7 @@
 }
 
 .switch.on .switch-knob {
-  background: #fff;
+  background: #fff; /* white on any accent colour */
   transform: translateX(14px);
 }
 
@@ -548,7 +549,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 .name-chip {
@@ -557,7 +558,7 @@
 
 .name-chip button {
   display: inline-flex;
-  padding: 3px;
+  padding: var(--space-4);
   border: none;
   border-radius: 50%;
   background: transparent;
@@ -572,7 +573,7 @@
 .name-input {
   width: 110px;
   height: 24px;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-2xl);
   outline: none;
@@ -590,7 +591,7 @@
 .settings-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 .template-input {
@@ -616,9 +617,9 @@
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin: -10px -10px 6px;
-  padding: 10px 12px;
+  gap: var(--space-8);
+  margin: calc(var(--space-10) * -1) calc(var(--space-10) * -1) var(--space-6);
+  padding: var(--space-10) var(--space-12);
   border-bottom: 1px solid var(--border);
   background: var(--sunken);
   color: var(--text-muted);
@@ -642,7 +643,7 @@
 }
 
 .licences-empty {
-  margin: 8px 10px;
+  margin: var(--space-8) var(--space-10);
   color: var(--text-muted);
   font-size: var(--type-sm);
 }
@@ -650,20 +651,20 @@
 .licences-home {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  margin: 2px 0 12px;
+  gap: var(--space-6);
+  margin: var(--space-2) 0 var(--space-12);
   font-size: var(--type-sm);
 }
 
 .licences-note {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-12);
   color: var(--text-secondary);
   line-height: 1.5;
 }
 
 .licences-text {
-  margin: 0 0 12px;
-  padding: 12px 14px;
+  margin: 0 0 var(--space-12);
+  padding: var(--space-12) var(--space-14);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--sunken);
@@ -679,7 +680,7 @@
 /* A section that's part of the one above it: indented, its icon smaller and quieter, and
    joined to that one by a line from under its icon. */
 .settings-tab.sub {
-  padding-left: 38px;
+  padding-left: 38px; /* under the parent tab's name */
 }
 
 .settings-tab.sub::before,
@@ -727,7 +728,7 @@
 /* Sets the last sections apart (Export and import). */
 .settings-nav-line {
   height: 1px;
-  margin: 12px 8px;
+  margin: var(--space-12) var(--space-8);
   background: var(--border);
 }
 
@@ -749,7 +750,7 @@
 }
 
 .settings-panel-crumb {
-  margin-left: -2px;
+  margin-left: calc(var(--space-2) * -1);
   color: var(--text-muted);
   font-weight: 400;
 }

@@ -8,7 +8,7 @@
 .request-check {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-10);
   min-height: 28px;
   border-bottom: 1px solid var(--border);
 }
@@ -74,8 +74,8 @@
 .request-section .team-heading {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  margin: 6px 0 14px;
+  gap: var(--space-10);
+  margin: var(--space-6) 0 var(--space-14);
 }
 
 .request-empty {

@@ -9,10 +9,10 @@
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-16);
   /* 48px inside the 1px border, so the buttons sit on whole pixels. */
   height: 49px;
-  padding: 0 10px 0 14px;
+  padding: 0 var(--space-10) 0 var(--space-14);
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
   flex: none;
@@ -21,7 +21,7 @@
 .toolbar-repo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
   min-width: 0;
   flex: 0 1 auto;
 }
@@ -29,10 +29,10 @@
 .repo-name {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
   min-width: 0;
   height: 28px;
-  padding: 0 6px;
+  padding: 0 var(--space-6);
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
@@ -85,14 +85,14 @@
 .toolbar-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   flex: none;
 }
 
 .toolbar-divider {
   width: 1px;
   height: 20px;
-  margin: 0 4px;
+  margin: 0 var(--space-4);
   background: var(--border-strong);
 }
 
@@ -101,13 +101,13 @@
 .search {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
   flex: 1 1 240px;
   min-width: 150px;
   max-width: 460px;
   height: 30px;
   margin-left: auto;
-  padding: 0 4px 0 10px;
+  padding: 0 var(--space-4) 0 var(--space-10);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--bg);
@@ -118,7 +118,7 @@
 .search-mode {
   flex: none;
   height: 22px;
-  padding: 0 18px 0 6px;
+  padding: 0 var(--space-20) 0 var(--space-6);
   border: none;
   border-radius: var(--radius-md);
   background: rgb(var(--overlay-rgb) / 0.06)
@@ -137,11 +137,6 @@
   color: var(--text);
 }
 
-.search-mode:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
 .search:focus-within {
   border-color: var(--accent);
 }
@@ -150,7 +145,7 @@
   flex: 1;
   min-width: 0;
   height: 100%;
-  padding: 0 4px;
+  padding: 0 var(--space-4);
   border: none;
   outline: none;
   background: transparent;
@@ -226,18 +221,29 @@
   --ring: var(--graph-ring);
 }
 
-/* A faded commit: its picture faint on the list's background (which keeps the lines behind
-   it from showing through), in a muted ring of its lane's colour. */
-.commit-row.dimmed .graph-node {
+/* In a lit lane (the pointer on one of its branch's labels): on a dark background, a lighter
+   ring, as the lane's lines are. The graph glows under it (graphPainter); the row would cut
+   off a glow of its own. */
+:root:not([data-theme="light"]) .graph-node.lit {
+  --ring: color-mix(in srgb, var(--lane) 65%, white); /* a lighter tint of the lane's colour */
+}
+
+/* A faded commit, or one outside the lit lane: its picture faint on the list's background
+   (which keeps the lines behind it from showing through), in a muted ring of its lane's
+   colour. */
+.commit-row.dimmed .graph-node,
+.commit-list.lane-lit .graph-node:not(.lit) {
   --ring: color-mix(in srgb, var(--lane) 35%, var(--bg));
   background: var(--bg);
 }
 
-.commit-row.dimmed .graph-node.selected {
+.commit-row.dimmed .graph-node.selected,
+.commit-list.lane-lit .graph-node.selected:not(.lit) {
   --ring: var(--graph-ring);
 }
 
-.commit-row.dimmed .graph-node .avatar {
+.commit-row.dimmed .graph-node .avatar,
+.commit-list.lane-lit .graph-node:not(.lit) .avatar {
   opacity: 0.35;
 }
 
@@ -376,10 +382,10 @@
   box-sizing: border-box;
   min-width: 18px;
   height: 18px;
-  padding: 0 5px;
+  padding: 0 var(--space-6);
   border-radius: var(--radius-xl);
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--accent-fill);
+  color: var(--on-accent-fill);
   font-size: var(--type-xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -403,7 +409,7 @@
 }
 
 .split-button .menu-toggle {
-  padding: 0 6px;
+  padding: 0 var(--space-6);
   border-left: none;
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
@@ -426,7 +432,7 @@
   }
 
   .toolbar .tool-button {
-    padding: 0 8px;
+    padding: 0 var(--space-8);
   }
 }
 

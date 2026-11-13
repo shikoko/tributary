@@ -25,8 +25,8 @@
 
   --text: #e4e7ee;
   --text-secondary: #aab1bf;
-  --text-muted: #7b8393;
-  --text-faint: #596071;
+  --text-muted: #9aa1ad;
+  --text-faint: #8b92a3;
 
   --scrollbar: rgba(88, 97, 116, 0.6);
   --scrollbar-hover: rgba(110, 120, 140, 0.75);
@@ -57,6 +57,11 @@
   --accent-rgb: 31 181 255;
   /* Where buttons' gradients end. */
   --accent-2: #4d7cff;
+  /* A button filled with the accent: deep enough for white text, which the bright accent
+     isn't (set from the accent you pick, in useAppearance; these are the default's). */
+  --accent-fill: #136e9b;
+  --accent-fill-2: #3c61c7;
+  --on-accent-fill: #ffffff;
   --accent-pair: #a77bff;
   --accent-pair-rgb: 167 123 255;
   --on-accent: #ffffff;
@@ -78,8 +83,10 @@
   --danger-text: #ffb3bb;
   --danger-strong-text: #ff8a96;
   --danger-bright-text: #ffd5da;
-  --danger-solid: #e5484d;
-  --danger-solid-hover: #f05a5f;
+  --danger-solid: #cf2f3c;
+  --danger-solid-hover: #d9363f;
+  /* Text on --danger-solid: a button that deletes or discards. */
+  --on-danger-solid: #ffffff;
 
   --warning: #ffad1f;
   --warning-rgb: 255 173 31;
@@ -105,7 +112,11 @@
   --added-number: #5fbf86;
   --removed: #ff5c6c;
   --removed-rgb: 255 92 108;
-  --removed-number: #c9737d;
+  --removed-number: #cc7a83;
+  /* Counts of added, changed and deleted files, on a tint of their colour. */
+  --added-ink: #36e07c;
+  --modified-ink: #ffad1f;
+  --deleted-ink: #ff7381;
 
   --purple: #a77bff;
   --purple-rgb: 167 123 255;
@@ -122,7 +133,7 @@
   --syntax-keyword: #c792ea;
   --syntax-string: #a5d98a;
   --syntax-number: #f0a36e;
-  --syntax-comment: #7d8697;
+  --syntax-comment: #8992a1;
   --syntax-function: #6cb6ff;
   --syntax-type: #e8c47a;
   --syntax-attribute: #5ccfe6;
@@ -165,8 +176,8 @@
 
   --text: #1b1f26;
   --text-secondary: #464e5c;
-  --text-muted: #667083;
-  --text-faint: #959cab;
+  --text-muted: #535b6b;
+  --text-faint: #5f6778;
 
   --scrollbar: rgba(120, 128, 145, 0.45);
   --scrollbar-hover: rgba(95, 103, 120, 0.6);
@@ -192,8 +203,8 @@
   --accent-2: #4d7cff;
   --accent-pair: #a77bff;
   --accent-pair-rgb: 167 123 255;
-  --accent-ink: #0f77a9;
-  --accent-text: #0f6fa3;
+  --accent-ink: #0e6d9b;
+  --accent-text: #0f6da0;
   --accent-soft-text: #1b6690;
   --accent-strong-text: #0b4c70;
 
@@ -205,7 +216,7 @@
   --danger: #d63040;
   --danger-rgb: 214 48 64;
   --danger-text: #a3202d;
-  --danger-strong-text: #c42a39;
+  --danger-strong-text: #c32a39;
   --danger-bright-text: #8a1a25;
   --danger-solid: #d63040;
   --danger-solid-hover: #bf2534;
@@ -228,17 +239,20 @@
 
   --added: #189e52;
   --added-rgb: 24 158 82;
-  --added-number: #2b8452;
+  --added-number: #267549;
   --removed: #d63040;
   --removed-rgb: 214 48 64;
-  --removed-number: #b0505b;
+  --removed-number: #a44a55;
+  --added-ink: #106b38;
+  --modified-ink: #875100;
+  --deleted-ink: #a92633;
 
   --purple: #7a4ce3;
   --purple-rgb: 122 76 227;
   --syntax-keyword: #a626a4;
   --syntax-string: #2f7d32;
   --syntax-number: #b45309;
-  --syntax-comment: #6b7280;
+  --syntax-comment: #616774;
   --syntax-function: #1d5fd1;
   --syntax-type: #8a5a00;
   --syntax-attribute: #0f7f8f;
@@ -265,15 +279,17 @@
   --removed: #ff8f2e;
   --removed-rgb: 255 143 46;
   --removed-number: #d29a66;
+  --added-ink: #55a9ff;
 }
 
 :root[data-theme="light"][data-diff-colors="blue-orange"] {
   --added: #0969da;
   --added-rgb: 9 105 218;
-  --added-number: #3c77bf;
+  --added-number: #3468a6;
   --removed: #c25100;
   --removed-rgb: 194 81 0;
-  --removed-number: #a5693c;
+  --removed-number: #8e5a34;
+  --added-ink: #0757b5;
 }
 
 * {
@@ -283,7 +299,8 @@
 /* Sizes, so the same kinds of things match everywhere: pick a step, not a number of pixels.
    Text in nine steps: most of the interface is --type-sm, captions and counts --type-xs,
    text to read --type-base, and titles from --type-lg up. Corners grow with what they
-   round: marks and tags, then buttons and fields, then cards and windows. */
+   round: marks and tags, then buttons and fields, then cards and windows. Space (padding,
+   margins and gaps) in steps named for their size: every 2px up to 16, then wider apart. */
 :root {
   --type-xs: 11px;
   --type-sm: 12px;
@@ -307,6 +324,23 @@
   --radius-4xl: 20px;
   /* Ends rounded right off, whatever the height. */
   --radius-pill: 999px;
+
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+  --space-96: 96px;
 }
 
 html,
@@ -347,8 +381,14 @@ button:disabled {
   cursor: default;
 }
 
+/* Keyboard focus, the same everywhere: a ring in the accent colour, just inside what has it,
+   where nothing around it can cut it off. Fields show it in their border instead. */
+:root {
+  --focus-ring: 2px solid var(--accent);
+}
+
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: var(--focus-ring);
   outline-offset: -2px;
 }
 

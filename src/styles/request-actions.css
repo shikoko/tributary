@@ -3,13 +3,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .request-toolbar .outline-button {
-  gap: 7px;
+  gap: var(--space-8);
   height: 32px;
-  padding: 0 12px;
+  padding: 0 var(--space-12);
   border-radius: var(--radius-lg);
   color: var(--text);
 }
@@ -35,7 +35,7 @@
 .request-ask {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .request-ask .text-input {
@@ -43,7 +43,7 @@
 }
 
 .request-card {
-  padding: 20px 24px;
+  padding: var(--space-20) var(--space-24);
   border: 1px solid var(--border);
   border-radius: var(--radius-3xl);
   background: rgb(var(--overlay-rgb) / 0.06);

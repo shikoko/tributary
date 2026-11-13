@@ -6,10 +6,14 @@ import { onLabelDrop } from "../lib/drag";
 import type { RefPill } from "../lib/refs";
 import type { SelectHow } from "../lib/selection";
 import { ThemeContext } from "../app/useAppearance";
-import { useGraphCanvas, useScrollMarkers } from "./commitList/canvases";
+import { lanesOf, laneTips, type LaneLabel } from "../lib/lanes";
+import { useGraphCanvas } from "./commitList/canvases";
 import { DENSE_ROW_HEIGHT, FOOTER_HEIGHT, GRAPH_PADDING, laneWidthFor, ROW_HEIGHT, useColumnLayout, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
 import { ListHeader } from "./commitList/ListHeader";
 import { DaySeparator, ListRow, type RowHandlers } from "./commitList/ListRow";
+import { glowRect, MarkGlow, MarkHover } from "./commitList/MarkHover";
+import { useMarkStrip } from "./commitList/useMarkStrip";
+import { useRevealSelected } from "./commitList/useReveal";
 import { CommitPreview } from "./CommitPreview";
 import { Loader } from "./Loader";
 import { Button } from "./ui/Button";
@@ -59,6 +63,10 @@ interface Props {
   onScrollChange: (scrollTop: number) => void;
   onLoadMore: () => void;
   loadingMore: boolean;
+  /** The pointer is on this branch or tag label, in the sidebar or the graph: its lanes light up. */
+  laneLabel: LaneLabel | null;
+  /** The pointer is on a branch or tag label in the graph, or has left it (null). */
+  onLaneHover: (label: LaneLabel | null) => void;
 }
 
 /**
@@ -162,37 +170,16 @@ export function CommitList(props: Props) {
     if (focusIds === null) return matchIds;
     return new Set([...matchIds].filter((id) => focusIds.has(id)));
   }, [matchIds, focusIds]);
-  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: brightIds, colors, curves, laneWidth, avatars });
+  // The lanes of the branch whose label the pointer is on, from where it is and where its
+  // copies on remotes are: they light up, the rest fades.
+  const laneLabel = props.laneLabel;
+  const tipIds = useMemo(() => (laneLabel ? laneTips(commits, laneLabel) : []), [laneLabel, commits]);
+  const litLanes = useMemo(() => lanesOf(commits, indexById, tipIds), [commits, indexById, tipIds]);
+  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: brightIds, colors, curves, laneWidth, avatars, litLanes });
   const marked = useMemo(() => selectedIds ?? new Set(selectedId ? [selectedId] : []), [selectedIds, selectedId]);
-  useScrollMarkers(markerCanvas, { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId: headCommit, selectedIds: marked, colors });
-
-  // Bring the selected commit into view when it changes (or the rows change height), once:
-  // as soon as it's on the list, which may take more commits to load. Refreshes (a fetch,
-  // files changing, checks updating) recompute the rows too, but they don't move the list:
-  // otherwise scrolling away from the selected commit kept snapping back to it.
-  const reveal = useRef<string | null>(selectedId);
-  useEffect(() => {
-    reveal.current = selectedId;
-  }, [selectedId, rowHeight]);
-  useEffect(() => {
-    const element = scroller.current;
-    if (!element || selectedIndex < 0 || reveal.current !== selectedId) return;
-    reveal.current = null;
-    const top = slotOf[selectedIndex] * rowHeight;
-    const bottom = top + rowHeight;
-    const viewTop = element.scrollTop;
-    const viewBottom = viewTop + element.clientHeight;
-    if (top >= viewTop && bottom <= viewBottom) return;
-    const nearby = top >= viewTop - 2 * rowHeight && bottom <= viewBottom + 2 * rowHeight;
-    if (!nearby) {
-      // A jump (for example to a parent commit): centre it.
-      element.scrollTop = top - element.clientHeight / 2 + rowHeight / 2;
-    } else if (top < viewTop) {
-      element.scrollTop = top;
-    } else {
-      element.scrollTop = bottom - element.clientHeight;
-    }
-  }, [selectedIndex, slotOf, rowHeight, selectedId]);
+  // The marks beside the scrollbar, and the card for those the pointer is on.
+  const { markAt, setMarkAt, near, tipMarks, tipStrip, body } = useMarkStrip(markerCanvas, { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId: headCommit, marked, colors, tipIds });
+  const { arrival, pickedHere } = useRevealSelected(scroller, selectedId, selectedIndex, slotOf, rowHeight);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (commits.length === 0) return;
@@ -203,6 +190,7 @@ export function CommitList(props: Props) {
     } else if (event.key in moves) {
       const from = selectedIndex < 0 ? (moves[event.key] > 0 ? -1 : commits.length) : selectedIndex;
       const next = Math.min(commits.length - 1, Math.max(0, from + moves[event.key]));
+      pickedHere();
       onSelect(commits[next].id, { extend: event.shiftKey });
     } else {
       return;
@@ -217,6 +205,7 @@ export function CommitList(props: Props) {
   handlers.current = {
     onSelect: (id, how) => {
       hidePreview();
+      pickedHere();
       onSelect(id, how);
     },
     onContextMenu: (commit, x, y) => {
@@ -227,6 +216,7 @@ export function CommitList(props: Props) {
     onPillContextMenu: props.onPillContextMenu,
     onMorePills: props.onMorePills,
     onPillFocus: props.onPillFocus,
+    onLaneHover: props.onLaneHover,
     onHover: (event, commit) => {
       window.clearTimeout(previewTimer.current);
       if (!props.previews || commit.kind === "worktree" || event.buttons) return setPreview(null);
@@ -264,6 +254,8 @@ export function CommitList(props: Props) {
         authorNode={avatars && commit.kind === "commit" && commit.parents.length <= 1}
         head={commit.id === headCommit}
         dimmed={brightIds !== null && !brightIds.has(commit.id)}
+        lit={litLanes.some((lane) => lane.ids.has(commit.id))}
+        arrival={arrival?.id === commit.id ? arrival.key : 0}
         handlers={handlers}
       />,
     );
@@ -271,7 +263,7 @@ export function CommitList(props: Props) {
 
   return (
     <section
-      className={`commit-list${dense ? " dense" : ""}${layout.graphGrowing ? " graph-growing" : ""}`}
+      className={`commit-list${dense ? " dense" : ""}${layout.graphGrowing ? " graph-growing" : ""}${litLanes.length > 0 ? " lane-lit" : ""}`}
       aria-label="Commits"
       // The rows' columns: set here, so a new width restyles the rows without re-rendering them.
       style={{ ["--list-columns" as string]: columns, ["--refs-width" as string]: `${refsWidth}px`, ["--graph-width" as string]: `${graphWidth}px` }}
@@ -288,7 +280,20 @@ export function CommitList(props: Props) {
         scrollbar={viewport.scrollbar}
         onContextMenu={props.onHeaderContextMenu}
       />
-      <div className="list-body">
+      <div
+        ref={body}
+        className="list-body"
+        onPointerMove={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const width = viewport.scrollbar || 6;
+          if (event.buttons === 0 && commits.length > 0 && event.clientX >= rect.right - width - 2) {
+            hidePreview();
+            const strip = { top: rect.top, right: rect.right, bottom: rect.top + viewport.height, width };
+            setMarkAt({ y: Math.min(Math.max(event.clientY - rect.top, 0), viewport.height), strip });
+          } else if (markAt) setMarkAt(null);
+        }}
+        onPointerLeave={() => setMarkAt(null)}
+      >
         <canvas ref={markerCanvas} className="list-markers" aria-hidden />
         <div
           ref={scroller}
@@ -301,8 +306,11 @@ export function CommitList(props: Props) {
           }}
           onKeyDown={onKeyDown}
           role="listbox"
+          aria-label="Commits"
           aria-multiselectable
-          aria-activedescendant={selectedId ? `commit-${selectedId}` : undefined}
+          // Only while its row is drawn: the list draws the rows in view, and a name for one that
+          // isn't there points at nothing.
+          aria-activedescendant={selectedId && selectedIndex >= 0 && slotOf[selectedIndex] >= first && slotOf[selectedIndex] < last ? `commit-${selectedId}` : undefined}
         >
           {commits.length === 0 ? (
             <div className="list-empty">This repository doesn't have any commits yet.</div>
@@ -326,6 +334,12 @@ export function CommitList(props: Props) {
         </div>
       </div>
       {preview && <CommitPreview commit={preview.commit} x={preview.x} y={preview.y} loadDetails={props.loadDetails} />}
+      {tipStrip &&
+        [...new Set(tipMarks.map((mark) => mark.index))].map((index) => {
+          const own = tipMarks.filter((mark) => mark.index === index);
+          return <MarkGlow key={index} color={own[0].color} rect={glowRect(own, tipStrip.width)} strip={tipStrip} />;
+        })}
+      {markAt && near.length > 0 && <MarkHover near={near} strip={markAt.strip} commits={commits} headBranch={snapshot.headBranch} />}
     </section>
   );
 }

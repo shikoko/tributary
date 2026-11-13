@@ -386,11 +386,12 @@ fn cancels_a_slow_fetch() {
     ]);
 
     let path = alice.path().to_owned();
+    let repo = path.clone();
     let started = std::time::Instant::now();
     let fetch =
         std::thread::spawn(move || actions::run(&path, Action::Fetch { background: false }));
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(git::cancel(), "a fetch was running");
+    assert!(git::cancel(Some(&repo)), "a fetch was running");
     let result = fetch.join().unwrap();
     assert!(
         matches!(result, Err(tributary_lib::error::Error::Cancelled)),
@@ -400,7 +401,7 @@ fn cancels_a_slow_fetch() {
         started.elapsed().as_secs() < 5,
         "cancelling doesn't wait for the remote"
     );
-    assert!(!git::cancel(), "nothing left to cancel");
+    assert!(!git::cancel(Some(&repo)), "nothing left to cancel");
 }
 
 #[test]

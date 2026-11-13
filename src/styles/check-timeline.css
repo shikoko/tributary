@@ -13,7 +13,7 @@
   inset: 0;
   display: grid;
   grid-template-columns: var(--timeline-columns);
-  column-gap: 12px;
+  column-gap: var(--space-12);
   pointer-events: none;
 }
 
@@ -25,7 +25,7 @@
 /* The tracks start a little after the line, so a bar that started with the clock sits beside
    it rather than on it. */
 .request-timeline.grouped .request-timeline-track {
-  margin-left: 2px;
+  margin-left: var(--space-2);
 }
 
 .request-timeline-origin > span > span {
@@ -44,7 +44,7 @@
 .request-timeline-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-12);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -54,8 +54,8 @@
   display: grid;
   grid-template-columns: var(--timeline-columns);
   align-items: center;
-  column-gap: 12px;
-  row-gap: 8px;
+  column-gap: var(--space-12);
+  row-gap: var(--space-8);
   min-height: 18px;
   border-bottom: none;
 }
@@ -193,9 +193,14 @@
   box-shadow: 0 0 0 7px rgb(var(--overlay-rgb) / 0.06);
 }
 
-/* Skipped: it didn't run. The whole row faded, at the bottom of the list. */
-.request-status .request-check.request-timeline-row.skipped {
+/* Skipped: it didn't run. At the bottom of the list, its dot and bar faded and its words in the
+   faintest grey that still reads. */
+.request-status .request-check.request-timeline-row.skipped :is(.request-check-dot, .request-timeline-track) {
   opacity: 0.45;
+}
+
+.request-status .request-check.request-timeline-row.skipped :is(.request-check-open, .request-check-name, .request-timeline-name) {
+  color: var(--text-faint);
 }
 
 .request-timeline-row.skipped .request-timeline-time {
@@ -243,8 +248,8 @@
 .request-timeline-axis {
   display: grid;
   grid-template-columns: var(--timeline-columns);
-  column-gap: 12px;
-  margin-top: 10px;
+  column-gap: var(--space-12);
+  margin-top: var(--space-10);
   color: var(--text-faint);
   font-size: var(--type-xs);
 }
@@ -262,14 +267,14 @@
 /* In groups by workflow run (or GitLab stage): a heading with what started it, when, and
    how long it's taken, then its checks. On the same columns as the rows. */
 .request-timeline.grouped > .request-timeline-list {
-  gap: 22px;
+  gap: var(--space-24);
 }
 
 .request-timeline-group {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .request-timeline-group > .request-timeline-list,
@@ -281,7 +286,7 @@
   display: grid;
   grid-template-columns: var(--timeline-columns);
   align-items: center;
-  column-gap: 12px;
+  column-gap: var(--space-12);
   color: var(--text-faint);
   font-size: var(--type-xs);
 }
@@ -330,7 +335,7 @@
 .request-timeline-group-flag {
   position: absolute;
   top: 50%;
-  padding-left: 9px;
+  padding-left: var(--space-10);
   color: var(--text-muted);
   text-box: trim-both cap alphabetic;
   white-space: nowrap;
@@ -351,7 +356,7 @@
 
 /* Near the end of the clock: the words go on the line's left. */
 .request-timeline-group-flag.flipped {
-  padding: 0 9px 0 0;
+  padding: 0 var(--space-10) 0 0;
   transform: translate(-100%, -50%);
 }
 
@@ -366,7 +371,7 @@
   inset: 0;
   display: grid;
   grid-template-columns: var(--timeline-columns);
-  column-gap: 12px;
+  column-gap: var(--space-12);
   pointer-events: none;
 }
 
@@ -411,13 +416,13 @@
 .request-conflicts {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-4);
   font-size: var(--type-sm);
 }
 
 .request-conflicts ul {
   margin: 0;
-  padding-left: 18px;
+  padding-left: var(--space-20);
   color: var(--text);
 }
 

@@ -210,7 +210,8 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   return (
     <div className={`tributaries ${v.tone}${celebrating ? " celebrating" : ""}${litCheck ? " lit" : ""}`}>
       <div className="tributaries-streams" ref={box}>
-        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
+        {/* Each check's stream is a link to its page, from the keyboard too. */}
+        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label="The checks, as streams into a river">
           <defs>
             <linearGradient id="tributaries-confluence" gradientUnits="userSpaceOnUse" x1={confluence} y1={middle} x2={riverEnd} y2={middle}>
               <stop offset="0" style={{ stopColor: from }} />

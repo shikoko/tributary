@@ -4,10 +4,10 @@
   display: inline-flex;
   align-items: center;
   align-self: center;
-  gap: 6px;
+  gap: var(--space-6);
   height: 24px;
-  margin-left: 8px;
-  padding: 0 10px;
+  margin-left: var(--space-8);
+  padding: 0 var(--space-10);
   border: 1px solid rgb(var(--accent-rgb) / 0.45);
   border-radius: var(--radius-2xl);
   background: rgb(var(--accent-rgb) / 0.12);
@@ -25,10 +25,10 @@
 .update-notes {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-4);
   max-height: 260px;
-  margin-top: 12px;
-  padding: 10px 12px;
+  margin-top: var(--space-12);
+  padding: var(--space-10) var(--space-12);
   overflow-y: auto;
   border-radius: var(--radius-lg);
   background: var(--bg);
@@ -38,7 +38,7 @@
 }
 
 .update-notes strong {
-  margin-top: 4px;
+  margin-top: var(--space-4);
   color: var(--text);
 }
 
@@ -48,11 +48,11 @@
 
 .update-note-item {
   display: flex;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .update-progress {
-  margin-top: 14px;
+  margin-top: var(--space-14);
 }
 
 /* Warnings about changed files: big ones outside Git LFS, lockable ones nobody holds */
@@ -60,9 +60,9 @@
 .file-warning {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  margin: 4px 0 10px;
-  padding: 8px 10px;
+  gap: var(--space-8);
+  margin: var(--space-4) 0 var(--space-10);
+  padding: var(--space-8) var(--space-10);
   border-radius: var(--radius-md);
   font-size: var(--type-sm);
   line-height: 1.45;
@@ -70,7 +70,7 @@
 
 .file-warning > svg {
   flex: none;
-  margin-top: 2px;
+  margin-top: var(--space-2);
 }
 
 .file-warning.large {
@@ -92,8 +92,8 @@
 }
 
 .file-warning-list {
-  margin: 6px 0 0;
-  padding-left: 16px;
+  margin: var(--space-6) 0 0;
+  padding-left: var(--space-16);
 }
 
 .file-warning-list li {
@@ -103,14 +103,14 @@
 .file-warning-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
 }
 
 .outline-button.small,
 .danger-outline-button.small {
   height: 24px;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   font-size: var(--type-sm);
 }
 
@@ -122,8 +122,8 @@
 .commit-warning {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
+  gap: var(--space-10);
+  padding: var(--space-8) var(--space-10);
   border-radius: var(--radius-md);
   background: rgb(var(--danger-rgb) / 0.1);
   color: var(--danger-text);
@@ -137,7 +137,7 @@
 .settings-inline {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 .settings-value {
@@ -148,7 +148,7 @@
 .stash-files {
   max-height: 220px;
   margin: 0;
-  padding: 4px 0;
+  padding: var(--space-4) 0;
   overflow-y: auto;
   list-style: none;
   border-top: 1px solid var(--border);
@@ -180,9 +180,9 @@
 .pr-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-4);
   height: 14px;
-  padding: 0 4px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-sm);
   background: rgb(var(--overlay-rgb) / 0.1);
   color: var(--text-secondary);
@@ -251,7 +251,7 @@
 }
 
 .sidebar-item .pr-badge + .sidebar-counts {
-  margin-left: 4px;
+  margin-left: var(--space-4);
 }
 
 /* A tab whose background fetch found new commits */
@@ -259,7 +259,7 @@
 .tab-news {
   width: 7px;
   height: 7px;
-  margin-left: -2px;
+  margin-left: calc(var(--space-2) * -1);
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 6px rgb(var(--accent-rgb) / 0.7);
@@ -270,7 +270,7 @@
 
 .recover-list {
   max-height: min(52vh, 460px);
-  margin: 12px 0 0;
+  margin: var(--space-12) 0 0;
   padding: 0;
   overflow-y: auto;
   border: 1px solid var(--border);
@@ -281,8 +281,8 @@
 .recover-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: var(--space-10);
+  padding: var(--space-8) var(--space-12);
 }
 
 .recover-row + .recover-row {
@@ -297,19 +297,19 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
 .recover-top {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   min-width: 0;
 }
 
 .recover-action {
-  padding: 1px 6px;
+  padding: 1px var(--space-6);
   border-radius: var(--radius-sm);
   background: var(--bg-raised);
   color: var(--text-secondary);
@@ -344,8 +344,8 @@
 }
 
 .recover-lost {
-  margin-left: 8px;
-  padding: 1px 6px;
+  margin-left: var(--space-8);
+  padding: 1px var(--space-6);
   border-radius: var(--radius-sm);
   background: rgb(var(--warning-rgb) / 0.12);
   color: var(--warning-text);
@@ -356,14 +356,14 @@
 
 .message-tools {
   display: flex;
-  gap: 12px;
-  margin-bottom: -2px;
+  gap: var(--space-12);
+  margin-bottom: calc(var(--space-2) * -1);
 }
 
 .message-tool {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-6);
   padding: 0;
   border: none;
   background: transparent;
@@ -383,14 +383,14 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 /* The branch's issue key, put in front of the summary (click to leave it out). */
 .summary-key {
   flex: none;
   height: 26px;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-md);
   background: transparent;
@@ -410,7 +410,7 @@
 
 .summary-field .text-input {
   flex: 1;
-  padding-right: 40px;
+  padding-right: var(--space-40);
 }
 
 .summary-count {
@@ -479,8 +479,8 @@ code {
 .elsewhere-list {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  margin: 7px 0 4px;
+  gap: var(--space-4);
+  margin: var(--space-8) 0 var(--space-4);
   padding: 0;
   list-style: none;
 }
@@ -488,7 +488,7 @@ code {
 .elsewhere-list li {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-8);
   min-width: 0;
 }
 
@@ -555,9 +555,9 @@ code {
 .shelve-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 14px 0 18px;
-  padding: 12px 14px;
+  gap: var(--space-8);
+  margin: var(--space-14) 0 var(--space-20);
+  padding: var(--space-12) var(--space-14);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--bg-raised);
@@ -570,7 +570,7 @@ code {
 .shelve-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 .shelve-actions .spacer {
@@ -584,14 +584,14 @@ code {
 .shelve-actions .primary-small-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 .shelves-head {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  margin: 4px 0 8px;
+  gap: var(--space-10);
+  margin: var(--space-4) 0 var(--space-8);
 }
 
 .shelves-status {
@@ -604,7 +604,7 @@ code {
 }
 
 .shelves-empty {
-  padding: 18px 0;
+  padding: var(--space-20) 0;
   color: var(--text-muted);
   font-size: var(--type-base);
   text-align: center;
@@ -624,8 +624,8 @@ code {
 .shelf {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 10px 4px;
+  gap: var(--space-12);
+  padding: var(--space-10) var(--space-4);
   border-bottom: 1px solid var(--border);
 }
 
@@ -633,7 +633,7 @@ code {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -661,8 +661,8 @@ code {
 .shelf-files {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin: 6px 0 0;
+  gap: var(--space-2);
+  margin: var(--space-6) 0 0;
   padding: 0;
   list-style: none;
   font-size: var(--type-sm);
@@ -670,7 +670,7 @@ code {
 
 .shelf-files li {
   display: flex;
-  gap: 8px;
+  gap: var(--space-8);
   min-width: 0;
 }
 
@@ -700,7 +700,7 @@ code {
 }
 
 .shelf-note {
-  margin-top: 2px;
+  margin-top: var(--space-2);
   color: var(--text-muted);
   font-style: italic;
 }
@@ -708,7 +708,7 @@ code {
 .shelf-buttons {
   display: flex;
   flex: none;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 .shelf-buttons .outline-button.danger {
@@ -720,20 +720,20 @@ code {
 .history-columns {
   display: grid;
   grid-template-columns: 190px 1fr;
-  gap: 16px;
+  gap: var(--space-16);
   min-height: 260px;
   max-height: 420px;
-  margin-top: 12px;
+  margin-top: var(--space-12);
 }
 
 .history-times {
   overflow-y: auto;
-  padding-right: 10px;
+  padding-right: var(--space-10);
   border-right: 1px solid var(--border);
 }
 
 .history-day {
-  margin: 8px 0 4px;
+  margin: var(--space-8) 0 var(--space-4);
   color: var(--text-muted);
   font-size: var(--type-xs);
   font-weight: 600;
@@ -748,9 +748,9 @@ code {
 .history-time {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   width: 100%;
-  padding: 6px 8px;
+  padding: var(--space-6) var(--space-8);
   border: none;
   border-radius: var(--radius-lg);
   background: none;
@@ -797,9 +797,9 @@ code {
 .history-files li {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
   min-width: 0;
-  padding: 5px 2px;
+  padding: var(--space-6) var(--space-2);
   border-bottom: 1px solid var(--border);
   font-size: var(--type-base);
 }
@@ -823,21 +823,21 @@ code {
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: var(--space-24);
   background: var(--bg);
   color: var(--text);
 }
 
 .error-screen-card {
   width: min(520px, 100%);
-  padding: 22px 24px 20px;
+  padding: var(--space-24) var(--space-24) var(--space-20);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--bg-panel);
 }
 
 .error-screen-card h1 {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-8);
   font-size: var(--type-xl);
   font-weight: 600;
 }
@@ -850,8 +850,8 @@ code {
 }
 
 .error-screen-details {
-  margin: 14px 0 10px;
-  padding: 10px 12px;
+  margin: var(--space-14) 0 var(--space-10);
+  padding: var(--space-10) var(--space-12);
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -871,6 +871,6 @@ code {
 .error-screen-buttons {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 18px;
+  gap: var(--space-8);
+  margin-top: var(--space-20);
 }

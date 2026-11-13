@@ -49,9 +49,9 @@ interface Props {
  */
 export function RepositoryBanners(props: Props) {
   const { snapshot, repo, actions, selection, highlight, settings, lfsHealth, lockRelease, showWholeHistory, openWorktree } = props;
-  const { act, running, runningPath } = actions;
+  const { act, running } = actions;
   // An action's progress shows in the repository it runs in (its tab shows it too).
-  const progress = runningPath === null || runningPath === snapshot.path ? actions.progress : null;
+  const progress = actions.progress;
   const { error, setError } = repo;
   const hook = error ? hookFailure(error.message) : null;
   const { focus } = highlight;
@@ -61,7 +61,7 @@ export function RepositoryBanners(props: Props) {
   // The progress bar slides open and closed, easing what's under it down and back up.
   const strip = usePresence(
     Boolean(progress?.visible),
-    progress?.visible ? <ProgressStrip label={progress.label} progress={progress.value} onCancel={progress.cancellable ? () => cancelAction().catch(() => {}) : undefined} /> : null,
+    progress?.visible ? <ProgressStrip label={progress.label} progress={progress.value} onCancel={progress.cancellable ? () => cancelAction(snapshot.path).catch(() => {}) : undefined} /> : null,
     180,
   );
   return (

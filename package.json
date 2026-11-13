@@ -11,6 +11,7 @@
     "preview:demo": "node tools/preview/demo.mjs --serve",
     "preview:smoke": "node tools/preview/smoke.mjs",
     "preview:screenshots": "node tools/preview/screenshots.mjs",
+    "preview:catalogue": "node tools/preview/catalogue.mjs",
     "e2e": "node tools/e2e/run.mjs",
     "notices": "node tools/notices.mjs",
     "setup:build": "vite build --config src-tauri/setup/vite.config.mjs",

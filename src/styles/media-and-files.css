@@ -1,13 +1,13 @@
 /* Pictures, sounds, videos and 3D models in the diff view */
 
 .diff-media-frame {
-  padding: 20px;
+  padding: var(--space-20);
 }
 
 .diff-media {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: var(--space-16);
 }
 
 .diff-media-side {
@@ -18,8 +18,8 @@
 .diff-media-side figcaption {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: var(--space-10);
+  margin-bottom: var(--space-8);
   color: var(--text-muted);
   font-size: var(--type-xs);
   font-weight: 600;
@@ -39,7 +39,7 @@
   align-items: center;
   justify-content: center;
   min-height: 120px;
-  padding: 12px;
+  padding: var(--space-12);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-lg);
   color: var(--text-faint);
@@ -51,15 +51,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: var(--space-16);
   font-size: var(--type-sm);
 }
 
 .diff-sound {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: var(--space-8);
+  padding: var(--space-12);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--bg-panel);
@@ -82,7 +82,7 @@
   max-height: 56vh;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: #000;
+  background: #000; /* letterboxed in black, like a video player */
 }
 
 .diff-model-frame {
@@ -124,7 +124,7 @@
 }
 
 .diff-model-facts th {
-  padding: 3px 16px 3px 0;
+  padding: var(--space-4) var(--space-16) var(--space-4) 0;
   color: var(--text-muted);
   font-weight: 500;
   text-align: left;
@@ -132,7 +132,7 @@
 
 .diff-model-facts td {
   min-width: 140px;
-  padding: 3px 12px;
+  padding: var(--space-4) var(--space-12);
   color: var(--text-secondary);
   text-align: right;
 }
@@ -149,14 +149,14 @@
 .diff-switch {
   display: inline-flex;
   flex: none;
-  padding: 2px;
+  padding: var(--space-2);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
 }
 
 .diff-switch button {
   height: 24px;
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
@@ -175,7 +175,7 @@
 .diff-images-frame {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-14);
 }
 
 .diff-image-modes {
@@ -195,18 +195,18 @@
 .diff-image-sizes > span {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 .diff-overlay {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .diff-overlay-frame {
-  padding: 12px;
+  padding: var(--space-12);
 }
 
 .diff-overlay-stage {
@@ -238,7 +238,7 @@
   width: 2px;
   margin-left: -1px;
   background: var(--accent);
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35); /* stands out on any picture */
   pointer-events: none;
 }
 
@@ -258,7 +258,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: var(--space-12);
   color: var(--text-secondary);
   font-size: var(--type-sm);
 }
@@ -304,10 +304,10 @@
 .file-filter {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   height: 30px;
-  margin: 2px 0 8px;
-  padding: 0 4px 0 10px;
+  margin: var(--space-2) 0 var(--space-8);
+  padding: 0 var(--space-4) 0 var(--space-10);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--bg);

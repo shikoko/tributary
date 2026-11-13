@@ -1,4 +1,4 @@
-import { memo, useContext, type MouseEvent, type RefObject } from "react";
+import { memo, useContext, type CSSProperties, type MouseEvent, type RefObject } from "react";
 import { BisectMarksContext, type BisectMark } from "../../lib/bisect";
 import { CiStatesContext, describeCiState } from "../../lib/ciStates";
 
@@ -12,6 +12,7 @@ import type { CommitRow } from "../../api";
 import type { ChangeCounts as Counts } from "../../lib/changes";
 import type { CiDots } from "../../lib/appearance";
 import { laneColor } from "../../lib/colors";
+import { pillLane, type LaneLabel } from "../../lib/lanes";
 import { compactTime, fullDate, shortId } from "../../lib/format";
 import type { RefPill } from "../../lib/refs";
 import type { SelectHow } from "../../lib/selection";
@@ -31,6 +32,8 @@ export interface RowHandlers {
   /** The labels that didn't fit next to a commit: pick one for its menu. */
   onMorePills: (pills: RefPill[], commit: CommitRow, x: number, y: number) => void;
   onHover: (event: MouseEvent, commit: CommitRow) => void;
+  /** The pointer is on a branch or tag label, or has left it (null): its lanes light up. */
+  onLaneHover: (label: LaneLabel | null) => void;
   onLeave: () => void;
 }
 
@@ -58,6 +61,10 @@ interface RowProps {
   head: boolean;
   /** Not a search match, or outside the highlighted history. */
   dimmed: boolean;
+  /** In the lane that's lit up: the pointer is on one of its branch's labels. */
+  lit: boolean;
+  /** You just jumped to this commit: it pulses (a new number each time, 0 when not). */
+  arrival: number;
   handlers: RefObject<RowHandlers>;
 }
 
@@ -68,7 +75,7 @@ interface RowProps {
  */
 export const ListRow = memo(function ListRow(props: RowProps) {
   const { commit, top, height, metrics, lanes, visible, options, ciDots, changes, narrow, dense, handlers } = props;
-  const { selected, primary, dimmed, authorNode, head } = props;
+  const { selected, primary, dimmed, authorNode, head, lit, arrival } = props;
   const bisectMark = useContext(BisectMarksContext).get(commit.id);
   const ci = useContext(CiStatesContext).get(commit.id);
   const on = () => handlers.current!;
@@ -112,6 +119,8 @@ export const ListRow = memo(function ListRow(props: RowProps) {
       role="option"
       aria-selected={selected}
     >
+      {/* You jumped here: the row's edge lights up in its lane's colour. A new key starts it again. */}
+      {arrival > 0 && <span key={arrival} className="arrival" style={{ "--lane": color } as CSSProperties} aria-hidden />}
       <div className="cell refs-cell">
         <RefPills
           refs={commit.refs}
@@ -123,6 +132,8 @@ export const ListRow = memo(function ListRow(props: RowProps) {
             on().onPillContextMenu(pill, commit, x, y);
           }}
           onFocusPill={(pill) => on().onPillFocus(pill, commit)}
+          // On a branch or tag label, its lanes light up.
+          onHoverPill={(pill) => on().onLaneHover(pill && pillLane(pill))}
           onMore={(pills, x, y) => {
             onSelect(commit.id);
             on().onMorePills(pills, commit, x, y);
@@ -144,7 +155,7 @@ export const ListRow = memo(function ListRow(props: RowProps) {
       <div className="graph-cell">
         {authorNode && (
           <span
-            className={`graph-node${head ? " head" : ""}${selected ? " selected" : ""}`}
+            className={`graph-node${head ? " head" : ""}${selected ? " selected" : ""}${lit ? " lit" : ""}`}
             style={{ left: lane, ["--lane" as string]: color }}
             title={`${commit.authorName} <${commit.authorEmail}>`}
           >

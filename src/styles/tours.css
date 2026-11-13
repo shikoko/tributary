@@ -1,7 +1,7 @@
 /* Guided tours: the window dimmed but for what's being explained, a card beside it, and
    offers in the corner. --tour-color is the tour's own graph colour. */
 .tour {
-  --tour-dim: rgb(0 0 0 / 0.36);
+  --tour-dim: rgb(0 0 0 / 0.36); /* lighter than a dialog's scrim: the window stays readable */
   position: fixed;
   inset: 0;
   z-index: 80;
@@ -36,7 +36,7 @@
 .tour-card {
   position: absolute;
   width: 330px;
-  padding: 16px 18px 10px;
+  padding: var(--space-16) var(--space-20) var(--space-10);
   border: 1px solid var(--tour-soft);
   border-radius: var(--radius-3xl);
   background:
@@ -96,7 +96,7 @@
 .tour-eyebrow {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   color: var(--tour-color);
   font-size: var(--type-xs);
   font-weight: 650;
@@ -105,7 +105,7 @@
 }
 
 .tour-card h3 {
-  margin: 8px 0 6px;
+  margin: var(--space-8) 0 var(--space-6);
   font-size: var(--type-lg);
   letter-spacing: -0.01em;
 }
@@ -120,8 +120,8 @@
 .tour-buttons {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 14px;
+  gap: var(--space-8);
+  margin-top: var(--space-14);
 }
 
 .tour-buttons .spacer {
@@ -136,8 +136,8 @@
 .link-button.tour-never {
   display: block;
   width: 100%;
-  margin-top: 10px;
-  padding: 8px 0 0;
+  margin-top: var(--space-10);
+  padding: var(--space-8) 0 0;
   border-top: 1px solid var(--border);
   color: var(--text-muted);
   font-size: var(--type-sm);
@@ -146,7 +146,7 @@
 
 .tour-progress {
   height: 3px;
-  margin: -4px 0 12px;
+  margin: calc(var(--space-4) * -1) 0 var(--space-12);
   overflow: hidden;
   border-radius: var(--radius-xs);
   background: var(--border);
@@ -179,9 +179,9 @@
   bottom: 42px;
   z-index: 70;
   display: flex;
-  gap: 12px;
+  gap: var(--space-12);
   width: 370px;
-  padding: 14px 16px;
+  padding: var(--space-14) var(--space-16);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-3xl);
   background:
@@ -203,7 +203,7 @@
 .tour-offer-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-4);
   min-width: 0;
 }
 
@@ -221,8 +221,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+  gap: var(--space-8);
+  margin-top: var(--space-6);
 }
 
 .tour-offer-buttons button {
@@ -231,7 +231,7 @@
 
 .tour-offer-buttons .link-button {
   flex-basis: 100%;
-  margin-top: 2px;
+  margin-top: var(--space-2);
   color: var(--text-muted);
   font-size: var(--type-sm);
   text-align: left;
@@ -241,7 +241,7 @@
 .tours-list {
   display: flex;
   flex-direction: column;
-  margin: 12px 0 0;
+  margin: var(--space-12) 0 0;
   padding: 0;
   list-style: none;
   border-top: 1px solid var(--border);
@@ -250,8 +250,8 @@
 .tours-list li {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 4px;
+  gap: var(--space-12);
+  padding: var(--space-10) var(--space-4);
   border-bottom: 1px solid var(--border);
 }
 
@@ -259,7 +259,7 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
   min-width: 0;
 }
 

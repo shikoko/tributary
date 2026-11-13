@@ -28,8 +28,8 @@ interface Props {
   news?: Record<string, string>;
   /** Right-click on a repository's tab (or the menu key on it). */
   onContextMenu?: (path: string, x: number, y: number) => void;
-  /** A pull, fetch, push or checkout running in a repository: a ring on its tab, when it isn't the one shown. */
-  busy?: { path: string; label: string; percent: number | null };
+  /** Pulls, fetches, pushes and checkouts running, by repository: a ring on each one's tab, when it isn't the one shown. */
+  busy?: Record<string, { label: string; percent: number | null }>;
 }
 
 /** How far it is, as a ring that fills (or spins, when that isn't known). */
@@ -136,7 +136,7 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
             }}
             data-path={tab.path}
             className={`tab${tab.path === activePath ? " active" : ""}${news?.[tab.path] ? " has-news" : ""}`}
-            title={`${tab.path}${index < 9 ? `  (${modKey}${index + 1})` : ""}${news?.[tab.path] ? `\n${news[tab.path]}` : ""}${busy?.path === tab.path ? `\n${busy.label}${busy.percent === null ? "" : ` ${busy.percent}%`}` : ""}`}
+            title={`${tab.path}${index < 9 ? `  (${modKey}${index + 1})` : ""}${news?.[tab.path] ? `\n${news[tab.path]}` : ""}${busy?.[tab.path] ? `\n${busy[tab.path].label}${busy[tab.path].percent === null ? "" : ` ${busy[tab.path].percent}%`}` : ""}`}
             onMouseDown={(event) => {
               if (event.button === 0) onSelect(tab.path);
             }}
@@ -155,20 +155,16 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
               })
             }
           >
-            {busy?.path === tab.path && tab.path !== activePath && <ProgressRing percent={busy.percent} />}
+            {busy?.[tab.path] && tab.path !== activePath && <ProgressRing percent={busy[tab.path].percent} />}
             <span className="tab-name" data-text={tab.name}>
               <span>{tab.name}</span>
             </span>
             {news?.[tab.path] && <span className="tab-news" aria-label="New commits" />}
-            <button
-              className="tab-close"
-              onMouseDown={(event) => event.stopPropagation()}
-              onClick={() => onClose(tab.path)}
-              aria-label={`Close ${tab.name}`}
-              title={`Close tab (${modKey}W)`}
-            >
+            {/* For the pointer: a tab is a single control, closed from the keyboard with Delete,
+                ⌘W (Ctrl+W) or its menu. */}
+            <span className="tab-close" onMouseDown={(event) => event.stopPropagation()} onClick={() => onClose(tab.path)} title={`Close tab (${modKey}W)`} aria-hidden>
               <CloseIcon size={12} />
-            </button>
+            </span>
           </div>
         ))}
         {startTab && (
@@ -176,15 +172,17 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
             <span className="tab-name" data-text="New tab">
               <span>New tab</span>
             </span>
-            <button className="tab-close" onClick={onCloseStart} aria-label="Close the new tab" title={`Close tab (${modKey}W)`}>
+            <span className="tab-close" onClick={onCloseStart} title={`Close tab (${modKey}W)`} aria-hidden>
               <CloseIcon size={12} />
-            </button>
+            </span>
           </div>
         )}
-        <button className="tab-new" onClick={onNew} title={`New tab (${modKey}T)`} aria-label="New tab">
-          <PlusIcon size={14} />
-        </button>
       </div>
+      {/* After the tabs, outside their list (where only tabs belong); a tab closing shrinks
+          away at the list's end, just before it. */}
+      <button className="tab-new" onClick={onNew} title={`New tab (${modKey}T)`} aria-label="New tab">
+        <PlusIcon size={14} />
+      </button>
       <div className="tab-bar-fill" data-tauri-drag-region />
       {extra}
       {isWindows && <WindowControls />}

@@ -109,6 +109,10 @@ export function RepositoryDialogs(props: Props) {
         target={dialog.target}
         protectedName={dialog.target.id === snapshot.headCommit ? null : protectedHead}
         onCancel={() => onClose()}
+        onDiscardAll={() => {
+          onClose();
+          run({ kind: "discardAll" });
+        }}
         onDone={(message) => {
           const before = snapshot.headCommit;
           if (dialog.target.id !== before) select(dialog.target.id);

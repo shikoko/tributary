@@ -3,8 +3,9 @@ import type { CommitRow } from "../../api";
 import { laneColor } from "../../lib/colors";
 import type { CanvasColors, CurveStyle } from "../../lib/appearance";
 import type { Slot } from "../../lib/days";
+import type { Lane } from "../../lib/lanes";
 import { paintGraph } from "../graphPainter";
-import { GRAPH_PADDING } from "./layout";
+import { DENSE_ROW_HEIGHT, GRAPH_PADDING, nodeAvatarSize } from "./layout";
 
 /** Size a canvas for the screen's pixel density, and get it ready to draw in CSS pixels. */
 function prepare(element: HTMLCanvasElement, width: number, height: number) {
@@ -38,11 +39,13 @@ interface GraphInput {
   laneWidth: number;
   /** Commits are authors' pictures (ListRow): the painter leaves them out. */
   avatars: boolean;
+  /** A branch's lanes, lit up: the pointer is on one of its labels. */
+  litLanes: Lane[];
 }
 
 /** Draw the graph for the rendered rows. */
 export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, input: GraphInput) {
-  const { commits, slots, first, last, width, rowHeight, headId, selectedId, focusIds, colors, curves, laneWidth, avatars } = input;
+  const { commits, slots, first, last, width, rowHeight, headId, selectedId, focusIds, colors, curves, laneWidth, avatars, litLanes } = input;
   useLayoutEffect(() => {
     if (!canvas.current) return;
     const ctx = prepare(canvas.current, width, Math.max(0, last - first) * rowHeight);
@@ -60,28 +63,92 @@ export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, inpu
       lanes: colors.lanes,
       curves,
       avatars,
+      pictureSize: nodeAvatarSize(rowHeight === DENSE_ROW_HEIGHT),
+      litLanes,
     });
-  }, [canvas, commits, slots, first, last, width, headId, selectedId, rowHeight, focusIds, colors, curves, laneWidth, avatars]);
+  }, [canvas, commits, slots, first, last, width, headId, selectedId, rowHeight, focusIds, colors, curves, laneWidth, avatars, litLanes]);
 }
 
-interface MarkerInput {
+/** A mark next to the scrollbar. */
+export interface ScrollMark {
+  /** A branch's tip, a search match, the checked-out commit or a selected one. */
+  kind: "branch" | "match" | "head" | "selected";
+  /** The commit it marks. */
+  index: number;
+  /** How far down the strip it is, in pixels. */
+  y: number;
+  color: string;
+}
+
+interface MarkInput {
   commits: CommitRow[];
   /** The list row of each commit. */
   slotOf: number[];
   indexById: Map<string, number>;
   rowHeight: number;
-  /** The height of everything in the list, and of the part on screen. */
+  /** The height of everything in the list, and of the strip (the part on screen). */
   contentHeight: number;
-  viewport: { height: number; scrollbar: number };
+  height: number;
   matchIds: Set<string> | null;
   headId: string | null;
   selectedIds: Set<string>;
   colors: CanvasColors;
 }
 
-/** Marks next to the scrollbar: branch tips, search matches, the checked-out commit and the selection. */
-export function useScrollMarkers(canvas: RefObject<HTMLCanvasElement | null>, input: MarkerInput) {
-  const { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId, selectedIds, colors } = input;
+/** The marks next to the scrollbar, in the order they're drawn (later ones on top). */
+export function scrollMarks(input: MarkInput): ScrollMark[] {
+  const { commits, slotOf, indexById, rowHeight, contentHeight, height, matchIds, headId, selectedIds, colors } = input;
+  const total = Math.max(contentHeight, height);
+  const marks: ScrollMark[] = [];
+  const add = (kind: ScrollMark["kind"], index: number | undefined, color: string) => {
+    if (index !== undefined) marks.push({ kind, index, color, y: ((slotOf[index] + 0.5) * rowHeight * height) / total });
+  };
+  commits.forEach((commit, index) => {
+    if (commit.refs.some((ref) => ref.kind === "branch")) add("branch", index, laneColor(commit.graph.column, colors.lanes));
+  });
+  matchIds?.forEach((id) => add("match", indexById.get(id), colors.match));
+  if (headId) add("head", indexById.get(headId), colors.accent);
+  selectedIds.forEach((id) => add("selected", indexById.get(id), colors.ring));
+  return marks;
+}
+
+/** How close to a mark the pointer has to be to point at it, in pixels. */
+const NEAR = 4;
+
+/** The marks the pointer is on, at `y` down the strip, nearest first. */
+export function marksNear(marks: ScrollMark[], y: number): ScrollMark[] {
+  return marks.filter((mark) => Math.abs(mark.y - y) <= NEAR).sort((a, b) => Math.abs(a.y - y) - Math.abs(b.y - y));
+}
+
+/** How thick each kind of mark is, and how far in from the strip's edges. */
+const MARK_SIZE: Record<ScrollMark["kind"], { size: number; inset: number }> = {
+  branch: { size: 2, inset: 3 },
+  match: { size: 2, inset: 1 },
+  head: { size: 3, inset: 0 },
+  selected: { size: 2, inset: 0 },
+};
+
+/**
+ * Where a mark is drawn on a strip `width` wide: its rectangle, in pixels from the strip's
+ * top left. The insets are for the 12px strip beside a scrollbar: a narrower one takes less off.
+ */
+export function markRect(mark: ScrollMark, width: number) {
+  const { size } = MARK_SIZE[mark.kind];
+  const inset = MARK_SIZE[mark.kind].inset * Math.min(1, width / 12);
+  return { x: inset, y: Math.round(mark.y - size / 2), width: width - inset * 2, height: size };
+}
+
+/**
+ * Draws the marks next to the scrollbar: branch tips, search matches, the checked-out commit
+ * and the selection. The marks of the commits in `lit` are left out: the pointer is on them,
+ * and they're drawn glowing over the scrollbar instead (MarkHover).
+ */
+export function useScrollMarkers(
+  canvas: RefObject<HTMLCanvasElement | null>,
+  marks: ScrollMark[],
+  viewport: { height: number; scrollbar: number },
+  lit: ReadonlySet<number>,
+) {
   useLayoutEffect(() => {
     // Under the scrollbar; with scrollbars that overlay the content, a thin strip at the edge.
     const width = viewport.scrollbar || 6;
@@ -89,18 +156,11 @@ export function useScrollMarkers(canvas: RefObject<HTMLCanvasElement | null>, in
     if (!canvas.current || !height) return;
     const ctx = prepare(canvas.current, width, height);
     if (!ctx) return;
-    const total = Math.max(contentHeight, height);
-    const mark = (index: number | undefined, color: string, size: number, inset = 2) => {
-      if (index === undefined) return;
-      const y = ((slotOf[index] + 0.5) * rowHeight * height) / total;
-      ctx.fillStyle = color;
-      ctx.fillRect(inset, Math.round(y - size / 2), width - inset * 2, size);
-    };
-    commits.forEach((commit, index) => {
-      if (commit.refs.some((ref) => ref.kind === "branch")) mark(index, laneColor(commit.graph.column, colors.lanes), 2, 3);
-    });
-    matchIds?.forEach((id) => mark(indexById.get(id), colors.match, 2, 1));
-    if (headId) mark(indexById.get(headId), colors.accent, 3, 0);
-    selectedIds.forEach((id) => mark(indexById.get(id), colors.ring, 2, 0));
-  }, [canvas, viewport, commits, slotOf, rowHeight, contentHeight, matchIds, headId, selectedIds, indexById, colors]);
+    for (const mark of marks) {
+      if (lit.has(mark.index)) continue;
+      const rect = markRect(mark, width);
+      ctx.fillStyle = mark.color;
+      ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+    }
+  }, [canvas, viewport, marks, lit]);
 }

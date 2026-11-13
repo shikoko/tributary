@@ -23,13 +23,13 @@
 }
 
 .list-header > div {
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   white-space: nowrap;
   overflow: hidden;
 }
 
 .list-header .refs-heading {
-  padding-left: 14px;
+  padding-left: var(--space-14);
 }
 
 .list-scroller {
@@ -122,7 +122,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 
 .cell {
   min-width: 0;
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -138,7 +138,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
   z-index: 1;
   display: flex;
   justify-content: flex-end;
-  padding-right: 8px;
+  padding-right: var(--space-8);
 }
 
 .refs-cell .ref-pills {
@@ -206,13 +206,13 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 
 .change-counts {
   display: inline-flex;
-  gap: 4px;
-  margin-left: 10px;
+  gap: var(--space-4);
+  margin-left: var(--space-10);
   flex: none;
 }
 
 .change-count {
-  padding: 0 6px;
+  padding: 0 var(--space-6);
   border-radius: var(--radius-sm);
   font-family: var(--mono);
   font-size: var(--type-xs);
@@ -221,25 +221,25 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 }
 
 .change-count.added {
-  color: var(--added);
+  color: var(--added-ink);
   background: rgb(var(--added-rgb) / 0.13);
 }
 
 .change-count.modified {
-  color: var(--warning);
+  color: var(--modified-ink);
   background: rgb(var(--warning-rgb) / 0.13);
 }
 
 .change-count.deleted,
 .change-count.conflicted {
-  color: var(--danger);
+  color: var(--deleted-ink);
   background: rgb(var(--danger-rgb) / 0.13);
 }
 
 .author {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   color: var(--text-secondary);
 }
 
@@ -265,7 +265,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 }
 
 .list-empty {
-  padding: 48px 24px;
+  padding: var(--space-48) var(--space-24);
   color: var(--text-muted);
   text-align: center;
 }
@@ -277,7 +277,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: var(--space-12);
   border-top: 1px solid var(--border);
   color: var(--text-muted);
 }
@@ -304,7 +304,7 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 
 .ref-pills {
   display: inline-flex;
-  gap: 4px;
+  gap: var(--space-4);
   min-width: 0;
   flex: none;
   max-width: 60%;
@@ -313,11 +313,11 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 .ref-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
   min-width: 0;
   max-width: 200px;
   height: 20px;
-  padding: 0 7px;
+  padding: 0 var(--space-8);
   border: 1px solid;
   border-radius: var(--radius-md);
   color: var(--text);
@@ -343,13 +343,11 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
   color: var(--text-muted);
 }
 
-button.ref-pill.more {
-  font: inherit;
+.ref-pill.more.openable {
   cursor: pointer;
 }
 
-button.ref-pill.more:hover,
-button.ref-pill.more:focus-visible {
+.ref-pill.more.openable:hover {
   border-color: var(--border-hover);
   color: var(--text);
 }
@@ -367,7 +365,7 @@ button.ref-pill.more:focus-visible {
 
 .ref-where {
   display: inline-flex;
-  gap: 2px;
+  gap: var(--space-2);
   opacity: 0.75;
 }
 
@@ -375,7 +373,7 @@ button.ref-pill.more:focus-visible {
 .ref-sync {
   display: inline-flex;
   flex: none;
-  gap: 3px;
+  gap: var(--space-4);
   margin-left: 1px;
   font-size: var(--type-xs);
   font-weight: 600;
@@ -410,4 +408,37 @@ button.ref-pill.more:focus-visible {
 .ci-dot.pending {
   background: var(--warning);
   animation: request-pending 1.4s ease-in-out infinite;
+}
+
+/* A commit you jumped to (from the sidebar, a search, a link in the details…; CommitList,
+   ListRow): the row's edge lights up in its lane's colour (--lane), with a little glow, and
+   fades. The row's grid places it over the whole row. Nothing moves, so it's the same with
+   reduced motion. */
+.arrival {
+  position: absolute;
+  z-index: 2;
+  inset: 1px 2px;
+  grid-row: 1;
+  grid-column: 1 / -1;
+  border-radius: var(--radius-md);
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--lane) 85%, transparent),
+    0 0 8px color-mix(in srgb, var(--lane) 35%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  animation: arrival 1.2s ease-out both;
+}
+
+/* In quickly, out slowly. */
+@keyframes arrival {
+  0% {
+    opacity: 0;
+  }
+  12%,
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }

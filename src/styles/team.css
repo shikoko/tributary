@@ -7,11 +7,11 @@
 
 .team-body {
   position: relative;
-  padding: 18px 22px 40px;
+  padding: var(--space-20) var(--space-24) var(--space-40);
 }
 
 .team-heading {
-  margin: 22px 0 10px;
+  margin: var(--space-24) 0 var(--space-10);
   color: var(--text-muted);
   font-size: var(--type-xs);
   font-weight: 600;
@@ -20,7 +20,7 @@
 }
 
 .team-you {
-  padding: 0 5px;
+  padding: 0 var(--space-6);
   border-radius: var(--radius-sm);
   background: rgb(var(--accent-rgb) / 0.15);
   color: var(--accent-ink);
@@ -30,7 +30,7 @@
 
 .team-overlap {
   flex: none;
-  padding: 1px 7px;
+  padding: 1px var(--space-8);
   border-radius: var(--radius-pill);
   background: rgb(var(--notice-rgb) / 0.14);
   color: var(--notice-text);
@@ -70,7 +70,7 @@
 }
 
 .team-avatars > * + * {
-  margin-left: -5px;
+  margin-left: calc(var(--space-6) * -1);
 }
 
 /* Avatars in a graph colour: initials in the colour that reads on lanes. */
@@ -118,12 +118,12 @@
   flex: none;
   width: 1px;
   height: 12px;
-  margin: 0 2px;
+  margin: 0 var(--space-2);
   background: var(--border-strong);
 }
 
 .team-diverge.labelled {
-  gap: 8px;
+  gap: var(--space-8);
   width: 100%;
 }
 
@@ -140,7 +140,7 @@
 }
 
 .team-diverge.labelled .team-diverge-mid {
-  margin: 0 -6px;
+  margin: 0 calc(var(--space-6) * -1);
   height: 14px;
 }
 
@@ -157,8 +157,8 @@
   z-index: 5;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 7px 10px;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-10);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--bg-raised);
@@ -192,13 +192,13 @@
 .team-tip-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   color: var(--text-secondary);
 }
 
 .team-tip-value {
   margin-left: auto;
-  padding-left: 16px;
+  padding-left: var(--space-16);
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
@@ -212,8 +212,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
-  gap: 20px 36px;
-  padding: 22px 24px 16px;
+  gap: var(--space-20) var(--space-40);
+  padding: var(--space-24) var(--space-24) var(--space-16);
   border: 1px solid var(--border);
   border-radius: var(--radius-3xl);
   background:
@@ -225,14 +225,14 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 18px;
-  padding-bottom: 6px;
+  gap: var(--space-20);
+  padding-bottom: var(--space-6);
 }
 
 .team-hero-figure {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-16);
 }
 
 .team-hero-number {
@@ -245,7 +245,7 @@
 .team-hero-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-4);
   color: var(--text-secondary);
   font-size: var(--type-md);
 }
@@ -258,8 +258,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding-left: 4px;
+  gap: var(--space-12);
+  padding-left: var(--space-4);
 }
 
 .team-hero-more {
@@ -271,7 +271,7 @@
   display: flex;
   flex: 1 1 320px;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-8);
   min-width: 0;
 }
 
@@ -279,7 +279,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-12);
   font-size: var(--type-base);
   font-weight: 600;
 }
@@ -369,7 +369,7 @@
 }
 
 .team-section-title {
-  margin: 24px 0 10px;
+  margin: var(--space-24) 0 var(--space-10);
   color: var(--text-muted);
   font-size: var(--type-xs);
   font-weight: 600;
@@ -380,7 +380,7 @@
 .team-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 12px;
+  gap: var(--space-12);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -391,10 +391,10 @@
 .team-lock-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-12);
   width: 100%;
   height: 100%;
-  padding: 14px 16px;
+  padding: var(--space-14) var(--space-16);
   border: 1px solid var(--border);
   border-radius: var(--radius-2xl);
   background: var(--bg-panel);
@@ -411,13 +411,13 @@
 .team-person-card-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .team-person-card-name {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
   min-width: 0;
   font-weight: 600;
 }
@@ -425,7 +425,7 @@
 .team-person-card-name > span:first-child {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   overflow: hidden;
   white-space: nowrap;
 }
@@ -453,14 +453,14 @@
 .team-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-4);
   font-size: var(--type-xs);
 }
 
 .team-branch-card-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .team-branch-card-head > svg {
@@ -487,14 +487,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
+  gap: var(--space-8) var(--space-10);
   font-size: var(--type-sm);
 }
 
 .team-lock-card-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   font-weight: 600;
 }
 
@@ -513,8 +513,8 @@
 
 /* Comparing with the period before. */
 .team-change {
-  margin-left: 10px;
-  padding: 1px 8px;
+  margin-left: var(--space-10);
+  padding: 1px var(--space-8);
   border-radius: var(--radius-pill);
   background: var(--bg-raised);
   color: var(--text-secondary);
@@ -543,22 +543,22 @@
 /* The statistics' panels, two or three to a row. */
 /* Flowing into columns, so panels of different heights leave no gaps. */
 .team-panels {
-  margin-top: 14px;
-  column-gap: 12px;
+  margin-top: var(--space-14);
+  column-gap: var(--space-12);
   column-width: 340px;
 }
 
 .team-panels > .team-panel {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-12);
   break-inside: avoid;
 }
 
 .team-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-12);
   min-width: 0;
-  padding: 14px 16px 16px;
+  padding: var(--space-14) var(--space-16) var(--space-16);
   border: 1px solid var(--border);
   border-radius: var(--radius-2xl);
   background: var(--bg-panel);
@@ -568,7 +568,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .team-panel-head h3 {
@@ -584,7 +584,7 @@
 /* Kinds of work: one whole in parts. */
 .team-kinds {
   display: flex;
-  gap: 2px;
+  gap: var(--space-2);
   height: 6px;
   overflow: hidden;
   border-radius: var(--radius-sm);
@@ -603,16 +603,21 @@
 }
 
 .team-kind-share {
-  padding-left: 8px;
+  padding-left: var(--space-8);
   color: var(--on-bright);
   font-size: var(--type-sm);
   font-weight: 600;
 }
 
+/* On the grey of "other", in either theme, the theme's own text reads best. */
+.team-kind.kind-other .team-kind-share {
+  color: var(--text);
+}
+
 .team-kind-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 16px;
+  gap: var(--space-6) var(--space-16);
   margin: 0;
   padding: 0;
   font-size: var(--type-sm);
@@ -622,13 +627,13 @@
 .team-kind-legend li {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 /* Lines of code: added above the line, removed below. */
 .team-lines-totals {
   display: flex;
-  gap: 10px;
+  gap: var(--space-10);
   font-size: var(--type-base);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -656,7 +661,7 @@
 .team-request-authors {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-8);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -666,7 +671,7 @@
 .team-request-authors li {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
   min-width: 0;
   font-size: var(--type-base);
 }
@@ -683,7 +688,7 @@
 .team-hotspot-file {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   min-width: 0;
 }
 
@@ -702,7 +707,7 @@
 
 .team-hotspot-risk {
   flex: none;
-  padding: 0 7px;
+  padding: 0 var(--space-8);
   border-radius: var(--radius-pill);
   background: rgb(var(--notice-rgb) / 0.14);
   color: var(--notice-text);
@@ -749,7 +754,7 @@
 .team-punch {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
 }
 
 .team-punch-row {
@@ -802,13 +807,13 @@
 .team-figures {
   display: grid;
   grid-template-columns: auto auto 1fr;
-  gap: 4px 28px;
+  gap: var(--space-4) var(--space-28);
 }
 
 .team-figures > div {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
 }
 
 .team-figures .muted {
@@ -825,7 +830,7 @@
 .team-rhythm {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
+  gap: var(--space-4) var(--space-14);
   color: var(--text-muted);
   font-size: var(--type-sm);
 }

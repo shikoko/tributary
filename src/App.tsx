@@ -30,7 +30,7 @@ import { useUpdateNotice } from "./app/useUpdateNotice";
 import { useViewFade } from "./app/useViewFade";
 import { useGitInstall } from "./app/useGitInstall";
 import { GitNeededBanner } from "./components/GitNeeded";
-import { useActions } from "./app/useActions";
+import { busyTabs, useActions } from "./app/useActions";
 import { useBackgroundFetch } from "./app/useBackgroundFetch";
 import { useLocalHistory } from "./app/useLocalHistory";
 import { useScheduledFetch } from "./app/useScheduledFetch";
@@ -52,7 +52,6 @@ import { usePlace } from "./app/usePlace";
 import { usePreferences } from "./app/usePreferences";
 import { useTaskbarProgress } from "./app/useTaskbarProgress";
 import { useActionHistory } from "./app/useActionHistory";
-import { overallPercent } from "./lib/progress";
 import { ThemeContext, useAppearance } from "./app/useAppearance";
 import { BranchSyncContext } from "./lib/branchSync";
 import { useRepository } from "./app/useRepository";
@@ -235,7 +234,8 @@ export default function App() {
     },
   });
   const { act, running } = actions;
-  useTaskbarProgress(actions.progress);
+  // The repository on screen's, or another's.
+  useTaskbarProgress(actions.progress ?? [...actions.runs.values()].find((run) => run.progress?.visible)?.progress ?? null);
   const lockRelease = useLockRelease({ snapshot, locks: lfs.locks ? lfs.byPath : null, mode: preferences.releaseLocks, act });
   const submodules = useSubmodules({ snapshot, mode: preferences.submoduleUpdates, act });
   useAutoLock({
@@ -473,11 +473,7 @@ export default function App() {
                 )
               }
               news={tabNews}
-              busy={
-                actions.runningPath && actions.progress?.visible
-                  ? { path: actions.runningPath, label: actions.progress.label, percent: overallPercent(actions.progress.value) }
-                  : undefined
-              }
+              busy={busyTabs(actions.runs)}
             />
           )}
           {snapshot && git.missing && <GitNeededBanner install={git} />}

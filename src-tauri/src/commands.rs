@@ -106,13 +106,26 @@ pub async fn actor_names(
     .await
 }
 
+/// An `action-progress` event: how far an action has got, and the repository it runs in
+/// (none for a clone), since actions can run in several at once.
+#[derive(Clone, serde::Serialize)]
+struct ProgressEvent<'a> {
+    path: Option<&'a str>,
+    #[serde(flatten)]
+    progress: &'a git::Progress,
+}
+
 /// Change the repository: commit, stash, checkout, branch, merge, fetch, pull, push, …
 /// Fetches, pulls and pushes report their progress as `action-progress` events.
 #[tauri::command]
 pub async fn run_action(app: AppHandle, path: String, action: Action) -> Result<Outcome> {
     blocking(move || {
-        actions::run_with_progress(&PathBuf::from(path), action, &|progress| {
-            let _ = app.emit("action-progress", progress);
+        actions::run_with_progress(&PathBuf::from(&path), action, &|progress| {
+            let event = ProgressEvent {
+                path: Some(&path),
+                progress: &progress,
+            };
+            let _ = app.emit("action-progress", event);
         })
     })
     .await
@@ -955,10 +968,11 @@ pub async fn diagnostics(path: Option<String>) -> Result<diagnostics::Diagnostic
     .await
 }
 
-/// Stop the fetch, pull, push or clone that is running.
+/// Stop the fetch, pull or push running in the repository at `path`, or without a path,
+/// everything that is running (a clone).
 #[tauri::command]
-pub fn cancel_action() -> bool {
-    git::cancel()
+pub fn cancel_action(path: Option<String>) -> bool {
+    git::cancel(path.as_deref().map(std::path::Path::new))
 }
 
 /// The git commands Tributary ran recently, oldest first. New ones arrive as `activity`

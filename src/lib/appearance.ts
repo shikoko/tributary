@@ -159,6 +159,8 @@ function readable(color: Rgb, background: Rgb, toward: Rgb, min = 4.5): Rgb {
 }
 
 const WHITE: Rgb = [255, 255, 255];
+/** White on a button's fill, at least: 4.5 to 1 once it brightens by 8% when pointed at. */
+export const FILL_CONTRAST = 5.2;
 const BLACK: Rgb = [0, 0, 0];
 const DARK_TEXT: Rgb = [228, 231, 238];
 const LIGHT_TEXT: Rgb = [27, 31, 38];
@@ -194,6 +196,10 @@ export function accentRoles(accent: string, theme: Theme): Record<string, string
     "--on-accent": onAccent,
     "--accent-ink": legible(color),
     "--accent-text": legible(text.text),
+    // A button filled with the accent: its colours deepened until white reads on them, with
+    // room to spare for the button brightening when it's pointed at.
+    "--accent-fill": toHex(readable(color, WHITE, BLACK, FILL_CONTRAST)),
+    "--accent-fill-2": toHex(readable(end, WHITE, BLACK, FILL_CONTRAST)),
     "--accent-soft-text": legible(text.soft),
     "--accent-strong-text": legible(text.strong),
   };
@@ -226,10 +232,10 @@ export function lanePalette(appearance: Appearance, theme: Theme): string[] {
   return appearance.lanes === "custom" ? appearance.customLanes : LANE_PALETTES[appearance.lanes][theme];
 }
 
-/** Text that reads on `color`: near-black on light colours, white on dark ones. */
+/** Text that reads on `color`: near-black or white, whichever contrasts with it more. */
 export function textOn(color: string): string {
   const rgb = parseHex(color);
-  return rgb && luminance(rgb) > 0.4 ? "#0d0f13" : "#ffffff";
+  return rgb && contrast(rgb, [13, 15, 19]) > contrast(rgb, [255, 255, 255]) ? "#0d0f13" : "#ffffff";
 }
 
 /** Switch the page to these colours. */

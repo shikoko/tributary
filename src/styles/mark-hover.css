@@ -1,0 +1,137 @@
+/* What the marks beside the commit list's scrollbar are, shown when the pointer is on one
+   (MarkHover): a card beside the scrollbar with an entry for each commit, a stripe in its
+   mark's colour (--mark) down the side, and a point towards the mark. */
+
+.mark-card {
+  position: fixed;
+  z-index: 15;
+  width: 288px;
+  padding: var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-2xl);
+  background: var(--bg-raised);
+  box-shadow: 0 16px 40px var(--shadow-strong);
+  font-size: var(--type-sm);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(6px);
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+.mark-card.shown {
+  opacity: 1;
+  transform: none;
+}
+
+.mark-entry {
+  position: relative;
+  padding: var(--space-8) var(--space-10) var(--space-10) var(--space-16);
+}
+
+.mark-entry + .mark-entry {
+  border-top: 1px solid var(--border);
+}
+
+.mark-entry-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.mark-entry-name {
+  min-width: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--mark) 78%, var(--text));
+  font-family: var(--mono);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mark-entry-age {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: var(--type-xs);
+}
+
+.mark-entry-states {
+  margin-top: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mark-entry-summary {
+  margin-top: var(--space-4);
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mark-entry-author {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+}
+
+.mark-entry-more {
+  padding: var(--space-6) var(--space-16) var(--space-8);
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: var(--type-xs);
+}
+
+.mark-entry::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: 5px;
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--mark);
+}
+
+.mark-card::after {
+  content: "";
+  position: absolute;
+  top: clamp(14px, var(--point), calc(100% - 14px));
+  right: -5px;
+  width: 8px;
+  height: 8px;
+  border-top: 1px solid var(--border-strong);
+  border-right: 1px solid var(--border-strong);
+  background: var(--bg-raised);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+/* The marks the pointer is on light up: drawn here instead of on the strip's canvas, in
+   their own place and shape, brighter, glowing in their colour, over the scrollbar. */
+.mark-glow {
+  position: fixed;
+  z-index: 14;
+  background: color-mix(in srgb, var(--mark) 35%, white); /* a lighter tint of the mark's colour */
+  box-shadow:
+    0 0 3px 1px var(--mark),
+    0 0 10px 3px var(--mark),
+    0 0 22px 6px color-mix(in srgb, var(--mark) 40%, transparent);
+  pointer-events: none;
+  animation: mark-glow-in 0.16s ease-out;
+}
+
+@keyframes mark-glow-in {
+  from {
+    background: var(--mark);
+    box-shadow: none;
+  }
+}

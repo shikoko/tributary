@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accentRoles, ACCENTS, contrast, DEFAULT_APPEARANCE, effectiveTheme, LANE_PALETTES, lanePalette, normalizeAppearance, parseHex, textOn } from "./appearance";
+import { accentRoles, ACCENTS, contrast, DEFAULT_APPEARANCE, FILL_CONTRAST, effectiveTheme, LANE_PALETTES, lanePalette, normalizeAppearance, parseHex, textOn } from "./appearance";
 
 const rgb = (hex: string) => parseHex(hex)!;
 
@@ -31,6 +31,24 @@ describe("appearance", () => {
     expect(roles["--accent-pair"]).toBe("#a77bff");
     expect(roles["--accent-ink"]).toBe("#1fb5ff");
     expect(roles["--on-accent"]).toBe("#ffffff");
+  });
+
+  it("fills buttons with the accent, deepened until white reads on it, pointed at or not", () => {
+    // The built-in accents, and colours of one's own: light, dark and greyish.
+    for (const accent of [...ACCENTS.map((a) => a.color), "#ffe24a", "#00ff00", "#ffffff", "#123456", "#9aa1ad"]) {
+      for (const theme of ["dark", "light"] as const) {
+        const roles = accentRoles(accent, theme);
+        for (const fill of [roles["--accent-fill"], roles["--accent-fill-2"]]) {
+          expect(contrast(rgb(fill), [255, 255, 255]), `${accent} ${fill}`).toBeGreaterThanOrEqual(FILL_CONTRAST);
+          // Brightened by 8% (filter: brightness(1.08)) when the pointer is on it.
+          const brighter = rgb(fill).map((value) => Math.min(255, value * 1.08)) as [number, number, number];
+          expect(contrast(brighter, [255, 255, 255]), `${accent} ${fill} pointed at`).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
+    // The default's, which theme.css has before the accent is applied.
+    expect(accentRoles("#1fb5ff", "dark")["--accent-fill"]).toBe("#136e9b");
+    expect(accentRoles("#1fb5ff", "dark")["--accent-fill-2"]).toBe("#3c61c7");
   });
 
   it("pairs every accent with a different colour", () => {
@@ -86,5 +104,9 @@ describe("appearance", () => {
   it("picks label text that reads on any colour", () => {
     expect(textOn("#ffe24a")).toBe("#0d0f13");
     expect(textOn("#1b3a8a")).toBe("#ffffff");
+    // A middling blue, the light theme's first lane: white reads at only 3.7 to 1 on it.
+    expect(textOn("#0a8bd1")).toBe("#0d0f13");
+    for (const palette of Object.values(LANE_PALETTES))
+      for (const color of [...palette.dark, ...palette.light]) expect(contrast(rgb(textOn(color)), rgb(color))).toBeGreaterThan(4.3);
   });
 });

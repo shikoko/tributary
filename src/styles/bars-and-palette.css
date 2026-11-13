@@ -5,8 +5,8 @@
 .view-banner {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 6px 14px;
+  gap: var(--space-12);
+  padding: var(--space-6) var(--space-14);
   border-bottom: 1px solid var(--border);
   flex: none;
 }
@@ -71,7 +71,7 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-4);
   min-width: 120px;
 }
 
@@ -121,7 +121,7 @@
 
 .secondary-button.small {
   height: 26px;
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   font-weight: 500;
 }
 
@@ -147,7 +147,7 @@
 
 .operation-buttons {
   display: flex;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .operation-buttons button {
@@ -155,7 +155,7 @@
 }
 
 .view-banner {
-  padding: 5px 14px;
+  padding: var(--space-6) var(--space-14);
   background: rgb(var(--accent-rgb) / 0.07);
   color: var(--text-secondary);
 }
@@ -173,9 +173,9 @@
 .notice-banner {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 8px 12px 0;
-  padding: 7px 8px 7px 12px;
+  gap: var(--space-10);
+  margin: var(--space-8) var(--space-12) 0;
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-12);
   border: 1px solid rgb(var(--notice-rgb) / 0.35);
   border-radius: var(--radius-lg);
   background: rgb(var(--notice-rgb) / 0.08);
@@ -186,7 +186,7 @@
 /* Banners in boxes stack with 8px between them, and the last one keeps 8px from what's
    below, so its edge doesn't sit on the panels. */
 :is(.notice-banner, .error-banner.inline):not(:has(+ .notice-banner, + .error-banner.inline)) {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-8);
 }
 
 .notice-banner > svg {
@@ -201,7 +201,7 @@
 
 .notice-action {
   flex: none;
-  padding: 4px 10px;
+  padding: var(--space-4) var(--space-10);
   border: 1px solid rgb(var(--notice-rgb) / 0.5);
   border-radius: var(--radius-md);
   background: rgb(var(--notice-rgb) / 0.14);
@@ -248,7 +248,7 @@
   top: 0;
   left: 0;
   z-index: 100;
-  padding: 2px 8px;
+  padding: var(--space-2) var(--space-8);
   border: 1px solid var(--accent);
   border-radius: var(--radius-md);
   background: rgb(var(--accent-rgb) / 0.22);
@@ -278,7 +278,7 @@ body.dragging-label * {
 
 .sidebar-counts {
   display: inline-flex;
-  gap: 4px;
+  gap: var(--space-4);
   margin-left: auto;
   color: var(--text-faint);
   font-family: var(--mono);
@@ -292,7 +292,7 @@ body.dragging-label * {
   position: fixed;
   z-index: 15;
   width: 360px;
-  padding: 12px 14px;
+  padding: var(--space-12) var(--space-14);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-xl);
   background: var(--bg-raised);
@@ -306,7 +306,7 @@ body.dragging-label * {
 }
 
 .preview-body {
-  margin-top: 6px;
+  margin-top: var(--space-6);
   color: var(--text-secondary);
   font-size: var(--type-sm);
   white-space: pre-wrap;
@@ -318,7 +318,7 @@ body.dragging-label * {
 }
 
 .preview-refs {
-  margin-top: 8px;
+  margin-top: var(--space-8);
 }
 
 .preview-refs .ref-pills {
@@ -329,8 +329,8 @@ body.dragging-label * {
 .preview-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 10px;
+  gap: var(--space-6);
+  margin-top: var(--space-10);
   font-size: var(--type-sm);
   white-space: nowrap;
   overflow: hidden;
@@ -346,9 +346,9 @@ body.dragging-label * {
 .preview-files {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  padding-top: 8px;
+  gap: var(--space-6);
+  margin-top: var(--space-8);
+  padding-top: var(--space-8);
   border-top: 1px solid var(--border);
   font-size: var(--type-sm);
 }
@@ -381,8 +381,8 @@ body.dragging-label * {
 .palette-input {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 16px;
+  gap: var(--space-10);
+  padding: 0 var(--space-16);
   height: 48px;
   border-bottom: 1px solid var(--border);
   color: var(--text-muted);
@@ -401,7 +401,7 @@ body.dragging-label * {
 
 .palette-list {
   margin: 0;
-  padding: 6px;
+  padding: var(--space-6);
   list-style: none;
   overflow-y: auto;
 }
@@ -409,9 +409,9 @@ body.dragging-label * {
 .palette-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
   height: 34px;
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   border-radius: var(--radius-md);
   cursor: pointer;
 }
@@ -442,7 +442,7 @@ body.dragging-label * {
 
 .palette-item kbd,
 .shortcuts kbd {
-  padding: 1px 6px;
+  padding: 1px var(--space-6);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--bg-raised);
@@ -453,7 +453,7 @@ body.dragging-label * {
 }
 
 .palette-empty {
-  padding: 14px 10px;
+  padding: var(--space-14) var(--space-10);
   color: var(--text-muted);
 }
 
@@ -465,14 +465,14 @@ body.dragging-label * {
 }
 
 .shortcuts td {
-  padding: 5px 0;
+  padding: var(--space-6) 0;
   color: var(--text-secondary);
   vertical-align: top;
 }
 
 .shortcuts td:first-child {
   width: 1%;
-  padding-right: 16px;
+  padding-right: var(--space-16);
   white-space: nowrap;
 }
 
@@ -482,9 +482,9 @@ body.dragging-label * {
   z-index: 60;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-8);
   width: 340px;
-  padding: 12px 14px;
+  padding: var(--space-12) var(--space-14);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-xl);
   background: var(--bg-raised);
@@ -496,7 +496,7 @@ body.dragging-label * {
 .transfer-speed {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-4);
 }
 
 .transfer-speed svg {
@@ -522,7 +522,7 @@ body.dragging-label * {
 .transfer-row {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
-  gap: 8px;
+  gap: var(--space-8);
   align-items: baseline;
 }
 
@@ -537,7 +537,7 @@ body.dragging-label * {
 .transfer-recent {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -545,7 +545,7 @@ body.dragging-label * {
 .transfer-file {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-8);
   min-width: 0;
 }
 

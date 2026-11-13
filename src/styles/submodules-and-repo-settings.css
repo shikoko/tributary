@@ -15,20 +15,20 @@
 }
 
 .clone-submodules {
-  margin: 2px 0 4px;
+  margin: var(--space-2) 0 var(--space-4);
 }
 
 .diff-submodule {
   max-width: 720px;
   margin: 0 auto;
-  padding: 32px 24px;
+  padding: var(--space-32) var(--space-24);
   color: var(--text-secondary);
 }
 
 .diff-submodule-head {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: var(--space-12);
   color: var(--text-muted);
 }
 
@@ -39,7 +39,7 @@
 }
 
 .diff-submodule-ids {
-  margin-top: 4px;
+  margin-top: var(--space-4);
   color: var(--text-muted);
 }
 
@@ -48,8 +48,8 @@
 }
 
 .diff-submodule-commits {
-  margin: 18px 0 0;
-  padding: 6px 0;
+  margin: var(--space-20) 0 0;
+  padding: var(--space-6) 0;
   list-style: none;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -58,8 +58,8 @@
 
 .diff-submodule-commits li {
   display: flex;
-  gap: 12px;
-  padding: 5px 14px;
+  gap: var(--space-12);
+  padding: var(--space-6) var(--space-14);
   color: var(--text);
 }
 
@@ -73,7 +73,7 @@
 }
 
 .diff-submodule p {
-  margin: 14px 0 0;
+  margin: var(--space-14) 0 0;
 }
 
 .diff-submodule-dirty {
@@ -98,8 +98,8 @@
 .elsewhere-panel-header {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 12px 10px 10px 14px;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-10) var(--space-10) var(--space-14);
   border-bottom: 1px solid var(--border);
 }
 
@@ -108,7 +108,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
 }
 
 .elsewhere-panel-header span {
@@ -118,13 +118,13 @@
 
 .elsewhere-branches {
   margin: 0;
-  padding: 6px;
+  padding: var(--space-6);
   list-style: none;
   overflow-y: auto;
 }
 
 .elsewhere-branch-entry {
-  padding: 4px 0 6px;
+  padding: var(--space-4) 0 var(--space-6);
 }
 
 .elsewhere-branch-entry + .elsewhere-branch-entry {
@@ -134,7 +134,7 @@
 .elsewhere-branch-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
 }
 
 .elsewhere-branch-toggle {
@@ -142,9 +142,9 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-8);
   height: 28px;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
@@ -191,7 +191,7 @@
 }
 
 .elsewhere-branch-who {
-  padding: 0 8px 0 46px;
+  padding: 0 var(--space-8) 0 46px; /* under the branch name */
   color: var(--text-muted);
   font-size: var(--type-sm);
   overflow: hidden;
@@ -200,18 +200,18 @@
 }
 
 .elsewhere-files {
-  margin: 6px 0 0;
-  padding: 0 0 0 38px;
+  margin: var(--space-6) 0 0;
+  padding: 0 0 0 38px; /* under the branch name */
   list-style: none;
 }
 
 .elsewhere-file-row {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-8);
   width: 100%;
   min-width: 0;
-  padding: 4px 8px;
+  padding: var(--space-4) var(--space-8);
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
@@ -259,7 +259,7 @@
 }
 
 .elsewhere-more {
-  padding: 4px 8px;
+  padding: var(--space-4) var(--space-8);
   font-size: var(--type-sm);
 }
 
@@ -281,7 +281,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--space-6);
   max-width: 380px;
 }
 
@@ -290,15 +290,15 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .lfs-suggestion {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   height: 26px;
-  padding: 0 10px 0 8px;
+  padding: 0 var(--space-10) 0 var(--space-8);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-3xl);
   background: transparent;
@@ -324,7 +324,7 @@
 }
 
 .diff-message .diff-message-action {
-  margin-top: 10px;
+  margin-top: var(--space-10);
 }
 
 /* Menus (select boxes) draw their own chevron, with room from the edge, instead of the
@@ -334,7 +334,7 @@ select.text-input,
 select.rebase-action {
   appearance: none;
   -webkit-appearance: none;
-  padding-right: 32px;
+  padding-right: var(--space-32);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%23aab1bf' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
@@ -343,7 +343,7 @@ select.rebase-action {
 }
 
 select.rebase-action {
-  padding-right: 26px;
+  padding-right: var(--space-28);
   background-position: right 8px center;
 }
 
