@@ -816,7 +816,7 @@ button.commit-check-row:hover svg {
   color: var(--text);
 }
 
-/* List, Tree or Folders, at the end of the Changed files heading. */
+/* List or Tree, at the end of the Changed files heading. */
 .details-section-head .files-layout {
   margin-left: auto;
 }
