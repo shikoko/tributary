@@ -245,10 +245,12 @@ function LaneEditor({ colors, onChange }: { colors: string[]; onChange: (colors:
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
       setLifted(null);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   };
 
   // Alt+← → moves the colour with the focus, which stays on it.
@@ -269,6 +271,9 @@ function LaneEditor({ colors, onChange }: { colors: string[]; onChange: (colors:
           key={index}
           className={`lane-editor-swatch${lifted === index ? " lifted" : ""}`}
           onPointerDown={(event) => startDrag(index, event)}
+          // WebKit (the Mac app's window) drags a colour out of a colour picker by itself, and
+          // drops it onto another, copying it: the drag here moves it instead.
+          onDragStart={(event) => event.preventDefault()}
           onClickCapture={(event) => {
             if (!dragged.current) return;
             dragged.current = false;
