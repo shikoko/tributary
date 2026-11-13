@@ -20,6 +20,8 @@ export { DEFAULT_COLUMNS, type ColumnOptions, type ColumnWidths } from "./commit
 
 /** How long the pointer rests on a commit before its preview shows, in milliseconds. */
 const PREVIEW_DELAY = 650;
+/** How long a commit you jump to pulses when it arrives, in milliseconds. */
+const ARRIVAL = 1300;
 /** How long the list's width has to stay put before its columns ease again. */
 const WIDTH_SETTLE = 160;
 
@@ -204,6 +206,21 @@ export function CommitList(props: Props) {
   // files changing, checks updating) recompute the rows too, but they don't move the list:
   // otherwise scrolling away from the selected commit kept snapping back to it.
   const reveal = useRef<string | null>(selectedId);
+  // A commit you jump to (from the sidebar, a search, a link in the details…) pulses when it
+  // arrives, so your eye finds it; not one picked in the list, where you're looking already,
+  // nor the one selected when the list opens.
+  const fromList = useRef(true);
+  const arriving = useRef<string | null>(null);
+  const [arrival, setArrival] = useState<{ id: string; key: number } | null>(null);
+  useEffect(() => {
+    arriving.current = fromList.current ? null : selectedId;
+    fromList.current = false;
+  }, [selectedId]);
+  useEffect(() => {
+    if (!arrival) return;
+    const timer = window.setTimeout(() => setArrival(null), ARRIVAL);
+    return () => window.clearTimeout(timer);
+  }, [arrival]);
   useEffect(() => {
     reveal.current = selectedId;
   }, [selectedId, rowHeight]);
@@ -211,6 +228,10 @@ export function CommitList(props: Props) {
     const element = scroller.current;
     if (!element || selectedIndex < 0 || reveal.current !== selectedId) return;
     reveal.current = null;
+    if (selectedId && arriving.current === selectedId) {
+      arriving.current = null;
+      setArrival((current) => ({ id: selectedId, key: (current?.key ?? 0) + 1 }));
+    }
     const top = slotOf[selectedIndex] * rowHeight;
     const bottom = top + rowHeight;
     const viewTop = element.scrollTop;
@@ -236,6 +257,7 @@ export function CommitList(props: Props) {
     } else if (event.key in moves) {
       const from = selectedIndex < 0 ? (moves[event.key] > 0 ? -1 : commits.length) : selectedIndex;
       const next = Math.min(commits.length - 1, Math.max(0, from + moves[event.key]));
+      fromList.current = true;
       onSelect(commits[next].id, { extend: event.shiftKey });
     } else {
       return;
@@ -250,6 +272,7 @@ export function CommitList(props: Props) {
   handlers.current = {
     onSelect: (id, how) => {
       hidePreview();
+      fromList.current = true;
       onSelect(id, how);
     },
     onContextMenu: (commit, x, y) => {
@@ -299,6 +322,7 @@ export function CommitList(props: Props) {
         head={commit.id === headCommit}
         dimmed={brightIds !== null && !brightIds.has(commit.id)}
         lit={litLanes.some((lane) => lane.ids.has(commit.id))}
+        arrival={arrival?.id === commit.id ? arrival.key : 0}
         handlers={handlers}
       />,
     );

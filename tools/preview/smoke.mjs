@@ -596,6 +596,15 @@ try {
     await page.locator(".commit-list.lane-lit").waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("outlines a commit you jump to for a moment, not one you click in the list", async () => {
+    await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+    await page.waitForTimeout(300);
+    expect((await page.locator(".arrival").count()) === 0, "a commit clicked in the list was outlined");
+    await page.locator(".sidebar-item", { hasText: /^themes/ }).first().click();
+    await page.locator(".commit-row.selected .arrival").waitFor({ timeout: 5000 });
+    await page.locator(".arrival").waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("opens a second repository in a new tab", async () => {
     // The pull requests' comments from the start: news is what changes after the first look.
     await page.evaluate(
