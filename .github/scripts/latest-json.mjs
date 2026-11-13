@@ -5,14 +5,22 @@
 // assets.json is { body, assets: [{ name }] }, from GitHub's API. Files are linked by their
 // public download address under the release's tag, which works once the draft is published.
 // The notes the update window shows come from the notes file when there is one (up to its
-// "release page only" comment), or else from the release's own notes.
+// "release page only" comment, without its pictures), or else from the release's own notes.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const [repository, tag, assetsFile, folder, out, notesFile] = process.argv.slice(2);
 const version = tag.replace(/^v/, "");
 const { assets, body } = JSON.parse(readFileSync(assetsFile, "utf8"));
-const notes = notesFile && existsSync(notesFile) ? readFileSync(notesFile, "utf8").split(/<!--\s*release page only/)[0].trim() : (body ?? "");
+// Without the pictures of the new things: What's New shows them, once it's installed.
+const notes =
+  notesFile && existsSync(notesFile)
+    ? readFileSync(notesFile, "utf8")
+        .split(/<!--\s*release page only/)[0]
+        .replace(/^[ \t]*!\[[^\]]*\]\([^)\s]+\)[ \t]*$/gm, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim()
+    : (body ?? "");
 
 /** The asset whose name ends with `suffix`, with its signature, or null. */
 function signed(suffix) {

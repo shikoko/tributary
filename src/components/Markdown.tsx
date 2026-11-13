@@ -1,5 +1,5 @@
 import { Fragment, useMemo, type ReactNode } from "react";
-import { openable, parseMarkdown, type Block, type Inline } from "../lib/markdown";
+import { openable, parseInline, parseMarkdown, type Block, type Inline } from "../lib/markdown";
 
 /**
  * Markdown from GitHub or GitLab (a pull request's description, a comment), shown as it
@@ -9,6 +9,12 @@ import { openable, parseMarkdown, type Block, type Inline } from "../lib/markdow
 export function Markdown({ text, openUrl, className }: { text: string; openUrl: (url: string) => void; className?: string }) {
   const blocks = useMemo(() => parseMarkdown(text), [text]);
   return <div className={`markdown${className ? ` ${className}` : ""}`}>{blocks.map((block, index) => renderBlock(block, index, openUrl))}</div>;
+}
+
+/** One line of Markdown (bold, code, links), without a paragraph around it. */
+export function MarkdownLine({ text, openUrl }: { text: string; openUrl: (url: string) => void }) {
+  const pieces = useMemo(() => parseInline(text), [text]);
+  return <>{pieces.map((piece, index) => renderInline(piece, index, openUrl))}</>;
 }
 
 function renderBlock(block: Block, key: number, openUrl: (url: string) => void): ReactNode {

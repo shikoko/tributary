@@ -43,6 +43,21 @@ request, …) and captures it. `-- --only blame,bisect` takes just those, and a 
 (`social-preview.png`) are made from the overview with `hero.html`, whenever the overview is
 taken (or with `--only hero`).
 
+## What's new, moving
+
+```bash
+npm run preview:clips -- v0.6.0
+```
+
+Records each new thing in a version working, for What's New and the release page: every
+scene in `clips/v0.6.0.mjs` is played on a fresh demo repository, with a pointer drawn where
+the mouse is, and saved as an animated WebP in `docs/release-notes/v0.6.0/`. A scene says
+which part of the window to show (16:10, like 720 by 450) and what happens in it, and ends
+where it started, as they loop. `-- v0.6.0 --only <name>` records just that one. Put each
+under its item in the notes, as `![what it shows](v0.6.0/<name>.webp)` on its own indented
+line; `src/lib/whatsNew.test.ts` fails if a new thing has none, or one is over 400 KB. See
+`clips/v0.5.0.mjs` for the first ones.
+
 ## Smoke test
 
 ```bash
