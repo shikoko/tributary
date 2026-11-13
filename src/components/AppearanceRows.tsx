@@ -18,7 +18,7 @@ import {
   type Theme,
   type ThemeChoice,
 } from "../lib/appearance";
-import { CheckIcon } from "./Icons";
+import { CheckIcon, PlusIcon } from "./Icons";
 import type { SettingRow } from "./SettingsDialog";
 import { Button } from "./ui/Button";
 
@@ -128,7 +128,7 @@ function AccentPicker({ value, onChange }: { value: string; onChange: (value: st
         })}
         <label className={`accent-swatch accent-custom${custom ? " chosen" : ""}`} title="Pick any colour" style={custom ? { background: value } : undefined}>
           <input type="color" value={value} aria-label="Pick any accent colour" onChange={(event) => onChange(event.target.value)} />
-          {custom ? <CheckIcon size={12} /> : <span aria-hidden>+</span>}
+          {custom ? <CheckIcon size={12} /> : <PlusIcon size={12} />}
         </label>
       </div>
       <HexField value={value} onChange={onChange} label="Accent colour, as a hex code" />
@@ -153,7 +153,9 @@ function LanePicker({ value, custom, theme, onChange }: { value: LaneChoice; cus
             onClick={() => onChange(name)}
           >
             <span className="lane-sample" aria-hidden>
-              {colors.length > 0 ? colors.slice(0, 8).map((color, index) => <span key={`${color}-${index}`} style={{ background: color }} />) : <span className="lane-sample-empty">+</span>}
+              {colors.length > 0 ? colors.slice(0, 8).map((color, index) => <span key={`${color}-${index}`} style={{ background: color }} />) : <span className="lane-sample-empty">
+                  <PlusIcon size={12} />
+                </span>}
             </span>
             <span>{name === "custom" ? "Your own" : LANE_PALETTE_LABELS[name]}</span>
           </button>
@@ -304,7 +306,7 @@ function LaneEditor({ colors, onChange }: { colors: string[]; onChange: (colors:
             aria-label="Add a lane colour"
             onChange={(event) => onChange([...colors, event.target.value])}
           />
-          +
+          <PlusIcon size={12} />
         </label>
       )}
     </div>

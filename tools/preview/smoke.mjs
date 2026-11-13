@@ -659,6 +659,20 @@ try {
     await page.locator(".arrival").waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("shows About Tributary, and what's new from it", async () => {
+    await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator(".menu-item", { hasText: "About Tributary" }).click();
+    const whatsNew = page.locator(".about-link", { hasText: "What's New" });
+    await whatsNew.waitFor({ timeout: 5000 });
+    await accessible("About Tributary");
+    await whatsNew.click();
+    const dialog = page.locator(".whats-new-dialog");
+    await dialog.waitFor({ timeout: 5000 });
+    await accessible("What's New");
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("changes how the window looks from the View panel, and closes it with Esc", async () => {
     const button = page.getByRole("button", { name: "View options" });
     await button.click();

@@ -442,7 +442,10 @@ body.dragging-label * {
 
 .palette-item kbd,
 .shortcuts kbd {
-  padding: 1px var(--space-6);
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--space-6);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--bg-raised);

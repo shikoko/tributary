@@ -49,7 +49,7 @@ export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
           {SHORTCUTS.map(([keys, action]) => (
             <tr key={action}>
               <td>
-                <kbd>{keys}</kbd>
+                <kbd><span className="chip-text">{keys}</span></kbd>
               </td>
               <td>{action}</td>
             </tr>

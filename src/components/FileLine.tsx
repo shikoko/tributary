@@ -86,7 +86,7 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
       }
     >
       <span className="file-status" style={{ color: `var(--${status.role})`, background: `rgb(var(--${status.role}-rgb) / 0.14)` }}>
-        {status.letter}
+        <span className="chip-text">{status.letter}</span>
       </span>
       <FileKindIcon path={file.path} />
       <span className={`file-name${actorName ? " actor" : ""}`}>{name}</span>

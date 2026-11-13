@@ -706,7 +706,10 @@
 }
 
 .team-hotspot-risk {
+  display: inline-flex;
   flex: none;
+  align-items: center;
+  height: 16px;
   padding: 0 var(--space-8);
   border-radius: var(--radius-pill);
   background: rgb(var(--notice-rgb) / 0.14);

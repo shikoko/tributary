@@ -128,7 +128,7 @@ export function Welcome({ recent, summaries, opening, error, onPick, onClone, on
           <Button kind="primary" size="large" onClick={onPick} disabled={opening !== null}>
             <FolderIcon />
             Open repository…
-            <kbd>{modKey}O</kbd>
+            <kbd><span className="chip-text">{modKey}O</span></kbd>
           </Button>
           <Button kind="secondary" size="large" onClick={onClone} disabled={opening !== null}>
             <CloneIcon />

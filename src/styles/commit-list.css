@@ -212,12 +212,14 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
 }
 
 .change-count {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
   padding: 0 var(--space-6);
   border-radius: var(--radius-sm);
   font-family: var(--mono);
   font-size: var(--type-xs);
   font-weight: 700;
-  line-height: 18px;
 }
 
 .change-count.added {

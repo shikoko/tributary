@@ -143,7 +143,7 @@ export function HotspotsCard({ work, nameOf, colorOf, tip }: { work: TeamWork; n
                   <span className="mono">{baseName(spot.path)}</span>
                   {risky && (
                     <span className="team-hotspot-risk" title="Several people changed it and it can't be merged: one version will win">
-                      can't merge
+                      <span className="chip-text">can't merge</span>
                     </span>
                   )}
                 </span>

@@ -1,5 +1,6 @@
-// Checks that the words on controls (buttons, menu items, tabs, chips and badges) sit in the
-// middle of them, as the smoke test's screens are checked for accessibility.
+// Checks that the words on controls (buttons, menu items, tabs, chips and badges) and on
+// anything else drawn as a small box around them (a version's tag, a key) sit in the middle
+// of them, as the smoke test's screens are checked for accessibility.
 //
 // A browser centres a line of text by the font's line box, and where the letters fall in it
 // depends on the font, its size, how the browser rounds its ascent, and the display's scale:
@@ -49,11 +50,28 @@ export async function misaligned(page, { scales = SCALES, tolerance = 1 } = {}) 
         const style = getComputedStyle(element);
         return /trim-both/.test(`${style.textBoxTrim ?? ""} ${style.textBox ?? ""}`);
       };
+      /**
+       * A small box drawn around words, whatever it's called: rounded, with a background or a
+       * border, at most 32px tall, with words of its own in it.
+       */
+      const boxed = (element) => {
+        const style = getComputedStyle(element);
+        if (parseFloat(style.borderTopLeftRadius) === 0 || element.getBoundingClientRect().height > 32) return false;
+        const filled = !/^(transparent|rgba\(.*,\s*0\))$/.test(style.backgroundColor);
+        const outlined = parseFloat(style.borderTopWidth) > 0 && style.borderTopStyle !== "none";
+        return (filled || outlined) && [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+      };
+      const candidates = new Set([...document.querySelectorAll(selector), ...[...document.querySelectorAll("body *")].filter(boxed)]);
+      /** The control or box that `node`'s words are on: the nearest one around it. */
+      const ownerOf = (node) => {
+        for (let element = node.parentElement; element; element = element.parentElement) if (candidates.has(element)) return element;
+        return null;
+      };
       /** The first words in `control` that aren't in a control of their own inside it. */
       const words = (control) => {
         const walker = document.createTreeWalker(control, NodeFilter.SHOW_TEXT);
         for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-          if (node.textContent.trim() && node.parentElement.closest(selector) === control) return node;
+          if (node.textContent.trim() && ownerOf(node) === control) return node;
         }
         return null;
       };
@@ -68,7 +86,7 @@ export async function misaligned(page, { scales = SCALES, tolerance = 1 } = {}) 
       const visible = (box) => box.width > 0 && box.height > 0 && box.bottom > 0 && box.right > 0 && box.top < innerHeight && box.left < innerWidth;
       const name = (control, text) => ({ text: text.textContent.trim().slice(0, 40), classes: String(control.className?.baseVal ?? control.className) });
       const found = [];
-      const controls = [...document.querySelectorAll(selector)].flatMap((control) => {
+      const controls = [...candidates].flatMap((control) => {
         const box = control.getBoundingClientRect();
         const style = getComputedStyle(control);
         // A row of words, not a block of them, that can be seen. A control in running text (a
