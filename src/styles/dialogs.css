@@ -207,13 +207,15 @@
    (which has more room below the letters than above, and differs from font to font).
    Centred on its capitals, a word of mostly small letters ("Reset main") looks low, and
    centred on its small letters, capitals look high: moved up a quarter of the difference
-   between the two heights, it's halfway, where it looks centred. (Moved, not padded: the
-   layout puts text on whole pixels, and this is less than one.) It stays on one line and
-   ends in "…" when it doesn't fit. Clipped sideways only: letters like "p" reach below the
-   trimmed box. */
+   between the two heights, it's halfway, where it looks centred. That's about 0.6px, and
+   letters are drawn on whole screen pixels, so it's moved in whole screen pixels, rounded
+   down: one at 175% and 200%, none at 100% to 150%, where a whole pixel was too much ("Show"
+   had 4 pixels above its letters and 7 below at 100%, 7 and 9 at 150%). It stays on one
+   line and ends in "…" when it doesn't fit. Clipped sideways only: letters like "p" reach
+   below the trimmed box. */
 .button-label {
   min-width: 0;
-  translate: 0 calc((1ex - 1cap) / 4);
+  translate: 0 round(up, calc((1ex - 1cap) / 4), var(--device-pixel, 1px));
   overflow-x: clip;
   overflow-y: visible;
   text-overflow: ellipsis;
