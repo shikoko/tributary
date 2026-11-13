@@ -719,6 +719,26 @@ try {
     expect(await button.evaluate((element) => element === document.activeElement), "the focus didn't go back to the View button");
   });
 
+  await step("opens the View panel from the keyboard and the command palette", async () => {
+    const panel = page.locator(".view-panel");
+    // The shortcut opens it under the View button, and closes it again.
+    await page.keyboard.press("Control+Shift+O");
+    await panel.waitFor({ timeout: 5000 });
+    const [at, under] = await Promise.all([panel.boundingBox(), page.getByRole("button", { name: "View options" }).boundingBox()]);
+    expect(Math.abs(at.y - (under.y + under.height + 6)) < 2, `the panel is at ${at.y}, not under the button at ${under.y}`);
+    await page.keyboard.press("Control+Shift+O");
+    await panel.waitFor({ state: "detached", timeout: 5000 });
+    // View Options in the command palette, with its shortcut beside it.
+    await page.keyboard.press("Control+k");
+    const palette = page.getByRole("dialog", { name: "Commands" });
+    await palette.locator("input").fill("view options");
+    await palette.locator("li", { hasText: "View Options" }).filter({ hasText: "Ctrl+Shift+O" }).first().waitFor({ timeout: 5000 });
+    await page.keyboard.press("Enter");
+    await panel.waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await panel.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("opens a second repository in a new tab", async () => {
     // The pull requests' comments from the start: news is what changes after the first look.
     await page.evaluate(

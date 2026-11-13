@@ -1,12 +1,15 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { ACCENTS, CURVE_STYLES, DEFAULT_APPEARANCE, LANE_PALETTES, type Appearance, type CurveStyle, type LanePaletteName, type Theme, type ThemeChoice } from "../lib/appearance";
 import type { ColumnOptions } from "./CommitList";
 import { CheckIcon, GearIcon } from "./Icons";
 import { Switch } from "./ui/Switch";
 
 interface Props {
-  /** The button it opens from: it opens under it, lined up with it (and a click on it closes it). */
-  anchor: HTMLElement;
+  /**
+   * The View button: it opens under it, lined up with it, whether from a click on it or the
+   * keyboard (and a click on it closes it).
+   */
+  anchor: RefObject<HTMLElement | null>;
   theme: Theme;
   appearance: Partial<Appearance>;
   setAppearance: (value: Partial<Appearance>) => void;
@@ -44,9 +47,10 @@ function Segmented<T extends string>({ label, value, options, onChange }: { labe
 }
 
 /**
- * How the window looks, from the toolbar: the things you change most (the theme and accent,
- * how the graph draws, which columns and how tall the rows are), each a click away and seen
- * straight away. The rest is in Settings → Appearance.
+ * How the window looks, from the View button at the end of the column headings, the View
+ * menu or the keyboard (⇧⌘O, Ctrl+Shift+O): the things you change most (the theme and
+ * accent, how the graph draws, which columns and how tall the rows are), each a click away
+ * and seen straight away. The rest is in Settings → Appearance.
  */
 export function ViewPanel(props: Props) {
   const { appearance, setAppearance } = props;
@@ -56,13 +60,16 @@ export function ViewPanel(props: Props) {
   const [place, setPlace] = useState<CSSProperties>({ visibility: "hidden" });
   // Under the button, inside the window: from a button in the window's right half, its right edge
   // on the button's; from one in the left half, its left edge on the button's.
+  const { onClose, anchor } = props;
   useLayoutEffect(() => {
     const width = panel.current?.offsetWidth ?? 340;
-    const button = props.anchor.getBoundingClientRect();
+    // Without its button (the commit list isn't showing), there's nothing to open under.
+    if (!anchor.current) return onClose();
+    const button = anchor.current.getBoundingClientRect();
     const wanted = button.left + button.width / 2 > window.innerWidth / 2 ? button.right - width : button.left;
     const left = Math.max(8, Math.min(wanted, window.innerWidth - width - 8));
     setPlace({ left, top: button.bottom + 6 });
-  }, [props.anchor]);
+  }, [anchor, onClose]);
   // The focus goes into it, and back to where it was (the View button) when it closes.
   useEffect(() => {
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -70,11 +77,10 @@ export function ViewPanel(props: Props) {
     return () => before?.focus();
   }, []);
   // A click outside, or Esc, closes it. (A click on its button closes it too, as the button's own.)
-  const { onClose, anchor } = props;
   useEffect(() => {
     const onDown = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (!panel.current?.contains(target) && !anchor.contains(target)) onClose();
+      if (!panel.current?.contains(target) && !anchor.current?.contains(target)) onClose();
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
