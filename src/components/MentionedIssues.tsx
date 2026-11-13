@@ -5,6 +5,7 @@ import { PullRequestsContext } from "../lib/pullRequests";
 import { openInBrowser } from "../lib/weblinks";
 import { PullRequestIcon } from "./Icons";
 import { Button } from "./ui/Button";
+import { Chip } from "./ui/Chip";
 
 /** Issues already looked up, by tracker and key. */
 const known = new Map<string, Issue | null>();
@@ -23,6 +24,12 @@ function requestFor(key: string, issue: Issue | null | undefined, open: PullRequ
   const isRequest = match[1] === "!" || /\/pull\/\d+|\/merge_requests\/\d+/.test(issue?.url ?? "");
   if (!isRequest || !url) return null;
   return { number: Number(match[2]), title: issue?.title ?? key, url, remote: remote.name, branch: "", draft: false, author: "", checks: null, forge: tracker.kind };
+}
+
+/** A state's colour, as the pull request screen has them: merged purple, open green, the rest grey. */
+function tone(status: string): string {
+  const state = status.toLowerCase();
+  return state === "merged" || state === "open" ? state : "other";
 }
 
 /**
@@ -65,12 +72,16 @@ export function MentionedIssues({ text }: { text: string }) {
               {key}
             </Button>
             {issue && <span className="mentioned-issue-title">{issue.title}</span>}
-            {issue?.status && <span className="mentioned-issue-status">{issue.status}</span>}
-            {request && requests && (
-              <button className="mentioned-issue-show" onClick={() => requests.open(request)} title={`Show ${key} here, in Tributary`}>
-                <PullRequestIcon size={12} />
-                Show
-              </button>
+            {(issue?.status || (request && requests)) && (
+              <span className="mentioned-issue-end">
+                {issue?.status && <Chip className={`mentioned-issue-status ${tone(issue.status)}`}>{issue.status}</Chip>}
+                {request && requests && (
+                  <button className="mentioned-issue-show" onClick={() => requests.open(request)} title={`Show ${key} here, in Tributary`}>
+                    <PullRequestIcon size={12} />
+                    <span className="button-label">Show</span>
+                  </button>
+                )}
+              </span>
             )}
           </li>
         );

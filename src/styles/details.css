@@ -501,14 +501,31 @@
   white-space: nowrap;
 }
 
-.mentioned-issue-status {
+/* Its state and the button that shows it here, together at the end of the row, their middles
+   on one line. (The row lines its text up by the letters' baseline; boxes of different
+   heights lined up that way don't line up with each other.) */
+.mentioned-issue-end {
+  display: inline-flex;
   flex: none;
+  align-items: center;
+  gap: var(--space-6);
   margin-left: auto;
-  padding: 0 var(--space-6);
-  border-radius: var(--radius-sm);
+}
+
+/* A state chip (chips.css), coloured as the pull request screen's: merged, open, or other. */
+.mentioned-issue-status.other {
   background: var(--bg-raised);
   color: var(--text-muted);
-  font-size: var(--type-xs);
+}
+
+.mentioned-issue-status.merged {
+  background: rgb(var(--purple-rgb) / 0.18);
+  color: var(--purple);
+}
+
+.mentioned-issue-status.open {
+  background: rgb(var(--success-rgb) / 0.16);
+  color: var(--success-text);
 }
 
 .mentioned-issue.done .mentioned-issue-title {
@@ -710,17 +727,12 @@ button.commit-check-row:hover svg {
   align-items: center;
   gap: var(--space-6);
   height: 22px;
-  margin-left: auto;
   padding: 0 var(--space-8);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--type-sm);
-}
-
-.mentioned-issue-status + .mentioned-issue-show {
-  margin-left: 0;
 }
 
 .mentioned-issue-show:hover {
