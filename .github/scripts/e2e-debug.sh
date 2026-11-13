@@ -9,10 +9,10 @@ temp=$(cygpath -u "$RUNNER_TEMP")
 # The WebView2 processes running now: the browser process (no --type=) in full, the others counted.
 webviews() {
   powershell -NoProfile -Command '
-    $all = Get-CimInstance Win32_Process -Filter "Name = ''msedgewebview2.exe''"
+    $all = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq "msedgewebview2.exe" })
     "msedgewebview2 processes: $($all.Count)"
     foreach ($p in $all) { if ($p.CommandLine -notmatch "--type=") { "browser process $($p.ProcessId) (parent $($p.ParentProcessId)): $($p.CommandLine)" } }
-    Get-CimInstance Win32_Process -Filter "Name = ''tributary.exe''" | ForEach-Object { "tributary.exe $($_.ProcessId)" }' | tr -d '\r' | cut -c 1-1500
+    Get-CimInstance Win32_Process | Where-Object { $_.Name -eq "tributary.exe" } | ForEach-Object { "tributary.exe $($_.ProcessId)" }' | tr -d '\r' | cut -c 1-1500
 }
 stop_all() {
   taskkill //F //IM tributary.exe > /dev/null 2>&1
