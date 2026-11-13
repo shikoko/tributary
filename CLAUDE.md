@@ -29,3 +29,7 @@ Commits go out under the maintainer's name and are public, so they get quoted ou
 - **Changes:** a short list of what the pull request does, naming files, settings and behaviour.
 - **Tested:** what was run (checks, tests, the app itself) and the results, and what couldn't be tested, with the reason.
 - Refer to design options by what they are, not only by a letter from a conversation ("the by-folder layout", not just "option 2").
+
+## Release notes
+
+- **Every new thing has a picture of it working.** Each item under **New** in `docs/release-notes/v<version>.md` has a short recording under it, on its own indented line: `![what it shows](v<version>/<name>.webp)`. Record it with `npm run preview:clips -- v<version>` from a scene in `tools/preview/clips/v<version>.mjs` (see `tools/preview/README.md`), on the demo repositories, so no real names show. Watch what it shows before committing it. `src/lib/whatsNew.test.ts` fails without one, or if one is over 400 KB.

@@ -1,74 +1,88 @@
-// What changed in each version, shown once after an update (and from Help), and whether to
-// greet someone new with the tour instead.
+// What changed in each version, shown once after an update (and from About Tributary), and
+// whether to greet someone new with the tour instead. The words are each version's release
+// notes (docs/release-notes), built into the app: the same as the release page and the
+// update window say. So are the pictures of the new things in them.
 
-/** The picture beside an item. */
-export type WhatsNewIcon = "lfs" | "progress" | "team" | "undo" | "commit" | "setup" | "open" | "simple" | "shelf" | "history" | "schedule" | "disk";
+/** One thing that changed: its name (the notes' bold start), and the rest of what they say. */
+export interface NoteItem {
+  title: string;
+  /** What follows the name, as Markdown. When the name runs on into its sentence ("**Discard all deletes new files too,** and…"), the whole sentence. */
+  text: string;
+  /** It, working: the picture under it in the notes (`![what it shows](v0.5.0/name.webp)`), where it's built into the app. */
+  picture?: Picture;
+}
+
+export interface Picture {
+  /** Where the notes keep it, from docs/release-notes ("v0.5.0/lane-lights-up.webp"). */
+  path: string;
+  /** Its address in the app, or "" when there's no such file. */
+  src: string;
+  /** What it shows, for someone who can't see it. */
+  alt: string;
+}
+
+export interface NoteSection {
+  /** "New", "Highlights", "Better", "Fixes". */
+  name: string;
+  items: NoteItem[];
+}
 
 export interface Release {
   version: string;
-  items: { title: string; text: string; icon?: WhatsNewIcon }[];
+  /** The notes' first line: the release in a sentence. */
+  headline: string;
+  sections: NoteSection[];
 }
 
-/** Newest first. Add the next version's entry when it's released (with the version bumped). */
-export const RELEASES: Release[] = [
-  {
-    version: "0.2.0",
-    items: [
-      {
-        icon: "simple",
-        title: "Simple mode",
-        text: "For artists and designers: Get latest, your changes with their locks and one Submit button, and what the team's working on, without branches and the graph. View → Simple Mode turns it on.",
-      },
-      {
-        icon: "shelf",
-        title: "Shelves",
-        text: "Share unfinished work with the team without committing it to a branch, for a review or a second pair of eyes. Repository → Shelves… shelves yours and opens theirs.",
-      },
-      {
-        icon: "history",
-        title: "Local history",
-        text: "Your uncommitted work is kept every few minutes, so a crash or an overwrite doesn't lose an afternoon. Repository → Local History… puts files back.",
-      },
-      {
-        icon: "schedule",
-        title: "Fetch latest overnight",
-        text: "Settings → Fetching → Fetch latest fetches every open repository at a set time, and moves each branch forward when it can without merging, Git LFS files and all, so a big update is waiting when you start.",
-      },
-      {
-        icon: "disk",
-        title: "Room on the disk",
-        text: "Before downloading Git LFS files, Tributary checks they'll fit, instead of failing halfway through.",
-      },
-      {
-        icon: "lfs",
-        title: "Faster Git LFS pulls",
-        text: "Pulls and checkouts download the Git LFS files they need all together, several at a time, before checking out. A second bar counts the files and the time left; hover it for the speed and the biggest file still to come.",
-      },
-      {
-        icon: "progress",
-        title: "Progress outside the window",
-        text: "The taskbar button or Dock icon fills up during a long pull, a tab in the background shows a ring, and a notification says when it's done if you're in another app.",
-      },
-      {
-        icon: "team",
-        title: "Team activity, redesigned",
-        text: "Gradient graphs of everyone's days, the kinds of work, lines of code, hotspots, when the team works and pull requests. The people button in the toolbar opens it.",
-      },
-      { icon: "undo", title: "Your actions, with Undo", text: "Activity → Your actions lists what you did in a repository, each with Undo for as long as it's safe." },
-      {
-        icon: "commit",
-        title: "Smarter commit messages",
-        text: "On a branch for a Jira or Linear issue, the summary starts with its key. Set a message template, or use your team's, in the repository's settings.",
-      },
-      {
-        icon: "setup",
-        title: "Project setup check",
-        text: "Repository → Tools → Check Project Setup looks over an Unreal or Unity project's ignores, Git LFS, lockable files, line endings and long paths, with a fix for each.",
-      },
-      { icon: "open", title: "Open it anywhere", text: "The toolbar's Open button opens the repository on GitHub or GitLab, in Finder or Explorer, or in your editor or terminal." },
-    ],
-  },
-];
+/** Where the notes for the update window end, and the release page's own part (installing) starts. */
+const END = "<!-- release page only";
+
+/** A version's notes, from their Markdown: the headline, then each section's items. */
+export function parseNotes(version: string, markdown: string): Release {
+  const headline: string[] = [];
+  const sections: NoteSection[] = [];
+  // Windows line endings, as git checks the notes out on Windows (where the Windows installer is built).
+  for (const line of markdown.replace(/\r\n?/g, "\n").split(END)[0].split("\n")) {
+    const heading = /^##\s+(.+)$/.exec(line);
+    const bullet = /^-\s+(.+)$/.exec(line);
+    // A picture of an item: on its own line, indented under it.
+    const picture = /^\s+!\[([^\]]*)\]\(([^)\s]+)\)\s*$/.exec(line);
+    const items = sections[sections.length - 1]?.items;
+    if (heading) sections.push({ name: heading[1].trim(), items: [] });
+    else if (bullet && items) items.push(noteItem(bullet[1].trim()));
+    else if (picture && items && items.length > 0) items[items.length - 1].picture = { path: picture[2], src: "", alt: picture[1].trim() };
+    else if (sections.length === 0 && line.trim()) headline.push(line.trim());
+  }
+  return { version, headline: headline.join(" "), sections: sections.filter((section) => section.items.length > 0) };
+}
+
+/** "**Name:** what it does" → the name and what it does; "**Name runs on,** into…" → the name and the whole sentence. */
+function noteItem(line: string): NoteItem {
+  const named = /^\*\*(.+?)\*\*\s*(.*)$/.exec(line);
+  if (!named) return { title: "", text: line };
+  const [, bold, rest] = named;
+  return bold.endsWith(":") ? { title: bold.slice(0, -1), text: rest } : { title: bold.replace(/[,.;]$/, ""), text: line };
+}
+
+/** The new things in a version: its New (or, for the first, its Highlights). The rest are fixes and things that got better. */
+export function featured(release: Release): { items: NoteItem[]; rest: NoteSection[] } {
+  const [first, ...others] = release.sections;
+  return first && /^(new|highlights)$/i.test(first.name) ? { items: first.items, rest: others } : { items: [], rest: release.sections };
+}
+
+const NOTES = import.meta.glob("../../docs/release-notes/v*.md", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+const PICTURES = import.meta.glob("../../docs/release-notes/v*/*.{webp,png,gif}", { query: "?url", import: "default", eager: true }) as Record<string, string>;
+
+/** Every version's notes, newest first, with their pictures. */
+export const RELEASES: Release[] = Object.entries(NOTES)
+  .map(([path, markdown]) => parseNotes(/v([^/]+)\.md$/.exec(path)![1], markdown))
+  .map((release) => {
+    for (const item of release.sections.flatMap((section) => section.items)) {
+      if (item.picture) item.picture.src = PICTURES[`../../docs/release-notes/${item.picture.path}`] ?? "";
+    }
+    return release;
+  })
+  .sort((a, b) => compareVersions(b.version, a.version));
 
 /** -1, 0 or 1, comparing "0.10.2" with "0.9.0" by numbers ("preview" and the like count as 0). */
 export function compareVersions(a: string, b: string): number {

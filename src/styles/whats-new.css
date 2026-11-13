@@ -1,17 +1,64 @@
-/* What's new, after an update. */
-/* What's new: one thing at a time, large, with the list of them beside it; each in its
-   own graph colour (--wn-color). */
+/* What's new, after an update: each version's release notes, one new thing at a time, large,
+   with a picture of it working and the list of them beside it. Each takes a graph colour
+   (--wn-color, set per item). */
+
+.dialog.whats-new-dialog {
+  width: min(880px, 100%);
+}
+
+.wn-section-name {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wn-checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wn-checks li {
+  display: flex;
+  gap: var(--space-8);
+  color: var(--text-secondary);
+  font-size: var(--type-base);
+  line-height: 1.5;
+}
+
+.wn-checks li > svg {
+  flex: none;
+  margin-top: var(--space-4);
+  color: var(--success);
+}
+
+.wn-checks strong {
+  color: var(--text);
+}
+
+/* The same height on every page, so the window doesn't jump as you step through (it's
+   centred: it would move by half of any change). What doesn't fit scrolls: the list, a new
+   thing's words, the fixes. */
 .wn-spotlight {
   display: grid;
-  grid-template-columns: 210px 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: 200px 1fr;
   gap: var(--space-20);
-  min-height: 330px;
+  height: min(560px, calc(100vh - 220px));
 }
 
 .wn-nav {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-4);
+  min-height: 0;
+  overflow-y: auto;
   padding-right: var(--space-14);
   border-right: 1px solid var(--border);
 }
@@ -20,7 +67,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-10);
-  padding: var(--space-8) var(--space-8);
+  padding: var(--space-8);
   border: none;
   border-radius: var(--radius-lg);
   background: none;
@@ -42,20 +89,34 @@
   font-weight: 600;
 }
 
-.wn-nav-tile {
+/* A commit node in the item's colour; the fixes' a tick. */
+.wn-nav-dot {
   display: grid;
   flex: none;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-lg);
-  background: var(--wn-faint);
-  color: var(--wn-color);
+  width: 12px;
+  height: 12px;
+  margin: 0 var(--space-6);
+  border: 2px solid var(--wn-color);
+  border-radius: 50%;
 }
 
-.wn-nav button.on .wn-nav-tile {
-  background: linear-gradient(135deg, var(--wn-light), var(--wn-color) 70%);
-  color: var(--on-lane);
+.wn-nav button.on .wn-nav-dot {
+  background: var(--wn-color);
+  box-shadow: 0 0 10px var(--wn-glow);
+}
+
+.wn-nav-dot.rest {
+  width: 18px;
+  height: 18px;
+  margin: 0 var(--space-2);
+  border: none;
+  color: var(--success);
+}
+
+.wn-nav button.on .wn-nav-dot.rest {
+  background: none;
+  box-shadow: none;
 }
 
 .wn-stage {
@@ -63,61 +124,78 @@
   flex-direction: column;
   gap: var(--space-6);
   min-width: 0;
+  min-height: 0;
   animation: tour-in 220ms ease-out;
 }
 
+/* The new thing, working (recorded in the app: tools/preview/clips.mjs). 16:10, like the
+   recordings; on a short window, smaller. */
+.wn-picture {
+  display: block;
+  flex: none;
+  width: 100%;
+  max-height: 46vh;
+  margin-bottom: var(--space-8);
+  aspect-ratio: 16 / 10;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-3xl);
+  background: var(--sunken);
+  box-shadow: 0 10px 30px var(--shadow), 0 0 0 4px var(--wn-faint);
+}
+
 .wn-art {
-  position: relative;
-  display: grid;
-  place-items: center;
+  flex: none;
   height: 176px;
   margin-bottom: var(--space-8);
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-3xl);
   background:
-    radial-gradient(70% 120% at 15% 0%, var(--wn-soft), transparent 65%),
-    radial-gradient(70% 120% at 95% 100%, var(--wn-next-soft), transparent 65%),
+    radial-gradient(70% 120% at 50% 50%, var(--wn-faint), transparent 70%),
     var(--sunken);
 }
 
-.wn-ring {
-  position: absolute;
-  border: 1px solid var(--wn-soft);
-  border-radius: 50%;
+.wn-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-.wn-ring.one {
-  width: 120px;
-  height: 120px;
+.wn-art-lane {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 3;
 }
 
-.wn-ring.two {
-  width: 200px;
-  height: 200px;
-  opacity: 0.7;
+.wn-art-lane.faint {
+  stroke: var(--wn-next);
+  opacity: 0.22;
 }
 
-.wn-ring.three {
-  width: 290px;
-  height: 290px;
-  opacity: 0.4;
+.wn-art-lane.faint.next {
+  opacity: 0.14;
 }
 
-.wn-art-tile {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 68px;
-  height: 68px;
-  border-radius: var(--radius-4xl);
-  background: linear-gradient(135deg, var(--wn-light), var(--wn-color) 70%);
-  box-shadow: 0 14px 36px var(--wn-glow);
-  color: var(--on-lane);
+.wn-art-lane.lit {
+  filter: drop-shadow(0 0 6px var(--wn-color));
+  stroke: var(--wn-color);
+}
+
+.wn-art-halo {
+  fill: var(--wn-soft);
+  stroke: var(--wn-glow);
+}
+
+.wn-art-node {
+  filter: drop-shadow(0 0 10px var(--wn-color));
+  fill: var(--wn-color);
+  stroke: var(--sunken);
+  stroke-width: 3;
 }
 
 .wn-stage-version {
-  color: var(--wn-color);
+  color: color-mix(in srgb, var(--wn-color) 70%, var(--text));
   font-size: var(--type-xs);
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -131,8 +209,19 @@
 }
 
 .dialog .wn-stage p {
+  min-height: 0;
+  overflow-y: auto;
   font-size: var(--type-md);
   line-height: 1.6;
+}
+
+.wn-stage-rest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-14);
+  min-height: 0;
+  margin-top: var(--space-8);
+  overflow-y: auto;
 }
 
 .wn-step {
@@ -145,4 +234,68 @@
     opacity: 0;
     transform: translateY(6px);
   }
+}
+
+/* Every version: as a tag, like the graph's (outlined, dashed), with how many new things and
+   fixes it brings, and its notes' first line; the open one's tag is solid, in its colour. */
+.wn-tag {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--space-6);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--type-xs);
+  font-weight: 600;
+}
+
+.wn-version-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.wn-version-counts {
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  font-weight: 400;
+}
+
+.wn-version-headline {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  font-weight: 400;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* The list is the changelog: each version a heading, the open one with its pages under it,
+   the others folded to what they brought. */
+.wn-nav .wn-version {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-4);
+}
+
+.wn-version.open .wn-tag {
+  border-style: solid;
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.wn-version.open {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-6);
+}
+
+.wn-version.open .wn-version-head {
+  padding: var(--space-6) var(--space-8) var(--space-2);
 }

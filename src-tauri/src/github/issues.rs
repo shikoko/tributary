@@ -23,11 +23,18 @@ struct Login {
 }
 
 fn issue(raw: RawIssue) -> Issue {
+    // GitHub lists a merged pull request among issues as closed, with when it was merged.
+    let merged = raw
+        .pull_request
+        .as_ref()
+        .is_some_and(|request| !request["merged_at"].is_null());
     Issue {
         key: format!("#{}", raw.number),
         title: raw.title,
         status: Some(
-            if raw.state == "closed" {
+            if merged {
+                "Merged"
+            } else if raw.state == "closed" {
                 "Closed"
             } else {
                 "Open"
@@ -89,4 +96,26 @@ pub(crate) async fn assigned(full_name: &str, token: &str) -> Result<Vec<Issue>>
         .filter(|raw| raw.pull_request.is_none())
         .map(issue)
         .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    fn status(raw: serde_json::Value) -> Option<String> {
+        super::issue(serde_json::from_value(raw).unwrap()).status
+    }
+
+    #[test]
+    fn says_a_merged_pull_request_is_merged() {
+        let url = "https://github.com/acme/app/pull/12";
+        let merged = json!({ "number": 12, "title": "Fix", "state": "closed", "html_url": url, "pull_request": { "merged_at": "2026-11-13T10:00:00Z" } });
+        let closed = json!({ "number": 13, "title": "Fix", "state": "closed", "html_url": url, "pull_request": { "merged_at": null } });
+        let issue = json!({ "number": 14, "title": "Bug", "state": "closed", "html_url": url });
+        let open = json!({ "number": 15, "title": "Fix", "state": "open", "html_url": url, "pull_request": { "merged_at": null } });
+        assert_eq!(status(merged).as_deref(), Some("Merged"));
+        assert_eq!(status(closed).as_deref(), Some("Closed"));
+        assert_eq!(status(issue).as_deref(), Some("Closed"));
+        assert_eq!(status(open).as_deref(), Some("Open"));
+    }
 }

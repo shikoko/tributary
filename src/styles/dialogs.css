@@ -232,6 +232,13 @@
   text-box: trim-both cap alphabetic;
 }
 
+/* Windows draws a chip's letters a screen pixel higher than the other systems do (measured at
+   150%: 8 pixels above the letters, 10 below), so they look high in it: moved down by that
+   pixel. */
+:root.windows .chip-text {
+  translate: 0 calc(2px / 3);
+}
+
 .details-actions .outline-button,
 .details-actions .danger-outline-button {
   min-width: 0;

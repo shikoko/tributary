@@ -191,6 +191,10 @@ export function paintGraph(
   }
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
+  // The lit lanes' lines, glowing, before the nodes: where one reaches a commit of another
+  // branch (where it was branched from, or merged into), it goes under that commit's node,
+  // as every line does.
+  for (const lane of lit) paintLaneLines(lane);
 
   for (let slot = first; slot < last; slot++) {
     const row = slots[slot];
@@ -262,20 +266,24 @@ export function paintGraph(
     }
   }
   ctx.globalAlpha = 1;
-  for (const lane of lit) paintLane(lane);
+  // Then their own commits, glowing over the rest.
+  for (const lane of lit) paintLaneDots(lane);
 
   /**
-   * The lit lane, over the graph (the rest of it faded): glowing in its colour, its lines and
-   * dots in a lighter tint of it on a dark background, and a halo under each of its authors'
-   * pictures.
+   * A lit lane (the rest of the graph faded) glows in its colour: its lines and dots in a
+   * lighter tint of it on a dark background, and a halo under each of its authors' pictures.
    */
-  function paintLane(lane: Lane) {
+  function laneLook(lane: Lane) {
     const color = laneColor(lane.column, options.lanes);
     const background = parseHex(options.background);
     const light = background !== null && luminance(background) > 0.5;
     // A lighter tint would wash out on a light background: there the lane keeps its colour.
-    const core = light ? color : tint(color, 0.35);
-    // Its lines, in one path to glow as one.
+    return { color, light, core: light ? color : tint(color, 0.35) };
+  }
+
+  /** A lit lane's lines, in one path to glow as one. */
+  function paintLaneLines(lane: Lane) {
+    const { color, light, core } = laneLook(lane);
     const path = new Path2D();
     for (let slot = first; slot < last; slot++) {
       const row = slots[slot];
@@ -293,7 +301,14 @@ export function paintGraph(
       ctx.shadowBlur = blur;
       ctx.stroke(path);
     }
-    // Its dots; under its authors' pictures (which go over the graph), a halo.
+    ctx.restore();
+  }
+
+  /** A lit lane's dots; under its authors' pictures (which go over the graph), a halo. */
+  function paintLaneDots(lane: Lane) {
+    const { color, light, core } = laneLook(lane);
+    ctx.save();
+    ctx.shadowColor = light ? withAlpha(color, 0.6) : color;
     for (let slot = first; slot < last; slot++) {
       const row = slots[slot];
       if (typeof row !== "number") continue;
