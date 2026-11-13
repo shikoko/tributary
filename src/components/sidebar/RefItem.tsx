@@ -69,7 +69,9 @@ export function RefItem({ entry, label, icon, depth = 0, selected, visibility, c
       <div
         className={`sidebar-item${selected && !entry.hidden ? " selected" : ""}${entry.current ? " current" : ""}${entry.hidden ? " hidden-ref" : ""}`}
         style={{ paddingLeft: rowIndent(depth) }}
-        role="button"
+        // A link to its commit: Enter goes there. (A button's insides can't be reached on their
+        // own, and this has buttons in it: the eye, and a pull request's badge.)
+        role="link"
         tabIndex={0}
         // Its lane lights up in the graph.
         onPointerEnter={() => lane && handlers.onLaneHover(lane)}

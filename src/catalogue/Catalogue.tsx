@@ -163,7 +163,7 @@ function Page({ theme }: { theme: "dark" | "light" }) {
           </Field>
           <Field group label="Into">
             <div className="field-row">
-              <input className="text-input" defaultValue="~/Projects" readOnly />
+              <input className="text-input" defaultValue="~/Projects" readOnly aria-label="Into" />
               <Button kind="secondary">Choose…</Button>
             </div>
           </Field>

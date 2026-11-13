@@ -338,6 +338,11 @@
   background: rgb(var(--accent-rgb) / 0.1);
 }
 
+/* On the checked-out branch's tint, the faintest grey is too faint. */
+.sidebar-item.current .sidebar-counts {
+  color: var(--text-muted);
+}
+
 .sidebar-item.current.selected {
   background: rgb(var(--accent-rgb) / 0.16);
 }

@@ -131,11 +131,15 @@
   color: var(--accent-ink);
 }
 
-.sidebar-item.hidden-ref .sidebar-name,
-.sidebar-item.hidden-ref .sidebar-icon {
-  opacity: 0.45;
+/* Hidden from the graph: struck through, its name in the faintest grey that still reads. */
+.sidebar-item.hidden-ref .sidebar-name {
+  color: var(--text-faint);
   text-decoration: line-through;
   text-decoration-color: rgb(var(--overlay-rgb) / 0.25);
+}
+
+.sidebar-item.hidden-ref .sidebar-icon {
+  opacity: 0.45;
 }
 
 .sidebar-visibility {

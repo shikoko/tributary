@@ -160,15 +160,11 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
               <span>{tab.name}</span>
             </span>
             {news?.[tab.path] && <span className="tab-news" aria-label="New commits" />}
-            <button
-              className="tab-close"
-              onMouseDown={(event) => event.stopPropagation()}
-              onClick={() => onClose(tab.path)}
-              aria-label={`Close ${tab.name}`}
-              title={`Close tab (${modKey}W)`}
-            >
+            {/* For the pointer: a tab is a single control, closed from the keyboard with Delete,
+                ⌘W (Ctrl+W) or its menu. */}
+            <span className="tab-close" onMouseDown={(event) => event.stopPropagation()} onClick={() => onClose(tab.path)} title={`Close tab (${modKey}W)`} aria-hidden>
               <CloseIcon size={12} />
-            </button>
+            </span>
           </div>
         ))}
         {startTab && (
@@ -176,15 +172,17 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
             <span className="tab-name" data-text="New tab">
               <span>New tab</span>
             </span>
-            <button className="tab-close" onClick={onCloseStart} aria-label="Close the new tab" title={`Close tab (${modKey}W)`}>
+            <span className="tab-close" onClick={onCloseStart} title={`Close tab (${modKey}W)`} aria-hidden>
               <CloseIcon size={12} />
-            </button>
+            </span>
           </div>
         )}
-        <button className="tab-new" onClick={onNew} title={`New tab (${modKey}T)`} aria-label="New tab">
-          <PlusIcon size={14} />
-        </button>
       </div>
+      {/* After the tabs, outside their list (where only tabs belong); a tab closing shrinks
+          away at the list's end, just before it. */}
+      <button className="tab-new" onClick={onNew} title={`New tab (${modKey}T)`} aria-label="New tab">
+        <PlusIcon size={14} />
+      </button>
       <div className="tab-bar-fill" data-tauri-drag-region />
       {extra}
       {isWindows && <WindowControls />}

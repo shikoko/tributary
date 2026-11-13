@@ -193,9 +193,14 @@
   box-shadow: 0 0 0 7px rgb(var(--overlay-rgb) / 0.06);
 }
 
-/* Skipped: it didn't run. The whole row faded, at the bottom of the list. */
-.request-status .request-check.request-timeline-row.skipped {
+/* Skipped: it didn't run. At the bottom of the list, its dot and bar faded and its words in the
+   faintest grey that still reads. */
+.request-status .request-check.request-timeline-row.skipped :is(.request-check-dot, .request-timeline-track) {
   opacity: 0.45;
+}
+
+.request-status .request-check.request-timeline-row.skipped :is(.request-check-open, .request-check-name, .request-timeline-name) {
+  color: var(--text-faint);
 }
 
 .request-timeline-row.skipped .request-timeline-time {

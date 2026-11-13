@@ -55,10 +55,11 @@ export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocu
       ))}
       {hidden.length > 0 &&
         (onMore ? (
-          <button
-            className="ref-pill more"
+          // Like the other labels, for the pointer: they're all in the sidebar, menus and all.
+          // (A commit's row is a single control: a button in it couldn't be reached.)
+          <span
+            className="ref-pill more openable"
             title={`${hidden.map(describePill).join("\n")}\nClick for their menus`}
-            aria-label={`${hidden.length} more ${hidden.length === 1 ? "label" : "labels"}`}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
@@ -72,7 +73,7 @@ export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocu
             }}
           >
             +{hidden.length}
-          </button>
+          </span>
         ) : (
           <span className="ref-pill more" title={hidden.map(describePill).join("\n")}>
             +{hidden.length}

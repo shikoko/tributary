@@ -54,10 +54,12 @@ opening a repository, selecting and searching commits, checking out a branch (an
 stashing changes in the way), undo, fetching, tabs, Git LFS locks, the big-file warning,
 pull request badges, cloning without Git LFS files and downloading them, worktrees,
 keyboard menus, GitHub sign-in (faked) and diagnostics. Add `-- --screenshots <folder>` to keep a screenshot of each
-step. It needs Playwright with Chromium:
+step. On the main screens, in both themes, it also checks with axe-core that what's shown meets WCAG 2.1's level A
+and AA criteria that can be checked automatically: names for controls, a structure screen readers can follow, and
+text that contrasts enough with what's behind it. It needs Playwright with Chromium, and axe-core:
 
 ```bash
-npm install --no-save playwright && npx playwright install chromium
+npm install --no-save playwright axe-core && npx playwright install chromium
 ```
 
 ## Scripting the fakes

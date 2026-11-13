@@ -210,18 +210,25 @@ function BlameLines({
         className={`blame-row${start ? " start" : ""}${hovered === line.commit ? " hovered" : ""}`}
         style={{ top: index * ROW }}
         onMouseEnter={() => setHovered(line.commit)}
+        role="row"
       >
-        <BlameGutter
-          commit={commit}
-          start={start}
-          second={second}
-          onSelectCommit={onSelectCommit}
-          hasCommit={hasCommit}
-          onStepBack={() => onStepBack(commit, line.original)}
-        />
-        <span className="blame-age" style={{ opacity: 0.15 + 0.85 * age[line.commit] }} />
-        <span className="blame-number">{index + 1}</span>
-        <span className="blame-text">
+        {/* The table's cells: who and when, the line's number, and the line. (The cell around
+            the gutter takes no room: the row lays its parts out itself.) */}
+        <span className="blame-cell" role="cell">
+          <BlameGutter
+            commit={commit}
+            start={start}
+            second={second}
+            onSelectCommit={onSelectCommit}
+            hasCommit={hasCommit}
+            onStepBack={() => onStepBack(commit, line.original)}
+          />
+        </span>
+        <span className="blame-age" style={{ opacity: 0.15 + 0.85 * age[line.commit] }} aria-hidden />
+        <span className="blame-number" role="cell">
+          {index + 1}
+        </span>
+        <span className="blame-text" role="cell">
           <LineText parts={pieces(line.text, syntax?.[index] ?? null, null)} />
         </span>
       </div>,

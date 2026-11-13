@@ -342,8 +342,13 @@
   color: var(--removed);
 }
 
+/* Changed words in plain text on their highlight: a code colour on it was too faint. */
+.diff-row mark,
+.diff-row mark * {
+  color: var(--text);
+}
+
 .diff-row mark {
-  color: inherit;
   border-radius: var(--radius-xs);
 }
 
@@ -416,8 +421,12 @@
   color: var(--removed);
 }
 
+.diff-half mark,
+.diff-half mark * {
+  color: var(--text);
+}
+
 .diff-half mark {
-  color: inherit;
   border-radius: var(--radius-xs);
 }
 

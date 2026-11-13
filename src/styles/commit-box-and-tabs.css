@@ -161,7 +161,8 @@
   color: var(--text);
 }
 
-/* The + is a small tab at the end of the row, on the same bottom edge as the tabs. */
+/* The + is a small tab at the end of the row, on the same bottom edge as the tabs. (It's
+   after their list, so the list's gap isn't before it: its margin is the gap and its own.) */
 .tab-new {
   display: inline-flex;
   align-items: center;
@@ -169,7 +170,7 @@
   align-self: flex-end;
   width: 34px;
   height: 30px;
-  margin-left: var(--space-2);
+  margin-left: var(--space-4);
   padding: 0;
   border: none;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
