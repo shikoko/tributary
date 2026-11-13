@@ -7,7 +7,7 @@ import "@fontsource-variable/google-sans";
 import "@fontsource-variable/jetbrains-mono";
 import "@fontsource-variable/jetbrains-mono/wght-italic.css";
 import "./styles.css";
-import { isMac, isWindows } from "./lib/platform";
+import { isMac, isWindows, watchDevicePixel } from "./lib/platform";
 import { applyStoredAppearance } from "./app/useAppearance";
 import { ErrorBoundary } from "./components/ErrorScreen";
 import { watchForProblems } from "./lib/problems";
@@ -16,6 +16,8 @@ import { watchForProblems } from "./lib/problems";
 if (isMac) document.documentElement.classList.add("mac");
 // On Windows, the system draws letters a little differently (see .chip-text).
 if (isWindows) document.documentElement.classList.add("windows");
+// One screen pixel, in CSS pixels, for nudges smaller than that (see .chip-text).
+watchDevicePixel();
 // The remembered theme and accent, before anything is drawn.
 applyStoredAppearance();
 

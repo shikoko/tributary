@@ -232,11 +232,14 @@
   text-box: trim-both cap alphabetic;
 }
 
-/* Windows draws a chip's letters a screen pixel higher than the other systems do (measured at
-   150%: 8 pixels above the letters, 10 below), so they look high in it: moved down by that
-   pixel. */
+/* Windows places a chip's letters a little higher than the other systems do: by less than a
+   fifth of a screen pixel, but when their baseline falls halfway between two screen pixels,
+   enough to put them on the upper one (the Beta chip at 150% had 8 pixels above its letters
+   and 10 below). Moved down by a fifth of a screen pixel, they round as they do elsewhere.
+   A fixed ⅔px (one screen pixel at 150%) was too much at 100%: it moved letters that were
+   in the middle a whole pixel down (the pull request number, 4 pixels above and 2 below). */
 :root.windows .chip-text {
-  translate: 0 calc(2px / 3);
+  translate: 0 calc(var(--device-pixel, 1px) / 5);
 }
 
 .details-actions .outline-button,
