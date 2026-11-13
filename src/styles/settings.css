@@ -371,8 +371,9 @@
   cursor: pointer;
 }
 
+/* Round swatches: the ring goes around them, where it doesn't cover the colour. */
 .accent-custom:focus-within {
-  outline: 2px solid var(--accent);
+  outline: var(--focus-ring);
   outline-offset: 2px;
 }
 

@@ -37,11 +37,6 @@
   background: var(--bg-active);
 }
 
-.menu-item:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
 /* A submenu's arrow, on the right. */
 .menu-chevron {
   display: inline-flex;

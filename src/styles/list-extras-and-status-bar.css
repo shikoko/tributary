@@ -62,11 +62,6 @@
   user-select: none;
 }
 
-.sidebar-item:focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: -1px;
-}
-
 .sidebar-folder {
   gap: 6px;
   color: var(--text-muted);
