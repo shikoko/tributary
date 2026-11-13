@@ -642,6 +642,22 @@ try {
     await page.locator(".arrival").waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("changes how the window looks from the View panel, and closes it with Esc", async () => {
+    const button = page.getByRole("button", { name: "View options" });
+    await button.click();
+    const panel = page.locator(".view-panel");
+    await panel.waitFor({ timeout: 5000 });
+    await accessible("the View panel");
+    // Compact rows, straight away; then back.
+    await panel.getByRole("button", { name: "Compact" }).click();
+    await page.locator(".commit-list.dense").waitFor({ timeout: 5000 });
+    await panel.getByRole("button", { name: "Roomy" }).click();
+    await page.locator(".commit-list.dense").waitFor({ state: "detached", timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await panel.waitFor({ state: "detached", timeout: 5000 });
+    expect(await button.evaluate((element) => element === document.activeElement), "the focus didn't go back to the View button");
+  });
+
   await step("opens a second repository in a new tab", async () => {
     // The pull requests' comments from the start: news is what changes after the first look.
     await page.evaluate(

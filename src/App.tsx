@@ -16,7 +16,7 @@ import { DownloadIcon } from "./components/Icons";
 import { TabBar } from "./components/TabBar";
 import { LinkPreview } from "./components/LinkPreview";
 import type { ToastMessage } from "./components/Toast";
-import { menuItems, shortcutLabel } from "./app/appCommand";
+import { shortcutLabel } from "./app/appCommand";
 import { aboutCommandsFor, appMenus, helpCommandsFor, settingsCommand, startCommands, type MenuBarContext } from "./app/appMenus";
 import { AppOverlays } from "./app/AppOverlays";
 import { FOCUS_REFRESH_INTERVAL, type Running } from "./app/constants";
@@ -380,8 +380,6 @@ export default function App() {
   const menus = appMenus(menuBarContext);
   useNativeMenu(menus, { settings: () => openSettings() });
   const menuBar = useMenuBar(menus, menu.setMenu);
-  const view = menus.find((m) => m.label === "View");
-  const viewMenu = view ? menuItems(view.entries.filter((entry) => entry === "-" || !["search", "palette"].includes(entry.id))) : [];
 
   useKeyboardShortcuts({
     togglePalette: () => overlays.toggle("palette"),
@@ -503,7 +501,6 @@ export default function App() {
               dialog={dialog}
               openDialog={setDialog}
               menu={menu}
-              viewMenu={viewMenu}
               openTab={tabbing.switchTab}
               closeTab={tabbing.closeTab}
               lockFiles={lockFiles}

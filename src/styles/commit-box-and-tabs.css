@@ -188,6 +188,17 @@
   flex: 1;
 }
 
+/* Tributary on GitHub, at the bar's end: the app's own link, in every tab. */
+.tab-bar-github {
+  align-self: center;
+  margin: 0 var(--space-4);
+  color: var(--text-muted);
+}
+
+.tab-bar-github:hover {
+  color: var(--text);
+}
+
 .app > .welcome {
   flex: 1;
   min-height: 0;
