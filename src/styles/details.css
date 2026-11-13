@@ -456,6 +456,81 @@
   text-align: left;
 }
 
+/* The changed files as a tree: indented by how many folders in, with a faint line down each
+   folder's insides. */
+.file.in-tree {
+  padding-left: calc(var(--space-8) + var(--depth, 0) * var(--space-16));
+  background-image: repeating-linear-gradient(90deg, var(--border) 0 1px, transparent 1px var(--space-16));
+  background-position: calc(var(--space-8) + var(--space-6)) 0;
+  background-size: calc(var(--depth, 0) * var(--space-16)) 100%;
+  background-repeat: no-repeat;
+}
+
+.file-folder-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.file-folder-toggle:hover {
+  color: var(--text);
+}
+
+.file-folder-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  /* Like a file's folder, a long one is cut at its start: its last folders tell it apart. */
+  direction: rtl;
+  text-align: left;
+}
+
+.file-folder-chevron {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform 120ms ease;
+}
+
+.file-folder-chevron.open {
+  transform: rotate(90deg);
+}
+
+.file-folder-icon {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.file-folder-counts {
+  display: inline-flex;
+  gap: var(--space-6);
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: var(--type-xs);
+}
+
+.file-folder-counts .added {
+  color: var(--added-ink);
+}
+
+.file-folder-counts .changed {
+  color: var(--modified-ink);
+}
+
+.file-folder-counts .deleted {
+  color: var(--deleted-ink);
+}
+
 /* An Unreal actor's class and level: cut at the end instead. */
 .file-dir.actor {
   direction: ltr;
@@ -739,4 +814,15 @@ button.commit-check-row:hover svg {
   border-color: var(--border-hover);
   background: var(--bg-hover);
   color: var(--text);
+}
+
+/* List, Tree or Folders, at the end of the Changed files heading. */
+.details-section-head .files-layout {
+  margin-left: auto;
+}
+
+.files-layout button {
+  height: 20px;
+  padding: 0 var(--space-8);
+  font-size: var(--type-xs);
 }
