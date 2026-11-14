@@ -44,12 +44,15 @@
    --cap-pixels). A control is as tall as suits its words, so an icon an odd number of pixels
    taller or shorter than their capitals sits half a pixel off the control's middle, and was
    drawn a pixel high or low depending on where the control was. Moved down by that half
-   pixel (by position, as a translate would blur it), it's always on the same pixel. Icons
-   without their size in --icon-size (see Icons.tsx) stay where they are. */
+   pixel (by position, as a translate would blur it), it's always on the same pixel. Every
+   icon beside the words moves, in a wrapper of its own or not (a branch pill's tick, laptop
+   and cloud), so they stay in line with each other. Icons without their size in
+   --icon-size (see Icons.tsx) stay where they are. */
 :where(
-  :is(.button-label, .chip-text, .label, .ref-name, .sidebar-name, .status-path, .file-folder-name, .request-check-name) ~ svg,
-  svg:has(~ :is(.button-label, .chip-text, .label, .ref-name, .sidebar-name, .status-path, .file-folder-name, .request-check-name)),
-  .menu-icon:has(~ .menu-label) > svg
+  :is(.button-label, .chip-text, .label, .ref-name, .sidebar-name, .status-path, .file-folder-name, .request-check-name, .menu-label) ~ svg,
+  :is(.button-label, .chip-text, .label, .ref-name, .sidebar-name, .status-path, .file-folder-name, .request-check-name, .menu-label) ~ * svg,
+  svg:has(~ :is(.button-label, .chip-text, .label, .ref-name, .sidebar-name, .status-path, .file-folder-name, .request-check-name, .menu-label)),
+  :has(~ :is(.button-label, .chip-text, .label, .ref-name, .sidebar-name, .status-path, .file-folder-name, .request-check-name, .menu-label)) svg
 ) {
   position: relative;
   top: calc(mod(var(--cap-pixels) + var(--icon-size, var(--cap-pixels)), 2 * var(--device-pixel, 1px)) / 2);
