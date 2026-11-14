@@ -235,6 +235,18 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
             <mask id="tributaries-rise" maskUnits="userSpaceOnUse" x={confluence - leadIn - 8} y={-8} width={riverEnd - confluence + leadIn + 16} height={height + 16}>
               <rect x={confluence - leadIn - 8} y={-8} width={riverEnd - confluence + leadIn + 16} height={height + 16} fill="url(#tributaries-rising)" />
             </mask>
+            {/* Its glow comes in slowly, over the river's first quarter (before it fades out),
+                so it has no edge to see where it starts: over the river's own 9px rise, it
+                seemed to switch on. */}
+            <linearGradient id="tributaries-glowing" gradientUnits="userSpaceOnUse" x1={confluence - leadIn} y1={0} x2={confluence + (riverEnd - confluence) * 0.25} y2={0}>
+              <stop offset="0" stopColor="#fff" stopOpacity="0" />
+              <stop offset="0.35" stopColor="#fff" stopOpacity="0.15" />
+              <stop offset="0.7" stopColor="#fff" stopOpacity="0.6" />
+              <stop offset="1" stopColor="#fff" />
+            </linearGradient>
+            <mask id="tributaries-glow-rise" maskUnits="userSpaceOnUse" x={confluence - leadIn - 16} y={-16} width={riverEnd - confluence + leadIn + 32} height={height + 32}>
+              <rect x={confluence - leadIn - 16} y={-16} width={riverEnd - confluence + leadIn + 32} height={height + 32} fill="url(#tributaries-glowing)" />
+            </mask>
             {/* The waves fade out with the river, the same way (the gradient keeps its first
                 stop's white before the river, so they're whole up to there). */}
             <mask id="tributaries-flowing" maskUnits="userSpaceOnUse" x={-8} y={-8} width={width + 16} height={height + 16}>
@@ -260,6 +272,9 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
             </mask>
           </defs>
           <g mask="url(#tributaries-fade)">
+            <g mask="url(#tributaries-glow-rise)">
+              <path className="tributaries-river-glow" d={river} fill="url(#tributaries-confluence)" />
+            </g>
             <path className="tributaries-river" d={river} fill="url(#tributaries-confluence)" mask="url(#tributaries-rise)" />
             {v.tone === "pending" && <path className="tributaries-river-flow" d={`M${confluence} ${middle} L${riverEnd} ${middle}`} />}
             {celebrating && (
