@@ -157,7 +157,8 @@
 .diff-switch button {
   display: inline-flex;
   align-items: center;
-  height: 24px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 25px;
   padding: 0 var(--space-10);
   border: none;
   border-radius: var(--radius-md);

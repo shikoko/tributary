@@ -314,6 +314,25 @@
   /* One number shown large, like the team's commits this week. */
   --type-hero: 52px;
 
+  /* The capitals' height in whole screen pixels, as tall as words on a control are (with
+     text-box: trim-both cap alphabetic, height: var(--cap-pixels) and align-content:
+     unsafe end), so they're drawn in its middle. Browsers draw letters on whole screen
+     pixels: the baseline rounded to the nearest one, and the capitals a whole number of
+     pixels tall (at 100%, 8 at --type-xs and 9 at --type-sm and --type-base). They round
+     the control's edges too, apart from its words. Trimmed to their capitals, a fraction
+     of a pixel tall, and centred, words came out a pixel high or low depending on where
+     the control was: "Show" and "Re-run failed" were low in some places and not in
+     others. In a box of whole pixels, centred a whole number of pixels from the control's
+     edges, with the baseline at its bottom, they round with the edges wherever the control
+     is. That needs the room inside the control, less the capitals, to be even: controls
+     with words at --type-sm or --type-base are an odd number of pixels tall, and with
+     words at --type-xs or --type-md an even number (a border above and below adds two).
+     Moving the words by the fraction instead (by position or translate) wasn't enough:
+     layout keeps places in 64ths of a pixel, so a baseline meant to be halfway between
+     two pixels, as an odd control's is in an even row, rounded either way. cap is
+     resolved where it's used, in the words' own font and size. */
+  --cap-pixels: round(nearest, 1cap, var(--device-pixel, 1px));
+
   --radius-xs: 2px;
   --radius-sm: 4px;
   --radius-md: 6px;

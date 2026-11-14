@@ -348,6 +348,11 @@ button.request-ref:hover {
   color: var(--text);
   font-size: var(--type-base);
   text-box: trim-both cap alphabetic;
+  /* On one line, as it's as tall as its capitals (see .button-label). */
+  height: var(--cap-pixels);
+  align-content: unsafe end;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .request-check-open {

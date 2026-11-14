@@ -109,7 +109,8 @@
 
 .outline-button.small,
 .danger-outline-button.small {
-  height: 24px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 25px;
   padding: 0 var(--space-8);
   font-size: var(--type-sm);
 }
@@ -204,6 +205,8 @@
   display: block;
   text-box-trim: trim-both;
   text-box-edge: cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
 }
 
 .pr-badge:hover {
@@ -364,6 +367,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-6);
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 13px;
   padding: 0;
   border: none;
   background: transparent;

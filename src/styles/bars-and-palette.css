@@ -120,7 +120,8 @@
 }
 
 .secondary-button.small {
-  height: 26px;
+  /* Odd, for its words: see --cap-pixels. */
+  height: 27px;
   padding: 0 var(--space-10);
   font-weight: 500;
 }
