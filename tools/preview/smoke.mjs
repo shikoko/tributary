@@ -806,9 +806,19 @@ try {
 
   await step("opens a second repository in a new tab", async () => {
     // The pull requests' comments from the start: news is what changes after the first look.
+    // And a failed check on every commit (the steps between change which is checked out),
+    // which can be run again.
+    const commitChecks = {
+      site: "GitHub",
+      canRerun: true,
+      checks: [
+        { name: "Build (Windows)", state: "success", url: "https://github.com/example/feast/actions/runs/31", detail: null, startedAt: null, finishedAt: null, workflow: "Checks", trigger: "on push to main" },
+        { name: "Audio loudness", state: "failure", url: "https://github.com/example/feast/actions/runs/32", detail: "2 files too loud", startedAt: null, finishedAt: null, workflow: "Checks", trigger: "on push to main" },
+      ],
+    };
     await page.evaluate(
-      ([pick, pullRequests, conversations]) => Object.assign(window.__PREVIEW__, { pick, pullRequests, conversations }),
-      [demos.studio, STUDIO_PULL_REQUESTS, structuredClone(STUDIO_PULL_REQUEST_CONVERSATIONS)],
+      ([pick, pullRequests, conversations, ciStates, commitChecks]) => Object.assign(window.__PREVIEW__, { pick, pullRequests, conversations, ciStates, commitChecks }),
+      [demos.studio, STUDIO_PULL_REQUESTS, structuredClone(STUDIO_PULL_REQUEST_CONVERSATIONS), { "": "failure" }, commitChecks],
     );
     await page.getByRole("button", { name: "New tab" }).click();
     // The recent notebook shows where it stands: its branch and uncommitted changes.
@@ -1025,6 +1035,17 @@ try {
 
   await step("shows pull requests on their branches", async () => {
     await page.locator(".pr-badge").first().waitFor({ timeout: 10_000 });
+  });
+
+  await step("shows a commit's failed check, and runs it again", async () => {
+    // The checked-out commit (every commit has the checks above).
+    await page.locator(".commit-row", { has: page.locator(".ref-pill.current") }).first().click();
+    const checks = page.locator(".details .commit-checks");
+    await checks.getByText("Audio loudness").first().waitFor({ timeout: 10_000 });
+    await accessible("a commit's checks, one failed");
+    await checks.getByRole("button", { name: "Re-run failed" }).click();
+    await page.locator(".toast", { hasText: "Running the failed jobs again" }).waitFor({ timeout: 5000 });
+    await dismissToast();
   });
 
   await step("shows a pull request's reviews and checks", async () => {
