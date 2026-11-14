@@ -34,10 +34,12 @@ export function probe(controls, except) {
     const style = getComputedStyle(control);
     if (!box.width || !box.height || box.height > 44 || style.display === "inline" || style.visibility === "hidden" || Number(style.opacity) < 1) continue;
     if (box.top < 0 || box.bottom > innerHeight || box.left < 0 || box.right > innerWidth) continue;
-    // Only what's on top: not under a dialog or a panel, even in part (its middle, and just
-    // inside its top, bottom and ends).
+    // Only what's on top: not under a dialog or a panel, even in part (its middle, just
+    // inside its top, bottom and ends, and its corners, inside their rounding).
     const [x, y] = [box.left + box.width / 2, box.top + box.height / 2];
-    const points = [[x, y], [x, box.top + 1.5], [x, box.bottom - 1.5], [box.left + 1.5, y], [box.right - 1.5, y]];
+    const round = Math.min(box.width, box.height) / 2;
+    const [near, far, high, low] = [box.left + round, box.right - round, box.top + 1.5, box.bottom - 1.5];
+    const points = [[x, y], [x, high], [x, low], [box.left + 1.5, y], [box.right - 1.5, y], [near, high], [far, high], [near, low], [far, low]];
     if (points.some(([px, py]) => !control.contains(document.elementFromPoint(px, py)))) continue;
     if (control.innerText.trim().includes("\n")) continue;
     const walker = document.createTreeWalker(control, NodeFilter.SHOW_TEXT);
@@ -102,6 +104,15 @@ export function probe(controls, except) {
       scale: devicePixelRatio,
     };
   });
+}
+
+/**
+ * In the page: how many animations are still on their way (a panel opening, a dialog fading
+ * in), not counting ones that never end (a spinner). Look once it's none: a panel growing
+ * over a control after it was checked for what's on top of it would be counted as its words.
+ */
+export function moving() {
+  return document.getAnimations().filter((animation) => animation.playState === "running" && animation.effect?.getComputedTiming().iterations !== Infinity).length;
 }
 
 /** In the page: the words `probe` swapped, back. */

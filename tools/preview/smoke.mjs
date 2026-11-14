@@ -17,7 +17,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { buildDemos, demoEnv, STUDIO_PULL_REQUEST_CONVERSATIONS, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
 import { CONTROLS, describe as describeAligned, EXCEPT, misaligned } from "./aligned.mjs";
-import { describeOffCentre, offCentre as offInPixels, probe, restore } from "../e2e/centred.mjs";
+import { describeOffCentre, moving, offCentre as offInPixels, probe, restore } from "../e2e/centred.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
 
@@ -156,6 +156,7 @@ async function centred(where, frame = page) {
   // And in the window's own pixels, at 100%, where letters land on whole pixels: a control's
   // words can be in its middle by their measurements and still be a pixel off (centred.mjs).
   if (frame === page) {
+    await page.waitForFunction(`(${moving})() === 0`, null, { timeout: 3000 }).catch(() => {});
     const measured = await page.evaluate(`(${probe})(${JSON.stringify(CONTROLS)}, ${JSON.stringify(EXCEPT)})`);
     let shot;
     try {

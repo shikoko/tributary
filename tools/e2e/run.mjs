@@ -24,7 +24,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CONTROLS, describeOffCentre, EXCEPT, offCentre, probe, restore } from "./centred.mjs";
+import { CONTROLS, describeOffCentre, EXCEPT, moving, offCentre, probe, restore } from "./centred.mjs";
 import { startSession } from "./webdriver.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -220,6 +220,9 @@ try {
     // controls, their words swapped for H's for a screenshot.
     const found = [];
     const look = async (where) => {
+      for (const until = Date.now() + 3000; Date.now() < until && (await app.execute(`return (${moving})();`)) > 0; ) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
       const measured = await app.execute(`return (${probe})(arguments[0], arguments[1]);`, [CONTROLS, EXCEPT]);
       let shot;
       try {
