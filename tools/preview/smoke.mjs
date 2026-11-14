@@ -16,7 +16,8 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { buildDemos, demoEnv, STUDIO_PULL_REQUEST_CONVERSATIONS, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
-import { describe as describeAligned, misaligned } from "./aligned.mjs";
+import { CONTROLS, describe as describeAligned, EXCEPT, misaligned } from "./aligned.mjs";
+import { describeOffCentre, offCentre as offInPixels, probe, restore } from "../e2e/centred.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
 
@@ -152,6 +153,18 @@ async function accessible(where, frame = page) {
 const offCentre = new Map();
 async function centred(where, frame = page) {
   const found = describeAligned(await misaligned(frame));
+  // And in the window's own pixels, at 100%, where letters land on whole pixels: a control's
+  // words can be in its middle by their measurements and still be a pixel off (centred.mjs).
+  if (frame === page) {
+    const measured = await page.evaluate(`(${probe})(${JSON.stringify(CONTROLS)}, ${JSON.stringify(EXCEPT)})`);
+    let shot;
+    try {
+      shot = await page.screenshot();
+    } finally {
+      await page.evaluate(`(${restore})()`);
+    }
+    found.push(...describeOffCentre(offInPixels(shot, measured)).map((line) => `in pixels: ${line}`));
+  }
   if (process.env.ALIGNED === "report") {
     for (const line of found) offCentre.set(line, [...(offCentre.get(line) ?? []), where]);
     return;
