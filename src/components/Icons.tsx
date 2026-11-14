@@ -1,8 +1,10 @@
-import { useId, type SVGProps } from "react";
+import { useId, type CSSProperties, type SVGProps } from "react";
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
-function Icon({ size = 16, children, ...props }: IconProps) {
+// Its size is also --icon-size, for placing it on whole screen pixels beside words
+// (see buttons.css).
+function Icon({ size = 16, children, style, ...props }: IconProps) {
   return (
     <svg
       width={size}
@@ -15,6 +17,7 @@ function Icon({ size = 16, children, ...props }: IconProps) {
       strokeLinejoin="round"
       aria-hidden="true"
       {...props}
+      style={{ "--icon-size": `${size}px`, ...style } as CSSProperties}
     >
       {children}
     </svg>

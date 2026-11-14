@@ -120,7 +120,8 @@
 }
 
 .secondary-button.small {
-  height: 26px;
+  /* Odd, for its words: see --cap-pixels. */
+  height: 27px;
   padding: 0 var(--space-10);
   font-weight: 500;
 }
@@ -151,7 +152,8 @@
 }
 
 .operation-buttons button {
-  height: 28px;
+  /* Odd, for its words: see --cap-pixels. */
+  height: 29px;
 }
 
 .view-banner {
@@ -206,7 +208,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  height: 28px;
+  /* Odd, for its words: see --cap-pixels. */
+  height: 29px;
   padding: 0 var(--space-10);
   border: 1px solid rgb(var(--notice-rgb) / 0.5);
   border-radius: var(--radius-md);

@@ -89,13 +89,14 @@
   font-weight: 600;
 }
 
-/* A commit node in the item's colour; the fixes' a tick. */
+/* A commit node in the item's colour; the fixes' a tick. Odd, so the item (its padding
+   around it) is too, for words at --type-base (see --cap-pixels). */
 .wn-nav-dot {
   display: grid;
   flex: none;
   place-items: center;
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   margin: 0 var(--space-6);
   border: 2px solid var(--wn-color);
   border-radius: 50%;
@@ -106,9 +107,10 @@
   box-shadow: 0 0 10px var(--wn-glow);
 }
 
+/* Odd as well, which puts the 11px tick in its middle. */
 .wn-nav-dot.rest {
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
   margin: 0 var(--space-2);
   border: none;
   color: var(--success);

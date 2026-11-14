@@ -472,7 +472,7 @@ export default function App() {
                     }
                   >
                     <DownloadIcon size={13} />
-                    {updates.waiting ? "Restarting…" : updates.ready ? "Restart to update" : "Update"}
+                    <span className="button-label">{updates.waiting ? "Restarting…" : updates.ready ? "Restart to update" : "Update"}</span>
                   </button>
                 )
               }

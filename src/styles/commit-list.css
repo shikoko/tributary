@@ -12,7 +12,8 @@
   position: relative;
   display: grid;
   align-items: center;
-  height: 30px;
+  /* 30px inside its border: even, for words at --type-xs (see --cap-pixels). */
+  height: 31px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
   color: var(--text-faint);
@@ -39,6 +40,8 @@
   overflow-y: visible;
   text-overflow: ellipsis;
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
 }
 
 /* The last heading's name stops short of the View button at the end of the row. */
@@ -326,6 +329,8 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
    different heights in it (higher in Google Sans, lower in Segoe UI). */
 .avatar-initials {
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
 }
 
 /* Branch and tag labels */
@@ -344,7 +349,8 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
   gap: var(--space-4);
   min-width: 0;
   max-width: 200px;
-  height: 20px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 21px;
   padding: 0 var(--space-8);
   border: 1px solid;
   border-radius: var(--radius-md);
@@ -387,6 +393,8 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
   overflow-x: clip;
   overflow-y: visible;
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
   text-overflow: ellipsis;
 }
 

@@ -69,6 +69,8 @@
    .button-label). One with a subtitle under it is left as two lines. */
 .settings-tab-text > span:only-child {
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
 }
 
 .settings-tab-subtitle {

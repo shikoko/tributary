@@ -23,7 +23,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-6);
-  height: 28px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 29px;
   padding: 0 var(--space-10);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -35,6 +36,26 @@
 /* Its words, trimmed to their capitals so they sit in the middle (see .button-label). */
 .tool-button .label {
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
+}
+
+/* An icon beside words on a control, on whole screen pixels as the words are (see
+   --cap-pixels). A control is as tall as suits its words, so an icon an odd number of pixels
+   taller or shorter than their capitals sits half a pixel off the control's middle, and was
+   drawn a pixel high or low depending on where the control was. Moved down by that half
+   pixel (by position, as a translate would blur it), it's always on the same pixel. Every
+   icon beside the words moves, in a wrapper of its own or not (a branch pill's tick, laptop
+   and cloud), so they stay in line with each other. Icons without their size in
+   --icon-size (see Icons.tsx) stay where they are. */
+:where(
+  :is(.button-label, .chip-text, .label, .ref-name, .sidebar-name, .status-path, .file-folder-name, .request-check-name, .menu-label) ~ svg,
+  :is(.button-label, .chip-text, .label, .ref-name, .sidebar-name, .status-path, .file-folder-name, .request-check-name, .menu-label) ~ * svg,
+  svg:has(~ :is(.button-label, .chip-text, .label, .ref-name, .sidebar-name, .status-path, .file-folder-name, .request-check-name, .menu-label)),
+  :has(~ :is(.button-label, .chip-text, .label, .ref-name, .sidebar-name, .status-path, .file-folder-name, .request-check-name, .menu-label)) svg
+) {
+  position: relative;
+  top: calc(mod(var(--cap-pixels) + var(--icon-size, var(--cap-pixels)), 2 * var(--device-pixel, 1px)) / 2);
 }
 
 .tool-button:hover:not(:disabled) {

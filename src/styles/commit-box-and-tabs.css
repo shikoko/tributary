@@ -130,6 +130,8 @@
   overflow-x: clip;
   overflow-y: visible;
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

@@ -24,6 +24,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CONTROLS, describeOffCentre, EXCEPT, offCentre, probe, restore } from "./centred.mjs";
 import { startSession } from "./webdriver.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -212,6 +213,49 @@ try {
     await app.waitFor(".tour-card", { text: "2 of" });
     await app.click(".tour-card button", "Skip tour");
     await app.waitFor(".commit-row", { text: "Add a tavern chair" });
+  });
+
+  await step("has the words on its controls in their middle, in the window's own pixels", async () => {
+    // As the window draws them, letters on whole screen pixels (centred.mjs): each screen's
+    // controls, their words swapped for H's for a screenshot.
+    const found = [];
+    const look = async (where) => {
+      const measured = await app.execute(`return (${probe})(arguments[0], arguments[1]);`, [CONTROLS, EXCEPT]);
+      let shot;
+      try {
+        shot = await app.screenshot();
+      } finally {
+        await app.execute(`(${restore})();`);
+      }
+      found.push(...describeOffCentre(offCentre(shot, measured)).map((line) => `${where}: ${line}`));
+    };
+    // From where the focus is, as a key pressed there: a dialog closes on Escape from inside it.
+    const press = (key, ctrlKey = false) =>
+      app.execute(`(document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent("keydown", { key: arguments[0], ctrlKey: arguments[1], bubbles: true }));`, [key, ctrlKey]);
+    const gone = async (css) => {
+      for (const until = Date.now() + 5000; await app.execute(`return Boolean(document.querySelector(arguments[0]));`, [css]); ) {
+        if (Date.now() > until) throw new Error(`${css} didn't close`);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    };
+    await look("the repository");
+    await app.click(".commit-row", "Add a tavern chair");
+    await app.waitFor(".details .file");
+    await look("a commit");
+    await app.click(".commit-row .summary.wip");
+    await app.waitFor("aside.details", { text: "Staged" });
+    await look("your changes");
+    await app.click('button[aria-label="View options"]');
+    await app.waitFor(".view-panel");
+    await look("the View panel");
+    await press("Escape");
+    await gone(".view-panel");
+    await press(",", true);
+    await app.waitFor(".dialog .settings-nav");
+    await look("Settings");
+    await press("Escape");
+    await gone(".dialog .settings-nav");
+    if (found.length > 0) throw new Error(`${found.length} off the middle:\n${found.join("\n")}`);
   });
 
   await step("commits, and undoes it from Your actions", async () => {

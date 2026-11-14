@@ -205,7 +205,8 @@
 .hunk-button {
   display: inline-flex;
   align-items: center;
-  height: 20px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 21px;
   padding: 0 var(--space-8);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);

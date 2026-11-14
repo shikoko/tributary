@@ -131,7 +131,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-6);
-  height: 24px;
+  /* Odd, for its words: see --cap-pixels. */
+  height: 25px;
   padding: 0 var(--space-8);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -355,7 +356,8 @@
 .sha-link {
   display: inline-flex;
   align-items: center;
-  height: 20px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 21px;
   padding: 0 var(--space-6);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -497,6 +499,8 @@
   overflow-x: clip;
   overflow-y: visible;
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
   white-space: nowrap;
   text-overflow: ellipsis;
   /* Like a file's folder, a long one is cut at its start: its last folders tell it apart. */
@@ -625,7 +629,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-6);
-  height: 24px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 25px;
   margin-left: auto;
   padding: 0 var(--space-10);
   border: 1px solid var(--border-strong);
