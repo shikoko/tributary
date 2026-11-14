@@ -22,6 +22,9 @@
   align-items: center;
   gap: var(--space-10);
   width: 100%;
+  /* Odd, for words at --type-base (see --cap-pixels): its padding alone left it a fraction of
+     a pixel tall, 25.3px without an icon. */
+  min-height: 27px;
   padding: var(--space-8) var(--space-10);
   border: none;
   border-radius: var(--radius-md);
@@ -29,6 +32,11 @@
   color: var(--text);
   text-align: left;
   white-space: nowrap;
+}
+
+/* With an icon, 32px from its padding: odd too. */
+.menu-item:has(> .menu-icon > svg) {
+  min-height: 33px;
 }
 
 .menu-item:hover:not(:disabled),

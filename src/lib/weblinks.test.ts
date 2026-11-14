@@ -14,6 +14,14 @@ describe("web links", () => {
     expect(newPullRequestUrl(github, "feat/menu")).toContain("feat/menu");
   });
 
+  it("says Codeberg by the remote's host, not by those words anywhere in its address", () => {
+    const gitea = (url: string): WebRemote => ({ name: "origin", host: "gitea", url });
+    expect(siteName(gitea("https://codeberg.org/shikoko/feast"))).toBe("Codeberg");
+    expect(siteName(gitea("https://CODEBERG.org/shikoko/feast"))).toBe("Codeberg");
+    expect(siteName(gitea("https://git.example.com/codeberg.org/feast"))).toBe("Gitea");
+    expect(siteName(gitea("https://codeberg.org.example.com/shikoko/feast"))).toBe("Gitea");
+  });
+
   it("finds links, issue numbers and commit ids in messages", () => {
     const parts = linkify("Fixes #12 (see https://example.com/x.) after a1b2c3d", github, (sha) => (sha === "a1b2c3d" ? "a1b2c3d4e5" : null));
     expect(parts).toEqual([

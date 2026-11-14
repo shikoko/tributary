@@ -25,6 +25,19 @@ export type GraphNodes = "authors" | "dots";
 export type CiDots = "beside" | "ringed" | "halo" | "filled";
 export const CI_DOTS: CiDots[] = ["beside", "ringed", "halo", "filled"];
 
+/** A check's state, as its colour shows it: running, passed or failed. */
+export type CheckState = "pending" | "success" | "failure";
+export const CHECK_STATES: CheckState[] = ["pending", "success", "failure"];
+
+/**
+ * The theme's colours for checks (theme.css's --warning, --success and --danger), shown in
+ * Settings until you pick your own. appearance.test.ts checks they're the same.
+ */
+export const CHECK_DEFAULTS: Record<Theme, Record<CheckState, string>> = {
+  dark: { pending: "#ffad1f", success: "#36e07c", failure: "#ff5c6c" },
+  light: { pending: "#d68000", success: "#189e52", failure: "#d63040" },
+};
+
 export interface Appearance {
   theme: ThemeChoice;
   /** `#rrggbb`. */
@@ -36,6 +49,11 @@ export interface Appearance {
   curves: CurveStyle;
   nodes: GraphNodes;
   ciDots: CiDots;
+  /**
+   * Your own colours for checks (`#rrggbb`), in light and dark themes alike, for one that's
+   * too close to a branch's: the theme's for any state without one.
+   */
+  checkColors: Partial<Record<CheckState, string>>;
 }
 
 export const DEFAULT_ACCENT = "#1fb5ff";
@@ -49,6 +67,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   curves: "mixed",
   nodes: "authors",
   ciDots: "ringed",
+  checkColors: {},
 };
 
 /** Your own lane colours: from two to this many. */
@@ -224,7 +243,13 @@ export function normalizeAppearance(value: Partial<Appearance> | null | undefine
   const curves = value?.curves && CURVE_STYLES.includes(value.curves) ? value.curves : "mixed";
   const nodes = value?.nodes === "dots" ? "dots" : "authors";
   const ciDots = value?.ciDots && CI_DOTS.includes(value.ciDots) ? value.ciDots : "ringed";
-  return { theme, accent, lanes, customLanes, diffColors, curves, nodes, ciDots };
+  const checkColors: Partial<Record<CheckState, string>> = {};
+  for (const state of CHECK_STATES) {
+    const given: unknown = value?.checkColors?.[state];
+    const rgb = typeof given === "string" ? parseHex(given) : null;
+    if (rgb) checkColors[state] = toHex(rgb);
+  }
+  return { theme, accent, lanes, customLanes, diffColors, curves, nodes, ciDots, checkColors };
 }
 
 /** The lane colours in use: a built-in palette for the theme, or your own. */
@@ -244,6 +269,26 @@ export function applyAppearance(appearance: Appearance, theme: Theme, root: HTML
   root.dataset.diffColors = appearance.diffColors;
   document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", theme);
   for (const [name, value] of Object.entries(accentRoles(appearance.accent, theme))) root.style.setProperty(name, value);
+  for (const [name, value] of Object.entries(checkRoles(appearance.checkColors))) {
+    if (value === null) root.style.removeProperty(name);
+    else root.style.setProperty(name, value);
+  }
+}
+
+/**
+ * The checks' colours as CSS variables: each state's colour, as numbers for see-through
+ * fills, and the text that reads on it. null leaves it to the theme (theme.css).
+ */
+export function checkRoles(colors: Partial<Record<CheckState, string>>): Record<string, string | null> {
+  const roles: Record<string, string | null> = {};
+  for (const state of CHECK_STATES) {
+    const given = colors[state];
+    const rgb = given ? parseHex(given) : null;
+    roles[`--check-${state}`] = rgb ? toHex(rgb) : null;
+    roles[`--check-${state}-rgb`] = rgb ? rgb.map(Math.round).join(" ") : null;
+    roles[`--on-check-${state}`] = rgb ? textOn(toHex(rgb)) : null;
+  }
+  return roles;
 }
 
 /** The colours canvases draw with (they can't use CSS variables), read from the page. */

@@ -5,6 +5,7 @@ import { stepFocus } from "../lib/inputMode";
 import { growIn, shrinkAway } from "../lib/motion";
 import { isWindows, modKey } from "../lib/platform";
 import { openInBrowser, TRIBUTARY_ON_GITHUB } from "../lib/weblinks";
+import { useTabDrag } from "./useTabDrag";
 import { WindowControls } from "./WindowControls";
 
 export interface Tab {
@@ -19,6 +20,8 @@ interface Props {
   startTab: boolean;
   onSelect: (path: string) => void;
   onClose: (path: string) => void;
+  /** Put a repository's tab at another place, dragged there. */
+  onMove: (path: string, to: number) => void;
   onCloseStart: () => void;
   /** Open a new tab with the start screen. */
   onNew: () => void;
@@ -102,12 +105,18 @@ function useTabMotion(row: RefObject<HTMLDivElement | null>, tabs: Tab[], startT
 }
 
 /**
- * One tab per open repository. It's also the title bar: the empty space drags the window,
- * and on Windows the minimize, maximize and close buttons are at its right.
+ * One tab per open repository, in an order you can change by dragging them. It's also the
+ * title bar: the empty space drags the window, and on Windows the minimize, maximize and
+ * close buttons are at its right.
  */
-export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseStart, onNew, menuBar, extra, news, onContextMenu, busy }: Props) {
+export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onMove, onCloseStart, onNew, menuBar, extra, news, onContextMenu, busy }: Props) {
   const row = useRef<HTMLDivElement>(null);
   useTabMotion(row, tabs, startTab);
+  const drag = useTabDrag(
+    row,
+    tabs.map((tab) => tab.path),
+    onMove,
+  );
   return (
     <div className={`tab-bar${isWindows ? " with-window-controls" : ""}`} data-tauri-drag-region>
       <span className="tab-logo" data-tauri-drag-region>
@@ -142,6 +151,7 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onCloseS
             onMouseDown={(event) => {
               if (event.button === 0) onSelect(tab.path);
             }}
+            onPointerDown={drag}
             onAuxClick={(event) => {
               // Middle-click closes, like in a browser.
               if (event.button === 1) onClose(tab.path);

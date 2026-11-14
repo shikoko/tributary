@@ -3,10 +3,12 @@
 // search commits, check out a branch (with uncommitted changes in the way), undo it,
 // fetch, open a second tab, and look at Git LFS locks and big files.
 //
-//   npm run preview:build && npm run preview:smoke [-- --screenshots <folder>]
+//   npm run preview:build && npm run preview:smoke [-- --browser webkit] [--screenshots <folder>]
 //
-// Needs Playwright with Chromium and axe-core (`npm install --no-save playwright axe-core`
-// and `npx playwright install chromium`, if they aren't installed already).
+// It runs in Chromium, or with --browser webkit in WebKit, Safari's engine, which the Mac
+// app's window uses. Needs Playwright with that browser, and axe-core (`npm install --no-save
+// playwright axe-core` and `npx playwright install chromium`, or webkit, if they aren't
+// installed already).
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -14,16 +16,28 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { buildDemos, demoEnv, STUDIO_PULL_REQUEST_CONVERSATIONS, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
-import { describe as describeAligned, misaligned } from "./aligned.mjs";
+import { CONTROLS, describe as describeAligned, EXCEPT, misaligned } from "./aligned.mjs";
+import { describeOffCentre, moving, offCentre as offInPixels, probe, restore } from "../e2e/centred.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
+
+const browserAt = process.argv.indexOf("--browser");
+const browserName = browserAt > 0 ? process.argv[browserAt + 1] : "chromium";
+
+/** The browser's own user agent, with Linux in place of the Mac it runs on. */
+async function notOnAMac(browser) {
+  const probe = await browser.newPage();
+  const agent = await probe.evaluate(() => navigator.userAgent);
+  await probe.close();
+  return agent.replace(/\(Macintosh;[^)]*\)/, "(X11; Linux x86_64)");
+}
 
 function loadPlaywright() {
   try {
     // Through require, so a globally installed Playwright (NODE_PATH) is found too.
     return createRequire(import.meta.url)("playwright");
   } catch {
-    console.error("The smoke test needs Playwright: npm install --no-save playwright && npx playwright install chromium");
+    console.error(`The smoke test needs Playwright: npm install --no-save playwright && npx playwright install ${browserName}`);
     process.exit(2);
   }
 }
@@ -43,13 +57,21 @@ const screenshotsAt = process.argv.indexOf("--screenshots");
 const screenshots = screenshotsAt > 0 ? resolve(process.argv[screenshotsAt + 1]) : null;
 if (screenshots) mkdirSync(screenshots, { recursive: true });
 
-const { chromium } = loadPlaywright();
+const engine = loadPlaywright()[browserName];
+if (!engine?.launch) {
+  console.error(`There's no browser called ${browserName} in Playwright: chromium or webkit.`);
+  process.exit(2);
+}
 const folder = mkdtempSync(join(tmpdir(), "tributary-smoke-"));
 const locks = await startLockServer({ port: 0 });
 const demos = buildDemos(folder, { lockServer: locks.url });
 const preview = await startPreview({ port: 0, quiet: true, env: demoEnv(demos) });
-const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1440, height: 860 } });
+const browser = await engine.launch();
+// On a Mac, Tributary's menus are in the Mac's own menu bar, which a page in a browser hasn't
+// got, and the steps open them from the window's: so the page is told it's on Linux. The
+// engine drawing it and running it is still the browser's own.
+const userAgent = process.platform === "darwin" ? await notOnAMac(browser) : undefined;
+const page = await browser.newPage({ viewport: { width: 1440, height: 860 }, userAgent });
 const errors = [];
 page.on("pageerror", (error) => errors.push(String(error)));
 await page.addInitScript((pick) => {
@@ -70,9 +92,37 @@ async function step(name, run) {
     console.log(`  ✓ ${name}`);
   } catch (error) {
     failed++;
-    console.log(`  ✗ ${name}\n      ${String(error.message ?? error).split("\n").slice(0, 3).join("\n      ")}`);
+    // What went wrong, and where Playwright's call log ended up (what it was waiting for).
+    const lines = String(error.message ?? error).split("\n");
+    const said = lines.length > 8 ? [...lines.slice(0, 3), "…", ...lines.slice(-4)] : lines;
+    console.log(`  ✗ ${name}\n      ${said.join("\n      ")}`);
+    if (screenshots) await page.screenshot({ path: join(screenshots, `${String(++shot).padStart(2, "0")}.png`) }).catch(() => {});
+    await recover();
+    return;
   }
   if (screenshots) await page.screenshot({ path: join(screenshots, `${String(++shot).padStart(2, "0")}.png`) }).catch(() => {});
+}
+
+/**
+ * After a step that failed: what it left open (a dialog, a menu, a file's changes) is said, for
+ * the log, then closed with Esc, so the steps after it start from the repository's view
+ * rather than failing behind it.
+ */
+async function recover() {
+  const open = await page
+    .evaluate(() =>
+      [...document.querySelectorAll(".dialog, [role='dialog'], [role='menu'], .diff-view")]
+        .filter((element) => element.getClientRects().length > 0)
+        .map((element) => element.innerText.replace(/\s+/g, " ").trim().slice(0, 300)),
+    )
+    .catch(() => []);
+  for (const text of open) console.log(`      left open: ${text}`);
+  for (let tries = 0; tries < 4; tries++) {
+    const still = await page.locator(".dialog, [role='dialog'], [role='menu'], .diff-view").count().catch(() => 0);
+    if (still === 0) break;
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.waitForTimeout(300);
+  }
 }
 /**
  * What's on screen meets WCAG 2.1's level A and AA criteria that can be checked automatically.
@@ -103,6 +153,19 @@ async function accessible(where, frame = page) {
 const offCentre = new Map();
 async function centred(where, frame = page) {
   const found = describeAligned(await misaligned(frame));
+  // And in the window's own pixels, at 100%, where letters land on whole pixels: a control's
+  // words can be in its middle by their measurements and still be a pixel off (centred.mjs).
+  if (frame === page) {
+    await page.waitForFunction(`(${moving})() === 0`, null, { timeout: 3000 }).catch(() => {});
+    const measured = await page.evaluate(`(${probe})(${JSON.stringify(CONTROLS)}, ${JSON.stringify(EXCEPT)})`);
+    let shot;
+    try {
+      shot = await page.screenshot();
+    } finally {
+      await page.evaluate(`(${restore})()`);
+    }
+    found.push(...describeOffCentre(offInPixels(shot, measured)).map((line) => `in pixels: ${line}`));
+  }
   if (process.env.ALIGNED === "report") {
     for (const line of found) offCentre.set(line, [...(offCentre.get(line) ?? []), where]);
     return;
@@ -326,11 +389,48 @@ try {
     await page.locator(".details .file", { hasText: "README.md" }).hover();
     await page.getByRole("button", { name: "Stage README.md", exact: true }).click();
     await view.locator(".diff-source", { hasText: "Staged" }).waitFor({ timeout: 10_000 });
-    await page.locator(".details .file.shown", { hasText: "README.md" }).hover();
-    await page.getByRole("button", { name: "Unstage README.md", exact: true }).click();
+    // The row moved to Staged, under the pointer or not: the pointer moves away and onto it
+    // until its button shows, as WebKit only looks at what's under the pointer when it moves.
+    const unstage = page.getByRole("button", { name: "Unstage README.md", exact: true });
+    for (let tries = 0; tries < 5 && !(await unstage.isVisible()); tries++) {
+      await page.mouse.move(0, 0);
+      await page.locator(".details .file.shown", { hasText: "README.md" }).hover();
+      await page.waitForTimeout(200);
+    }
+    await unstage.click();
     await view.locator(".diff-source", { hasText: "Not staged" }).waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");
     await view.waitFor({ state: "detached", timeout: 5000 });
+  });
+
+  await step("shows your changes in a tree, and stages and unstages a folder", async () => {
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" });
+    const staged = () => git("diff", "--cached", "--name-only").trim().split("\n").filter(Boolean).sort().join(", ");
+    const before = staged();
+    await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+    const panel = page.locator("aside.details[aria-label='Uncommitted changes']");
+    await panel.getByRole("button", { name: "Tree", exact: true }).click();
+    // The new file's folders, with nothing else in them, are one row in Unstaged.
+    const unstaged = panel.locator("section.files").nth(1);
+    const folder = unstaged.locator(".file-folder", { has: page.locator(".file-folder-toggle[title='src/ui/onboarding']") });
+    await folder.waitFor({ timeout: 5000 });
+    await accessible("your changes as a tree");
+    await folder.hover();
+    await panel.getByRole("button", { name: "Stage folder src/ui/onboarding", exact: true }).click();
+    await folder.waitFor({ state: "detached", timeout: 10_000 });
+    expect(staged() === "src/ui/onboarding/tour.tsx, src/ui/onboarding/welcome.tsx", `staged ${staged()}`);
+    // Both files are in the folder in Staged now, and its button unstages them both.
+    const stagedFolder = panel.locator("section.files").first().locator(".file-folder", { has: page.locator(".file-folder-toggle[title='src/ui/onboarding']") });
+    await stagedFolder.hover();
+    await panel.getByRole("button", { name: "Unstage folder src/ui/onboarding", exact: true }).click();
+    await stagedFolder.waitFor({ state: "detached", timeout: 10_000 });
+    expect(staged() === "", `still staged: ${staged()}`);
+    // Back as it was, and to the list, which the steps after expect (the choice is remembered).
+    git("add", "src/ui/onboarding/welcome.tsx");
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await panel.getByRole("button", { name: "List", exact: true }).click();
+    await panel.locator(".file-folder").first().waitFor({ state: "detached", timeout: 5000 });
+    expect(staged() === before, `staged ${staged()}, not ${before}`);
   });
 
   await step("stages two chosen lines, then discards a hunk and puts it back", async () => {
@@ -689,11 +789,50 @@ try {
     expect(await button.evaluate((element) => element === document.activeElement), "the focus didn't go back to the View button");
   });
 
+  await step("opens the View panel from the keyboard and the command palette", async () => {
+    const panel = page.locator(".view-panel");
+    // The shortcut opens it under the View button, and closes it again.
+    await page.keyboard.press("Control+Shift+O");
+    await panel.waitFor({ timeout: 5000 });
+    const button = page.getByRole("button", { name: "View options" });
+    const [at, under] = await Promise.all([panel.boundingBox(), button.boundingBox()]);
+    expect(Math.abs(at.y - (under.y + under.height + 6)) < 2, `the panel is at ${at.y}, not under the button at ${under.y}`);
+    await page.keyboard.press("Control+Shift+O");
+    await panel.waitFor({ state: "detached", timeout: 5000 });
+    // With nothing focused (as on a Mac, where a click doesn't focus a button), the focus
+    // goes to the View button when it closes, not back to the page.
+    await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+    await page.keyboard.press("Control+Shift+O");
+    await panel.waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await panel.waitFor({ state: "detached", timeout: 5000 });
+    expect(await button.evaluate((element) => element === document.activeElement), "the focus didn't go to the View button");
+    // View Options in the command palette, with its shortcut beside it.
+    await page.keyboard.press("Control+k");
+    const palette = page.getByRole("dialog", { name: "Commands" });
+    await palette.locator("input").fill("view options");
+    await palette.locator("li", { hasText: "View Options" }).filter({ hasText: "Ctrl+Shift+O" }).first().waitFor({ timeout: 5000 });
+    await page.keyboard.press("Enter");
+    await panel.waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await panel.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("opens a second repository in a new tab", async () => {
     // The pull requests' comments from the start: news is what changes after the first look.
+    // And a failed check on every commit (the steps between change which is checked out),
+    // which can be run again.
+    const commitChecks = {
+      site: "GitHub",
+      canRerun: true,
+      checks: [
+        { name: "Build (Windows)", state: "success", url: "https://github.com/example/feast/actions/runs/31", detail: null, startedAt: null, finishedAt: null, workflow: "Checks", trigger: "on push to main" },
+        { name: "Audio loudness", state: "failure", url: "https://github.com/example/feast/actions/runs/32", detail: "2 files too loud", startedAt: null, finishedAt: null, workflow: "Checks", trigger: "on push to main" },
+      ],
+    };
     await page.evaluate(
-      ([pick, pullRequests, conversations]) => Object.assign(window.__PREVIEW__, { pick, pullRequests, conversations }),
-      [demos.studio, STUDIO_PULL_REQUESTS, structuredClone(STUDIO_PULL_REQUEST_CONVERSATIONS)],
+      ([pick, pullRequests, conversations, ciStates, commitChecks]) => Object.assign(window.__PREVIEW__, { pick, pullRequests, conversations, ciStates, commitChecks }),
+      [demos.studio, STUDIO_PULL_REQUESTS, structuredClone(STUDIO_PULL_REQUEST_CONVERSATIONS), { "": "failure" }, commitChecks],
     );
     await page.getByRole("button", { name: "New tab" }).click();
     // The recent notebook shows where it stands: its branch and uncommitted changes.
@@ -719,6 +858,39 @@ try {
     await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
     const kept = await page.getByPlaceholder("Commit summary").inputValue();
     expect(kept === "Half-written message", `message "${kept}"`);
+    await page.locator(".tab", { hasText: "studio" }).dispatchEvent("mousedown", { button: 0 });
+    await row("Add a tavern chair").waitFor({ timeout: 10_000 });
+  });
+
+  await step("puts a tab elsewhere by dragging it, or from the keyboard", async () => {
+    const tabs = page.locator(".tabs > .tab[data-path]");
+    const order = async () => (await tabs.allTextContents()).map((name) => name.trim()).join(", ");
+    const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem("tributary.tabs.list")).map((tab) => tab.name).join(", "));
+    const before = await order();
+    // The last tab, dragged in steps past the first one's middle: it goes first, and stays.
+    const last = tabs.last();
+    const name = (await last.textContent()).trim();
+    const from = await last.boundingBox();
+    const to = await tabs.first().boundingBox();
+    const y = from.y + from.height / 2;
+    await page.mouse.move(from.x + from.width / 2, y);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i++) await page.mouse.move(from.x + from.width / 2 + ((to.x + 8 - from.x - from.width / 2) * i) / 10, y);
+    await page.mouse.up();
+    await page.waitForFunction((first) => document.querySelector(".tabs > .tab[data-path]")?.textContent.trim() === first, name, { timeout: 5000 });
+    expect((await stored()).startsWith(name), `the new order wasn't kept: ${await stored()}`);
+    // Ctrl+Shift+Page Down moves it (now open) back one place.
+    await page.keyboard.press("Control+Shift+PageDown");
+    await page.waitForFunction((expected) => [...document.querySelectorAll(".tabs > .tab[data-path]")].map((tab) => tab.textContent.trim()).join(", ") === expected, before, { timeout: 5000 });
+    // Escape halfway through a drag puts it back.
+    const again = await tabs.last().boundingBox();
+    await page.mouse.move(again.x + again.width / 2, y);
+    await page.mouse.down();
+    for (let i = 1; i <= 6; i++) await page.mouse.move(again.x + again.width / 2 - i * 25, y);
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+    expect((await order()) === before, `Escape didn't put it back: ${await order()}`);
     await page.locator(".tab", { hasText: "studio" }).dispatchEvent("mousedown", { button: 0 });
     await row("Add a tavern chair").waitFor({ timeout: 10_000 });
   });
@@ -912,8 +1084,43 @@ try {
     await page.locator(".pr-badge").first().waitFor({ timeout: 10_000 });
   });
 
+  await step("colours checks as you pick, and as the theme does again", async () => {
+    // A pull request whose checks failed, in the failed checks' colour: the theme's, yours, then the theme's.
+    const badge = page.locator(".commit-list .pr-badge.failure").first();
+    const fill = () => badge.evaluate((element) => getComputedStyle(element).backgroundColor);
+    const theirs = await fill();
+    await page.keyboard.press("Control+,");
+    const settings = page.locator(".dialog", { hasText: "Settings" }).first();
+    await settings.locator(".settings-nav").getByText("Appearance").click();
+    await settings.getByLabel("Failed checks' colour").fill("#cc00ff");
+    await page.waitForFunction(() => document.documentElement.style.getPropertyValue("--check-failure") === "#cc00ff", null, { timeout: 5000 });
+    expect((await fill()) === "rgb(204, 0, 255)", `the badge is ${await fill()}, not the colour picked`);
+    await settings.locator(".check-colors").scrollIntoViewIfNeeded();
+    await accessible("the checks' colours in Settings");
+    await settings.getByRole("button", { name: "The theme's", exact: true }).click();
+    await page.waitForFunction(() => document.documentElement.style.getPropertyValue("--check-failure") === "", null, { timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await settings.waitFor({ state: "detached", timeout: 5000 });
+    expect((await fill()) === theirs, `the badge is ${await fill()}, not the theme's ${theirs}`);
+  });
+
+  await step("shows a commit's failed check, and runs it again", async () => {
+    // The checked-out commit (every commit has the checks above).
+    await page.locator(".commit-row", { has: page.locator(".ref-pill.current") }).first().click();
+    const checks = page.locator(".details .commit-checks");
+    await checks.getByText("Audio loudness").first().waitFor({ timeout: 10_000 });
+    await accessible("a commit's checks, one failed");
+    await checks.getByRole("button", { name: "Re-run failed" }).click();
+    await page.locator(".toast", { hasText: "Running the failed jobs again" }).waitFor({ timeout: 5000 });
+    await dismissToast();
+  });
+
   await step("shows a pull request's reviews and checks", async () => {
     await page.evaluate((details) => Object.assign(window.__PREVIEW__, { pullRequestDetails: details }), STUDIO_PULL_REQUEST_DETAILS);
+    // Pressing the badge opens the pull request, and leaves the selected commit as it was: a
+    // press that selected the badge's row could scroll it, and the click would miss the badge.
+    const selected = () => page.evaluate(() => document.querySelector(".commit-row.selected")?.id ?? "");
+    const before = await selected();
     await page.locator(".pr-badge", { hasText: "#14" }).first().click();
     const view = page.locator(".request-view");
     await view.locator(".request-merge", { hasText: "changes were asked for" }).waitFor({ timeout: 10_000 });
@@ -925,6 +1132,21 @@ try {
     // A check's name opens its page.
     await view.locator(".request-check", { hasText: "Audio loudness" }).getByRole("button").click();
     expect((await page.evaluate(() => window.__PREVIEW__.opened)).some((url) => url.endsWith("/actions/runs/7")), "the check's page didn't open");
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+    expect((await selected()) === before, `pressing the badge selected ${await selected()}, not ${before}`);
+  });
+
+  await step("shows an open pull request from its branch's commit", async () => {
+    // The commit at the tip of fix/door: its pull request, open, with Show beside it.
+    await page.locator(".commit-row", { has: page.locator(".pr-badge", { hasText: "#14" }) }).first().click();
+    const mention = page.locator(".details .mentioned-issue", { hasText: "#14" });
+    await mention.locator(".mentioned-issue-status", { hasText: "Open" }).waitFor({ timeout: 5000 });
+    await mention.locator(".mentioned-issue-title", { hasText: "Make the door creak" }).waitFor({ timeout: 5000 });
+    await accessible("an open pull request in a commit's details");
+    await mention.getByRole("button", { name: "Show" }).click();
+    const view = page.locator(".request-view");
+    await view.locator(".request-merge", { hasText: "changes were asked for" }).waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");
     await view.waitFor({ state: "detached", timeout: 5000 });
   });

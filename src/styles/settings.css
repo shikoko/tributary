@@ -69,6 +69,8 @@
    .button-label). One with a subtitle under it is left as two lines. */
 .settings-tab-text > span:only-child {
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
 }
 
 .settings-tab-subtitle {
@@ -199,6 +201,12 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
   color: var(--text);
+}
+
+/* Graph line bends: a commit and its two branches, drawn as the graph draws them. */
+.bend-sample {
+  width: 58px;
+  height: 36px;
 }
 
 /* Checks on dots: a little merge in the graph's colours, its dot showing its checks. */
@@ -510,6 +518,46 @@
 .lane-editor-swatch:hover .lane-editor-remove,
 .lane-editor-remove:focus-visible {
   display: block;
+}
+
+/* The checks' colours: a swatch for each state with its name beside it, then the theme's. */
+.check-colors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-12);
+}
+
+.check-color {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+  cursor: pointer;
+}
+
+.check-color-swatch {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px rgb(var(--overlay-rgb) / 0.15);
+}
+
+.check-color-swatch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.check-color:focus-within .check-color-swatch {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .lane-sample > span {

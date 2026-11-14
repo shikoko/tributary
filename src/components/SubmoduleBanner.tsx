@@ -23,7 +23,7 @@ export function SubmoduleBanner({ notice, busy, onUpdate, onDismiss, onAlways }:
         </Button>
       )}
       <button className="notice-action" onClick={onUpdate} disabled={busy}>
-        {notice.action}
+        <span className="button-label">{notice.action}</span>
       </button>
       <Button kind="icon" onClick={onDismiss} aria-label="Not now" title="Not now">
         <CloseIcon size={14} />

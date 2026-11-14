@@ -73,9 +73,11 @@ class Session {
 
   /**
    * Click the first element matching `css` whose text is `text` (or else includes it), once
-   * it shows up and isn't disabled, with the mouse, as WebDriver does: pressed and released
-   * over it. (Rows and the menu bar act on the press, which an `element.click()` in the page
-   * doesn't make; and a click on a disabled button is lost.)
+   * it shows up with a size and isn't disabled, with the mouse, as WebDriver does: pressed and
+   * released over it. (Rows and the menu bar act on the press, which an `element.click()` in
+   * the page doesn't make; and a click on a disabled button is lost.) While WebDriver can't
+   * click it yet (a panel still opening around it, something over it for a moment), it tries
+   * again until the time's up, and then says which element it was.
    */
   async click(css, text, { timeout = 15_000 } = {}) {
     const until = Date.now() + timeout;
@@ -86,13 +88,19 @@ class Session {
          const element = !text ? all[0] : all.find((each) => each.textContent.trim() === text) ?? all.find((each) => each.textContent.includes(text));
          if (!element || element.disabled || element.getAttribute("aria-disabled") === "true") return null;
          element.scrollIntoView({ block: "center" });
-         return element;`,
+         const box = element.getBoundingClientRect();
+         return box.width > 0 && box.height > 0 ? element : null;`,
         [css, text ?? null],
       ).catch(() => null);
       const element = found?.[ELEMENT];
       if (element) {
-        await this.call("POST", `/element/${element}/click`, {});
-        return;
+        try {
+          await this.call("POST", `/element/${element}/click`, {});
+          return;
+        } catch (error) {
+          const later = /not interactable|click intercepted|stale element/.test(error.message);
+          if (!later || Date.now() > until) throw new Error(`Couldn't click ${css}${text ? ` "${text}"` : ""}: ${error.message}`);
+        }
       }
       if (Date.now() > until) throw new Error(`Nothing like ${css}${text ? ` with "${text}"` : ""} to click after ${timeout / 1000} s`);
       await new Promise((resolve) => setTimeout(resolve, 200));

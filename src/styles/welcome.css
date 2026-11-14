@@ -128,7 +128,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-8);
-  height: 30px;
+  /* Odd, for words at --type-base: see --cap-pixels. */
+  height: 31px;
   padding: 0 var(--space-12) 0 var(--space-12);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-pill);
@@ -143,6 +144,8 @@
 /* Centre the letters themselves, not the font's line box (as the avatars do). */
 .account-chip > span:not(.avatar) {
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
 }
 
 .account-chip > svg {

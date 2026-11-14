@@ -45,7 +45,8 @@
 }
 
 .view-segmented button {
-  height: 24px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 25px;
 }
 
 .view-accents,
@@ -74,7 +75,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-4);
-  height: 24px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 25px;
   padding: 0 var(--space-8);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-pill);

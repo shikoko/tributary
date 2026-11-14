@@ -1,4 +1,4 @@
-import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import { PAGE_SIZE, type CommitDetails, type CommitRow, type RepoSnapshot } from "../api";
 import { countChanges } from "../lib/changes";
 import { slotsFor } from "../lib/days";
@@ -42,8 +42,10 @@ interface Props {
   daySeparators: boolean;
   /** Right-click on the column headings. */
   onHeaderContextMenu: (x: number, y: number) => void;
-  /** Opens the View panel under `anchor`, the button at the end of the column headings. */
-  onViewMenu: (anchor: HTMLElement) => void;
+  /** The View button at the end of the column headings, which the View panel opens under. */
+  viewButton: RefObject<HTMLButtonElement | null>;
+  /** Opens the View panel, or closes it. */
+  onViewMenu: () => void;
   /** Right-click on a row, at window coordinates (x, y). */
   onContextMenu: (commit: CommitRow, x: number, y: number) => void;
   /** Double-click on a branch label. */
@@ -281,6 +283,7 @@ export function CommitList(props: Props) {
         onColumnWidths={onColumnWidths}
         scrollbar={viewport.scrollbar}
         onContextMenu={props.onHeaderContextMenu}
+        viewButton={props.viewButton}
         onViewMenu={props.onViewMenu}
       />
       <div

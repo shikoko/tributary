@@ -132,16 +132,16 @@
 }
 
 .request-timeline-bar.success {
-  background: var(--success);
+  background: var(--check-success);
 }
 
 .request-timeline-bar.failure {
-  background: var(--danger);
+  background: var(--check-failure);
 }
 
 /* Running: stripes that move, growing until now. */
 .request-timeline-bar.pending {
-  background: repeating-linear-gradient(-45deg, var(--warning) 0 6px, color-mix(in srgb, var(--warning) 60%, transparent) 6px 12px);
+  background: repeating-linear-gradient(-45deg, var(--check-pending) 0 6px, color-mix(in srgb, var(--check-pending) 60%, transparent) 6px 12px);
   background-size: 17px 17px;
   animation: request-timeline-stripes 1s linear infinite;
 }

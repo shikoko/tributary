@@ -2,7 +2,10 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as R
 import { moved } from "../lib/order";
 import {
   ACCENTS,
+  CHECK_DEFAULTS,
+  CHECK_STATES,
   CI_DOTS,
+  CURVE_STYLES,
   DEFAULT_APPEARANCE,
   LANE_PALETTE_LABELS,
   LANE_PALETTES,
@@ -12,12 +15,15 @@ import {
   parseHex,
   toHex,
   type Appearance,
+  type CheckState,
   type CiDots,
+  type CurveStyle,
   type LaneChoice,
   type LanePaletteName,
   type Theme,
   type ThemeChoice,
 } from "../lib/appearance";
+import { turn } from "./graphPainter";
 import { CheckIcon, PlusIcon } from "./Icons";
 import type { SettingRow } from "./SettingsDialog";
 import { Button } from "./ui/Button";
@@ -136,6 +142,47 @@ function AccentPicker({ value, onChange }: { value: string; onChange: (value: st
   );
 }
 
+const CHECK_NAMES: Record<CheckState, string> = { pending: "Running", success: "Passed", failure: "Failed" };
+
+/**
+ * The checks' colours, running, passed and failed: the theme's, or yours. Click one to pick
+ * another; "The theme's" goes back to the theme's three.
+ */
+function CheckColorsPicker({
+  value,
+  theme,
+  onChange,
+}: {
+  value: Partial<Record<CheckState, string>>;
+  theme: Theme;
+  onChange: (value: Partial<Record<CheckState, string>>) => void;
+}) {
+  const own = CHECK_STATES.some((state) => value[state]);
+  return (
+    <div className="check-colors">
+      {CHECK_STATES.map((state) => {
+        const color = value[state] ?? CHECK_DEFAULTS[theme][state];
+        return (
+          <label key={state} className="check-color" title={`${CHECK_NAMES[state]}: ${color}${value[state] ? "" : ", the theme's"}. Click to pick another.`}>
+            <span className="check-color-swatch" style={{ background: color }}>
+              <input
+                type="color"
+                value={color}
+                aria-label={`${CHECK_NAMES[state]} checks' colour`}
+                onChange={(event) => onChange({ ...value, [state]: event.target.value })}
+              />
+            </span>
+            <span className="check-color-name">{CHECK_NAMES[state]}</span>
+          </label>
+        );
+      })}
+      <Button kind="outline" size="small" disabled={!own} onClick={() => onChange({})}>
+        The theme's
+      </Button>
+    </div>
+  );
+}
+
 /** A row of the lane colours, for each choice, and yours. */
 function LanePicker({ value, custom, theme, onChange }: { value: LaneChoice; custom: string[]; theme: Theme; onChange: (value: LaneChoice) => void }) {
   const choices: LaneChoice[] = [...(Object.keys(LANE_PALETTES) as LanePaletteName[]), "custom"];
@@ -166,6 +213,73 @@ function LanePicker({ value, custom, theme, onChange }: { value: LaneChoice; cus
 }
 
 const CI_DOT_LABELS: Record<CiDots, string> = { beside: "Beside", ringed: "Ringed", halo: "Halo", filled: "Filled" };
+
+const BEND_LABELS: Record<CurveStyle, string> = { mixed: "Mixed", round: "Round", smooth: "Smooth", tight: "Tight", sweep: "Sweep" };
+
+/** A sample's size, in CSS pixels, as .bend-sample has it. */
+const BEND_SAMPLE = { width: 58, height: 36 };
+
+/**
+ * A commit on a lane, and two branches leaving it: one to the lane next door and one to the
+ * lane after, turning as `style` turns them, drawn as the graph draws them.
+ */
+function BendSample({ style, lanes }: { style: CurveStyle; lanes: string[] }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const colours = lanes.slice(0, 3).join(" ");
+  useEffect(() => {
+    const element = canvas.current;
+    const context = element?.getContext("2d");
+    if (!element || !context) return;
+    const [first, second, third] = colours.split(" ");
+    const scale = window.devicePixelRatio || 1;
+    element.width = BEND_SAMPLE.width * scale;
+    element.height = BEND_SAMPLE.height * scale;
+    context.scale(scale, scale);
+    context.lineWidth = 2;
+    // Three lanes, centred; the commit near the top of the first.
+    const lane = (index: number) => BEND_SAMPLE.width / 2 - 14 + index * 14;
+    const top = 11;
+    context.strokeStyle = first;
+    context.beginPath();
+    context.moveTo(lane(0), 0);
+    context.lineTo(lane(0), BEND_SAMPLE.height);
+    context.stroke();
+    // As the graph's own corners: a row's half height, at most a lane's width.
+    const corner = Math.min(BEND_SAMPLE.height - top, 14) - 1;
+    for (const [to, colour] of [[2, third ?? first], [1, second ?? first]] as const) {
+      const path = new Path2D();
+      turn(path, [lane(0), top], [lane(to), top], [lane(to), BEND_SAMPLE.height + 2], corner, style === "mixed" ? (to === 1 ? "smooth" : "round") : style);
+      context.strokeStyle = colour;
+      context.stroke(path);
+    }
+    context.fillStyle = first;
+    context.beginPath();
+    context.arc(lane(0), top, 4, 0, Math.PI * 2);
+    context.fill();
+  }, [style, colours]);
+  return <canvas ref={canvas} className="bend-sample" aria-hidden />;
+}
+
+/** How the graph's lines turn, each drawn as the graph draws it. */
+function BendPicker({ value, lanes, onChange }: { value: CurveStyle; lanes: string[]; onChange: (value: CurveStyle) => void }) {
+  return (
+    <div className="lane-picker" role="radiogroup" aria-label="Graph line bends" onKeyDown={arrowKeys}>
+      {CURVE_STYLES.map((style) => (
+        <button
+          key={style}
+          role="radio"
+          aria-checked={value === style}
+          tabIndex={value === style ? 0 : -1}
+          className={`lane-choice${value === style ? " chosen" : ""}`}
+          onClick={() => onChange(style)}
+        >
+          <BendSample style={style} lanes={lanes} />
+          <span>{BEND_LABELS[style]}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** How a dot on the graph shows its checks, each with a small merge in the graph's colours. */
 function CiDotPicker({ value, lanes, onChange }: { value: CiDots; lanes: string[]; onChange: (value: CiDots) => void }) {
@@ -245,10 +359,12 @@ function LaneEditor({ colors, onChange }: { colors: string[]; onChange: (colors:
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
       setLifted(null);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   };
 
   // Alt+← → moves the colour with the focus, which stays on it.
@@ -269,6 +385,9 @@ function LaneEditor({ colors, onChange }: { colors: string[]; onChange: (colors:
           key={index}
           className={`lane-editor-swatch${lifted === index ? " lifted" : ""}`}
           onPointerDown={(event) => startDrag(index, event)}
+          // WebKit (the Mac app's window) drags a colour out of a colour picker by itself, and
+          // drops it onto another, copying it: the drag here moves it instead.
+          onDragStart={(event) => event.preventDefault()}
           onClickCapture={(event) => {
             if (!dragged.current) return;
             dragged.current = false;
@@ -386,18 +505,10 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
       content: <CiDotPicker value={appearance.ciDots} lanes={lanePalette(appearance, theme)} onChange={(value) => change({ ciDots: value })} />,
     },
     {
-      kind: "select",
+      kind: "custom",
       label: "Graph line bends",
-      hint: "How the lines turn from one branch's lane to another's.",
-      value: appearance.curves,
-      options: [
-        { value: "mixed", label: "Smooth next door, round further" },
-        { value: "round", label: "Round" },
-        { value: "smooth", label: "Smooth (like Apple's corners)" },
-        { value: "tight", label: "Tight" },
-        { value: "sweep", label: "Sweeping" },
-      ],
-      set: (value) => change({ curves: value as Appearance["curves"] }),
+      hint: "How the lines turn from one branch's lane to another's. Mixed turns smoothly to the lane next door and round further; Smooth eases in and out, like Apple's corners.",
+      content: <BendPicker value={appearance.curves} lanes={lanePalette(appearance, theme)} onChange={(curves) => change({ curves })} />,
     },
     {
       kind: "select",
@@ -409,6 +520,12 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
         { value: "blue-orange", label: "Blue and orange" },
       ],
       set: (value) => change({ diffColors: value as Appearance["diffColors"] }),
+    },
+    {
+      kind: "custom",
+      label: "Checks' colours",
+      hint: "Pull requests' badges, the dots on commits, and a commit's or pull request's checks. Pick your own when one is too close to a branch's colour, or to tell them apart more easily.",
+      content: <CheckColorsPicker value={appearance.checkColors} theme={theme} onChange={(checkColors) => change({ checkColors })} />,
     },
     {
       kind: "custom",

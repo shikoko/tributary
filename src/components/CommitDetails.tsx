@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { commitDetails, type CommitDetails, type CommitRow, type CommitSignature, type FileChange, type Lock, type Person, type WebRemote } from "../api";
 import { useThemeColors } from "../app/useAppearance";
 import { laneColor } from "../lib/colors";
@@ -10,11 +10,13 @@ import { CheckIcon, CloseIcon, CopyIcon, KeyIcon } from "./Icons";
 import { describeSignature } from "../lib/signatures";
 import { CommitChecks } from "./CommitChecks";
 import { MentionedIssues } from "./MentionedIssues";
+import { PullRequestsContext } from "../lib/pullRequests";
+import { refPills } from "../lib/refs";
 import { MessageText } from "./MessageText";
 import { RefPills } from "./RefPills";
 import { FileLine, FolderLine } from "./FileLine";
 import { fileTreeRows } from "../lib/fileTree";
-import { useStoredState } from "../lib/settings";
+import { FilesLayoutSwitch, useFilesLayout } from "./FilesLayoutSwitch";
 import { FileFilter, FileList } from "./FileList";
 import { ActorNames, useActorNames } from "../lib/actorNames";
 import { FILTER_FROM, filterFiles } from "../lib/fileFilter";
@@ -101,9 +103,15 @@ export function CommitDetailsPanel(props: Props) {
   const setQuery = (value: string) => setFilter({ id: commit.id, query: value });
   // Unreal actors among the files, named as they are in the editor.
   const actors = useActorNames(repoPath, commit.id, null, details?.files);
+  // The open pull requests of the branches here, as their labels' badges show them.
+  const pullRequests = useContext(PullRequestsContext);
+  const openRequests = useMemo(() => {
+    const found = refPills(commit.refs).flatMap((pill) => (pill.kind === "branch" ? (pullRequests?.find(pill.name, pill.local, pill.remotes) ?? []) : []));
+    return [...new Map(found.map((pr) => [`${pr.remote}/${pr.number}`, pr])).values()];
+  }, [commit.refs, pullRequests]);
   const files = useMemo(() => filterFiles(highlightedFirst(details?.files ?? [], isHighlighted), query, actors), [details, isHighlighted, query, actors]);
   // The files as a list, or as a tree of their folders (remembered); a new commit starts with every folder open.
-  const [layout, setLayout] = useStoredState<FilesLayout>("files.layout", "list");
+  const [layout] = useFilesLayout();
   const [closedFolders, setClosedFolders] = useState({ id: commit.id, paths: new Set<string>() });
   const closed = closedFolders.id === commit.id ? closedFolders.paths : NONE_CLOSED;
   const toggleFolder = (path: string) => {
@@ -179,7 +187,7 @@ export function CommitDetailsPanel(props: Props) {
                 })}
               </div>
             )}
-            <MentionedIssues text={`${details?.summary ?? commit.summary}\n${details?.body ?? ""}\n${commit.refs.map((ref) => ref.name).join("\n")}`} />
+            <MentionedIssues text={`${details?.summary ?? commit.summary}\n${details?.body ?? ""}\n${commit.refs.map((ref) => ref.name).join("\n")}`} open={openRequests} />
           </section>
 
           {props.notify && <CommitChecks repoPath={repoPath} id={commit.id} notify={props.notify} />}
@@ -247,13 +255,7 @@ export function CommitDetailsPanel(props: Props) {
               {details && <span className="details-section-note">{details.files.length.toLocaleString()}</span>}
               {commit.parents.length > 1 && <span className="details-section-note">· compared to the first parent</span>}
               {details && details.files.length > 1 && (
-                <div className="diff-switch files-layout" role="group" aria-label="Show the files">
-                  {LAYOUTS.map((entry) => (
-                    <button key={entry.value} className={layout === entry.value ? "selected" : undefined} aria-pressed={layout === entry.value} onClick={() => setLayout(entry.value)} title={entry.title}>
-                      <span className="button-label">{entry.label}</span>
-                    </button>
-                  ))}
-                </div>
+                <FilesLayoutSwitch />
               )}
             </div>
             {current.error ? (
@@ -284,11 +286,6 @@ export function CommitDetailsPanel(props: Props) {
   );
 }
 
-type FilesLayout = "list" | "tree";
-const LAYOUTS: { value: FilesLayout; label: string; title: string }[] = [
-  { value: "list", label: "List", title: "Every file, with its folder beside it" },
-  { value: "tree", label: "Tree", title: "In their folders, one inside another" },
-];
 const NONE_CLOSED: ReadonlySet<string> = new Set();
 
 function PersonLine({ role, person, exact }: { role: string; person: Person; exact: boolean }) {

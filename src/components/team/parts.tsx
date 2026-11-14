@@ -41,8 +41,13 @@ export function Swatch({ color }: { color: string }) {
   return <span className="team-swatch" style={{ background: color }} />;
 }
 
+/** Beside your own name: a small tag, its word trimmed to its letters like a chip's. */
 export function YouTag() {
-  return <span className="team-you">you</span>;
+  return (
+    <span className="team-you">
+      <span className="chip-text">you</span>
+    </span>
+  );
 }
 
 /**

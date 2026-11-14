@@ -151,7 +151,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-8);
-  height: 32px;
+  /* Odd, for its words: see --cap-pixels. */
+  height: 33px;
   padding: 0 var(--space-12);
   border: none;
   border-radius: var(--radius-lg);

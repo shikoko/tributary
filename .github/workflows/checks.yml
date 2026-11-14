@@ -100,22 +100,19 @@ jobs:
   # The Rust side on each system people run Tributary on: git, paths and line endings
   # behave differently on each.
   rust:
-    name: Rust (${{ matrix.name }})
+    # Named by GitHub from its one matrix value: "Rust (Linux)" and so on. A name with the
+    # matrix in it showed as "Rust (${{ matrix.name }})" when the job was skipped, as GitHub
+    # doesn't expand the matrix of a job that doesn't run.
+    name: Rust
     needs: changes
     if: needs.changes.outputs.rust == 'true'
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ fromJSON('{"Linux":"ubuntu-24.04","macOS":"macos-latest","Windows":"windows-latest"}')[matrix.system] }}
     # Windows took 10 minutes at most; more without its cache.
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: Linux
-            os: ubuntu-24.04
-          - name: macOS
-            os: macos-latest
-          - name: Windows
-            os: windows-latest
+        system: [Linux, macOS, Windows]
     defaults:
       run:
         shell: bash
@@ -214,4 +211,90 @@ jobs:
         with:
           name: catalogue-changes
           path: catalogue-changes
+          if-no-files-found: ignore
+
+  # The same smoke test in WebKit, Safari's engine, which draws the Mac app's window: what it
+  # does differently from Chromium (styles, fonts, JavaScript) shows up here first.
+  webkit:
+    name: Smoke test (WebKit)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Playwright
+        timeout-minutes: 15
+        run: |
+          npm ci
+          npm install --no-save playwright@1.63.0 axe-core@4.14.0
+          for attempt in 1 2 3; do
+            npx playwright install webkit && exit 0
+            echo "::warning::Couldn't install WebKit (try $attempt of 3): trying again."
+            sleep $((attempt * 20))
+          done
+          exit 1
+
+      - name: Build the preview
+        run: npm run preview:build
+
+      - name: Smoke test
+        run: npm run preview:smoke -- --browser webkit
+
+  # The desktop app itself on Windows, not the preview: its Rust side, its permissions and
+  # its window (WebView2), driven through tauri-driver and WebDriver (tools/e2e).
+  desktop:
+    name: Desktop tests (Windows)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Kept with the cache's other programs, so it's built once.
+      - name: tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Edge WebDriver
+        run: .github/scripts/edge-driver.sh
+
+      - run: npm ci
+
+      - name: Desktop tests
+        run: npm run e2e
+
+      # A screenshot of the window for each step that failed.
+      - name: Keep the screenshots of what failed
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-test-failures
+          path: tools/e2e/output
           if-no-files-found: ignore

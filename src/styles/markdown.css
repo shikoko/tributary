@@ -202,7 +202,8 @@
 .markdown-field-tab {
   display: inline-flex;
   align-items: center;
-  height: 26px;
+  /* Odd, for words at --type-base: see --cap-pixels. */
+  height: 27px;
   padding: 0 var(--space-12);
   border: none;
   border-radius: var(--radius-md);

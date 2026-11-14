@@ -276,11 +276,11 @@
 }
 
 .graph-ci.success {
-  background: var(--success);
+  background: var(--check-success);
 }
 
 .graph-ci.failure {
-  background: var(--danger);
+  background: var(--check-failure);
 }
 
 .graph-ci.cancelled {
@@ -288,7 +288,7 @@
 }
 
 .graph-ci.pending {
-  background: var(--warning);
+  background: var(--check-pending);
   animation: request-pending 1.4s ease-in-out infinite;
 }
 
@@ -317,15 +317,15 @@
    their colour, ringed in its lane's ("ringed"); in its lane's colour, ringed in theirs
    ("halo"); or in their colour alone ("filled"). A selected commit's ring goes around it. */
 .graph-ci.success {
-  --ci: var(--success);
+  --ci: var(--check-success);
 }
 
 .graph-ci.failure {
-  --ci: var(--danger);
+  --ci: var(--check-failure);
 }
 
 .graph-ci.pending {
-  --ci: var(--warning);
+  --ci: var(--check-pending);
 }
 
 .graph-ci.cancelled {
@@ -380,13 +380,15 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-width: 18px;
-  height: 18px;
+  /* Odd, as the button is, with digits that are an odd number of pixels tall: see
+     --cap-pixels. */
+  min-width: 19px;
+  height: 19px;
   padding: 0 var(--space-6);
   border-radius: var(--radius-xl);
   background: var(--accent-fill);
   color: var(--on-accent-fill);
-  font-size: var(--type-xs);
+  font-size: var(--type-sm);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -397,6 +399,8 @@
   /* Trims the line box to the top of the digits and the baseline, so centring
      the box centres the digits themselves. */
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
 }
 
 .split-button {

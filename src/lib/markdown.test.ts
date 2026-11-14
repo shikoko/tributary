@@ -57,6 +57,9 @@ describe("parseMarkdown", () => {
     // Taking out the inner comment would leave "<!--" from what's around it.
     expect(withoutComments("a <!<!---->-- b")).not.toContain("<!--");
     expect(withoutComments("a <!<!-- x -->-- hidden --> b")).toBe("a  b");
+    // Browsers end a comment at "--!>" as well as "-->", and it can run over several lines.
+    expect(withoutComments("a <!-- x --!> b")).toBe("a  b");
+    expect(withoutComments("Notes\n<!-- for\nmaintainers -->\nShown")).toBe("Notes\n\nShown");
     // As on GitHub: a comment that's never closed hides everything after it.
     expect(withoutComments("Shown.\n<!-- never closed\nhidden")).toBe("Shown.\n");
     expect(parseMarkdown("Shown.\n<!-- never closed\nhidden")).toEqual([{ kind: "paragraph", content: [{ kind: "text", text: "Shown." }] }]);

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { accentRoles, ACCENTS, contrast, DEFAULT_APPEARANCE, FILL_CONTRAST, effectiveTheme, LANE_PALETTES, lanePalette, normalizeAppearance, parseHex, textOn } from "./appearance";
+// @ts-expect-error type error without @types/node package
+import { readFileSync } from "node:fs";
+import { accentRoles, ACCENTS, CHECK_DEFAULTS, checkRoles, contrast, DEFAULT_APPEARANCE, FILL_CONTRAST, effectiveTheme, LANE_PALETTES, lanePalette, normalizeAppearance, parseHex, textOn } from "./appearance";
 
 const rgb = (hex: string) => parseHex(hex)!;
 
@@ -16,6 +18,32 @@ describe("appearance", () => {
     expect(normalizeAppearance({ accent: "red", lanes: "neon" as never, diffColors: "purple" as never })).toEqual(DEFAULT_APPEARANCE);
     expect(normalizeAppearance({ ciDots: "halo" }).ciDots).toBe("halo");
     expect(normalizeAppearance({ ciDots: "sparkly" as never }).ciDots).toBe("ringed");
+  });
+
+  it("keeps your colours for checks, and the theme's for the rest", () => {
+    expect(normalizeAppearance({ checkColors: { pending: "#C0F", failure: "red" } }).checkColors).toEqual({ pending: "#cc00ff" });
+    expect(normalizeAppearance({ checkColors: "orange" as never }).checkColors).toEqual({});
+    expect(normalizeAppearance({ checkColors: { success: 7 as never, sparkly: "#ffffff" } as never }).checkColors).toEqual({});
+  });
+
+  it("makes the checks' CSS colours from yours, with text that reads on each", () => {
+    const roles = checkRoles({ pending: "#cc00ff", success: "#e8f0a0" });
+    expect(roles["--check-pending"]).toBe("#cc00ff");
+    expect(roles["--check-pending-rgb"]).toBe("204 0 255");
+    expect(roles["--on-check-pending"]).toBe(textOn("#cc00ff"));
+    expect(roles["--on-check-success"]).toBe("#0d0f13");
+    // The theme's (theme.css) where you chose none: the page's own are taken off.
+    expect(roles["--check-failure"]).toBeNull();
+    expect(roles["--on-check-failure"]).toBeNull();
+  });
+
+  it("shows the theme's colours for checks as theme.css has them", () => {
+    const css: string = readFileSync(new URL("../styles/theme.css", import.meta.url), "utf8");
+    const light = css.indexOf(':root[data-theme="light"]');
+    const value = (name: string, from: number) => new RegExp(`--${name}:\\s*(#[0-9a-f]{6});`, "i").exec(css.slice(from))![1].toLowerCase();
+    for (const [theme, from] of [["dark", 0], ["light", light]] as const) {
+      expect(CHECK_DEFAULTS[theme]).toEqual({ pending: value("warning", from), success: value("success", from), failure: value("danger", from) });
+    }
   });
 
   it("follows the system only when asked", () => {

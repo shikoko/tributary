@@ -17,7 +17,7 @@ Tributary is a [Tauri 2](https://tauri.app) app: a Rust backend reads the reposi
 - [Rust](https://rustup.rs) (stable)
 - **macOS:** Xcode Command Line Tools (`xcode-select --install`)
 - **Windows:** [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++". WebView2 comes with Windows 10 and 11.
-- **Linux** (experimental): WebKitGTK and the other packages listed for your distribution in Tauri's guide.
+- **Linux:** WebKitGTK and the other packages listed for your distribution in Tauri's guide (`.github/scripts/linux-libraries.sh` installs them on Ubuntu).
 
 The [Tauri prerequisites guide](https://tauri.app/start/prerequisites/) has more detail.
 
@@ -96,13 +96,13 @@ ESLint checks the interface's code, with React's rules of hooks:
 npm run lint
 ```
 
-A smoke test clicks through the main parts of the app in Chromium, on fresh demo repositories (it needs Playwright, see [tools/preview](../tools/preview/README.md)):
+A smoke test clicks through the main parts of the app in Chromium, on fresh demo repositories (it needs Playwright, see [tools/preview](../tools/preview/README.md)). `npm run preview:smoke -- --browser webkit` runs it in WebKit, Safari's engine, which draws the Mac app's window:
 
 ```bash
 npm run preview:smoke
 ```
 
-End-to-end tests drive the real desktop app (its backend, its permissions and its window, not the browser preview) through WebDriver, on fresh demo repositories with a temporary home folder, so your own settings aren't touched. They run on Linux and Windows (macOS has no WebDriver for the app's web view), and need [tauri-driver](https://v2.tauri.app/develop/tests/webdriver/) and the platform's WebDriver, once:
+End-to-end tests drive the real desktop app (its backend, its permissions and its window, not the browser preview) through WebDriver, on fresh demo repositories with a temporary home folder, so your own settings aren't touched. They run on Linux and Windows (macOS has no WebDriver for the app's web view); the checks run them on Windows. On your computer, they need [tauri-driver](https://v2.tauri.app/develop/tests/webdriver/) and the platform's WebDriver, once:
 
 ```bash
 cargo install tauri-driver --locked
@@ -114,7 +114,7 @@ On Debian and Ubuntu, also the WebKit WebDriver (and `xvfb-run` from the `xvfb` 
 sudo apt install webkit2gtk-driver xvfb
 ```
 
-On Windows, `msedgedriver.exe` matching your Edge's version, on the `PATH`. Then:
+On Windows, `msedgedriver.exe` matching the version of WebView2 (which is Edge's), on the `PATH`: `.github/scripts/edge-driver.sh` downloads it, as the checks do. Then:
 
 ```bash
 npm run e2e
@@ -122,7 +122,7 @@ npm run e2e
 
 That builds the app first; `npm run e2e -- --no-build` tests the one already built. When a step fails, a screenshot of the window goes into `tools/e2e/output/`.
 
-These desktop tests don't run on GitHub Actions, so run them before you build.
+The checks run them on Windows, and keep a screenshot of each step that failed as the run's `desktop-test-failures` artifact.
 
 ## Branches
 
@@ -133,7 +133,7 @@ Merge every pull request with **Create a merge commit**, never squash or rebase.
 
 Before merging a pull request into `develop`, rebase its branch onto the latest `develop` and push it (with `--force-with-lease`). The branch then starts from the tip of `develop`, and the history shows each change as a short loop that joins straight back in. If its checks had passed and the rebase had no conflicts, merge it straight away: there's no need to wait for them to run again, since each merge into `develop` is checked again as merged (see below). Pull requests from `develop` into `main` aren't rebased.
 
-Every pull request into `develop` or `main` runs the **Checks** workflow (`.github/workflows/checks.yml`): types, lint and unit tests; Rust formatting, clippy and tests on Linux, macOS and Windows; and the smoke test. Its first job, **What changed**, checks that every workflow's shell scripts read as bash (`.github/scripts/check-workflows.py`: a script is otherwise only read when its step runs, some only on a release), and decides what runs. A pull request that only changes documentation (Markdown, `docs/`, the issue forms, the licence) skips all of them. One that changes nothing on the Rust side (`src-tauri/`, the types made from it in `src/api/generated.ts`, `package.json`, the workflow and its scripts) skips the Rust jobs, which take longest (Windows about 15 minutes); the smoke test still builds the Rust side on Linux. Each merge into `develop` runs the checks again as merged, with the same choices. Each merge has its own run, which the next merge doesn't cancel: otherwise a documentation-only merge straight after a code one would cancel the code's run, then skip everything itself. The Linux jobs install their system libraries with `.github/scripts/linux-libraries.sh`, which tries again with mirrors outside ubuntu.com (kernel.org's) when Ubuntu's can't be reached. A pull request into `main` also checks that it's ready to release (see below). A ruleset on `develop` and `main` makes the checks required, so a pull request merges only once they pass. Every job in the workflows has a time limit of about twice its longest run (30 minutes for the Rust checks, 45 for building the installers, which can take twice as long without their cache), so one that hangs stops and frees its runner, instead of holding it, and the queue behind it, for GitHub's six hours.
+Every pull request into `develop` or `main` runs the **Checks** workflow (`.github/workflows/checks.yml`): types, lint and unit tests; Rust formatting, clippy and tests on Linux, macOS and Windows; the smoke test, in Chromium on Linux and in WebKit on a Mac; and the desktop end-to-end tests on Windows. They run on GitHub's standard runners, which are free for public repositories. Its first job, **What changed**, checks that every workflow's shell scripts read as bash (`.github/scripts/check-workflows.py`: a script is otherwise only read when its step runs, some only on a release), and decides what runs. A pull request that only changes documentation (Markdown, `docs/`, the issue forms, the licence) skips all of them. One that changes nothing on the Rust side (`src-tauri/`, the types made from it in `src/api/generated.ts`, `package.json`, the workflow and its scripts) skips the Rust jobs, which take longest (Windows about 15 minutes); the smoke test still builds the Rust side on Linux. Each merge into `develop` runs the checks again as merged, with the same choices. Each merge has its own run, which the next merge doesn't cancel: otherwise a documentation-only merge straight after a code one would cancel the code's run, then skip everything itself. The Linux jobs install their system libraries with `.github/scripts/linux-libraries.sh`, which tries again with mirrors outside ubuntu.com (kernel.org's) when Ubuntu's can't be reached. A pull request into `main` also checks that it's ready to release (see below). A ruleset on `develop` and `main` makes the checks required, so a pull request merges only once they pass. Every job in the workflows has a time limit of about twice its longest run (30 minutes for the Rust checks, 45 for building the installers, which can take twice as long without their cache), so one that hangs stops and frees its runner, instead of holding it, and the queue behind it, for GitHub's six hours.
 
 ## Release
 
@@ -141,6 +141,7 @@ The **Build** workflow (`.github/workflows/build.yml`) makes the installers:
 
 - **macOS:** `.dmg` with a universal app (Apple Silicon and Intel)
 - **Windows:** `-setup.exe`, Tributary's own setup, which the automatic updates run too
+- **Linux:** `.AppImage`, built on Ubuntu 22.04 (an AppImage runs where the C library is as new as the one it was built with, or newer), which the automatic updates replace. A copy of Tributary built from source isn't offered updates (`src-tauri/src/updates.rs`).
 
 Every merge into `develop` (but one of only documentation) is a **beta**: the installers are signed for updates and published as a GitHub pre-release, like `v0.3.0-beta.4`, with what was merged since the beta before. GitHub's latest release skips pre-releases, so only the copies of Tributary that get betas are offered it (**About Tributary → Get beta versions**): they read `latest.json` from the release tagged `beta`, the beta channel, which each new beta and each new release points at itself if it's newer than what it offered (`.github/scripts/beta-channel.sh`). The newest five betas are kept. To try a branch before it's merged, start a build by hand: **Actions → Build → Run workflow**, and choose the branch, then download the installers from the run's **Artifacts**. These aren't signed for updates, so they install by hand but aren't offered as an update.
 
@@ -161,8 +162,8 @@ A merge into `main` makes a release. To make one:
 1. In a pull request into `develop` as usual, write the release's notes in `docs/release-notes/v<version>.md` (like `v0.5.0.md`): the latest beta shows the version, like `0.3.0-beta.3` for 0.3.0. They become the release page's notes, What's New shows them in the app after the update, and the update window shows them up to the `<!-- release page only -->` comment (put install steps and the like after it).
    - **Every item under New needs a picture of it working:** a short recording made with `npm run preview:clips -- v<version>` from the scenes in `tools/preview/clips/v<version>.mjs` (see `tools/preview/README.md`), on its own indented line under the item, as `![what it shows](v<version>/<name>.webp)`. What's New shows it beside the item, and the release page under it; the update window leaves it out. The tests fail without one, or if one is over 400 KB.
 2. Open a pull request from `develop` into `main`, with the release checklist (`.github/release-checklist.md`) as its description. Its **Ready to release** check says which version merging it releases, and fails if that version's notes aren't there. It also lists the boxes on the checklist that aren't ticked, as warnings: they're reminders, and don't stop the release. It runs again whenever the description is edited.
-   - Whoever prepares the release ticks what they've checked: the version, the notes, the recordings, What's New in both themes, the update notes and release page, and develop's latest beta build.
-   - The maintainer's items need real computers: the latest beta on Windows and on macOS, at the display scales they use, and the desktop end-to-end tests (`npm run e2e`).
+   - Whoever prepares the release ticks what they've checked: the version, develop's latest checks (the smoke test in WebKit and the desktop end-to-end tests on Windows among them), the notes, the recordings, What's New in both themes, the update notes and release page, and develop's latest beta build.
+   - The maintainer's items need real computers: the latest beta on Windows and on macOS, at the display scales they use.
    - Tick a box only once it's done, with a line under it saying how when that isn't obvious.
 3. Merge it with **Create a merge commit**. The merge starts the Build workflow on `main`, which signs the installers with the key in the protected `release` environment (if the environment asks for approval, open the run, choose **Review deployments**, tick **release** and approve).
 4. When it finishes, the release is published on its own: it's made as a draft with the installers attached, given its `latest.json`, then published, so nobody is offered it before it can be installed. From then on, Tributary offers the update to everyone running an older version, and to the copies that get betas. Publishing tags the release, and the next version counts from there.
@@ -230,7 +231,7 @@ npm run notices
 | `src/components/ui/` | The parts the interface is built from: `Button`, `Switch`, `Field` and `Chip` |
 | `src/catalogue/` | The catalogue page (`?catalogue`): the building blocks together, dark and light |
 | `src/lib/` | Logic without an interface (search, selection, undo, paths, diagnostics, …), with its tests |
-| `src/styles/` | The styles, an area per file, applied in the order `src/styles.css` lists them. `theme.css` holds the colours and themes, and the scales for text (`--type-xs` to `--type-4xl`), corners (`--radius-xs` to `--radius-pill`) and space (`--space-2` to `--space-96`): sizes, corners, padding, margins and gaps use those steps, never their own pixels, which a test checks (`src/lib/styles.test.ts`). An offset that lines something up with something else can stay in pixels, with its reason in a comment beside it. Colours come from `theme.css` too; one that's the same in every theme on purpose has its reason beside it, which the same test checks. Keyboard focus shows the same ring everywhere (`--focus-ring`), which `src/lib/focus.test.ts` checks. Words on controls are trimmed to their capitals (`.button-label`, which `Button` and `labelled()` in `ui/Button.tsx` add), so they sit in the middle; the smoke test checks every control on its screens, at 100% to 200% (`tools/preview/aligned.mjs`) |
+| `src/styles/` | The styles, an area per file, applied in the order `src/styles.css` lists them. `theme.css` holds the colours and themes, and the scales for text (`--type-xs` to `--type-4xl`), corners (`--radius-xs` to `--radius-pill`) and space (`--space-2` to `--space-96`): sizes, corners, padding, margins and gaps use those steps, never their own pixels, which a test checks (`src/lib/styles.test.ts`). An offset that lines something up with something else can stay in pixels, with its reason in a comment beside it. Colours come from `theme.css` too; one that's the same in every theme on purpose has its reason beside it, which the same test checks. Keyboard focus shows the same ring everywhere (`--focus-ring`), which `src/lib/focus.test.ts` checks. Words on controls are trimmed to their capitals (`.button-label`, which `Button` and `labelled()` in `ui/Button.tsx` add), so they sit in the middle; the smoke test checks every control on its screens, at 100% to 200% (`tools/preview/aligned.mjs`). Browsers draw letters on whole screen pixels, so the words' box is their capitals' height in whole pixels (`--cap-pixels`), and a control with words at `--type-sm` or `--type-base` is an odd number of pixels tall, at `--type-xs` an even number; the smoke test and the desktop tests on Windows check that in a screenshot at 100% (`tools/e2e/centred.mjs`) |
 | `tools/preview/` | The browser preview, demo repositories and the smoke test |
 | `tools/e2e/` | End-to-end tests of the desktop app, through tauri-driver and WebDriver |
 | `tools/icons/` | Draws the app icon, light and dark, and renders it at every size |

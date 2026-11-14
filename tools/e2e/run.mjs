@@ -1,7 +1,7 @@
 // End-to-end tests of the real desktop app (not the browser preview): the Tauri backend,
 // its permissions, and the window. They drive the app through tauri-driver and the
 // platform's WebDriver, so they run on Linux and Windows (macOS has no WebDriver for its
-// web views). Run them on your computer, not on GitHub Actions:
+// web views). The checks run them on Windows; on your computer:
 //
 //   npm run e2e               build the app, then test it
 //   npm run e2e -- --no-build test the app already built
@@ -10,7 +10,8 @@
 //   cargo install tauri-driver --locked
 //   Linux:   the WebKit WebDriver (Debian and Ubuntu: sudo apt install webkit2gtk-driver),
 //            and xvfb-run to test without a screen (it's used when there's no $DISPLAY)
-//   Windows: msedgedriver.exe matching your Edge's version, on the PATH
+//   Windows: msedgedriver.exe matching WebView2's version (Edge's), on the PATH
+//            (.github/scripts/edge-driver.sh downloads it)
 //
 // The app runs with its own temporary home folder and git settings: your real settings,
 // repositories and Tributary's own data aren't touched. It's built with an identifier of its
@@ -23,6 +24,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CONTROLS, describeOffCentre, EXCEPT, moving, offCentre, probe, restore } from "./centred.mjs";
 import { startSession } from "./webdriver.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -59,13 +61,27 @@ if (missing) {
 const IDENTIFIER = "io.github.shikoko.tributary.e2e";
 const target = join(root, "src-tauri", "target", "e2e");
 const binary = join(target, "debug", windows ? "tributary.exe" : "tributary");
+// On Windows, msedgedriver asks WebView2 for a debugging port to drive it through, in
+// WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS. WebView2 takes the arguments the app's window gives
+// instead, though, and the window always gives some (Tauri's, from wry). So the window of
+// this build asks for a port itself: a free one, which WebView2 writes down in the data
+// folder msedgedriver gives it (WEBVIEW2_USER_DATA_FOLDER, which it does follow). The rest
+// are wry's own. Other systems ignore them.
+const WEBVIEW2_ARGUMENTS = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port=0";
+// Its own identifier, and its windows' arguments: the config's windows are replaced whole,
+// so they're the app's own with the arguments added.
+function testConfig() {
+  const config = JSON.parse(readFileSync(join(root, "src-tauri", "tauri.conf.json"), "utf8"));
+  const windows = config.app.windows.map((window) => ({ ...window, additionalBrowserArgs: WEBVIEW2_ARGUMENTS }));
+  return JSON.stringify({ identifier: IDENTIFIER, app: { windows } });
+}
 if (!process.argv.includes("--no-build")) {
   console.log("Building the app…");
   execFileSync("npm", ["run", "build"], { cwd: root, stdio: "inherit", shell: windows });
   execFileSync("cargo", ["build", "--manifest-path", "src-tauri/Cargo.toml", "--features", "tauri/custom-protocol", "--target-dir", target], {
     cwd: root,
     stdio: "inherit",
-    env: { ...process.env, TAURI_CONFIG: JSON.stringify({ identifier: IDENTIFIER }) },
+    env: { ...process.env, TAURI_CONFIG: testConfig() },
   });
 }
 if (!existsSync(binary)) {
@@ -197,6 +213,52 @@ try {
     await app.waitFor(".tour-card", { text: "2 of" });
     await app.click(".tour-card button", "Skip tour");
     await app.waitFor(".commit-row", { text: "Add a tavern chair" });
+  });
+
+  await step("has the words on its controls in their middle, in the window's own pixels", async () => {
+    // As the window draws them, letters on whole screen pixels (centred.mjs): each screen's
+    // controls, their words swapped for H's for a screenshot.
+    const found = [];
+    const look = async (where) => {
+      for (const until = Date.now() + 3000; Date.now() < until && (await app.execute(`return (${moving})();`)) > 0; ) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      const measured = await app.execute(`return (${probe})(arguments[0], arguments[1]);`, [CONTROLS, EXCEPT]);
+      let shot;
+      try {
+        shot = await app.screenshot();
+      } finally {
+        await app.execute(`(${restore})();`);
+      }
+      found.push(...describeOffCentre(offCentre(shot, measured)).map((line) => `${where}: ${line}`));
+    };
+    // From where the focus is, as a key pressed there: a dialog closes on Escape from inside it.
+    const press = (key, ctrlKey = false) =>
+      app.execute(`(document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent("keydown", { key: arguments[0], ctrlKey: arguments[1], bubbles: true }));`, [key, ctrlKey]);
+    const gone = async (css) => {
+      for (const until = Date.now() + 5000; await app.execute(`return Boolean(document.querySelector(arguments[0]));`, [css]); ) {
+        if (Date.now() > until) throw new Error(`${css} didn't close`);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    };
+    await look("the repository");
+    await app.click(".commit-row", "Add a tavern chair");
+    await app.waitFor(".details .file");
+    await look("a commit");
+    await app.click(".commit-row .summary.wip");
+    await app.waitFor("aside.details", { text: "Staged" });
+    await look("your changes");
+    await app.click('button[aria-label="View options"]');
+    await app.waitFor(".view-panel");
+    await look("the View panel");
+    await press("Escape");
+    await gone(".view-panel");
+    await press(",", true);
+    await app.waitFor(".dialog .settings-nav");
+    await look("Settings");
+    await press("Escape");
+    await gone(".dialog .settings-nav");
+    if (found.length > 0) throw new Error(`${found.length} off the middle:\n${found.join("\n")}`);
   });
 
   await step("commits, and undoes it from Your actions", async () => {

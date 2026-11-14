@@ -120,7 +120,8 @@
 }
 
 .secondary-button.small {
-  height: 26px;
+  /* Odd, for its words: see --cap-pixels. */
+  height: 27px;
   padding: 0 var(--space-10);
   font-weight: 500;
 }
@@ -151,7 +152,8 @@
 }
 
 .operation-buttons button {
-  height: 28px;
+  /* Odd, for its words: see --cap-pixels. */
+  height: 29px;
 }
 
 .view-banner {
@@ -194,14 +196,21 @@
   color: var(--notice);
 }
 
-.notice-banner span {
+/* Its words, which take the room the buttons leave. */
+.notice-banner > span {
   flex: 1;
   min-width: 0;
 }
 
+/* Its words are trimmed to their capitals (.button-label), in the middle of its height. */
 .notice-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
-  padding: var(--space-4) var(--space-10);
+  /* Odd, for its words: see --cap-pixels. */
+  height: 29px;
+  padding: 0 var(--space-10);
   border: 1px solid rgb(var(--notice-rgb) / 0.5);
   border-radius: var(--radius-md);
   background: rgb(var(--notice-rgb) / 0.14);

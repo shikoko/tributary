@@ -1,12 +1,15 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { ACCENTS, CURVE_STYLES, DEFAULT_APPEARANCE, LANE_PALETTES, type Appearance, type CurveStyle, type LanePaletteName, type Theme, type ThemeChoice } from "../lib/appearance";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { ACCENTS, CI_DOTS, CURVE_STYLES, DEFAULT_APPEARANCE, LANE_PALETTES, type Appearance, type CiDots, type CurveStyle, type LanePaletteName, type Theme, type ThemeChoice } from "../lib/appearance";
 import type { ColumnOptions } from "./CommitList";
 import { CheckIcon, GearIcon } from "./Icons";
 import { Switch } from "./ui/Switch";
 
 interface Props {
-  /** The button it opens from: it opens under it, lined up with it (and a click on it closes it). */
-  anchor: HTMLElement;
+  /**
+   * The View button: it opens under it, lined up with it, whether from a click on it or the
+   * keyboard (and a click on it closes it).
+   */
+  anchor: RefObject<HTMLElement | null>;
   theme: Theme;
   appearance: Partial<Appearance>;
   setAppearance: (value: Partial<Appearance>) => void;
@@ -30,6 +33,9 @@ const THEMES: { value: ThemeChoice; label: string }[] = [
 
 const BENDS: Record<CurveStyle, string> = { mixed: "Mixed", round: "Round", smooth: "Smooth", tight: "Tight", sweep: "Sweep" };
 
+/** How a dot on the graph shows its checks (Settings → Appearance shows each). */
+const CI_DOT_NAMES: Record<CiDots, string> = { beside: "Beside", ringed: "Ringed", halo: "Halo", filled: "Filled" };
+
 /** One of a few choices, as a row of buttons. */
 function Segmented<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (value: T) => void }) {
   return (
@@ -44,9 +50,10 @@ function Segmented<T extends string>({ label, value, options, onChange }: { labe
 }
 
 /**
- * How the window looks, from the toolbar: the things you change most (the theme and accent,
- * how the graph draws, which columns and how tall the rows are), each a click away and seen
- * straight away. The rest is in Settings → Appearance.
+ * How the window looks, from the View button at the end of the column headings, the View
+ * menu or the keyboard (⇧⌘O, Ctrl+Shift+O): the things you change most (the theme and
+ * accent, how the graph draws, which columns and how tall the rows are), each a click away
+ * and seen straight away. The rest is in Settings → Appearance.
  */
 export function ViewPanel(props: Props) {
   const { appearance, setAppearance } = props;
@@ -56,25 +63,30 @@ export function ViewPanel(props: Props) {
   const [place, setPlace] = useState<CSSProperties>({ visibility: "hidden" });
   // Under the button, inside the window: from a button in the window's right half, its right edge
   // on the button's; from one in the left half, its left edge on the button's.
+  const { onClose, anchor } = props;
   useLayoutEffect(() => {
     const width = panel.current?.offsetWidth ?? 340;
-    const button = props.anchor.getBoundingClientRect();
+    // Without its button (the commit list isn't showing), there's nothing to open under.
+    if (!anchor.current) return onClose();
+    const button = anchor.current.getBoundingClientRect();
     const wanted = button.left + button.width / 2 > window.innerWidth / 2 ? button.right - width : button.left;
     const left = Math.max(8, Math.min(wanted, window.innerWidth - width - 8));
     setPlace({ left, top: button.bottom + 6 });
-  }, [props.anchor]);
-  // The focus goes into it, and back to where it was (the View button) when it closes.
+  }, [anchor, onClose]);
+  // The focus goes into it, and back to where it was when it closes: the View button, or
+  // what had it when the shortcut opened it. On a Mac a click doesn't give a button the focus,
+  // so after one there's nothing to go back to but the page: then it's the View button too.
   useEffect(() => {
-    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const active = document.activeElement;
+    const before = active instanceof HTMLElement && active !== document.body ? active : anchor.current;
     panel.current?.querySelector<HTMLElement>("button")?.focus();
     return () => before?.focus();
-  }, []);
+  }, [anchor]);
   // A click outside, or Esc, closes it. (A click on its button closes it too, as the button's own.)
-  const { onClose, anchor } = props;
   useEffect(() => {
     const onDown = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (!panel.current?.contains(target) && !anchor.contains(target)) onClose();
+      if (!panel.current?.contains(target) && !anchor.current?.contains(target)) onClose();
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -134,6 +146,10 @@ export function ViewPanel(props: Props) {
             ]}
             onChange={(nodes) => change({ nodes })}
           />
+        </div>
+        <div className="view-row">
+          <span>Checks</span>
+          <Segmented label="Checks on dots" value={look.ciDots} options={CI_DOTS.map((value) => ({ value, label: CI_DOT_NAMES[value] }))} onChange={(ciDots) => change({ ciDots })} />
         </div>
         <div className="view-row">
           <span>Lines bend</span>

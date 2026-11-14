@@ -41,17 +41,17 @@ export function LfsHealthBanner({ health, busy, onDownload, onSetUp, onGetLfs, o
       <span>{text}</span>
       {fix === "install" && (
         <button className="notice-action" onClick={onGetLfs}>
-          Get Git LFS
+          <span className="button-label">Get Git LFS</span>
         </button>
       )}
       {fix === "setUp" && (
         <button className="notice-action" onClick={onSetUp} disabled={busy} title="Runs git lfs install (once for this computer), then downloads the files">
-          Set up Git LFS
+          <span className="button-label">Set up Git LFS</span>
         </button>
       )}
       {fix === "download" && (
         <button className="notice-action" onClick={onDownload} disabled={busy} title="git lfs pull">
-          Download them
+          <span className="button-label">Download them</span>
         </button>
       )}
       <Button kind="icon" onClick={onDismiss} aria-label="Dismiss" title="Dismiss">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { RepoSnapshot } from "../api";
 import type { Tab } from "../components/TabBar";
+import { moved } from "../lib/order";
 import type { LoadMode } from "./useRepository";
 
 interface Options {
@@ -90,5 +91,21 @@ export function useTabs({ tabs, setTabs, snapshot, load, close, rememberPlace }:
     switchTab(tabs[(index + (backwards ? tabs.length - 1 : 1)) % tabs.length].path);
   };
 
-  return { startTab: startTab !== null, switchTab, closeTab, closeOthers, newTab, closeStartTab, closeCurrent, cycle };
+  /** A tab put at another place, dragged there. */
+  const moveTab = useCallback(
+    (path: string, to: number) => {
+      const from = tabs.findIndex((tab) => tab.path === path);
+      if (from < 0 || to === from || to < 0 || to >= tabs.length) return;
+      setTabs(moved(tabs, from, to));
+    },
+    [tabs, setTabs],
+  );
+
+  /** Ctrl+Shift+Page Up and Page Down, or the tab's menu: a tab one place left or right. */
+  const nudgeTab = (path: string, step: -1 | 1) => {
+    const from = tabs.findIndex((tab) => tab.path === path);
+    if (from >= 0) moveTab(path, from + step);
+  };
+
+  return { startTab: startTab !== null, switchTab, closeTab, closeOthers, newTab, closeStartTab, closeCurrent, cycle, moveTab, nudgeTab };
 }

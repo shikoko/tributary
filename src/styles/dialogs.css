@@ -156,7 +156,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-6);
-  height: 32px;
+  /* Odd, for words at --type-base: see --cap-pixels. */
+  height: 33px;
   padding: 0 var(--space-14);
   border-radius: var(--radius-md);
   font-weight: 600;
@@ -190,7 +191,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-6);
-  height: 28px;
+  /* Odd, as .outline-button is: see --cap-pixels. */
+  height: 29px;
   padding: 0 var(--space-10);
   border: 1px solid rgb(var(--danger-rgb) / 0.45);
   background: transparent;
@@ -205,11 +207,13 @@
 /* A button's text, trimmed to its capital letters, so it sits in the middle of the button,
    and an icon next to it lines up with the letters, rather than with the font's line box
    (which has more room below the letters than above, and differs from font to font). It
-   isn't moved from there: lifting it a little, so words of mostly small letters look
+   isn't lifted from there: lifting it a little, so words of mostly small letters look
    centred, became a whole screen pixel or none depending on the text's size and the
    display's scale, and every time it was a pixel, the words looked high ("Show" at 100%,
-   the menu bar's names at 150%). It stays on one line and ends in "…" when it doesn't fit.
-   Clipped sideways only: letters like "p" reach below the trimmed box. */
+   the menu bar's names at 150%). Its box is as tall as its capitals in whole screen pixels,
+   with them at its bottom, so they're drawn in the middle (see --cap-pixels). It stays on
+   one line and ends in "…" when it doesn't fit. Clipped sideways only: letters like "p"
+   reach below the trimmed box. */
 .button-label {
   min-width: 0;
   overflow-x: clip;
@@ -217,6 +221,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
 }
 
 /* A chip's text (a branch name, a state), trimmed like a button's so it sits in the middle
@@ -228,6 +234,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
 }
 
 /* Windows places a chip's letters a little higher than the other systems do: by less than a
@@ -237,7 +245,8 @@
    A fixed ⅔px (one screen pixel at 150%) was too much at 100%: it moved letters that were
    in the middle a whole pixel down (the pull request number, 4 pixels above and 2 below). */
 :root.windows .chip-text {
-  translate: 0 calc(var(--device-pixel, 1px) / 5);
+  position: relative;
+  top: calc(var(--device-pixel, 1px) / 5);
 }
 
 .details-actions .outline-button,
@@ -301,7 +310,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-6);
-  height: 32px;
+  /* As tall as .secondary-button, beside it. */
+  height: 33px;
   padding: 0 var(--space-14);
   border: none;
   border-radius: var(--radius-md);

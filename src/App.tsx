@@ -97,6 +97,10 @@ export default function App() {
   /** The team activity view, over the commit list. */
   const [teamOpen, setTeamOpen] = useState(false);
   const closeTeam = useCallback(() => setTeamOpen(false), []);
+  /** The View panel: how the window looks, under the View button at the end of the column headings. */
+  const [viewOpen, setViewOpen] = useState(false);
+  const closeView = useCallback(() => setViewOpen(false), []);
+  const toggleView = useCallback(() => setViewOpen((open) => !open), []);
   /** A pull request shown over the commit list. */
   const [shownRequest, setShownRequest] = useState<PullRequest | null>(null);
   const closeRequest = useCallback(() => setShownRequest(null), []);
@@ -150,6 +154,7 @@ export default function App() {
       tabMenuItems({
         path,
         count: tabs.length,
+        index: tabs.findIndex((tab) => tab.path === path),
         settings: () => {
           setSettingsFor(path);
           tabbing.switchTab(path);
@@ -157,6 +162,8 @@ export default function App() {
         reveal: () => revealItemInDir(path).catch((e) => repo.setError({ message: String(e) })),
         close: () => tabbing.closeTab(path),
         closeOthers: () => tabbing.closeOthers(path),
+        moveLeft: () => tabbing.nudgeTab(path, -1),
+        moveRight: () => tabbing.nudgeTab(path, 1),
       }),
     );
   const search = useSearch(snapshot?.commits, selection.select, selection.selectedIndex, snapshot?.path ?? null);
@@ -357,6 +364,7 @@ export default function App() {
       showAllBranches: settings.showAllBranches,
       highlightMine: highlight.highlightMine,
       team: () => setTeamOpen((open) => !open),
+      viewOptions: toggleView,
       resetLayout: () => {
         preferences.setColumnWidths({ refs: null, graph: null });
         preferences.setColumnOptions(DEFAULT_COLUMNS);
@@ -389,11 +397,13 @@ export default function App() {
     closeTab: tabbing.closeCurrent,
     showTab: (index) => tabs[index] && tabbing.switchTab(tabs[index].path),
     cycleTab: tabbing.cycle,
+    moveTab: (step) => snapshot && tabbing.nudgeTab(snapshot.path, step),
     refresh: repo.refresh,
     focusSearch: search.focus,
     toggleSidebar: () => preferences.setSidebarOpen((open) => !open),
     toggleActivity: () => preferences.setActivityOpen((open) => !open),
     toggleTeam: () => setTeamOpen((open) => !open),
+    toggleView: () => snapshot && toggleView(),
     zoom: zoomBy,
     showShortcuts: () => overlays.show("shortcuts"),
     openMenuBar: menuBar.openFirst,
@@ -448,6 +458,7 @@ export default function App() {
               startTab={!snapshot && tabbing.startTab}
               onSelect={tabbing.switchTab}
               onClose={tabbing.closeTab}
+              onMove={tabbing.moveTab}
               onCloseStart={tabbing.closeStartTab}
               onNew={tabbing.newTab}
               onContextMenu={tabMenu}
@@ -466,7 +477,7 @@ export default function App() {
                     }
                   >
                     <DownloadIcon size={13} />
-                    {updates.waiting ? "Restarting…" : updates.ready ? "Restart to update" : "Update"}
+                    <span className="button-label">{updates.waiting ? "Restarting…" : updates.ready ? "Restart to update" : "Update"}</span>
                   </button>
                 )
               }
@@ -509,6 +520,9 @@ export default function App() {
               teamOpen={teamOpen}
               onCloseTeam={closeTeam}
               onToggleTeam={() => setTeamOpen((open) => !open)}
+              viewOpen={viewOpen}
+              onToggleView={toggleView}
+              onCloseView={closeView}
               request={shownRequest}
               onShowRequest={showRequest}
               onCloseRequest={closeRequest}

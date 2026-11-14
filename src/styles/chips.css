@@ -1,6 +1,7 @@
 /* Chips: small labels for a state (Open, Approved, Beta, 3 changes…) or a name (a branch).
    Their sizes and shapes are all here; each one's colours are with its area.
-   - Two heights: small (20px) beside text and in lists, medium (24px) on their own.
+   - Two heights: small (20px) beside text and in lists, medium (25px) on their own: even
+     for words at --type-xs and odd at --type-sm, so they're in the middle (see --cap-pixels).
    - States are pills, their words in bold; names are tags (rounded rectangles) in the code
      font, as GitHub shows them.
    - The text is trimmed to its letters (<Chip>, or `chip-text`), so it sits in the middle
@@ -38,7 +39,7 @@
 .name-chip,
 .head-chip {
   gap: var(--space-6);
-  height: 24px;
+  height: 25px;
   padding: 0 var(--space-10);
   font-size: var(--type-sm);
 }

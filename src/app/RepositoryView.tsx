@@ -102,6 +102,10 @@ interface Props {
   teamOpen: boolean;
   onCloseTeam: () => void;
   onToggleTeam: () => void;
+  /** The View panel (from the View button, the View menu or the keyboard). */
+  viewOpen: boolean;
+  onToggleView: () => void;
+  onCloseView: () => void;
   /** A pull request shown over the commit list. */
   request: PullRequest | null;
   onShowRequest: (pr: PullRequest) => void;
@@ -240,8 +244,8 @@ export function RepositoryView(props: Props) {
   const notLoaded = () => props.notify({ text: "That commit isn't loaded: load more commits, or fetch" });
   /** The status bar's "changed elsewhere": the branches, and your files on each. */
   const [elsewhereAt, setElsewhereAt] = useState<HTMLElement | null>(null);
-  // The View panel, open under the toolbar's View button (where it is), or not.
-  const [viewAt, setViewAt] = useState<HTMLElement | null>(null);
+  // The View button at the end of the column headings, which the View panel opens under.
+  const viewButton = useRef<HTMLButtonElement>(null);
   const { theme } = useContext(ThemeContext);
   // The branch or tag label the pointer is on: its lanes light up in the graph.
   const [laneLabel, hoverLane] = useLaneHover();
@@ -427,7 +431,8 @@ export function RepositoryView(props: Props) {
           <div className="center-pane" data-tour="graph">
             <CommitList
               key={snapshot.path}
-              onViewMenu={(anchor) => setViewAt((open) => (open ? null : anchor))}
+              viewButton={viewButton}
+              onViewMenu={props.onToggleView}
               snapshot={snapshot}
               selectedId={selection.selectedId}
               selectedIds={selectedIds}
@@ -552,9 +557,9 @@ export function RepositoryView(props: Props) {
           section={props.dialog.section}
         />
       )}
-      {viewAt && (
+      {props.viewOpen && (
         <ViewPanel
-          anchor={viewAt}
+          anchor={viewButton}
           theme={theme}
           appearance={preferences.appearance}
           setAppearance={preferences.setAppearance}
@@ -567,7 +572,7 @@ export function RepositoryView(props: Props) {
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
           onSettings={() => props.openSettings("Appearance")}
-          onClose={() => setViewAt(null)}
+          onClose={props.onCloseView}
         />
       )}
       {elsewhereAt && props.overlaps.length > 0 && (

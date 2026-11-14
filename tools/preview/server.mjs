@@ -60,13 +60,15 @@ export async function startPreview({ port = 4173, host = "127.0.0.1", headless =
 
   // The headless app takes one request per line and answers with one line per reply or event.
   const app = spawn(headless, [], { stdio: ["pipe", "pipe", "inherit"], env: { ...process.env, ...env } });
+  // Each request's answer, as the backend gave it: { ok } or { err }. Its error messages are
+  // what the page shows (as the app does), so they come back as data, never as exceptions.
   const waiting = new Map();
   const listeners = new Set();
   let nextId = 1;
   let exited = false;
   app.on("exit", (code) => {
     exited = true;
-    for (const { reject } of waiting.values()) reject(`The headless app stopped (${code}).`);
+    for (const resolve of waiting.values()) resolve({ err: `The headless app stopped (${code}).` });
     waiting.clear();
   });
   createInterface({ input: app.stdout }).on("line", (line) => {
@@ -83,14 +85,13 @@ export async function startPreview({ port = 4173, host = "127.0.0.1", headless =
     const request = waiting.get(message.id);
     if (!request) return;
     waiting.delete(message.id);
-    if ("err" in message) request.reject(message.err);
-    else request.resolve(message.ok);
+    request("err" in message ? { err: message.err } : { ok: message.ok ?? null });
   });
   const call = (command, args) =>
-    new Promise((resolve, reject) => {
-      if (exited) return reject("The headless app isn't running.");
+    new Promise((resolve) => {
+      if (exited) return resolve({ err: "The headless app isn't running." });
       const id = nextId++;
-      waiting.set(id, { resolve, reject });
+      waiting.set(id, resolve);
       app.stdin.write(`${JSON.stringify({ id, command, args })}\n`);
     });
 
@@ -116,12 +117,17 @@ export async function startPreview({ port = 4173, host = "127.0.0.1", headless =
     if (url.pathname === "/__preview/invoke" && request.method === "POST") {
       let body = "";
       for await (const chunk of request) body += chunk;
-      const { command, args } = JSON.parse(body || "{}");
+      let answer;
       try {
-        reply(200, "application/json", JSON.stringify({ ok: (await call(command, args ?? {})) ?? null }));
+        const { command, args } = JSON.parse(body || "{}");
+        answer = await call(command, args ?? {});
       } catch (error) {
-        reply(200, "application/json", JSON.stringify({ err: String(error) }));
+        // This server failing, not the backend answering: the details go to its own output, and
+        // the page only hears that it did (an error's stack has no business in a reply).
+        console.error("The preview couldn't run a command:", error);
+        answer = { err: "The preview couldn't run that command: its output says why." };
       }
+      reply(200, "application/json", JSON.stringify(answer));
       return;
     }
     if (url.pathname === "/__preview/events") {

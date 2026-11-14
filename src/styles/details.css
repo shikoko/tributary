@@ -131,7 +131,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-6);
-  height: 24px;
+  /* Odd, for its words: see --cap-pixels. */
+  height: 25px;
   padding: 0 var(--space-8);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -355,7 +356,8 @@
 .sha-link {
   display: inline-flex;
   align-items: center;
-  height: 20px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 21px;
   padding: 0 var(--space-6);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -497,6 +499,8 @@
   overflow-x: clip;
   overflow-y: visible;
   text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
   white-space: nowrap;
   text-overflow: ellipsis;
   /* Like a file's folder, a long one is cut at its start: its last folders tell it apart. */
@@ -625,7 +629,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-6);
-  height: 24px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 25px;
   margin-left: auto;
   padding: 0 var(--space-10);
   border: 1px solid var(--border-strong);
@@ -686,15 +691,15 @@
 }
 
 .commit-checks-bar > .success {
-  background: var(--success);
+  background: var(--check-success);
 }
 
 .commit-checks-bar > .failure {
-  background: var(--danger);
+  background: var(--check-failure);
 }
 
 .commit-checks-bar > .pending {
-  background: var(--warning);
+  background: var(--check-pending);
 }
 
 .commit-checks-list {
@@ -740,15 +745,15 @@ button.commit-check-row:hover {
 }
 
 .commit-check.success .commit-check-dot {
-  background: var(--success);
+  background: var(--check-success);
 }
 
 .commit-check.failure .commit-check-dot {
-  background: var(--danger);
+  background: var(--check-failure);
 }
 
 .commit-check.pending .commit-check-dot {
-  background: var(--warning);
+  background: var(--check-pending);
   animation: request-pending 1.4s ease-in-out infinite;
 }
 
@@ -804,6 +809,10 @@ button.commit-check-row:hover svg {
 }
 
 /* Shows a pull request the commit mentions in the app, beside its link to the site. */
+/* Show, beside the state chip: its words the chip's size, which puts them in the middle on
+   Windows at 100% too. There, letters land on whole screen pixels: at 12px their capitals are
+   9 pixels tall, which can't sit in the middle of the 20 inside the button (they were a pixel
+   low), while 11px capitals are 8, as the chip's are, with 6 above and 6 below. */
 .mentioned-issue-show {
   display: inline-flex;
   flex: none;
@@ -815,7 +824,7 @@ button.commit-check-row:hover svg {
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
-  font-size: var(--type-sm);
+  font-size: var(--type-xs);
 }
 
 .mentioned-issue-show:hover {
@@ -824,9 +833,14 @@ button.commit-check-row:hover svg {
   color: var(--text);
 }
 
-/* List or Tree, at the end of the Changed files heading. */
+/* List or Tree, at the end of the Changed files heading, or in the Working tree panel's header. */
 .details-section-head .files-layout {
   margin-left: auto;
+}
+
+/* In the Working tree panel's header, before its buttons. */
+.details-header .files-layout {
+  margin-right: var(--space-4);
 }
 
 .files-layout button {

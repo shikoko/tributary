@@ -1,13 +1,16 @@
+import { withoutComments } from "../lib/markdown";
 import type { Updates } from "../lib/updates";
 import { Dialog } from "./Dialog";
 import { Button } from "./ui/Button";
 
 /** Release notes, from GitHub's Markdown: headings, bullet points and paragraphs. */
 function Notes({ text }: { text: string }) {
-  const lines = text
+  // Without their HTML comments first, which can run over several lines (the same way as
+  // other Markdown is read).
+  const lines = withoutComments(text)
     .split("\n")
     .map((line) => line.trimEnd())
-    .filter((line) => line.trim() && !/^<!--.*-->$/.test(line.trim()));
+    .filter((line) => line.trim());
   return (
     <div className="update-notes">
       {lines.map((line, index) => {

@@ -1,6 +1,15 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { RepoSnapshot, WebRemote } from "../api";
 
+/** A web address's host ("codeberg.org"), or "" when it isn't one. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
 /** "GitHub" for a GitHub remote, and so on; null when the site isn't known. */
 export function siteName(remote: WebRemote): string {
   switch (remote.host) {
@@ -11,7 +20,7 @@ export function siteName(remote: WebRemote): string {
     case "bitbucket":
       return "Bitbucket";
     case "gitea":
-      return remote.url.includes("codeberg.org") ? "Codeberg" : "Gitea";
+      return hostOf(remote.url) === "codeberg.org" ? "Codeberg" : "Gitea";
     default:
       return new URL(remote.url).host;
   }

@@ -26,15 +26,15 @@
 }
 
 .request-check.success .request-check-dot {
-  background: var(--success);
+  background: var(--check-success);
 }
 
 .request-check.failure .request-check-dot {
-  background: var(--danger);
+  background: var(--check-failure);
 }
 
 .request-check.pending .request-check-dot {
-  background: var(--warning);
+  background: var(--check-pending);
   animation: request-pending 1.4s ease-in-out infinite;
 }
 

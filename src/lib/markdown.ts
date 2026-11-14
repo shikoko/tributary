@@ -196,7 +196,8 @@ export function withoutComments(text: string): string {
   let result = text;
   for (let before = ""; before !== result; ) {
     before = result;
-    result = result.replace(/<!--[\s\S]*?-->/g, "");
+    // Browsers end a comment at "--!>" too.
+    result = result.replace(/<!--[\s\S]*?--!?>/g, "");
   }
   const open = result.indexOf("<!--");
   return open < 0 ? result : result.slice(0, open);

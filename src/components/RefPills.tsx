@@ -178,6 +178,9 @@ export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (pr:
       title={`${describeChecks(pr)}\nClick to see its reviews and checks`}
       role="link"
       onPointerDown={(event) => event.stopPropagation()}
+      // Not the row's either, which selects its commit on a press: a row half out of view
+      // scrolls in as it's selected, and the click then ends off the badge and is lost.
+      onMouseDown={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.stopPropagation();
