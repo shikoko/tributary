@@ -628,7 +628,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-6);
-  height: 24px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 25px;
   margin-left: auto;
   padding: 0 var(--space-10);
   border: 1px solid var(--border-strong);
