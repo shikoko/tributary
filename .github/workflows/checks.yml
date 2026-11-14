@@ -100,22 +100,19 @@ jobs:
   # The Rust side on each system people run Tributary on: git, paths and line endings
   # behave differently on each.
   rust:
-    name: Rust (${{ matrix.name }})
+    # Named by GitHub from its one matrix value: "Rust (Linux)" and so on. A name with the
+    # matrix in it showed as "Rust (${{ matrix.name }})" when the job was skipped, as GitHub
+    # doesn't expand the matrix of a job that doesn't run.
+    name: Rust
     needs: changes
     if: needs.changes.outputs.rust == 'true'
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ fromJSON('{"Linux":"ubuntu-24.04","macOS":"macos-latest","Windows":"windows-latest"}')[matrix.system] }}
     # Windows took 10 minutes at most; more without its cache.
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: Linux
-            os: ubuntu-24.04
-          - name: macOS
-            os: macos-latest
-          - name: Windows
-            os: windows-latest
+        system: [Linux, macOS, Windows]
     defaults:
       run:
         shell: bash
