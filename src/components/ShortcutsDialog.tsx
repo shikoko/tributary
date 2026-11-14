@@ -10,6 +10,7 @@ const SHORTCUTS: [string, string][] = [
   [`${modKey}T`, "New tab: open, clone or create a repository, or pick a recent one"],
   [`${modKey}W`, "Close the tab"],
   [`${modKey}1 … ${modKey}9`, "Switch to a tab"],
+  [isMac ? "⌃⇧PgUp / ⌃⇧PgDn" : "Ctrl+Shift+PgUp / PgDn", "Move the tab left or right (or drag it)"],
   [`${modKey}R or F5`, "Refresh"],
   [`${modKey}B`, "Show or hide the branch sidebar"],
   [isMac ? "⇧⌘L" : "Ctrl+Shift+L", "Show or hide the activity log (the git commands Tributary ran)"],

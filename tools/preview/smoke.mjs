@@ -862,6 +862,39 @@ try {
     await row("Add a tavern chair").waitFor({ timeout: 10_000 });
   });
 
+  await step("puts a tab elsewhere by dragging it, or from the keyboard", async () => {
+    const tabs = page.locator(".tabs > .tab[data-path]");
+    const order = async () => (await tabs.allTextContents()).map((name) => name.trim()).join(", ");
+    const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem("tributary.tabs.list")).map((tab) => tab.name).join(", "));
+    const before = await order();
+    // The last tab, dragged in steps past the first one's middle: it goes first, and stays.
+    const last = tabs.last();
+    const name = (await last.textContent()).trim();
+    const from = await last.boundingBox();
+    const to = await tabs.first().boundingBox();
+    const y = from.y + from.height / 2;
+    await page.mouse.move(from.x + from.width / 2, y);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i++) await page.mouse.move(from.x + from.width / 2 + ((to.x + 8 - from.x - from.width / 2) * i) / 10, y);
+    await page.mouse.up();
+    await page.waitForFunction((first) => document.querySelector(".tabs > .tab[data-path]")?.textContent.trim() === first, name, { timeout: 5000 });
+    expect((await stored()).startsWith(name), `the new order wasn't kept: ${await stored()}`);
+    // Ctrl+Shift+Page Down moves it (now open) back one place.
+    await page.keyboard.press("Control+Shift+PageDown");
+    await page.waitForFunction((expected) => [...document.querySelectorAll(".tabs > .tab[data-path]")].map((tab) => tab.textContent.trim()).join(", ") === expected, before, { timeout: 5000 });
+    // Escape halfway through a drag puts it back.
+    const again = await tabs.last().boundingBox();
+    await page.mouse.move(again.x + again.width / 2, y);
+    await page.mouse.down();
+    for (let i = 1; i <= 6; i++) await page.mouse.move(again.x + again.width / 2 - i * 25, y);
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+    expect((await order()) === before, `Escape didn't put it back: ${await order()}`);
+    await page.locator(".tab", { hasText: "studio" }).dispatchEvent("mousedown", { button: 0 });
+    await row("Add a tavern chair").waitFor({ timeout: 10_000 });
+  });
+
   await step("shows who holds Git LFS locks", async () => {
     await page.locator(".sidebar-locked", { hasText: "Tavern" }).waitFor({ timeout: 15_000 });
     await accessible("the repository, with its locks");
