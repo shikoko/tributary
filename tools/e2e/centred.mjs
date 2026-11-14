@@ -34,9 +34,11 @@ export function probe(controls, except) {
     const style = getComputedStyle(control);
     if (!box.width || !box.height || box.height > 44 || style.display === "inline" || style.visibility === "hidden" || Number(style.opacity) < 1) continue;
     if (box.top < 0 || box.bottom > innerHeight || box.left < 0 || box.right > innerWidth) continue;
-    // Only what's on top: not under a dialog or a panel.
-    const middle = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-    if (!middle || !control.contains(middle)) continue;
+    // Only what's on top: not under a dialog or a panel, even in part (its middle, and just
+    // inside its top, bottom and ends).
+    const [x, y] = [box.left + box.width / 2, box.top + box.height / 2];
+    const points = [[x, y], [x, box.top + 1.5], [x, box.bottom - 1.5], [box.left + 1.5, y], [box.right - 1.5, y]];
+    if (points.some(([px, py]) => !control.contains(document.elementFromPoint(px, py)))) continue;
     if (control.innerText.trim().includes("\n")) continue;
     const walker = document.createTreeWalker(control, NodeFilter.SHOW_TEXT);
     let text = null;

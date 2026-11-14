@@ -229,7 +229,15 @@ try {
       }
       found.push(...describeOffCentre(offCentre(shot, measured)).map((line) => `${where}: ${line}`));
     };
-    const press = (key, ctrlKey = false) => app.execute(`window.dispatchEvent(new KeyboardEvent("keydown", { key: arguments[0], ctrlKey: arguments[1] }));`, [key, ctrlKey]);
+    // From where the focus is, as a key pressed there: a dialog closes on Escape from inside it.
+    const press = (key, ctrlKey = false) =>
+      app.execute(`(document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent("keydown", { key: arguments[0], ctrlKey: arguments[1], bubbles: true }));`, [key, ctrlKey]);
+    const gone = async (css) => {
+      for (const until = Date.now() + 5000; await app.execute(`return Boolean(document.querySelector(arguments[0]));`, [css]); ) {
+        if (Date.now() > until) throw new Error(`${css} didn't close`);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    };
     await look("the repository");
     await app.click(".commit-row", "Add a tavern chair");
     await app.waitFor(".details .file");
@@ -241,10 +249,12 @@ try {
     await app.waitFor(".view-panel");
     await look("the View panel");
     await press("Escape");
+    await gone(".view-panel");
     await press(",", true);
     await app.waitFor(".dialog .settings-nav");
     await look("Settings");
     await press("Escape");
+    await gone(".dialog .settings-nav");
     if (found.length > 0) throw new Error(`${found.length} off the middle:\n${found.join("\n")}`);
   });
 
