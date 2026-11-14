@@ -40,8 +40,14 @@ export function probe(controls, except) {
     if (control.innerText.trim().includes("\n")) continue;
     const walker = document.createTreeWalker(control, NodeFilter.SHOW_TEXT);
     let text = null;
+    // Its own words: not a control's inside it, though a trimmed label of its own can match
+    // the controls' selectors too (a chip's chip-text).
+    const owner = (node) => {
+      const inner = node.parentElement.closest(controls);
+      return inner !== control && trimmed(inner) && inner.parentElement.closest(controls) === control ? control : inner;
+    };
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      if (node.textContent.trim() && node.parentElement.closest(controls) === control) {
+      if (node.textContent.trim() && owner(node) === control) {
         text = node;
         break;
       }
