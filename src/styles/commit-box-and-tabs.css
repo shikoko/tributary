@@ -96,6 +96,23 @@
   cursor: default;
 }
 
+/* A tab dragged along the bar (useTabDrag): above the others, which slide aside to make
+   room for it. */
+.tab.dragging {
+  position: relative;
+  z-index: 1;
+}
+
+.tabs.reordering > .tab:not(.dragging) {
+  transition: transform 0.18s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabs.reordering > .tab:not(.dragging) {
+    transition: none;
+  }
+}
+
 /* A closed tab on its way out: only there to shrink away. */
 .tab.tab-ghost {
   pointer-events: none;

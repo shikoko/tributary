@@ -154,6 +154,7 @@ export default function App() {
       tabMenuItems({
         path,
         count: tabs.length,
+        index: tabs.findIndex((tab) => tab.path === path),
         settings: () => {
           setSettingsFor(path);
           tabbing.switchTab(path);
@@ -161,6 +162,8 @@ export default function App() {
         reveal: () => revealItemInDir(path).catch((e) => repo.setError({ message: String(e) })),
         close: () => tabbing.closeTab(path),
         closeOthers: () => tabbing.closeOthers(path),
+        moveLeft: () => tabbing.nudgeTab(path, -1),
+        moveRight: () => tabbing.nudgeTab(path, 1),
       }),
     );
   const search = useSearch(snapshot?.commits, selection.select, selection.selectedIndex, snapshot?.path ?? null);
@@ -394,6 +397,7 @@ export default function App() {
     closeTab: tabbing.closeCurrent,
     showTab: (index) => tabs[index] && tabbing.switchTab(tabs[index].path),
     cycleTab: tabbing.cycle,
+    moveTab: (step) => snapshot && tabbing.nudgeTab(snapshot.path, step),
     refresh: repo.refresh,
     focusSearch: search.focus,
     toggleSidebar: () => preferences.setSidebarOpen((open) => !open),
@@ -454,6 +458,7 @@ export default function App() {
               startTab={!snapshot && tabbing.startTab}
               onSelect={tabbing.switchTab}
               onClose={tabbing.closeTab}
+              onMove={tabbing.moveTab}
               onCloseStart={tabbing.closeStartTab}
               onNew={tabbing.newTab}
               onContextMenu={tabMenu}
