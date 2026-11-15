@@ -466,6 +466,8 @@
 }
 
 .workspace {
+  /* For the sidebar opened over the list from its strip, in a narrow window. */
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;

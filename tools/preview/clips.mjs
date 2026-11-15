@@ -34,6 +34,11 @@ mkdirSync(out, { recursive: true });
 /** Frames a second, and how wide the pictures are at most: twice the width What's New shows them at. */
 const FPS = 15;
 const WIDTH = 1200;
+/**
+ * How long `fadeBack` takes to fade the end of a recording back to its start: short, as each
+ * frame of a fade between two different screens costs about as much as a whole picture.
+ */
+const FADE_MS = 200;
 
 const { chromium } = createRequire(import.meta.url)("playwright");
 const projects = join(tmpdir(), "tributary-clips", "Projects");
@@ -111,9 +116,10 @@ async function point(page, target, { dx = 0, dy = 0 } = {}) {
 /**
  * Records `region` of `page` (in the window's pixels) while `actions` run, as `name`.webp:
  * screenshots, one after another as fast as they come (sharp, at twice the size), placed on
- * a steady clock.
+ * a steady clock. With `fadeBack`, for something that can't be undone on screen (like a
+ * push), the last screenshot fades into the first, so the recording loops without a jump.
  */
-async function record(page, name, region, actions) {
+async function record(page, name, region, actions, { fadeBack = false } = {}) {
   const shots = [];
   let running = true;
   const shooting = (async () => {
@@ -143,12 +149,24 @@ async function record(page, name, region, actions) {
       while (at + 1 < shots.length && shots[at + 1].time <= time) at++;
       writeFileSync(join(folder, `${String(tick).padStart(5, "0")}.jpg`), shots[at].data);
     }
+    // With fadeBack, the first screenshot again, for the end to fade into.
+    const first = join(folder, "first.jpg");
+    if (fadeBack) writeFileSync(first, shots[0].data);
     const file = join(out, `${name}.webp`);
+    const scale = `scale=${Math.min(WIDTH, region.width * 2)}:-2:flags=lanczos`;
+    // The fade is ffmpeg's own, over the recording's last FADE_MS, so what stays the same on
+    // the screen stays exactly the same in every frame of it, and costs nothing. The first
+    // screenshot runs on two frames past it, for the recording to end on it whole.
+    const fade = FADE_MS / 1000;
+    const filter = fadeBack
+      ? ["-loop", "1", "-framerate", String(FPS), "-t", String(fade + 2 / FPS), "-i", first,
+         "-filter_complex", `[0:v]settb=AVTB,fps=${FPS}[a];[1:v]settb=AVTB,fps=${FPS}[b];[a][b]xfade=transition=fade:duration=${fade}:offset=${(count / FPS - fade).toFixed(3)},${scale}`]
+      : ["-vf", scale];
     execFileSync("ffmpeg", [
       "-y", "-loglevel", "error",
       "-framerate", String(FPS),
       "-i", join(folder, "%05d.jpg"),
-      "-vf", `scale=${Math.min(WIDTH, region.width * 2)}:-2:flags=lanczos`,
+      ...filter,
       "-c:v", "libwebp_anim", "-quality", "80", "-compression_level", "6", "-loop", "0",
       file,
     ]);
@@ -165,7 +183,7 @@ try {
   for (const [name, play] of Object.entries(scenes)) {
     if (only && !only.has(name)) continue;
     console.log(name);
-    await play({ open, point, pause, demos, record: (page, region, actions) => record(page, name, region, actions) });
+    await play({ open, point, pause, demos, record: (page, region, actions, options) => record(page, name, region, actions, options) });
   }
 } finally {
   await browser.close();

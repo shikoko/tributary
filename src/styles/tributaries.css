@@ -2,7 +2,9 @@
    that ran, braiding into the verdict. */
 .tributaries {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 200px;
+  /* Room beside the river for what the checks say, like "1 of 6 checks failed, 2 still
+     running, 1 skipped" on two lines. */
+  grid-template-columns: minmax(0, 1fr) 240px;
   align-items: center;
   gap: var(--space-24);
 }
@@ -421,11 +423,17 @@
   color: var(--check-pending);
 }
 
-.tributaries-line {
-  text-box: trim-both cap alphabetic;
-  color: var(--text-muted);
+/* Under the word, what needs looking at, like "Audio loudness failed", then the rest. */
+.tributaries-title {
+  color: var(--text);
   font-size: var(--type-base);
-  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.tributaries-line {
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  line-height: 1.4;
 }
 
 
@@ -452,8 +460,7 @@
 
 /* In a narrow pull request view (a small window, with the sidebar and details open), the
    streams would have no room beside the verdict and run under it: it goes under them instead,
-   after the row a check's caption hangs in, and its line wraps. (Last, to win over the rules
-   above.) */
+   after the row a check's caption hangs in. (Last, to win over the rules above.) */
 @container request-status (max-width: 460px) {
   .tributaries {
     grid-template-columns: minmax(0, 1fr);
@@ -462,9 +469,5 @@
 
   .tributaries-verdict {
     grid-row: 3;
-  }
-
-  .tributaries-line {
-    white-space: normal;
   }
 }

@@ -53,7 +53,9 @@ Records each new thing in a version working, for What's New and the release page
 scene in `clips/v0.6.0.mjs` is played on a fresh demo repository, with a pointer drawn where
 the mouse is, and saved as an animated WebP in `docs/release-notes/v0.6.0/`. A scene says
 which part of the window to show (16:10, like 720 by 450) and what happens in it, and ends
-where it started, as they loop. `-- v0.6.0 --only <name>` records just that one. Put each
+where it started, as they loop: undone, the pointer back where it was. What can't be undone
+on screen, like a push, passes `{ fadeBack: true }` to `record`, and its end fades back to
+its start (`clips/v0.9.0.mjs`'s Sync does). `-- v0.6.0 --only <name>` records just that one. Put each
 under its item in the notes, as `![what it shows](v0.6.0/<name>.webp)` on its own indented
 line; `src/lib/whatsNew.test.ts` fails if a new thing has none, or one is over 400 KB. See
 `clips/v0.5.0.mjs` for the first ones.
@@ -68,8 +70,11 @@ Builds fresh demo repositories and clicks through the main parts of the app in C
 opening a repository, selecting and searching commits, checking out a branch (and
 stashing changes in the way), undo, fetching, tabs, Git LFS locks, the big-file warning,
 pull request badges, cloning without Git LFS files and downloading them, worktrees,
-keyboard menus, GitHub sign-in (faked) and diagnostics. Add `-- --screenshots <folder>` to keep a screenshot of each
-step. On the main screens, in both themes, it also checks with axe-core that what's shown meets WCAG 2.1's level A
+keyboard menus, GitHub sign-in (faked) and diagnostics. In the smallest window the app
+allows, 900 by 560, it opens every window a command opens, each section of Settings, About,
+the View panel and a long menu, and fails on one that runs past the window out of reach, or
+whose words sit on other words or are cut off without an ellipsis (`fits.mjs`). Add
+`-- --screenshots <folder>` to keep a screenshot of each step. On the main screens, in both themes, it also checks with axe-core that what's shown meets WCAG 2.1's level A
 and AA criteria that can be checked automatically: names for controls, a structure screen readers can follow, and
 text that contrasts enough with what's behind it. It needs Playwright with Chromium, and axe-core:
 

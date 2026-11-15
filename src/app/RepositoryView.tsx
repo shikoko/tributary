@@ -23,10 +23,13 @@ import type { ChecksOf } from "../components/ChecksView";
 import { ListOverlays, type RewriteShown } from "./ListOverlays";
 import { useStacks } from "./useStacks";
 import { useRepositoryMenus } from "./useRepositoryMenus";
-import { BranchIcon, EyeIcon, PlusIcon, StashIcon, TagIcon } from "../components/Icons";
+import { BranchIcon, EyeIcon, FolderIcon, LockIcon, PinIcon, PlusIcon, StashIcon, SubmoduleIcon, TagIcon } from "../components/Icons";
 import { MessageTools } from "../components/MessageTools";
 import { ResizeHandle } from "../components/ResizeHandle";
 import { Sidebar } from "../components/Sidebar";
+import { SidebarStrip, type StripSection } from "../components/sidebar/SidebarStrip";
+import { sidebarLists } from "../components/sidebar/refTree";
+import { useSidebarStrip } from "./useSidebarStrip";
 import { StatusBar } from "../components/StatusBar";
 import type { ToastMessage } from "../components/Toast";
 import { Toolbar, type RemoteAction } from "../components/Toolbar";
@@ -124,6 +127,8 @@ export function RepositoryView(props: Props) {
   const { act, running } = actions;
   const { select, byId, selectedIds, selectedCommits } = selection;
   const { sidebarOpen, setSidebarOpen, sidebarWidth, setSidebarWidth, detailsWidth, setDetailsWidth, activityOpen, setActivityOpen } = preferences;
+  // In a narrow window, the sidebar is a strip of icons, and opens over the list from them.
+  const strip = useSidebarStrip();
   const canChange = !snapshot.bare && running === null;
   const run = (action: Action) => act(action);
   // Guided tours: Getting started for someone new, others offered as you reach their features.
@@ -336,9 +341,22 @@ export function RepositoryView(props: Props) {
         submodules={props.submodules.list}
         onOpenSubmodule={submoduleContext.open}
         onSubmoduleMenu={(submodule, x, y) => menu.show(x, y, submoduleMenuItems(submodule, submoduleContext))}
+        reveal={strip.open}
       />
     ) : null,
   );
+  // The strip's icons: a section each, as the sidebar has them.
+  const stashCount = useMemo(() => sidebarLists(snapshot.commits, snapshot.hiddenRefs).stashes.length, [snapshot.commits, snapshot.hiddenRefs]);
+  const locks = lfs.locks?.locks ?? null;
+  const stripSections: StripSection[] = [
+    ...(settings.pins.length > 0 ? [{ id: "pinned", label: "Pinned", icon: <PinIcon size={16} /> }] : []),
+    { id: "branches", label: "Branches", icon: <BranchIcon size={16} /> },
+    { id: "tags", label: "Tags", icon: <TagIcon size={16} /> },
+    { id: "stashes", label: "Stashes", icon: <StashIcon size={16} />, count: stashCount },
+    ...(props.worktrees.length > 1 ? [{ id: "worktrees", label: "Worktrees", icon: <FolderIcon size={16} /> }] : []),
+    ...(props.submodules.list.length > 0 ? [{ id: "submodules", label: "Submodules", icon: <SubmoduleIcon size={16} /> }] : []),
+    ...(locks ? [{ id: "locks", label: "Locked files", icon: <LockIcon size={16} />, count: locks.length }] : []),
+  ];
   const detailsOpen = Boolean(comparing.request || selection.selected || selection.multi);
   const detailsPanel = usePresence(
     detailsOpen,
@@ -458,14 +476,24 @@ export function RepositoryView(props: Props) {
         />
       ) : (
         <main className="workspace">
-          {sidebarPanel.shown && (
-            <>
-              <div className={`sidebar-frame${sidebarPanel.closing ? " closing" : ""}`} style={{ width: sidebarWidth }}>
-                {sidebarPanel.content}
-              </div>
-              <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
-            </>
-          )}
+          {sidebarPanel.shown &&
+            (strip.narrow ? (
+              <>
+                <SidebarStrip sections={stripSections} open={strip.open} onOpen={strip.toggle} />
+                {strip.open && (
+                  <div ref={strip.over} className="sidebar-over" style={{ width: sidebarWidth }}>
+                    {sidebarPanel.content}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className={`sidebar-frame${sidebarPanel.closing ? " closing" : ""}`} style={{ width: sidebarWidth }}>
+                  {sidebarPanel.content}
+                </div>
+                <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
+              </>
+            ))}
           <div className="center-pane" data-tour="graph">
             <CommitList
               key={snapshot.path}

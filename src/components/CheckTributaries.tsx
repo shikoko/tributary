@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { RequestCheck } from "../api";
-import { checkKey, checkName, checksVerdict, checkTime, describeCheckProgress } from "../lib/pullRequests";
+import { checkKey, checkName, checksVerdict, checkTime } from "../lib/pullRequests";
 import { ExternalLinkIcon } from "./Icons";
 
 type Props = {
   checks: RequestCheck[];
   now: number;
-  gitlab: boolean;
   openUrl: (url: string) => void;
   /** The check in the spotlight (its wave here, its row in the timeline, by its checkKey), and a way to change it. */
   lit: string | null;
   onLight: (key: string | null) => void;
+  /** What's said under the verdict's word (riverWords): what needs looking at, then the rest, muted. */
+  words: { title: string; detail: string | null };
 };
 type Tone = "success" | "failure" | "pending" | "cancelled";
 
@@ -79,7 +80,7 @@ const CAPTION_DROP = 24;
 /** How far apart the dots of the line it hangs from are. */
 const DOT = 4;
 
-export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onLight }: Props) {
+export function CheckTributaries({ checks: given, now, openUrl, lit, onLight, words }: Props) {
   // Each check keeps its lane however it's doing, so a wave changes colour where it is.
   const checks = [...given].sort((a, b) => a.name.localeCompare(b.name));
   const [box, width] = useWidth<HTMLDivElement>();
@@ -88,7 +89,6 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
   const n = checks.length;
   const middle = height / 2;
   const v = checksVerdict(checks);
-  const line = describeCheckProgress(checks, gitlab);
   // What each check looked like last time, so one that has just finished can settle into
   // its new look, and the moment the last one passes can be marked.
   const looks = JSON.stringify(checks.map((check) => [checkKey(check), queued(check) ? "queued" : stateOf(check)]));
@@ -345,7 +345,8 @@ export function CheckTributaries({ checks: given, now, gitlab, openUrl, lit, onL
       </div>
       <div className={`tributaries-verdict ${v.tone}`}>
         <span className="tributaries-word">{v.word}</span>
-        {line && <span className="tributaries-line">{line}</span>}
+        <span className="tributaries-title">{words.title}</span>
+        {words.detail && <span className="tributaries-line">{words.detail}</span>}
       </div>
       {/* Its room is kept, so nothing moves when it shows. */}
       <div className="tributaries-caption-row" aria-hidden>

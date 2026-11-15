@@ -374,3 +374,106 @@
     display: none;
   }
 }
+
+/* In a narrow window, the sidebar is a strip of icons (SidebarStrip), one for each of its
+   sections, and opens over the commit list from them. */
+.sidebar-strip {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  width: 48px;
+  padding-top: var(--space-10);
+  border-right: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.sidebar-strip-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sidebar-strip-button:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.sidebar-strip-button.open {
+  background: var(--bg-selected);
+  color: var(--text);
+}
+
+/* Each icon's name, for screen readers (and the tooltip shows it). */
+.sidebar-strip-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* How many there are, where it's worth noticing (stashes kept, files locked): on the icon's
+   corner, made as the toolbar's counts are (repository.css), so the digits sit in its middle. */
+.sidebar-strip-count {
+  position: absolute;
+  top: -3px;
+  right: -5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-xl);
+  background: var(--accent-fill);
+  color: var(--on-accent-fill);
+  font-size: var(--type-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.sidebar-strip-count > span {
+  display: block;
+  text-box: trim-both cap alphabetic;
+  height: var(--cap-pixels);
+  align-content: unsafe end;
+}
+
+/* The whole sidebar, over the commit list beside the strip, until a click outside or Esc. */
+.sidebar-over {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 48px;
+  z-index: 8;
+  display: flex;
+  border-right: 1px solid var(--border-strong);
+  box-shadow: 18px 0 40px var(--shadow-strong);
+  animation: sidebar-over-in 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes sidebar-over-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-over {
+    animation: none;
+  }
+}

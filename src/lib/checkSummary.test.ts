@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RequestCheck } from "../api";
-import { checksHeadline, checksTitle, checksVerdict, type CountedState } from "./checkSummary";
+import { checksHeadline, checksVerdict, riverWords, type CountedState } from "./checkSummary";
 
 const counts = (entries: [CountedState, number][]) => new Map(entries);
 
@@ -28,36 +28,39 @@ describe("a commit's checks in words", () => {
 const check = (name: string, state: RequestCheck["state"], startedAt: string | null = null, finishedAt: string | null = null): RequestCheck =>
   ({ name, state, url: null, detail: null, startedAt, finishedAt, workflow: null, trigger: null });
 
-describe("the title over a pull request's checks", () => {
-  it("names the ones that failed, even while others still run", () => {
-    expect(checksTitle([check("Lint", "success"), check("Audio loudness", "failure"), check("Build (Windows)", "pending")])).toBe("Audio loudness failed");
-    expect(checksTitle([check("Audio loudness", "failure"), check("Lint", "failure")])).toBe("Audio loudness and Lint failed");
-    expect(checksTitle([check("Audio loudness", "failure"), check("Lint", "failure"), check("Build", "failure")])).toBe("Audio loudness and 2 more failed");
+describe("the words beside a pull request's river", () => {
+  it("names the ones that failed, even while others still run, then counts the rest", () => {
+    const checks = [check("Lint", "success"), check("Audio loudness", "failure"), check("Build (Windows)", "pending"), check("Preview", null)];
+    expect(riverWords(checks, false)).toEqual({ title: "Audio loudness failed", detail: "1 of 3 checks failed, 1 still running, 1 skipped" });
+    expect(riverWords([check("Audio loudness", "failure"), check("Lint", "failure")], false).title).toBe("Audio loudness and Lint failed");
+    expect(riverWords([check("Audio loudness", "failure"), check("Lint", "failure"), check("Build", "failure")], false).title).toBe("Audio loudness and 2 more failed");
   });
 
   it("names the ones still running when none failed", () => {
-    expect(checksTitle([check("Lint", "success"), check("Build (Windows)", "pending")])).toBe("Build (Windows) is still running");
-    expect(checksTitle([check("Build (Windows)", "pending"), check("Build (Linux)", "pending")])).toBe("Build (Windows) and Build (Linux) are still running");
+    expect(riverWords([check("Lint", "success"), check("Build (Windows)", "pending")], false)).toEqual({ title: "Build (Windows) is still running", detail: "1 of 2 checks passed, 1 still running" });
+    expect(riverWords([check("Build (Windows)", "pending"), check("Build (Linux)", "pending")], true).title).toBe("Build (Windows) and Build (Linux) are still running");
   });
 
-  it("says how long they took once they passed, from the first start to the last finish", () => {
+  it("says how many passed and how long they took, from the first start to the last finish", () => {
     const checks = [
       check("Lint", "success", "2026-03-01T10:00:00Z", "2026-03-01T10:00:40Z"),
       check("Build", "success", "2026-03-01T10:00:05Z", "2026-03-01T10:05:09Z"),
-      check("Old build", "cancelled", "2026-03-01T09:50:00Z", "2026-03-01T09:51:00Z"),
       check("Preview", null),
     ];
-    expect(checksTitle(checks)).toBe("Passed in 5m 9s");
+    expect(riverWords(checks, false)).toEqual({ title: "All 2 checks passed in 5m 9s", detail: "1 skipped" });
+    expect(riverWords([check("Lint", "success")], false)).toEqual({ title: "The check passed", detail: null });
   });
 
-  it("names cancelled ones when nothing passed, and leaves the rest to the counted headline", () => {
-    expect(checksTitle([check("Build", "cancelled")])).toBe("Build was cancelled");
-    expect(checksTitle([check("Build", "cancelled"), check("Lint", "cancelled")])).toBe("Build and Lint were cancelled");
-    expect(checksTitle([check("Preview", null)])).toBeNull();
-    expect(checksTitle([check("Lint", "success")])).toBeNull();
+  it("counts cancelled ones beside the ones that passed, and names them when nothing passed", () => {
+    const checks = [check("Lint", "success", "2026-03-01T10:00:00Z", "2026-03-01T10:00:40Z"), check("Old build", "cancelled")];
+    expect(riverWords(checks, false)).toEqual({ title: "1 of 2 checks passed, 1 cancelled", detail: "Took 40s" });
+    expect(riverWords([check("Build", "cancelled")], false).title).toBe("Build was cancelled");
+    expect(riverWords([check("Build", "cancelled"), check("Lint", "cancelled")], false).title).toBe("Build and Lint were cancelled");
   });
 
-  it("names a skipped matrix job without its template", () => {
-    expect(checksTitle([check("Rust (${{ matrix.name }})", "failure")])).toBe("Rust failed");
+  it("says when every one was skipped, and names a skipped matrix job without its template", () => {
+    expect(riverWords([check("Preview", null)], false)).toEqual({ title: "The check was skipped", detail: null });
+    expect(riverWords([check("Preview", null), check("Docs", null)], true)).toEqual({ title: "All 2 jobs were skipped", detail: null });
+    expect(riverWords([check("Rust (${{ matrix.name }})", "failure")], false).title).toBe("Rust failed");
   });
 });

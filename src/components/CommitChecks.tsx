@@ -4,7 +4,7 @@ import { CiStatesContext } from "../lib/ciStates";
 import { anyRunning, checkName, checkTime } from "../lib/pullRequests";
 import { useNow } from "../lib/useNow";
 import { openInBrowser } from "../lib/weblinks";
-import { checksHeadline, checksTitle, checksVerdict } from "../lib/checkSummary";
+import { checksHeadline, checksVerdict } from "../lib/checkSummary";
 import { SectionButton, SiteChip } from "./DetailsSite";
 import { SlidingText } from "./SlidingText";
 import { ExternalLinkIcon, WorkflowIcon } from "./Icons";
@@ -123,13 +123,11 @@ export function CommitChecks({ shown: found, onShow }: { shown: CommitChecksShow
 }
 
 /**
- * How a commit's checks went, in a commit's details and a pull request's: in words ("1 of 7
- * checks failed"), with Open, which shows each run as a graph; under that, how many are in
- * each state, and a pip for each check in its colour, failed ones first. Over a pull request's
- * river (`river`), which shows each check and counts them, it has no pips, and its title names
- * what failed instead of counting (checksTitle).
+ * How a commit's checks went, in its details: in words ("1 of 7 checks failed"), with Open,
+ * which shows each run as a graph; under that, how many are in each state, and a pip for each
+ * check in its colour, failed ones first. (A pull request's view says it beside its river.)
  */
-export function ChecksSummary({ checks, gitlab, onShow, river = false }: { checks: RequestCheck[]; gitlab: boolean; onShow?: () => void; river?: boolean }) {
+function ChecksSummary({ checks, gitlab, onShow }: { checks: RequestCheck[]; gitlab: boolean; onShow?: () => void }) {
   const sorted = [...checks].sort((a, b) => ORDER[stateOf(a)] - ORDER[stateOf(b)]);
   const counts = new Map<State, number>();
   for (const check of sorted) counts.set(stateOf(check), (counts.get(stateOf(check)) ?? 0) + 1);
@@ -140,17 +138,15 @@ export function ChecksSummary({ checks, gitlab, onShow, river = false }: { check
         <span className="site-item-icon">
           <RunStateIcon state={state} size={14} />
         </span>
-        <span className="site-item-text commit-checks-headline">{(river && checksTitle(checks)) || checksHeadline(counts, gitlab)}</span>
+        <span className="site-item-text commit-checks-headline">{checksHeadline(counts, gitlab)}</span>
         {onShow && <SectionButton onClick={onShow} icon={<WorkflowIcon size={12} />} label="Open" title="Open the checks, each run as a graph of its jobs" />}
         <span className="site-item-under commit-checks-counts">{[...counts].map(([what, n]) => `${n} ${WORDS[what]}`).join(", ")}</span>
       </div>
-      {!river && (
-        <div className="check-pips" aria-hidden>
-          {sorted.map((check, index) => (
-            <span key={`${check.name}-${index}`} className={stateOf(check)} title={`${checkName(check.name)}: ${WORDS[stateOf(check)]}`} />
-          ))}
-        </div>
-      )}
+      <div className="check-pips" aria-hidden>
+        {sorted.map((check, index) => (
+          <span key={`${check.name}-${index}`} className={stateOf(check)} title={`${checkName(check.name)}: ${WORDS[stateOf(check)]}`} />
+        ))}
+      </div>
     </div>
   );
 }

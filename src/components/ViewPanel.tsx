@@ -62,16 +62,25 @@ export function ViewPanel(props: Props) {
   const panel = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<CSSProperties>({ visibility: "hidden" });
   // Under the button, inside the window: from a button in the window's right half, its right edge
-  // on the button's; from one in the left half, its left edge on the button's.
+  // on the button's; from one in the left half, its left edge on the button's. No taller than the
+  // room under the button (in a small window it scrolls), and placed again when the window is
+  // resized.
   const { onClose, anchor } = props;
   useLayoutEffect(() => {
-    const width = panel.current?.offsetWidth ?? 340;
     // Without its button (the commit list isn't showing), there's nothing to open under.
     if (!anchor.current) return onClose();
-    const button = anchor.current.getBoundingClientRect();
-    const wanted = button.left + button.width / 2 > window.innerWidth / 2 ? button.right - width : button.left;
-    const left = Math.max(8, Math.min(wanted, window.innerWidth - width - 8));
-    setPlace({ left, top: button.bottom + 6 });
+    const placeIt = () => {
+      if (!anchor.current) return;
+      const width = panel.current?.offsetWidth ?? 340;
+      const button = anchor.current.getBoundingClientRect();
+      const wanted = button.left + button.width / 2 > window.innerWidth / 2 ? button.right - width : button.left;
+      const left = Math.max(8, Math.min(wanted, window.innerWidth - width - 8));
+      const top = button.bottom + 6;
+      setPlace({ left, top, maxHeight: window.innerHeight - top - 8 });
+    };
+    placeIt();
+    window.addEventListener("resize", placeIt);
+    return () => window.removeEventListener("resize", placeIt);
   }, [anchor, onClose]);
   // The focus goes into it, and back to where it was when it closes: the View button, or
   // what had it when the shortcut opened it. On a Mac a click doesn't give a button the focus,

@@ -71,7 +71,7 @@ interface PanelProps {
 function MenuPanel({ x, y, flipX, items, onClose, onSideways, onBack, focusFirst }: PanelProps) {
   const menu = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ left: x, top: y });
+  const [position, setPosition] = useState<{ left: number; top: number; listHeight?: number }>({ left: x, top: y });
   const [open, setOpen] = useState<{ index: number; x: number; y: number; flipX: number; keyboard: boolean } | null>(null);
   const hover = useRef(0);
 
@@ -79,9 +79,18 @@ function MenuPanel({ x, y, flipX, items, onClose, onSideways, onBack, focusFirst
     const element = menu.current!;
     const { width, height } = element.getBoundingClientRect();
     const fitsRight = x + width <= window.innerWidth - 4;
+    // Its whole height, as if its list didn't scroll, and what's around the list.
+    const items = list.current!;
+    const around = height - items.getBoundingClientRect().height;
+    const whole = around + items.scrollHeight;
+    // One taller than the window scrolls its list: from where it opens when that's near the top,
+    // like a menu bar's, or else from the window's top, down to its bottom.
+    const tall = whole > window.innerHeight - 8;
+    const top = tall ? (y < window.innerHeight / 3 ? y : 4) : Math.max(4, Math.min(y, window.innerHeight - whole - 4));
     setPosition({
       left: Math.max(4, fitsRight || flipX === undefined ? Math.min(x, window.innerWidth - width - 4) : flipX - width),
-      top: Math.max(4, Math.min(y, window.innerHeight - height - 4)),
+      top,
+      listHeight: tall ? window.innerHeight - top - 4 - around : undefined,
     });
     // Opened from the keyboard: start on the first item. With the mouse: nothing highlighted.
     const first = list.current?.querySelector<HTMLButtonElement>(".menu-item:not(:disabled)");
@@ -105,7 +114,7 @@ function MenuPanel({ x, y, flipX, items, onClose, onSideways, onBack, focusFirst
     <div
       ref={menu}
       className="context-menu"
-      style={position}
+      style={{ left: position.left, top: position.top }}
       role="menu"
       tabIndex={-1}
       onMouseDown={(event) => event.stopPropagation()}
@@ -156,7 +165,7 @@ function MenuPanel({ x, y, flipX, items, onClose, onSideways, onBack, focusFirst
         }
       }}
     >
-      <div ref={list}>
+      <div ref={list} className={position.listHeight === undefined ? undefined : "menu-scroll"} style={position.listHeight === undefined ? undefined : { maxHeight: position.listHeight }}>
         {items.map((item, index) => (
           <div key={item.label}>
             {item.separated && <div className="menu-separator" role="separator" />}

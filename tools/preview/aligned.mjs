@@ -68,11 +68,15 @@ export async function misaligned(page, { scales = SCALES, tolerance = 1 } = {}) 
         for (let element = node.parentElement; element; element = element.parentElement) if (candidates.has(element)) return element;
         return null;
       };
-      /** The first words in `control` that aren't in a control of their own inside it. */
+      /**
+       * The first words in `control` that aren't in a control of their own inside it, nor
+       * hidden but for screen readers (a pixel's worth): words not drawn sit nowhere.
+       */
       const words = (control) => {
         const walker = document.createTreeWalker(control, NodeFilter.SHOW_TEXT);
         for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-          if (node.textContent.trim() && ownerOf(node) === control) return node;
+          const box = node.parentElement.getBoundingClientRect();
+          if (node.textContent.trim() && ownerOf(node) === control && box.width > 1 && box.height > 1) return node;
         }
         return null;
       };

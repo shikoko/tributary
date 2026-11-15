@@ -21,6 +21,7 @@ import { describeOffCentre, moving, offCentre as offInPixels, probe, restore } f
 import { decodePng } from "../e2e/png.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
+import { crowded } from "./fits.mjs";
 
 const browserAt = process.argv.indexOf("--browser");
 const browserName = browserAt > 0 ? process.argv[browserAt + 1] : "chromium";
@@ -125,6 +126,17 @@ async function recover() {
     await page.waitForTimeout(300);
   }
 }
+/**
+ * Back to `size` after a narrower window, once the full sidebar is back from its strip (a
+ * narrow window has one) and has finished coming in: a click while it slides in can land
+ * on another row than meant, or rest on a lane and dim the others.
+ */
+async function restoreSize(size) {
+  await page.setViewportSize(size);
+  await page.waitForFunction(() => !document.querySelector(".sidebar-strip"), null, { timeout: 5000 });
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== "running" || animation.effect?.getComputedTiming().iterations === Infinity), null, { timeout: 5000 });
+}
+
 /**
  * What's on screen meets WCAG 2.1's level A and AA criteria that can be checked automatically.
  * Other branches' labels in the graph are left out of the contrast check: they're faded on
@@ -1115,7 +1127,7 @@ try {
     try {
       await until(true, "notebook's name isn't cut short in a narrow window", '.tabs > .tab.active[data-clipped]');
     } finally {
-      await page.setViewportSize(size);
+      await restoreSize(size);
     }
     await until(false, "a name is still cut short at full width again");
     await tabs.filter({ hasText: "studio" }).dispatchEvent("mousedown", { button: 0 });
@@ -1451,13 +1463,13 @@ try {
     await view.locator(".request-merge", { hasText: "changes were asked for" }).waitFor({ timeout: 10_000 });
     await view.locator(".request-check.failure", { hasText: "Audio loudness" }).waitFor({ timeout: 5000 });
     await view.locator(".request-status-said", { hasText: "diego-ramos asked for changes" }).waitFor({ timeout: 5000 });
-    // The river under the checks' summary counts them and shows each, so the summary's title
-    // names what failed instead, and it has no pips.
-    await view.locator(".request-status .commit-checks-headline", { hasText: /^Audio loudness failed$/ }).waitFor({ timeout: 5000 });
-    await view.locator(".tributaries-line", { hasText: /checks failed/ }).waitFor({ timeout: 5000 });
-    expect((await view.locator(".request-status .check-pips").count()) === 0, "the pull request's checks have pips as well as the river");
-    // In the smallest window, with the sidebar and details open, the river's verdict goes under
-    // its streams instead of over them, and the checks under it keep their names (without bars).
+    // How they went is said beside the river: what failed first, then the rest of the counts.
+    await view.locator(".tributaries-title", { hasText: /^Audio loudness failed$/ }).waitFor({ timeout: 5000 });
+    await view.locator(".tributaries-line", { hasText: /^1 of 6 checks failed, 2 still running, 1 skipped$/ }).waitFor({ timeout: 5000 });
+    expect((await view.locator(".request-status .site-checks").count()) === 0, "the pull request's checks say how they went above the river as well as beside it");
+    // In the smallest window, with the details open, the river's streams don't run under its
+    // verdict (it goes under them when there's no room beside them), and the checks under it
+    // keep their names.
     const size = page.viewportSize();
     await page.setViewportSize({ width: 900, height: size.height });
     try {
@@ -1465,10 +1477,10 @@ try {
         const streams = document.querySelector(".request-view .tributaries-streams")?.getBoundingClientRect();
         const verdict = document.querySelector(".request-view .tributaries-verdict")?.getBoundingClientRect();
         const name = document.querySelector(".request-view .request-timeline-row .request-check-name")?.getBoundingClientRect();
-        return streams && verdict && name && verdict.top >= streams.bottom && name.width > 40;
+        return streams && verdict && name && (verdict.top >= streams.bottom || verdict.left >= streams.right) && name.width > 40;
       }, null, { timeout: 5000 });
     } finally {
-      await page.setViewportSize(size);
+      await restoreSize(size);
     }
     // The description and comments are Markdown, shown as such.
     await view.locator(".request-comment-text").first().waitFor({ timeout: 5000 });
@@ -1498,6 +1510,11 @@ try {
     const total = Number((await headline.textContent()).match(/of (\d+)/)[1]);
     expect((await page.locator(".details .check-pips > span").count()) === total, `not a pip for each of the ${total} checks`);
     expect((await page.locator(".details .mentioned-issue", { hasText: "#14" }).count()) === 0, "the pull request is listed with the issues too");
+    // With no label under the pointer, no lane is lit: the graph's nodes are at full strength.
+    await page.waitForFunction(() => !document.querySelector(".commit-list.lane-lit"), null, { timeout: 2000 }).catch(async () => {
+      const under = await page.evaluate(() => [...document.querySelectorAll(":hover")].map((element) => element.className).filter(Boolean).slice(-2).join(" > "));
+      throw new Error(`a lane is lit with the pointer on ${under}`);
+    });
     await accessible("an open pull request in a commit's details");
     await card.getByRole("button", { name: "Show" }).click();
     const view = page.locator(".request-view");
@@ -1644,7 +1661,7 @@ try {
       await page.keyboard.press("Escape");
       await dialog.waitFor({ state: "detached", timeout: 5000 });
     } finally {
-      await page.setViewportSize(size);
+      await restoreSize(size);
     }
   });
 
@@ -1661,6 +1678,107 @@ try {
     await page.keyboard.press("Escape");
     await page.locator(".context-menu").waitFor({ state: "detached" });
     expect(first && second && first !== second && nextMenu !== second, `focus went ${first} → ${second} → ${nextMenu}`);
+  });
+
+  await step("fits the smallest window: the sidebar as a strip, every window a command opens, Settings, About, the View panel and a long menu", async () => {
+    // 900 by 560, the smallest the window can be (tauri.conf.json), with the sidebar and the
+    // details open: no window inside it runs past its edges out of reach, and no words sit on
+    // other words or are cut off without an ellipsis (fits.mjs).
+    const size = page.viewportSize();
+    await page.setViewportSize({ width: 900, height: 560 });
+    const fits = async (where) => {
+      await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== "running" || animation.effect?.getComputedTiming().iterations === Infinity), null, { timeout: 5000 });
+      const found = await page.evaluate(`(${crowded})()`);
+      expect(found.length === 0, `${where}, in the smallest window: ${found.slice(0, 4).join("; ")}`);
+    };
+    const open = ".dialog-backdrop, .context-menu, .view-panel";
+    const closeAll = async () => {
+      for (let tries = 0; tries < 4 && (await page.locator(open).count()) > 0; tries++) await page.keyboard.press("Escape");
+      await page.locator(open).first().waitFor({ state: "detached", timeout: 5000 });
+    };
+    const palette = page.getByRole("dialog", { name: "Commands" });
+    const command = async (label) => {
+      await page.keyboard.press("Control+k");
+      await palette.locator("input").fill(label);
+      const first = palette.locator("li").first();
+      await first.waitFor({ timeout: 5000 });
+      // One this repository doesn't offer just now is left out.
+      if (!((await first.textContent()) ?? "").startsWith(label)) {
+        await page.keyboard.press("Escape");
+        return false;
+      }
+      await page.keyboard.press("Enter");
+      await palette.waitFor({ state: "detached", timeout: 5000 });
+      await page.waitForTimeout(300);
+      return true;
+    };
+    try {
+      await closeAll();
+      await fits("the repository");
+      // The sidebar is a strip of icons beside the list. One opens it over the list, at its
+      // section; Esc closes it, with the focus back on the icon.
+      await page.locator(".sidebar-strip").waitFor({ timeout: 5000 });
+      expect((await page.locator(".sidebar-frame").count()) === 0, "the sidebar takes its full width in the smallest window");
+      const tagsIcon = page.locator(".sidebar-strip-button[data-section=tags]");
+      await tagsIcon.click();
+      const over = page.locator(".sidebar-over");
+      await over.locator('[data-tour="section-tags"] .sidebar-heading[aria-expanded="true"]').waitFor({ timeout: 5000 });
+      await fits("the sidebar over the list");
+      await accessible("the sidebar's strip, open at Tags");
+      // A tag's lane lights up from its label there too, and goes out with the sidebar when
+      // Esc closes it under the pointer.
+      await over.locator('[data-tour="section-tags"] .sidebar-item').first().hover();
+      await page.locator(".commit-list.lane-lit").waitFor({ timeout: 5000 });
+      await page.keyboard.press("Escape");
+      await over.waitFor({ state: "detached", timeout: 5000 });
+      await page.waitForFunction(() => !document.querySelector(".commit-list.lane-lit"), null, { timeout: 2000 }).catch(() => {
+        throw new Error("a tag's lane stayed lit after its label went with the sidebar");
+      });
+      expect(await tagsIcon.evaluate((element) => element === document.activeElement), "the focus didn't go back to the strip's Tags icon");
+      for (const label of ["Go to Commit", "New Branch", "New Tag", "New Worktree", "Stash Changes", "Prune Branches", "Restore Branch", "Recover Commits", "Repository Settings", "Shelves", "Local History", "What Makes It Big", "Check Project Setup", "Clean Up Git LFS Files", "Force Push", "Clone Repository", "Tours", "Third-Party Licences", "Why Is a File Ignored", "Keyboard Shortcuts"]) {
+        if (!(await command(label))) continue;
+        await fits(label);
+        await closeAll();
+      }
+      // Settings, section by section.
+      await page.keyboard.press("Control+,");
+      const sections = page.locator(".settings-nav [role=tab]");
+      await sections.first().waitFor({ timeout: 5000 });
+      for (let index = 0; index < (await sections.count()); index++) {
+        await sections.nth(index).click();
+        await fits(`Settings → ${((await sections.nth(index).textContent()) ?? "").trim()}`);
+      }
+      await closeAll();
+      // About is taller than the window: it scrolls, from its top down to its buttons.
+      expect(await command("About Tributary"), "About Tributary isn't in the command palette");
+      await fits("About");
+      const about = page.locator(".about-window");
+      const backdrop = page.locator(".dialog-backdrop");
+      await backdrop.evaluate((element) => element.scrollTo(0, 0));
+      expect((await about.boundingBox()).y >= 0, "About's top is out of reach");
+      await backdrop.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+      const buttons = await about.locator(".dialog-buttons").boundingBox();
+      expect(buttons.y + buttons.height <= 560, "About's buttons are out of reach");
+      await closeAll();
+      // The View panel ends inside the window, and scrolls to the rest.
+      await page.keyboard.press("Control+Shift+O");
+      const panel = page.locator(".view-panel");
+      await panel.waitFor({ timeout: 5000 });
+      await fits("the View panel");
+      expect(await panel.evaluate((element) => element.scrollHeight > element.clientHeight), "the View panel doesn't scroll in the smallest window");
+      await closeAll();
+      // The menu bar's View menu, taller than the window: its last item is in reach.
+      await page.locator("body").press("F10");
+      await page.locator(".context-menu").waitFor({ timeout: 5000 });
+      await page.keyboard.press("ArrowRight");
+      await fits("the View menu");
+      await page.keyboard.press("End");
+      const last = await page.evaluate(() => document.activeElement?.getBoundingClientRect().bottom ?? 0);
+      expect(last > 0 && last <= 560, `the View menu's last item ends ${Math.round(last)}px down, below the window`);
+      await closeAll();
+    } finally {
+      await restoreSize(size);
+    }
   });
 
   await step("signs in to GitHub with a token", async () => {

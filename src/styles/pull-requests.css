@@ -331,6 +331,8 @@ button.request-ref:hover {
    as a commit's details have them; then the river, and each one on the clock. */
 .request-checks-head {
   display: flex;
+  /* In a narrow view, Open goes under, at the end, rather than past the card's edge. */
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-8);
   color: var(--text-muted);
@@ -342,33 +344,16 @@ button.request-ref:hover {
   font-weight: 600;
 }
 
-/* Its title names the checks that failed, which can be long: it wraps instead of being cut. */
-.request-status .commit-checks-headline {
-  white-space: normal;
-  overflow-wrap: anywhere;
+/* Open, at the end of the heading: what they say is beside the river under it. */
+.request-checks-head .section-button {
+  margin-left: auto;
 }
 
-/* In a narrow view (a small window, with the sidebar and details open), Open goes under the
-   counts, so the title and the counts have the width to themselves. */
-@container request-status (max-width: 460px) {
-  .request-status .site-item {
-    grid-template-columns: 16px minmax(0, 1fr);
-  }
-
-  .request-status .site-item-under {
-    grid-column: 2;
-  }
-
-  .request-status .commit-checks-counts {
-    white-space: normal;
-  }
-
-  .request-status .site-item .section-button {
-    grid-row: 3;
-    grid-column: 2;
-    justify-self: start;
-    margin-top: var(--space-6);
-  }
+/* With none that ran, no river: what's said beside it, on its own. */
+.request-checks-none {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--type-base);
 }
 
 .request-status .request-check-name {

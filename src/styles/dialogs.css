@@ -8,6 +8,8 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-24);
+  /* A dialog taller than the window (About, in the smallest one) scrolls, from its top. */
+  overflow-y: auto;
   background: var(--scrim);
 }
 
@@ -17,6 +19,9 @@
 
 .dialog {
   position: relative;
+  /* In the middle when it fits, and from the top when it's taller than the window: centred
+     by the backdrop instead, its top would be out of reach above it. */
+  margin: auto;
   width: min(480px, 100%);
   padding: var(--space-20) var(--space-24);
   border: 1px solid var(--border-strong);

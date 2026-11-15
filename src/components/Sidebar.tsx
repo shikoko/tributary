@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { BranchSync } from "../lib/branchSync";
 import type { Stacked } from "../api";
 import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Submodule, type Visibility, type Worktree } from "../api";
@@ -63,6 +63,8 @@ interface Props {
   submodules: Submodule[];
   onOpenSubmodule: (submodule: Submodule) => void;
   onSubmoduleMenu: (submodule: Submodule, x: number, y: number) => void;
+  /** A section to open and show, its heading focused: the one chosen in the strip, in a narrow window. */
+  reveal?: string | null;
 }
 
 /**
@@ -74,6 +76,19 @@ export function Sidebar(props: Props) {
   const { visibility, pins, selectedId, width, aheadBehind } = props;
   const [filter, setFilter] = useState("");
   const [collapsed, setCollapsed] = useStoredState<Record<string, boolean>>("sidebar.collapsed", { tags: true });
+  const aside = useRef<HTMLElement>(null);
+  // The section chosen in the strip: opened, scrolled to and focused, once it's drawn open.
+  const { reveal } = props;
+  useEffect(() => {
+    if (!reveal) return;
+    setCollapsed((current) => (current[reveal] ? { ...current, [reveal]: false } : current));
+    const frame = requestAnimationFrame(() => {
+      const heading = aside.current?.querySelector<HTMLElement>(`[data-tour="section-${reveal}"] .sidebar-heading`);
+      heading?.scrollIntoView({ block: "start" });
+      heading?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [reveal, setCollapsed]);
   const lists = useMemo(() => sidebarLists(props.commits, props.hiddenRefs), [props.commits, props.hiddenRefs]);
   const groups = useMemo(() => branchGroups(lists.branches, lists.remotes, props.protectedBranches), [lists, props.protectedBranches]);
 
@@ -90,7 +105,23 @@ export function Sidebar(props: Props) {
     isOpen: (key) => filtering || collapsed[key] === false,
     toggle: (key) => setCollapsed((current) => ({ ...current, [key]: current[key] === false })),
   };
-  const handlers: RefHandlers = props;
+  // A lane lit from one of these labels goes out with the sidebar (the strip's panel closed
+  // with Esc, or the window made narrow): no pointer leaves the label then.
+  const litHere = useRef(false);
+  const { onLaneHover } = props;
+  useEffect(
+    () => () => {
+      if (litHere.current) onLaneHover(null);
+    },
+    [onLaneHover],
+  );
+  const handlers: RefHandlers = {
+    ...props,
+    onLaneHover: (label) => {
+      litHere.current = label !== null;
+      onLaneHover(label);
+    },
+  };
   const branchIcon = <BranchIcon size={13} />;
   const item = (entry: RefEntry, label: string, icon: ReactNode, depth = 0, key = `${entry.kind}:${entry.name}`) => (
     <RefItem
@@ -132,6 +163,7 @@ export function Sidebar(props: Props) {
 
   return (
     <aside
+      ref={aside}
       className="sidebar"
       style={{ width }}
       aria-label="Branches and tags"

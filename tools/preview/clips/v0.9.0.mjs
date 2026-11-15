@@ -65,7 +65,10 @@ export default {
     // so its details show its pull request and checks.
     await page.getByRole("button", { name: "Toggle the branches sidebar" }).click();
     const head = page.locator(".commit-row", { has: page.locator(".ref-pill.current") }).first();
-    await head.locator(".cell.description").click();
+    // Clicked where it is: Playwright's own click scrolls it into view first, which here put
+    // the list a few pixels down, the top commit half under the headings.
+    const box = await head.locator(".cell.description").boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await page.locator(".details .commit-checks .check-pips").waitFor({ timeout: 10_000 });
     await page.mouse.move(page.pointerAt.x, page.pointerAt.y);
     await pause(page, 600);
@@ -83,7 +86,7 @@ export default {
     await page.close();
   },
 
-  /** Go to Commit: a tag far down the history, outlined once the list is there. */
+  /** Go to Commit: a tag far down the history, outlined once the list is there, and back up. */
   async "go-to-commit"({ open, point, pause, demos, record }) {
     const page = await open(demos.notebook, { width: 1200, height: 750 });
     await pause(page, 600);
@@ -99,6 +102,22 @@ export default {
     await record(page, { x: 0, y: 0, width: 1200, height: 750 }, async () => {
       await pause(page, 500);
       await goTo("v0.1.0");
+      await pause(page, 700);
+      // Back as it started, without a second dialog (each dims the whole window, which costs
+      // the recording its size): main in the sidebar, and the list scrolled to its top. The
+      // pointer keeps off the commits on the way, as each row lights up under it.
+      const main = page.locator(".sidebar-item.current");
+      await press(page, point, pause, main, 500);
+      const list = page.locator(".list-scroller");
+      if (await list.evaluate((element) => element.scrollTop > 0)) {
+        const box = await list.boundingBox();
+        await point(page, { x: box.x + 12, y: page.pointerAt.y });
+        await page.mouse.wheel(0, -4000);
+        await page.waitForFunction(() => document.querySelector(".list-scroller")?.scrollTop === 0, null, { timeout: 5000 });
+      }
+      // And the pointer back to the corner it started in, along the status bar.
+      await point(page, { x: page.pointerAt.x, y: 737 });
+      await point(page, { x: 1199, y: 749 });
       await pause(page, 600);
     });
     await page.close();
@@ -172,12 +191,20 @@ export default {
       await press(page, point, pause, page.locator(".toast").getByRole("button", { name: "Undo" }), 600);
       await page.locator(".toast", { hasText: "back off release/notes" }).waitFor({ timeout: 10_000 });
       await pause(page, 1600);
+      // Back as it started: the checked-out commit chosen again, once the message has gone.
+      await press(page, point, pause, page.locator(".commit-row", { has: page.locator(".ref-pill.current") }).first().locator(".cell.description"), 300);
+      await point(page, { x: 1023, y: 639 });
+      await page.locator(".toast").waitFor({ state: "detached", timeout: 10_000 });
+      await pause(page, 600);
     });
     await page.close();
     git(repo, "branch", "-D", "pick-list", "release/notes");
   },
 
-  /** Sync: a teammate pushed to main and you have commits of your own, so Push is Sync. */
+  /**
+   * Sync: a teammate pushed to main and you have commits of your own, so Push is Sync. What it
+   * pushed can't be taken back, so the recording fades back to how it started.
+   */
   async sync({ open, point, pause, demos, record }) {
     const repo = demos.notebook;
     // Without the demo's uncommitted changes, which git would ask to stash first.
@@ -202,7 +229,7 @@ export default {
       await press(page, point, pause, sync, 300);
       await page.locator(".toast", { hasText: "Synced main" }).waitFor({ timeout: 20_000 });
       await pause(page, 2000);
-    });
+    }, { fadeBack: true });
     await page.close();
   },
 };

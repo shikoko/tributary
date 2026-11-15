@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { branchVersions, pullRequestDetails, requestConversation, type MergeCheck, type PullRequest, type RequestCheck, type RequestConversation, type RequestDetails, type RequestReview } from "../api";
 import { copyText } from "../lib/clipboard";
 import { plural, relativeTime } from "../lib/format";
+import { riverWords } from "../lib/checkSummary";
 import { checkMerge, describeMergeCheck } from "../lib/mergeChecks";
 import { anyRunning, describeMergeable, describeReviews, requestNoun, requestNumber, requestStanding } from "../lib/pullRequests";
 import { useNow } from "../lib/useNow";
@@ -25,6 +26,7 @@ import {
   RefreshIcon,
   UserIcon,
   WarningIcon,
+  WorkflowIcon,
 } from "./Icons";
 import { Loader } from "./Loader";
 import { CheckTimeline } from "./CheckTimeline";
@@ -32,8 +34,7 @@ import { CheckTributaries } from "./CheckTributaries";
 import { Markdown } from "./Markdown";
 import { AskForReview, useRequestChange } from "./RequestControls";
 import { ConversationList, MergeRequestDialog, ReviewBox } from "./RequestReview";
-import { ChecksSummary } from "./CommitChecks";
-import { SiteChip } from "./DetailsSite";
+import { SectionButton, SiteChip } from "./DetailsSite";
 import { Button } from "./ui/Button";
 import { Chip } from "./ui/Chip";
 
@@ -491,6 +492,7 @@ function StatusCard({
   const said = settled ? null : describeReviews(details.reviews);
   const checks = [...details.checks].sort((a, b) => CHECK_ORDER[checkState(a)] - CHECK_ORDER[checkState(b)]);
   const ran = checks.filter((check) => check.state !== null);
+  const words = riverWords(checks, gitlab);
   // Running checks count up to the second; otherwise the clock's ends ("5 minutes ago") still move.
   const now = useNow(anyRunning(checks) ? 1000 : 30_000);
   return (
@@ -512,11 +514,14 @@ function StatusCard({
           <div className="request-checks-head">
             <span className="request-checks-title">{gitlab ? "Pipeline" : "Checks"}</span>
             <SiteChip site={gitlab ? "GitLab" : "GitHub"} />
+            {onShowChecks && <SectionButton onClick={onShowChecks} icon={<WorkflowIcon size={12} />} label="Open" title="Open the checks, each run as a graph of its jobs" />}
           </div>
-          {/* How they went, built as a commit's details have it; the river under it shows each
-              and counts them, so its title names what failed instead, and it has no pips. */}
-          <ChecksSummary checks={checks} gitlab={gitlab} onShow={onShowChecks} river />
-          {ran.length > 0 && <CheckTributaries key={details.number} checks={ran} now={now} gitlab={gitlab} openUrl={openUrl} lit={lit} onLight={setLit} />}
+          {/* How they went, said beside the river; with none that ran, there's no river to be beside. */}
+          {ran.length > 0 ? (
+            <CheckTributaries key={details.number} checks={ran} now={now} openUrl={openUrl} lit={lit} onLight={setLit} words={words} />
+          ) : (
+            <p className="request-checks-none">{words.title}</p>
+          )}
           <CheckTimeline checks={checks} now={now} openUrl={openUrl} lit={lit} onLight={setLit} />
         </>
       )}

@@ -17,6 +17,12 @@
   outline: none;
 }
 
+/* A menu taller than the window (ContextMenu gives it the height there is): its items scroll. */
+.menu-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .menu-item {
   display: flex;
   align-items: center;
