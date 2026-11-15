@@ -40,6 +40,8 @@ interface Props {
   columnOptions: ColumnOptions;
   /** Dividers like "Yesterday" or "October" between commits from different periods. */
   daySeparators: boolean;
+  /** Pull requests' numbers on the labels, beside their checks' icon (otherwise the icon alone). */
+  prNumbers?: boolean;
   /** Right-click on the column headings. */
   onHeaderContextMenu: (x: number, y: number) => void;
   /** The View button at the end of the column headings, which the View panel opens under. */
@@ -48,6 +50,8 @@ interface Props {
   onViewMenu: () => void;
   /** Right-click on a row, at window coordinates (x, y). */
   onContextMenu: (commit: CommitRow, x: number, y: number) => void;
+  /** A click on a commit's CI dot. */
+  onShowChecks: (commit: CommitRow) => void;
   /** Double-click on a branch label. */
   onPillActivate: (pill: RefPill, commit: CommitRow) => void;
   onPillContextMenu: (pill: RefPill, commit: CommitRow, x: number, y: number) => void;
@@ -228,6 +232,10 @@ export function CommitList(props: Props) {
       previewTimer.current = window.setTimeout(() => setPreview({ commit, x, y }), PREVIEW_DELAY);
     },
     onLeave: hidePreview,
+    onShowChecks: (commit) => {
+      hidePreview();
+      props.onShowChecks(commit);
+    },
   };
   const rows = [];
   for (let slotIndex = first; slotIndex < last; slotIndex++) {
@@ -267,7 +275,7 @@ export function CommitList(props: Props) {
 
   return (
     <section
-      className={`commit-list${dense ? " dense" : ""}${layout.graphGrowing ? " graph-growing" : ""}${litLanes.length > 0 ? " lane-lit" : ""}`}
+      className={`commit-list${dense ? " dense" : ""}${props.prNumbers ? " pr-numbers" : ""}${layout.graphGrowing ? " graph-growing" : ""}${litLanes.length > 0 ? " lane-lit" : ""}`}
       aria-label="Commits"
       // The rows' columns: set here, so a new width restyles the rows without re-rendering them.
       style={{ ["--list-columns" as string]: columns, ["--refs-width" as string]: `${refsWidth}px`, ["--graph-width" as string]: `${graphWidth}px` }}

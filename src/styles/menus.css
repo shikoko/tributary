@@ -45,6 +45,14 @@
   background: var(--bg-active);
 }
 
+/* On the highlight, an item's shortcut is a step brighter: the faint text it has otherwise
+   reads at 4 to 1 on it in the dark theme, under the 4.5 to 1 small text needs. */
+.menu-item:hover:not(:disabled) .menu-shortcut,
+.menu-item.open .menu-shortcut,
+.menu-item:focus-visible .menu-shortcut {
+  color: var(--text-muted);
+}
+
 /* A submenu's arrow, on the right. */
 .menu-chevron {
   display: inline-flex;

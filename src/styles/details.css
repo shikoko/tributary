@@ -624,84 +624,7 @@
   font-size: var(--type-sm);
 }
 
-/* A commit's CI: how many passed and failed, as words and a bar, then the ones to look at. */
-.commit-checks-rerun {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-6);
-  /* Odd, for words at --type-sm: see --cap-pixels. */
-  height: 25px;
-  margin-left: auto;
-  padding: 0 var(--space-10);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: var(--type-sm);
-}
-
-.commit-checks-rerun:hover:not(:disabled) {
-  border-color: var(--border-hover);
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.commit-checks-rerun:disabled {
-  opacity: 0.6;
-}
-
-.commit-checks-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4) var(--space-14);
-  color: var(--text-muted);
-  font-size: var(--type-base);
-}
-
-.commit-checks-count strong {
-  color: var(--text);
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-}
-
-.commit-checks-count.failure strong {
-  color: var(--danger-text);
-}
-
-.commit-checks-count.pending strong {
-  color: var(--warning-text);
-}
-
-.commit-checks-count.success strong {
-  color: var(--success-text);
-}
-
-.commit-checks-bar {
-  display: flex;
-  gap: var(--space-2);
-  height: 4px;
-  margin-top: var(--space-10);
-  overflow: hidden;
-  border-radius: var(--radius-xs);
-}
-
-.commit-checks-bar > span {
-  min-width: 4px;
-  background: var(--text-faint);
-}
-
-.commit-checks-bar > .success {
-  background: var(--check-success);
-}
-
-.commit-checks-bar > .failure {
-  background: var(--check-failure);
-}
-
-.commit-checks-bar > .pending {
-  background: var(--check-pending);
-}
-
+/* A commit's failed and running checks, in its checks' card (CommitChecks). */
 .commit-checks-list {
   display: flex;
   flex-direction: column;
@@ -803,35 +726,6 @@ button.commit-check-row:hover svg {
   color: var(--text-secondary);
 }
 
-.commit-checks-more {
-  margin-top: var(--space-8);
-  font-size: var(--type-sm);
-}
-
-/* Shows a pull request the commit mentions in the app, beside its link to the site. */
-/* Show, beside the state chip: its words the chip's size, which puts them in the middle on
-   Windows at 100% too. There, letters land on whole screen pixels: at 12px their capitals are
-   9 pixels tall, which can't sit in the middle of the 20 inside the button (they were a pixel
-   low), while 11px capitals are 8, as the chip's are, with 6 above and 6 below. */
-.mentioned-issue-show {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: var(--space-6);
-  height: 22px;
-  padding: 0 var(--space-8);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: var(--type-xs);
-}
-
-.mentioned-issue-show:hover {
-  border-color: var(--border-hover);
-  background: var(--bg-hover);
-  color: var(--text);
-}
 
 /* List or Tree, at the end of the Changed files heading, or in the Working tree panel's header. */
 .details-section-head .files-layout {

@@ -2,16 +2,17 @@ import type { Action, CommitRow, RepoSnapshot, Submodule, Worktree } from "../ap
 import type { DetailsAction } from "../components/CommitDetails";
 import type { ColumnOptions } from "../components/CommitList";
 import type { MenuItem } from "../components/ContextMenu";
-import { BroomIcon, ColumnsIcon, CopyIcon, DownloadIcon, FolderIcon, PlusIcon, PushIcon, ResetIcon, StashIcon, SubmoduleIcon, TrashIcon } from "../components/Icons";
+import { BroomIcon, ColumnsIcon, CopyIcon, DownloadIcon, FolderIcon, PlusIcon, PushIcon, ResetIcon, SyncIcon, StashIcon, SubmoduleIcon, TrashIcon } from "../components/Icons";
 import { copyText } from "../lib/clipboard";
 import { isMac } from "../lib/platform";
 import { stashIndexOf } from "../lib/refs";
 import { canResetTo, type OpenDialog } from "../menus";
 
 /** The menu next to Push. */
-export function pushMenuItems(push: () => void, openDialog: (dialog: OpenDialog) => void): MenuItem[] {
+export function pushMenuItems(push: () => void, sync: () => void, openDialog: (dialog: OpenDialog) => void): MenuItem[] {
   return [
     { label: "Push", icon: <PushIcon />, onSelect: push },
+    { label: "Sync: pull, then push", icon: <SyncIcon />, onSelect: sync },
     { label: "Force push…", icon: <PushIcon />, danger: true, separated: true, onSelect: () => openDialog({ kind: "forcePush" }) },
   ];
 }

@@ -1,10 +1,16 @@
-import type { Action } from "../api";
+import type { Action, WorktreeStatus } from "../api";
 import type { RemoteAction } from "../components/Toolbar";
+import { plural } from "../lib/format";
 
 /** What's loading. */
 export type Busy = { kind: "open"; path: string } | { kind: "refresh" } | { kind: "more" } | null;
-/** A fetch, pull or push, downloading Git LFS files, a checkout (all with a progress bar), or anything else. */
-export type Running = RemoteAction | "download" | "submodules" | "checkout" | "other" | null;
+/** A fetch, pull or push, downloading Git LFS files, a checkout, discarding changes (all with a progress bar), or anything else. */
+export type Running = RemoteAction | "download" | "submodules" | "checkout" | "discard" | "other" | null;
+
+/** Whether an action of this kind went to a remote, so locks and pull requests may have changed. */
+export function reachedRemote(kind: Running): boolean {
+  return kind !== null && kind !== "other" && kind !== "checkout" && kind !== "discard";
+}
 /** What's highlighted: a branch's (or commit's) history, an author's commits, or the commits that changed a file or folder. */
 export type Focus =
   | { kind: "history"; name: string; commitId: string }
@@ -31,6 +37,7 @@ export const ACTIVITY_SIZE = 300;
 /** Actions that can be retried after stashing when uncommitted changes are in the way. */
 export const RETRYABLE = new Set<Action["kind"]>([
   "pull",
+  "sync",
   "fetchLatest",
   "checkoutBranch",
   "checkoutRemoteBranch",
@@ -39,6 +46,7 @@ export const RETRYABLE = new Set<Action["kind"]>([
   "merge",
   "rebase",
   "cherryPick",
+  "cherryPickOnto",
   "revert",
   "cherryPickMany",
   "revertMany",
@@ -50,10 +58,30 @@ export const RUNNING_LABELS: Record<Exclude<Running, "other" | null>, string> = 
   fetch: "Fetching",
   pull: "Pulling",
   push: "Pushing",
+  sync: "Syncing",
   download: "Downloading Git LFS files",
   submodules: "Updating submodules",
   checkout: "Checking out",
+  discard: "Discarding changes",
 };
+
+/**
+ * For Discard all, or discarding chosen files or folders, its progress bar's label: how many
+ * of the uncommitted files go, as `worktree` lists them ("Discarding 12,345 files"). A new
+ * folder is listed as itself, however many files are in it, so it's counted as a folder
+ * ("Discarding 4 files and 1 new folder"). git says nothing while it stashes them away, so
+ * the bar shows it's working, not how far it is. `null` for any other action.
+ */
+export function discardLabel(action: Action, worktree: WorktreeStatus | null): string | null {
+  if (action.kind !== "discardAll" && action.kind !== "discardFiles") return null;
+  const chosen = action.kind === "discardFiles" ? action.paths.map((path) => path.replace(/\/+$/, "")) : null;
+  const goes = (path: string | null) => path !== null && (chosen === null || chosen.some((place) => path === place || path.startsWith(`${place}/`)));
+  const files = new Set([...(worktree?.staged ?? []), ...(worktree?.unstaged ?? [])].filter((file) => goes(file.path) || goes(file.oldPath)).map((file) => file.path));
+  if (files.size === 0) return RUNNING_LABELS.discard;
+  const folders = [...files].filter((path) => path.endsWith("/")).length;
+  const what = [files.size > folders && plural(files.size - folders, "file"), folders > 0 && plural(folders, "new folder")];
+  return `Discarding ${what.filter(Boolean).join(" and ")}`;
+}
 
 /** What a checkout is checking out, for its progress bar: "Checking out art/barber-v2". */
 export function checkoutTarget(action: Action): string | null {

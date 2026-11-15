@@ -1,7 +1,7 @@
 // GitHub: signing in, and open pull requests.
 import { invoke } from "@tauri-apps/api/core";
-import type { CheckState, CommitChecks, CommitMessage, GitHubAccount, GitHubStatus, MergeMethod, MergeRequestOptions, NewRequest, NewRequestInfo, PullRequest, RequestChange, RequestCheck, RequestComment, RequestConversation, RequestDetails, RequestReview, ReviewVerdict } from "./generated";
-export type { CheckState, CommitChecks, CommitMessage, GitHubAccount, GitHubStatus, MergeMethod, MergeRequestOptions, NewRequest, NewRequestInfo, PullRequest, RequestChange, RequestCheck, RequestComment, RequestConversation, RequestDetails, RequestReview, ReviewVerdict };
+import type { CheckState, CommitChecks, CommitMessage, CommitRuns, Job, JobGroup, Run, GitHubAccount, GitHubStatus, MergeMethod, MergeRequestOptions, NewRequest, NewRequestInfo, PullRequest, RequestChange, RequestCheck, RequestComment, RequestConversation, RequestDetails, RequestReview, ReviewVerdict } from "./generated";
+export type { CheckState, CommitChecks, CommitMessage, CommitRuns, Job, JobGroup, Run, GitHubAccount, GitHubStatus, MergeMethod, MergeRequestOptions, NewRequest, NewRequestInfo, PullRequest, RequestChange, RequestCheck, RequestComment, RequestConversation, RequestDetails, RequestReview, ReviewVerdict };
 
 export function gitHubStatus(): Promise<GitHubStatus> {
   return invoke<GitHubStatus>("github_status");
@@ -63,6 +63,11 @@ export function commitStates(path: string, ids: string[]): Promise<Record<string
 
 export function commitChecks(path: string, id: string): Promise<CommitChecks> {
   return invoke<CommitChecks>("commit_checks", { path, id });
+}
+
+/** A commit's CI run by run (GitHub Actions workflow runs, or its latest GitLab pipeline), each run's jobs in groups, with which waits for which. */
+export function commitRuns(path: string, id: string): Promise<CommitRuns> {
+  return invoke<CommitRuns>("commit_runs", { path, id });
 }
 
 /** Run a commit's failed checks again; says what was done. */

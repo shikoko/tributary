@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Starts Tributary in its Flatpak. Its temporary files (a rebase's to-do, an index of its own,
+# a patch of chosen lines) go where the computer's git can read them: git runs outside the
+# sandbox, whose /tmp is its own.
+export TMPDIR="${XDG_CACHE_HOME:-$HOME/.cache}/tmp"
+mkdir -p "$TMPDIR"
+exec /app/lib/tributary/usr/bin/tributary "$@"

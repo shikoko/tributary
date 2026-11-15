@@ -25,3 +25,7 @@ dist-ssr
 
 # Desktop end-to-end tests: screenshots of what failed
 tools/e2e/output/
+
+# The Flatpak's input and flatpak-builder's work (flatpak/README.md).
+flatpak/input/
+.flatpak-builder/

@@ -103,7 +103,8 @@ fn env_path(name: &str) -> Option<PathBuf> {
 
 /// Where each known app is on this computer, if it is.
 fn locate(id: &str) -> Option<Launch> {
-    let path = std::env::var_os("PATH");
+    // In the Flatpak, the computer's programs (see `host`).
+    let path = crate::host::search_path();
     let program = |names: &[&str]| {
         names
             .iter()
@@ -380,8 +381,8 @@ pub fn open_in(id: &str, folder: &Path, file: Option<&Path>) -> Result<()> {
             command
         }
     };
-    command
-        .current_dir(folder)
+    command.current_dir(folder);
+    crate::host::on_host(command)
         .spawn()
         .map(|_| ())
         .map_err(|e| format!("Couldn't open it: {e}").into())

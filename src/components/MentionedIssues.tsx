@@ -3,7 +3,6 @@ import { issues as fetchIssues, type Issue, type PullRequest, type Tracker, type
 import { issueKeys, issueUrl, useIssueTracker } from "../lib/issues";
 import { PullRequestsContext, requestNumber } from "../lib/pullRequests";
 import { openInBrowser } from "../lib/weblinks";
-import { PullRequestIcon } from "./Icons";
 import { Button } from "./ui/Button";
 import { Chip } from "./ui/Chip";
 
@@ -27,32 +26,41 @@ function requestFor(key: string, issue: Issue | null | undefined, open: PullRequ
 }
 
 /** A state's colour, as the pull request screen has them: merged purple, open green, the rest grey. */
-function tone(status: string): string {
+export function tone(status: string): string {
   const state = status.toLowerCase();
   return state === "merged" || state === "open" ? state : "other";
 }
 
-/** One issue or pull request: its key (a link to it on the site), title, state, and Show for a pull request. */
-function Mention({ id, url, title, status, done, onShow }: { id: string; url: string | null; title?: string; status?: string | null; done?: boolean; onShow?: () => void }) {
+/** One issue: its key (a link to it on the site), title and state. */
+function Mention({ id, url, title, status, done }: { id: string; url: string | null; title?: string; status?: string | null; done?: boolean }) {
   return (
     <li className={`mentioned-issue${done ? " done" : ""}`}>
       <Button kind="link" className="mentioned-issue-key mono" onClick={() => url && openInBrowser(url)} disabled={!url} data-url={url ?? undefined}>
         {id}
       </Button>
       {title && <span className="mentioned-issue-title">{title}</span>}
-      {(status || onShow) && (
+      {status && (
         <span className="mentioned-issue-end">
-          {status && <Chip className={`mentioned-issue-status ${tone(status)}`}>{status}</Chip>}
-          {onShow && (
-            <button className="mentioned-issue-show" onClick={onShow} title={`Show ${id} here, in Tributary`}>
-              <PullRequestIcon size={12} />
-              <span className="button-label">Show</span>
-            </button>
-          )}
+          <Chip className={`mentioned-issue-status ${tone(status)}`}>{status}</Chip>
         </span>
       )}
     </li>
   );
+}
+
+/** An issue or pull request a commit names, as the details panel lists it. */
+export interface Mentioned {
+  key: string;
+  /** "#12", "!12" or "FEAST-12". */
+  id: string;
+  url: string | null;
+  title?: string;
+  status?: string | null;
+  done?: boolean;
+  /** The pull request (or GitLab merge request) it is, if it's one. */
+  request: PullRequest | null;
+  /** Shows the pull request in the app. */
+  onShow?: () => void;
 }
 
 /**
@@ -62,7 +70,7 @@ function Mention({ id, url, title, status, done, onShow }: { id: string; url: st
  * the site: an open one from its branch's commit, a merged one from its merge commit, which
  * mentions it.
  */
-export function MentionedIssues({ text, open = [] }: { text: string; open?: PullRequest[] }) {
+export function useMentions(text: string, open: PullRequest[] = []): Mentioned[] {
   const { repoPath, tracker, remote } = useIssueTracker();
   const requests = useContext(PullRequestsContext);
   // An open pull request is listed once, as the branch's.
@@ -89,30 +97,45 @@ export function MentionedIssues({ text, open = [] }: { text: string; open?: Pull
       current = false;
     };
   }, [repoPath, tracker, scope, keys]);
-  const mentioned = tracker ? keys : [];
-  if (open.length === 0 && mentioned.length === 0) return null;
+  const opened: Mentioned[] = open.map((pr) => ({
+    key: `open:${pr.remote}/${pr.number}`,
+    id: requestNumber(pr),
+    url: pr.url,
+    title: pr.title,
+    status: pr.draft ? "Draft" : "Open",
+    request: pr,
+    onShow: requests ? () => requests.open(pr) : undefined,
+  }));
+  if (!tracker) return opened;
+  return [
+    ...opened,
+    ...keys.map((key): Mentioned => {
+      const issue = known.get(`${scope}|${key}`);
+      const number = /^[#!](\d+)$/.exec(key)?.[1];
+      const request = requests ? requestFor(key, issue, number ? requests.byNumber(Number(number)) : undefined, tracker, remote) : null;
+      return {
+        key,
+        id: key,
+        url: issue?.url ?? issueUrl(key, tracker, remote),
+        title: issue?.title,
+        status: issue?.status,
+        done: issue?.done,
+        request,
+        onShow: request && requests ? () => requests.open(request) : undefined,
+      };
+    }),
+  ];
+}
+
+/** The issues a commit names, a row each, under its message. (Pull requests have cards of their own: CommitRequests.) */
+export function MentionedIssues({ mentions }: { mentions: Mentioned[] }) {
+  const issues = mentions.filter((mention) => !mention.request);
+  if (issues.length === 0) return null;
   return (
-    <ul className="mentioned-issues" aria-label="Issues and pull requests">
-      {open.map((pr) => (
-        <Mention key={`open:${pr.remote}/${pr.number}`} id={requestNumber(pr)} url={pr.url} title={pr.title} status={pr.draft ? "Draft" : "Open"} onShow={requests ? () => requests.open(pr) : undefined} />
+    <ul className="mentioned-issues" aria-label="Issues">
+      {issues.map((mention) => (
+        <Mention key={mention.key} id={mention.id} url={mention.url} title={mention.title} status={mention.status} done={mention.done} />
       ))}
-      {tracker &&
-        mentioned.map((key) => {
-          const issue = known.get(`${scope}|${key}`);
-          const number = /^[#!](\d+)$/.exec(key)?.[1];
-          const request = requests ? requestFor(key, issue, number ? requests.byNumber(Number(number)) : undefined, tracker, remote) : null;
-          return (
-            <Mention
-              key={key}
-              id={key}
-              url={issue?.url ?? issueUrl(key, tracker, remote)}
-              title={issue?.title}
-              status={issue?.status}
-              done={issue?.done}
-              onShow={request && requests ? () => requests.open(request) : undefined}
-            />
-          );
-        })}
     </ul>
   );
 }

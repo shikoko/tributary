@@ -51,6 +51,8 @@ flate2 = "1"
 ruzstd = "0.9"
 # How much room is left on a disk, before downloading gigabytes of Git LFS files (lfs_count.rs).
 fs4 = "1"
+# Reads a workflow file, to know which of a run's jobs waits for which (github/runs.rs).
+yaml-rust2 = "0.13"
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
@@ -69,6 +71,11 @@ objc2-foundation = { version = "0.3.2", default-features = false, features = ["s
 # The taskbar icon on Windows, which follows the app's theme too (app_icon.rs).
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_HiDpi", "Win32_UI_WindowsAndMessaging"] }
+
+# Spell checking in text fields on Linux, which WebKitGTK leaves off (spelling.rs). The same
+# version Tauri's webview uses.
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "2.0.2"
 
 [lints.rust]
 # The only exceptions, allowed where they are: setting the app's icon on macOS and Windows (app_icon.rs),

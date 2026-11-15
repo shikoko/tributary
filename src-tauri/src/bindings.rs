@@ -103,6 +103,7 @@ fn generate() -> String {
     c.visit::<actions::UnitySetup>();
     c.visit::<crate::apps::App>();
     c.visit::<ci::CommitChecks>();
+    c.visit::<ci::CommitRuns>();
     c.visit::<codeowners::FileOwners>();
     c.visit::<commands::Notices>();
     c.visit::<diagnostics::Diagnostics>();

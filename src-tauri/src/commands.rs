@@ -158,10 +158,11 @@ pub async fn init_repository(path: String) -> Result<String> {
     blocking(move || actions::init_repository(&PathBuf::from(path))).await
 }
 
-/// Local branches that could be pruned (gone from the remote, or merged).
+/// Local branches that could be pruned (gone from the remote, merged, or with no commits for
+/// `idle_days`).
 #[tauri::command]
-pub async fn prune_candidates(path: String) -> Result<actions::PruneInfo> {
-    blocking(move || actions::prune_candidates(&PathBuf::from(path))).await
+pub async fn prune_candidates(path: String, idle_days: Option<u32>) -> Result<actions::PruneInfo> {
+    blocking(move || actions::prune_candidates(&PathBuf::from(path), idle_days)).await
 }
 
 /// Where branches were before Tributary deleted, reset, rebased or force-pushed them.
@@ -406,6 +407,12 @@ pub async fn commit_checks(path: String, id: String) -> Result<crate::ci::Commit
     crate::ci::commit_checks(&PathBuf::from(path), id).await
 }
 
+/// A commit's CI run by run, with each run's jobs in groups and which waits for which.
+#[tauri::command]
+pub async fn commit_runs(path: String, id: String) -> Result<crate::ci::CommitRuns> {
+    crate::ci::commit_runs(&PathBuf::from(path), id).await
+}
+
 /// Run a commit's failed checks again.
 #[tauri::command]
 pub async fn rerun_failed_checks(path: String, id: String) -> Result<String> {
@@ -592,6 +599,12 @@ pub async fn search_commits(
     query: String,
 ) -> Result<actions::SearchResult> {
     blocking(move || actions::search_commits(&PathBuf::from(path), mode, &query)).await
+}
+
+/// The commit `query` names (an id or its start, a branch, a tag, or a day), for Go to Commit.
+#[tauri::command]
+pub async fn find_commit(path: String, query: String) -> Result<Option<String>> {
+    blocking(move || actions::find_commit(&PathBuf::from(path), &query)).await
 }
 
 /// What the team changed in the last `days` days: kinds of file, hotspots, lines of code.

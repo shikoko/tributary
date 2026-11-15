@@ -251,7 +251,18 @@
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
-/* Dragging a label onto a commit (see lib/drag.ts). */
+/* A commit dragged onto a local branch's label, in the graph or the sidebar (see lib/drag.ts). */
+.ref-pill.drop-target {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.sidebar-item.drop-target {
+  background: rgb(var(--accent-rgb) / 0.16);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* Dragging a label onto a commit, or a commit onto a label (see lib/drag.ts). It's opaque,
+   so a commit's summary reads over the list's text. */
 .drag-ghost {
   position: fixed;
   top: 0;
@@ -260,12 +271,15 @@
   padding: var(--space-2) var(--space-8);
   border: 1px solid var(--accent);
   border-radius: var(--radius-md);
-  background: rgb(var(--accent-rgb) / 0.22);
+  background: linear-gradient(rgb(var(--accent-rgb) / 0.22), rgb(var(--accent-rgb) / 0.22)), var(--bg-raised);
   color: var(--text);
   font-size: var(--type-sm);
   font-weight: 600;
   pointer-events: none;
   white-space: nowrap;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Branch and tag labels in the graph can be dragged onto commits. */
@@ -275,7 +289,9 @@
 }
 
 body.dragging-label,
-body.dragging-label * {
+body.dragging-label *,
+body.dragging-commit,
+body.dragging-commit * {
   cursor: grabbing !important;
   user-select: none;
 }
@@ -449,8 +465,7 @@ body.dragging-label * {
   font-size: var(--type-sm);
 }
 
-.palette-item kbd,
-.shortcuts kbd {
+.palette-item kbd {
   display: inline-flex;
   align-items: center;
   height: 18px;
@@ -467,25 +482,6 @@ body.dragging-label * {
 .palette-empty {
   padding: var(--space-14) var(--space-10);
   color: var(--text-muted);
-}
-
-/* Shortcut list */
-
-.shortcuts {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.shortcuts td {
-  padding: var(--space-6) 0;
-  color: var(--text-secondary);
-  vertical-align: top;
-}
-
-.shortcuts td:first-child {
-  width: 1%;
-  padding-right: var(--space-16);
-  white-space: nowrap;
 }
 
 /* Hovering the progress bar during a Git LFS transfer: its speed, and its files. */

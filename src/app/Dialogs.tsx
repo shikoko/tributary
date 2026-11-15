@@ -27,6 +27,7 @@ import { StashDialog } from "../components/StashDialog";
 import { ShelvesDialog } from "../components/ShelvesDialog";
 import { LocalHistoryDialog } from "../components/LocalHistoryDialog";
 import { TagDialog } from "../components/TagDialog";
+import { GoToCommitDialog } from "../components/GoToCommitDialog";
 import { baseName } from "../lib/paths";
 import { deleteAnyway, splitRemoteBranch, type OpenDialog } from "../menus";
 import type { Running } from "./constants";
@@ -44,6 +45,8 @@ interface Props {
   loadDetails: (id: string) => Promise<CommitDetails>;
   run: (action: Action, kind?: Running, options?: { quiet?: boolean; confirmed?: boolean }) => unknown;
   select: (id: string) => void;
+  /** Select a commit, loading older history first when it isn't loaded. */
+  goTo: (id: string) => void;
   /** Open another dialog. */
   open: (dialog: OpenDialog) => void;
   onClose: () => void;
@@ -73,6 +76,16 @@ export function RepositoryDialogs(props: Props) {
   const { worktrees, localBranches, openWorktree } = props;
   return (
     <>
+    {dialog?.kind === "goToCommit" && (
+      <GoToCommitDialog
+        repoPath={snapshot.path}
+        onCancel={() => onClose()}
+        onFound={(id) => {
+          onClose();
+          props.goTo(id);
+        }}
+      />
+    )}
     {dialog?.kind === "bisect" && snapshot.headCommit && (
       <BisectDialog
         good={dialog.good}
@@ -269,6 +282,7 @@ export function RepositoryDialogs(props: Props) {
     {dialog?.kind === "forcePush" && (
       <ForcePushDialog
         snapshot={snapshot}
+        reason={dialog.reason}
         protectedName={protectedHead}
         onCancel={() => onClose()}
         onDone={(message) => onFinish(message)}

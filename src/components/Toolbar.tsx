@@ -15,6 +15,7 @@ import {
   GearIcon,
   PullIcon,
   PushIcon,
+  SyncIcon,
   SearchIcon,
   SidebarIcon,
   TeamIcon,
@@ -22,7 +23,7 @@ import {
 import { relativeTime } from "../lib/format";
 import { Button } from "./ui/Button";
 
-export type RemoteAction = "fetch" | "pull" | "push";
+export type RemoteAction = "fetch" | "pull" | "push" | "sync";
 
 export interface SearchState {
   query: string;
@@ -94,7 +95,11 @@ export function Toolbar(props: Props) {
     : !snapshot.upstream
       ? `${snapshot.headBranch} has no upstream branch yet. Push it first.`
       : `Pull ${snapshot.upstream.name} into ${snapshot.headBranch}${behind > 0 ? `: ${describeCount(behind, props.behindCommits)}` : ""}`;
-  const pushTitle = !onBranch
+  // Commits on both sides: a push would be refused, so the button syncs (pulls, then pushes).
+  const diverged = onBranch && hasRemotes && snapshot.upstream !== null && ahead > 0 && behind > 0;
+  const pushTitle = diverged
+    ? `Sync ${snapshot.headBranch} with ${snapshot.upstream?.name}: pull ${describeCount(behind, props.behindCommits)}, then push ${describeCount(ahead, props.aheadCommits)}`
+    : !onBranch
     ? "Check out a branch to push"
     : !hasRemotes
       ? "This repository has no remotes"
@@ -245,9 +250,9 @@ export function Toolbar(props: Props) {
           )}
         </Button>
         <div className="split-button" data-tour="remote">
-          <Button kind="tool" onClick={() => props.onRemote("push")} disabled={pushDisabled} title={pushTitle}>
-            <PushIcon className={running === "push" ? "pulse" : undefined} />
-            <span className="label">Push</span>
+          <Button kind="tool" onClick={() => props.onRemote(diverged ? "sync" : "push")} disabled={pushDisabled} title={pushTitle}>
+            {diverged ? <SyncIcon className={running === "sync" ? "pulse" : undefined} /> : <PushIcon className={running === "push" ? "pulse" : undefined} />}
+            <span className="label">{diverged ? "Sync" : "Push"}</span>
             {ahead > 0 && (
               <span className="count">
                 <span>{ahead}</span>

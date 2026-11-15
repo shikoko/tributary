@@ -1,0 +1,156 @@
+/* The keyboard shortcuts window (ShortcutsDialog): never taller than the app's window, its
+   list scrolling inside it. */
+.shortcuts-window {
+  display: flex;
+  flex-direction: column;
+  width: min(780px, 100%);
+  height: min(640px, 100%);
+}
+
+.shortcuts-window .dialog-buttons:empty {
+  display: none;
+}
+
+.shortcuts-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.shortcuts-group h3 {
+  margin: 0 0 var(--space-6);
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Keys as keycaps: a shadow along the bottom, inside the box, so the words stay in its middle. */
+.key-caps {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4) var(--space-6);
+}
+
+.key-set {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.key-caps kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 var(--space-6);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  box-shadow: inset 0 -2px 0 var(--border);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--type-xs);
+  white-space: nowrap;
+}
+
+.key-caps kbd.word {
+  font-family: inherit;
+}
+
+.key-or,
+.key-on {
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+}
+
+.shortcut-what {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--type-base);
+}
+
+/* A search, the groups down the side, and the list beside them, a row each: what it does,
+   its keys at the end. */
+.shortcuts-find {
+  flex: none;
+  margin: var(--space-6) 0 var(--space-14);
+  font-family: inherit;
+}
+
+.shortcuts-split {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: var(--space-20);
+  min-height: 0;
+}
+
+.shortcuts-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.shortcuts-nav button {
+  display: flex;
+  align-items: center;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 29px;
+  padding: 0 var(--space-10);
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--type-sm);
+  text-align: left;
+}
+
+.shortcuts-nav button:hover {
+  background: var(--bg-hover);
+}
+
+.shortcuts-nav button.on {
+  background: var(--bg-selected);
+  color: var(--text);
+}
+
+.shortcuts-window .shortcuts-body {
+  padding-right: var(--space-4);
+}
+
+.shortcuts-none {
+  margin: var(--space-8) 0;
+  color: var(--text-muted);
+}
+
+.shortcuts-group {
+  margin-bottom: var(--space-24);
+  break-inside: avoid;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+  min-height: 34px;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcut-row:last-child {
+  border-bottom: none;
+}
+
+.shortcut-row .key-caps {
+  flex: none;
+  max-width: 55%;
+}

@@ -140,8 +140,8 @@ Every pull request into `develop` or `main` runs the **Checks** workflow (`.gith
 The **Build** workflow (`.github/workflows/build.yml`) makes the installers:
 
 - **macOS:** `.dmg` with a universal app (Apple Silicon and Intel)
-- **Windows:** `-setup.exe`, Tributary's own setup, which the automatic updates run too
-- **Linux:** `.AppImage`, built on Ubuntu 22.04 (an AppImage runs where the C library is as new as the one it was built with, or newer), which the automatic updates replace. A copy of Tributary built from source isn't offered updates (`src-tauri/src/updates.rs`).
+- **Windows:** `-setup.exe`, Tributary's own setup, which the automatic updates run too: `_x64-setup.exe`, and `_arm64-setup.exe` for Windows on ARM, built on an ARM runner (`windows-11-arm`)
+- **Linux:** `.AppImage` (`_amd64`, and `_aarch64` for ARM, built on Ubuntu 22.04's ARM runner), built on Ubuntu 22.04 (an AppImage runs where the C library is as new as the one it was built with, or newer), which the automatic updates replace. A copy of Tributary built from source isn't offered updates (`src-tauri/src/updates.rs`).
 
 Every merge into `develop` (but one of only documentation) is a **beta**: the installers are signed for updates and published as a GitHub pre-release, like `v0.3.0-beta.4`, with what was merged since the beta before. GitHub's latest release skips pre-releases, so only the copies of Tributary that get betas are offered it (**About Tributary → Get beta versions**): they read `latest.json` from the release tagged `beta`, the beta channel, which each new beta and each new release points at itself if it's newer than what it offered (`.github/scripts/beta-channel.sh`). The newest five betas are kept. To try a branch before it's merged, start a build by hand: **Actions → Build → Run workflow**, and choose the branch, then download the installers from the run's **Artifacts**. These aren't signed for updates, so they install by hand but aren't offered as an update.
 
@@ -161,6 +161,12 @@ A merge into `main` makes a release. To make one:
 
 1. In a pull request into `develop` as usual, write the release's notes in `docs/release-notes/v<version>.md` (like `v0.5.0.md`): the latest beta shows the version, like `0.3.0-beta.3` for 0.3.0. They become the release page's notes, What's New shows them in the app after the update, and the update window shows them up to the `<!-- release page only -->` comment (put install steps and the like after it).
    - **Every item under New needs a picture of it working:** a short recording made with `npm run preview:clips -- v<version>` from the scenes in `tools/preview/clips/v<version>.mjs` (see `tools/preview/README.md`), on its own indented line under the item, as `![what it shows](v<version>/<name>.webp)`. What's New shows it beside the item, and the release page under it; the update window leaves it out. The tests fail without one, or if one is over 400 KB.
+   - **Check them** with `npm run preview:build && npm run release:check -- <version>` (`tools/release-check.mjs`), on the commit that has them. It does the checklist's checks that need no person:
+     - What's New as the version shows it after updating from the one before, in both themes: each page, whether the window keeps its height, whether the recordings play, and any errors on the page. Each page's screenshot is saved, so you can read them.
+     - The update window's notes, made as the release build makes them: every platform, stopping before Installing, without pictures.
+     - The release page's pictures, linked at the commit.
+
+     It ends with what it found, ready to go under the checklist's items, and fails if something needs putting right.
 2. Open a pull request from `develop` into `main`, with the release checklist (`.github/release-checklist.md`) as its description. Its **Ready to release** check says which version merging it releases, and fails if that version's notes aren't there. It also lists the boxes on the checklist that aren't ticked, as warnings: they're reminders, and don't stop the release. It runs again whenever the description is edited.
    - Whoever prepares the release ticks what they've checked: the version, develop's latest checks (the smoke test in WebKit and the desktop end-to-end tests on Windows among them), the notes, the recordings, What's New in both themes, the update notes and release page, and develop's latest beta build.
    - The maintainer's items need real computers: the latest beta on Windows and on macOS, at the display scales they use.

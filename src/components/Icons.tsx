@@ -102,6 +102,13 @@ export const SplitIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** Lines of text, one running on round the end onto the next: long lines wrapped. */
+export const WrapIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2 3.5h12M2 8h9.25a2.25 2.25 0 0 1 0 4.5H8.5M10 11l-1.5 1.5L10 14M2 12.5h3.5" />
+  </Icon>
+);
+
 /** Two arrows, one each way: comparing two things (and swapping them). */
 export const CompareIcon = (p: IconProps) => (
   <Icon {...p}>
@@ -371,6 +378,16 @@ export const CopyIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A workflow run: a job, and two that wait for it. */
+export const WorkflowIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="3.5" cy="8" r="2" />
+    <circle cx="12.5" cy="3.75" r="2" />
+    <circle cx="12.5" cy="12.25" r="2" />
+    <path d="M5.5 8H7c1.6 0 1.4-4.25 3-4.25h.5M7 8c1.6 0 1.4 4.25 3 4.25h.5" />
+  </Icon>
+);
+
 export const CommitIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="8" cy="8" r="2.5" />
@@ -603,10 +620,24 @@ export const DownloadIcon = (p: IconProps) => (
 );
 
 /** A clock, for what happens at a set time (Fetch latest). */
+/** Three quarters of a circle: something running, turned by its CSS (a pull request's checks). */
+export const SpinnerIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M13.75 8A5.75 5.75 0 1 1 8 2.25" />
+  </Icon>
+);
+
 export const ClockIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="8" cy="8" r="5.75" />
     <path d="M8 4.75V8l2.25 1.5" />
+  </Icon>
+);
+
+/** A down arrow and an up arrow side by side: pulling, then pushing (Sync). */
+export const SyncIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5.5 2.5v10.5M3 10.5L5.5 13 8 10.5M10.5 13.5V3M8 5.5L10.5 3 13 5.5" />
   </Icon>
 );
 

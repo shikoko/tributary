@@ -12,6 +12,7 @@ import type { CommitRow } from "../../api";
 import type { ChangeCounts as Counts } from "../../lib/changes";
 import type { CiDots } from "../../lib/appearance";
 import { laneColor } from "../../lib/colors";
+import { pressCommit } from "../../lib/drag";
 import { pillLane, type LaneLabel } from "../../lib/lanes";
 import { compactTime, fullDate, shortId } from "../../lib/format";
 import type { RefPill } from "../../lib/refs";
@@ -35,6 +36,8 @@ export interface RowHandlers {
   /** The pointer is on a branch or tag label, or has left it (null): its lanes light up. */
   onLaneHover: (label: LaneLabel | null) => void;
   onLeave: () => void;
+  /** A click on a commit's CI dot: its checks, each run as a graph. */
+  onShowChecks: (commit: CommitRow) => void;
 }
 
 interface RowProps {
@@ -108,6 +111,15 @@ export const ListRow = memo(function ListRow(props: RowProps) {
         if (event.shiftKey || toggle) event.preventDefault();
         onSelect(commit.id, { extend: event.shiftKey, toggle });
       }}
+      onPointerDown={(event) => {
+        // Dragged onto a local branch's label, a commit is cherry-picked onto that branch. Not
+        // a merge or the first commit (they have no one change to pick), and not from its
+        // labels, which have drags of their own.
+        if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
+        if (commit.kind !== "commit" || commit.parents.length !== 1) return;
+        if ((event.target as HTMLElement).closest(".ref-pill, .graph-ci, button, a, input")) return;
+        pressCommit(event, commit.id, `${shortId(commit.id)} ${commit.summary}`);
+      }}
       onMouseEnter={(event) => on().onHover(event, commit)}
       onMouseMove={(event) => on().onHover(event, commit)}
       onMouseLeave={() => on().onLeave()}
@@ -170,8 +182,10 @@ export const ListRow = memo(function ListRow(props: RowProps) {
               ["--lane" as string]: color,
               ["--ci-offset" as string]: onDot ? "0px" : `${ciOffset({ avatar: authorNode, dense, head, merge: commit.parents.length > 1 })}px`,
             }}
-            title={describeCiState(ci)}
+            title={`${describeCiState(ci)}: click to see them`}
             aria-label={describeCiState(ci)}
+            // The row's own press has selected the commit; this opens its checks too.
+            onClick={() => on().onShowChecks(commit)}
           />
         )}
       </div>

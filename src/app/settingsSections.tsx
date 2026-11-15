@@ -41,7 +41,7 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
   const { reopenTabs, setReopenTabs, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
-  const { daySeparators, setDaySeparators, previews, setPreviews, profilePictures, setProfilePictures } = preferences;
+  const { daySeparators, setDaySeparators, previews, setPreviews, profilePictures, setProfilePictures, prNumbers, setPrNumbers } = preferences;
   const { columnOptions, setColumnOptions, zoom, setZoom } = preferences;
   const { historyMinutes, setHistoryMinutes, historyMaxMB, setHistoryMaxMB, historyDays, setHistoryDays } = preferences;
   const { scheduleDays, setScheduleDays, scheduleTime, setScheduleTime, scheduleRun } = preferences;
@@ -120,6 +120,13 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
       rows: [
         { kind: "toggle", label: "Compact rows", value: dense, set: setDense },
         { kind: "toggle", label: "Day separators", value: daySeparators, set: setDaySeparators },
+        {
+          kind: "toggle",
+          label: "Pull request numbers",
+          hint: "On branch labels, beside the icon for the pull request's checks (a spinner while they run, a tick or a cross). Without them, labels leave more room for the branch's name; the sidebar always has them.",
+          value: prNumbers,
+          set: setPrNumbers,
+        },
         { kind: "toggle", label: "Previews on hover", hint: "A commit's details when you rest the pointer on it.", value: previews, set: setPreviews },
         {
           kind: "toggle",

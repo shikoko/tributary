@@ -1,13 +1,14 @@
 import { open as openFile } from "@tauri-apps/plugin-dialog";
 import type { Action, CommitRow, InstalledApp, RepoSnapshot } from "../api";
 import { WORKTREE_ID } from "../api";
-import { BranchIcon, BroomIcon, CheckIcon, CloneIcon, CloseIcon, CodeIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, FetchIcon, FileHistoryIcon, FolderIcon, GearIcon, HistoryIcon, IgnoreIcon, InfoIcon, KeyboardIcon, LockIcon, NewRepoIcon, NotesIcon, PlusIcon, PullIcon, PullRequestIcon, PushIcon, RecoverIcon, RefreshIcon, SearchIcon, ShelfIcon, StashIcon, TagIcon, TerminalIcon, ViewIcon } from "../components/Icons";
+import { BranchIcon, BroomIcon, CheckIcon, CloneIcon, CloseIcon, CodeIcon, CommitIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, FetchIcon, FileHistoryIcon, FolderIcon, GearIcon, HistoryIcon, IgnoreIcon, InfoIcon, KeyboardIcon, LockIcon, NewRepoIcon, NotesIcon, PlusIcon, PullIcon, PullRequestIcon, PushIcon, RecoverIcon, RefreshIcon, SearchIcon, ShelfIcon, StashIcon, SyncIcon, TagIcon, TerminalIcon, ViewIcon } from "../components/Icons";
 import type { NativeMenu } from "../lib/nativeMenu";
 import { isMac } from "../lib/platform";
 import { newPullRequestUrl, openInBrowser, siteName, webRemote } from "../lib/weblinks";
 import { splitRemoteBranch, type OpenDialog } from "../menus";
 import { isSubmenu, type AppCommand, type MenuEntry } from "./appCommand";
 import type { Running } from "./constants";
+import { REOPEN_TAB_KEYS } from "./tabMenu";
 import type { Preferences } from "./usePreferences";
 
 /** One menu of the menu bar. */
@@ -30,6 +31,8 @@ export interface MenuBarContext {
   highlightingMine: boolean;
   /** The team activity view is open. */
   teamOpen: boolean;
+  /** A tab was closed lately, and can be opened again. */
+  canReopenTab: boolean;
   /** Whether the repository uses Git LFS locking, and Git LFS at all. */
   usesLocks: boolean;
   usesLfs: boolean;
@@ -47,6 +50,7 @@ export interface MenuBarContext {
     zoom: (step: 1 | -1 | 0) => void;
     newTab: () => void;
     closeTab: (path: string) => void;
+    reopenTab: () => void;
     search: () => void;
     showAllBranches: () => void;
     highlightMine: () => void;
@@ -75,6 +79,11 @@ export interface MenuBarContext {
 /** The Settings… command: in the app menu on macOS, at the end of the File menu elsewhere. */
 export function settingsCommand(ctx: MenuBarContext): AppCommand {
   return { id: "settings", label: "Settings…", icon: <GearIcon />, keys: "CmdOrCtrl+,", run: ctx.do.settings };
+}
+
+/** The tab closed last, back in its place: there with or without a repository open. */
+export function reopenTabCommand(ctx: MenuBarContext): AppCommand {
+  return { id: "reopen-tab", label: "Reopen Closed Tab", icon: <HistoryIcon />, keys: REOPEN_TAB_KEYS, enabled: ctx.canReopenTab, keywords: "restore undo close", run: ctx.do.reopenTab };
 }
 
 /** Open, clone or create a repository: there with or without one open. */
@@ -131,7 +140,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
   const menus = (): AppMenuDefinition[] => {
     if (!snapshot) {
       return [
-        { label: "File", entries: [...fileCommands, ...(isMac ? [] : ["-" as const, settings])] },
+        { label: "File", entries: [...fileCommands, reopenTabCommand(ctx), ...(isMac ? [] : ["-" as const, settings])] },
         { label: "View", entries: [...settingCommands, "-", ...zoomCommands] },
         { label: "Help", entries: [...helpCommands, "-", ...aboutCommands] },
       ];
@@ -147,6 +156,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
         label: "File",
         entries: [
           { id: "new-tab", label: "New Tab", keys: "CmdOrCtrl+T", icon: <PlusIcon />, run: run.newTab },
+          reopenTabCommand(ctx),
           ...fileCommands,
           "-",
           { id: "close-tab", label: "Close Tab", keys: "CmdOrCtrl+W", icon: <CloseIcon />, run: () => run.closeTab(snapshot.path) },
@@ -159,6 +169,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           { id: "simple-mode", label: "Simple Mode", checked: simpleMode, run: () => setSimpleMode(!simpleMode) },
           "-",
           { id: "search", label: "Search Commits", keys: "CmdOrCtrl+F", icon: <SearchIcon />, run: run.search },
+          { id: "go-to-commit", label: "Go to Commit…", keys: "CmdOrCtrl+G", icon: <CommitIcon />, keywords: "jump sha hash tag date day", run: () => run.dialog({ kind: "goToCommit" }) },
           helpCommands[0],
           "-",
           { id: "sidebar", label: "Branches Sidebar", keys: "CmdOrCtrl+B", checked: sidebarOpen, run: () => setSidebarOpen(!sidebarOpen) },
@@ -186,6 +197,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           { id: "fetch", label: "Fetch", icon: <FetchIcon />, enabled: hasRemotes && canChange, run: () => run.act({ kind: "fetch" }, "fetch") },
           { id: "pull", label: "Pull", icon: <PullIcon />, enabled: hasRemotes && canChange && Boolean(snapshot.upstream), run: () => run.act({ kind: "pull" }, "pull") },
           { id: "push", label: "Push", icon: <PushIcon />, enabled: hasRemotes && canChange && Boolean(snapshot.headBranch), run: () => run.act({ kind: "push", force: false }, "push") },
+          { id: "sync", label: "Sync (Pull, Then Push)", icon: <SyncIcon />, keywords: "pull push both diverged", enabled: hasRemotes && canChange && Boolean(snapshot.upstream), run: () => run.act({ kind: "sync" }, "sync") },
           { id: "force-push", label: "Force Push…", icon: <PushIcon />, danger: true, enabled: hasRemotes && canChange && Boolean(snapshot.headBranch), run: () => run.dialog({ kind: "forcePush" }) },
           "-",
           { id: "commit", label: "Commit…", icon: <PlusIcon />, enabled: Boolean(snapshot.worktree) && canChange, run: () => run.select(WORKTREE_ID) },

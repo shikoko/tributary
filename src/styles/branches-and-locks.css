@@ -74,9 +74,25 @@
   color: var(--safe-text);
 }
 
+/* Old: nobody has committed to it lately. A fact, not a warning. */
+.prune-tag.idle {
+  background: rgb(var(--overlay-rgb) / 0.08);
+  color: var(--text-secondary);
+}
+
 .prune-tag.unmerged {
   background: rgb(var(--danger-rgb) / 0.12);
   color: var(--danger-strong-text);
+}
+
+/* Whether old branches are offered too, and how old. */
+.prune-idle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
 }
 
 .prune-summary {

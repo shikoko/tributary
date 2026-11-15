@@ -10,12 +10,25 @@
   display: flex;
   align-items: center;
   gap: var(--space-16);
-  /* 48px inside the 1px border, so the buttons sit on whole pixels. */
+  /* 48px inside the 1px border: the search box (30px) starts on a whole pixel, and the
+     buttons and the branch's chip, an odd number of pixels tall for their words, do with a
+     pixel of margin below them (see .toolbar .tool-button). */
   height: 49px;
   padding: 0 var(--space-10) 0 var(--space-14);
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
   flex: none;
+}
+
+/* Centred in the toolbar, an odd number of pixels tall in its even 48, they'd start half a
+   pixel down. Their words' baseline is drawn on a whole CSS pixel and their edges on the
+   nearest screen pixel, so the words came out a screen pixel low: Fetch, Pull and Push at
+   150%, the branch's name at 200%. A pixel of margin below moves them up onto a whole
+   pixel. (Below rather than on top: at 125%, where nothing is a whole number of screen
+   pixels tall, a pixel lower left the buttons' words a screen pixel high.) */
+.toolbar .tool-button,
+.toolbar .head-chip {
+  margin-bottom: 1px;
 }
 
 .toolbar-repo {
@@ -265,6 +278,18 @@
 .commit-list.dense .graph-ci {
   width: 6px;
   height: 6px;
+}
+
+/* Clicked, it opens the commit's checks: a target wider than the dot, around it. */
+.graph-ci {
+  cursor: pointer;
+}
+
+.graph-ci::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
 }
 
 .commit-row:hover .graph-ci {

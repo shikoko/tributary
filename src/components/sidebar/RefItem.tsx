@@ -69,6 +69,8 @@ export function RefItem({ entry, label, icon, depth = 0, selected, visibility, c
       <div
         className={`sidebar-item${selected && !entry.hidden ? " selected" : ""}${entry.current ? " current" : ""}${entry.hidden ? " hidden-ref" : ""}`}
         style={{ paddingLeft: rowIndent(depth) }}
+        // A commit dropped on a branch is cherry-picked onto it.
+        data-drop-branch={entry.kind === "branch" ? entry.name : undefined}
         // A link to its commit: Enter goes there. (A button's insides can't be reached on their
         // own, and this has buttons in it: the eye, and a pull request's badge.)
         role="link"

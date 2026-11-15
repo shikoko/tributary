@@ -22,6 +22,10 @@ export function undoFor(action: Action, before: Pick<RepoSnapshot, "headBranch" 
     case "revertMany":
     case "interactiveRebase":
       return before.headCommit ? { kind: "resetHard", id: before.headCommit } : null;
+    case "cherryPickOnto":
+      // Onto the checked-out branch, as a cherry-pick is. (Onto another branch, its backup
+      // says what to take back off it: see useActions.)
+      return action.branch === before.headBranch && before.headCommit ? { kind: "resetHard", id: before.headCommit } : null;
     case "splitCommit":
       // The files are as they were: moving the branch back is enough.
       return before.headCommit ? { kind: "resetSoft", id: before.headCommit } : null;

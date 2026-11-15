@@ -4,7 +4,7 @@ use gix::bstr::ByteSlice;
 
 use super::Extra;
 use super::backups::{BackupEvent, back_up};
-use super::support::ref_id;
+use super::support::{count, ref_id};
 use super::validate::current_branch;
 use crate::error::{Error, Result};
 use crate::git::{Git, Progress};
@@ -156,6 +156,95 @@ pub(super) fn fetch_latest(
         &expected,
     )?;
     Ok(format!("Brought {branch} up to date"))
+}
+
+/// What a sync's error starts with when the branch was rewritten (amended or rebased) after
+/// it was pushed: the app asks to force push instead.
+pub const REWRITTEN: &str = "Rewritten since it was pushed";
+
+/// Sync the checked-out branch with its remote branch: fetch, pull when the remote branch has
+/// commits this one hasn't, then push when this one has commits it hasn't. A pull that stops
+/// for conflicts stops it, before anything is pushed. A branch rewritten since it was pushed
+/// isn't pulled, which would bring back the old versions of its commits: it stops, with
+/// [`REWRITTEN`], for a force push to be asked for instead. A branch with no remote branch
+/// yet is pushed, setting it.
+pub(super) fn sync(
+    repo: &gix::Repository,
+    git: &Git,
+    on_progress: &dyn Fn(Progress),
+    extra: &mut Extra,
+) -> Result<String> {
+    let branch = current_branch(repo)?;
+    if git
+        .run(&["rev-parse", "--verify", "--quiet", "@{upstream}"])
+        .is_err()
+    {
+        return push(repo, git, false, false, on_progress, extra);
+    }
+    let upstream = git
+        .run(&["rev-parse", "--abbrev-ref", "@{upstream}"])?
+        .trim()
+        .to_owned();
+    git.run_progress(&["fetch", "--progress"], on_progress)?;
+    let counts = || -> Result<(u32, u32)> {
+        Ok(parse_counts(&git.run(&[
+            "rev-list",
+            "--left-right",
+            "--count",
+            "HEAD...@{upstream}",
+        ])?))
+    };
+    let (_, behind) = counts()?;
+    if behind > 0 {
+        if rewritten(git, &branch) {
+            return Err(format!(
+                "{REWRITTEN}: {upstream} has older versions of {branch}'s commits (it was amended \
+                 or rebased since it was pushed), so pulling would bring them back. Push it with \
+                 force instead, to replace them."
+            )
+            .into());
+        }
+        pull(repo, git, on_progress)?;
+    }
+    let (ahead, _) = counts()?;
+    if ahead > 0 {
+        push(repo, git, false, false, on_progress, extra)?;
+    }
+    Ok(match (behind, ahead) {
+        (0, 0) => format!("{branch} was already in sync with {upstream}"),
+        (0, _) => format!(
+            "Synced {branch}: pushed {}",
+            count(ahead as usize, "commit")
+        ),
+        (_, 0) => format!(
+            "Synced {branch}: pulled {}",
+            count(behind as usize, "commit")
+        ),
+        _ => format!(
+            "Synced {branch}: pulled {}, then pushed {}",
+            count(behind as usize, "commit"),
+            count(ahead as usize, "commit")
+        ),
+    })
+}
+
+/// Whether any commit that's only on `branch`'s remote branch was once `branch` itself: it
+/// was amended or rebased after being pushed. Its reflog remembers every commit it was.
+fn rewritten(git: &Git, branch: &str) -> bool {
+    let reflog = git
+        .run(&[
+            "reflog",
+            "show",
+            "--format=%H",
+            &format!("refs/heads/{branch}"),
+            "--",
+        ])
+        .unwrap_or_default();
+    let was: std::collections::HashSet<&str> = reflog.lines().map(str::trim).collect();
+    git.run(&["rev-list", "HEAD..@{upstream}"])
+        .unwrap_or_default()
+        .lines()
+        .any(|id| was.contains(id.trim()))
 }
 
 /// `git rev-list --left-right --count` → (ahead, behind).

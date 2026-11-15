@@ -25,10 +25,14 @@ applyStoredAppearance();
 watchForProblems();
 
 // The webview's own context menu (reload, inspect, …) doesn't belong in the app.
-// Keep it only when text is selected, so copying still works.
+// Keep it when text is selected, so copying still works, and in text fields, where it
+// has the spelling suggestions and cut, copy and paste.
+const TEXT_FIELD =
+  'textarea, input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="button"], [type="submit"], [type="file"]), [contenteditable="true"]';
 if (!import.meta.env.DEV) {
   document.addEventListener("contextmenu", (event) => {
-    if (!window.getSelection()?.toString()) event.preventDefault();
+    const inField = event.target instanceof Element && event.target.closest(TEXT_FIELD);
+    if (!inField && !window.getSelection()?.toString()) event.preventDefault();
   });
 }
 

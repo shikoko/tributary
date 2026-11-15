@@ -8,12 +8,13 @@ use serde::Serialize;
 use ts_rs::TS;
 
 use super::remote::default_remote;
-use super::support::{ref_id, summary_of};
+use super::support::{now_millis, ref_id, summary_of};
 use super::validate::current_branch;
 use crate::error::{Error, Result};
 use crate::git::Git;
 
-/// A local branch that could be pruned: its remote branch is gone, or it's merged.
+/// A local branch that could be pruned: its remote branch is gone, it's merged, or (when
+/// asked) nobody has committed to it for a while.
 #[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PruneCandidate {
@@ -30,6 +31,8 @@ pub struct PruneCandidate {
     pub merged: bool,
     /// How many of its commits aren't in the base branch (0 when merged).
     pub unmerged: u32,
+    /// Its last commit is older than the time asked for: an old branch nobody works on.
+    pub idle: bool,
     /// Its upstream configuration, to put back if the prune is undone.
     pub remote: Option<String>,
     pub merge: Option<String>,
@@ -118,10 +121,11 @@ pub fn lost_commits(path: &Path, reference: &str) -> Result<LostCommits, Error> 
     Ok(LostCommits { count, commits })
 }
 
-/// Local branches that could be pruned: those whose remote branch was deleted, and those
-/// merged into the main branch. Never the checked-out branch, one checked out in another
-/// worktree, or long-lived ones like main. Reads only; nothing is changed.
-pub fn prune_candidates(path: &Path) -> Result<PruneInfo, Error> {
+/// Local branches that could be pruned: those whose remote branch was deleted, those merged
+/// into the main branch, and with `idle_days`, those whose last commit is older than that.
+/// Never the checked-out branch, one checked out in another worktree, or long-lived ones like
+/// main. Reads only; nothing is changed.
+pub fn prune_candidates(path: &Path, idle_days: Option<u32>) -> Result<PruneInfo, Error> {
     let repo = gix::discover(path).map_err(|e| Error::not_a_repository(path, e))?;
     let workdir = repo
         .workdir()
@@ -174,6 +178,8 @@ pub fn prune_candidates(path: &Path) -> Result<PruneInfo, Error> {
         "refs/heads",
     ])?;
     let config = repo.config_snapshot();
+    // Last committed to before this (in seconds since 1970): idle.
+    let idle_before = idle_days.map(|days| now_millis() / 1000 - i64::from(days) * 86_400);
     let mut candidates = Vec::new();
     for line in listing.lines() {
         let fields: Vec<&str> = line.split('\0').collect();
@@ -182,7 +188,9 @@ pub fn prune_candidates(path: &Path) -> Result<PruneInfo, Error> {
         };
         let gone = track == "[gone]";
         let is_merged = merged.contains(name);
-        if !(gone || is_merged)
+        let time: i64 = time.parse().unwrap_or(0);
+        let idle = idle_before.is_some_and(|before| time < before);
+        if !(gone || is_merged || idle)
             || current.as_deref() == Some(name)
             || checked_out.contains(name)
             || crate::repo::is_long_lived_branch(name)
@@ -207,11 +215,12 @@ pub fn prune_candidates(path: &Path) -> Result<PruneInfo, Error> {
             name: name.to_owned(),
             id: id.to_owned(),
             summary: summary.to_owned(),
-            time: time.parse().unwrap_or(0),
+            time,
             upstream: (!upstream.is_empty()).then(|| upstream.to_owned()),
             gone,
             merged: is_merged,
             unmerged,
+            idle,
             remote: setting("remote"),
             merge: setting("merge"),
         });

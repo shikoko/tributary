@@ -8,6 +8,7 @@ pub(crate) mod controls;
 pub(crate) mod issues;
 pub(crate) mod pulls;
 pub(crate) mod reviews;
+pub(crate) mod runs;
 
 use std::path::Path;
 use std::time::Duration;

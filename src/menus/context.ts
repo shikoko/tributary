@@ -9,7 +9,10 @@ import type { CompareRequest } from "../app/useComparison";
 export type OpenDialog =
   | { kind: "reset"; target: CommitRow }
   | { kind: "newBranch"; target: CommitRow }
-  | { kind: "forcePush" }
+  /** `reason`: why it's asked for, when something stopped for it (a sync, into a rewritten branch). */
+  | { kind: "forcePush"; reason?: string }
+  /** Go to Commit (Ctrl+G). */
+  | { kind: "goToCommit" }
   /** `paths`: the files to start with (all of them when left out). */
   | { kind: "stash"; paths?: string[] }
   | { kind: "rename"; branch: string }
@@ -76,6 +79,10 @@ export interface MenuContext {
   showRequest: (pr: PullRequest) => void;
   /** Show what changed when a branch was rewritten (rebased, amended, force-pushed). */
   showRewrite: (rewrite: { branch: string; base: string | null }) => void;
+  /** Whether the site has checks for a commit (it has a CI dot). */
+  hasChecks: (id: string) => boolean;
+  /** Show a commit's checks, each run as a graph of its jobs. */
+  showChecks: (commit: CommitRow) => void;
   /** The branch a local branch is built on, when that's another unmerged branch. */
   stackOf: (branch: string) => Stacked | undefined;
   /** Highlight the history of a branch, tag or commit. */

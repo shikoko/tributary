@@ -927,6 +927,60 @@ export const STUDIO_PULL_REQUEST_DETAILS = {
   },
 };
 
+/**
+ * A commit's workflow runs as the checks view shows them (window.__PREVIEW__.commitRuns): the
+ * studio's Build, still going, with its platforms as a matrix and two jobs still waiting, and
+ * its asset checks, one of which failed. Built when asked, so the times are recent.
+ */
+export function studioCommitRuns() {
+  const actions = "https://github.com/example/feast/actions/runs";
+  const job = (name, id, times, state = "success", steps = {}) => ({ name, state, url: `${actions}/41/job/${id}`, ...times, stepsDone: 0, steps: 0, step: null, ...steps });
+  const build = {
+    name: "Build",
+    trigger: "on push to main",
+    url: `${actions}/41`,
+    state: "pending",
+    ...ran(412),
+    groups: [
+      { key: "version", name: "Version", needs: [], matrix: false, jobs: [job("Version", 1, ran(412, 398))] },
+      { key: "lint", name: "Lint scripts", needs: [], matrix: false, jobs: [job("Lint scripts", 2, ran(412, 371))] },
+      {
+        key: "build",
+        name: "Build",
+        needs: ["version", "lint"],
+        matrix: true,
+        jobs: [
+          job("Build (Windows)", 3, ran(365), "pending", { stepsDone: 7, steps: 12, step: "Cook the tavern level" }),
+          job("Build (macOS)", 4, ran(365, 61)),
+          job("Build (Linux)", 5, ran(365, 102)),
+        ],
+      },
+      { key: "package", name: "Package", needs: ["build"], matrix: false, jobs: [] },
+      { key: "upload", name: "Upload to the playtest", needs: ["package"], matrix: false, jobs: [] },
+    ],
+  };
+  const assets = {
+    name: "Asset checks",
+    trigger: "on push to main",
+    url: `${actions}/42`,
+    state: "failure",
+    ...ran(410, 290),
+    groups: [
+      { key: "sizes", name: "Texture sizes", needs: [], matrix: false, jobs: [{ ...job("Texture sizes", 6, ran(410, 352)), url: `${actions}/42/job/6` }] },
+      { key: "audio", name: "Audio loudness", needs: [], matrix: false, jobs: [{ ...job("Audio loudness", 7, ran(410, 290), "failure"), url: `${actions}/42/job/7` }] },
+      { key: "report", name: "Report", needs: ["sizes", "audio"], matrix: false, jobs: [{ ...job("Report", 8, ran(288, 280), null), url: `${actions}/42/job/8` }] },
+    ],
+  };
+  return {
+    runs: [build, assets],
+    others: [{ name: "Playtest sign-off", state: "success", url: "https://playtest.example.com/feast/sign-off", detail: "Approved by the design team", startedAt: null, finishedAt: null, workflow: null, trigger: null }],
+    canRerun: true,
+    signedIn: true,
+    site: "GitHub",
+    url: "https://github.com/example/feast/commit/main/checks",
+  };
+}
+
 /** What was said on the studio's pull requests, for the preview's fakes. */
 const comment = (id, author, body, created, more = {}) => ({ id, author, body, created, review: null, path: null, line: null, hunk: null, thread: null, reply: false, ...more });
 export const STUDIO_PULL_REQUEST_CONVERSATIONS = {

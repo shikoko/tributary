@@ -38,6 +38,7 @@ export type Action =
   | { kind: "fetch"; background?: boolean }
   | { kind: "pull" }
   | { kind: "fetchLatest" }
+  | { kind: "sync" }
   | { kind: "push"; force: boolean; noVerify?: boolean }
   | { kind: "shelve"; paths?: Array<string>; description: string; keep?: boolean }
   | { kind: "restoreFromHistory"; reference: string; paths?: Array<string> }
@@ -75,6 +76,8 @@ export type Action =
   | { kind: "merge"; target: string; mode?: MergeMode }
   | { kind: "rebase"; onto: string }
   | { kind: "cherryPick"; id: string }
+  | { kind: "cherryPickOnto"; id: string; branch: string }
+  | { kind: "dropTip"; branch: string; id: string }
   | { kind: "revert"; id: string }
   | { kind: "continueOperation" }
   | { kind: "skipCommit" }
@@ -459,6 +462,35 @@ export type CommitRow = {
   parents: Array<string>;
   refs: Array<RefLabel>;
   graph: GraphRow;
+};
+
+/**
+ * A commit's CI run by run, for a graph of each: its GitHub Actions workflow runs, or its
+ * latest GitLab pipeline, each with its jobs in groups and which group waits for which.
+ */
+export type CommitRuns = {
+  runs: Array<Run>;
+  /**
+   * Checks that aren't a run's jobs: other apps' checks, and commit statuses.
+   */
+  others: Array<RequestCheck>;
+  /**
+   * Failed ones can be run again from here (signed in, and some failed).
+   */
+  canRerun: boolean;
+  /**
+   * Asked with a token: it can be asked again often, since an unchanged answer costs
+   * nothing then (without one, GitHub allows 60 requests an hour).
+   */
+  signedIn: boolean;
+  /**
+   * "GitHub" or "GitLab".
+   */
+  site: string;
+  /**
+   * The commit's checks on the site.
+   */
+  url: string | null;
 };
 
 /**
@@ -955,6 +987,53 @@ export type Issue = {
    */
   done: boolean;
   url: string;
+};
+
+/**
+ * A job, with how far through its steps it is.
+ */
+export type Job = {
+  name: string;
+  /**
+   * None when it was skipped. Pending while queued or running (`started_at` says which).
+   */
+  state: CheckState | null;
+  url: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  /**
+   * Steps finished, and in all (both 0 when they aren't known, as on GitLab).
+   */
+  stepsDone: number;
+  steps: number;
+  /**
+   * The step it's on while it runs.
+   */
+  step: string | null;
+};
+
+/**
+ * A job of a workflow file (or a GitLab stage) and the jobs it ran as: one, several for a
+ * matrix, or none yet while it waits.
+ */
+export type JobGroup = {
+  /**
+   * Its id in the workflow file (or the stage's name): what other groups' `needs` say.
+   */
+  key: string;
+  /**
+   * What to call it: its name without its `${{ }}` expressions, or its id.
+   */
+  name: string;
+  /**
+   * The keys of the groups it waits for.
+   */
+  needs: Array<string>;
+  /**
+   * Its jobs show together, in a box: a matrix, or a stage.
+   */
+  matrix: boolean;
+  jobs: Array<Job>;
 };
 
 export type KindCount = {
@@ -1540,7 +1619,8 @@ export type ProjectSetup = {
 };
 
 /**
- * A local branch that could be pruned: its remote branch is gone, or it's merged.
+ * A local branch that could be pruned: its remote branch is gone, it's merged, or (when
+ * asked) nobody has committed to it for a while.
  */
 export type PruneCandidate = {
   name: string;
@@ -1566,6 +1646,10 @@ export type PruneCandidate = {
    * How many of its commits aren't in the base branch (0 when merged).
    */
   unmerged: number;
+  /**
+   * Its last commit is older than the time asked for: an old branch nobody works on.
+   */
+  idle: boolean;
   /**
    * Its upstream configuration, to put back if the prune is undone.
    */
@@ -2149,6 +2233,35 @@ export type RowKind =
   | "commit"
   | "stash"
   | "worktree";
+
+/**
+ * A workflow run (or a GitLab pipeline).
+ */
+export type Run = {
+  /**
+   * Its workflow's name, like "Build" (or "Pipeline").
+   */
+  name: string;
+  /**
+   * What started it, like "on push to develop".
+   */
+  trigger: string | null;
+  /**
+   * Its page on the site.
+   */
+  url: string | null;
+  /**
+   * None when it was skipped.
+   */
+  state: CheckState | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  /**
+   * Its jobs, a group for each job of the workflow file (a stage on GitLab), in the
+   * file's order.
+   */
+  groups: Array<JobGroup>;
+};
 
 export type SearchResult = {
   /**

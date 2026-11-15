@@ -280,6 +280,8 @@
         }),
       ),
     commit_checks: () => preview.commitChecks || { checks: [], canRerun: false, site: "GitHub" },
+    // A commit's checks run by run, as graphs: steered by commitRuns.
+    commit_runs: () => preview.commitRuns || { runs: [], others: [], canRerun: false, signedIn: false, site: "GitHub", url: null },
     change_request: (args) => (faking() ? fakeChange(args) : server("change_request", args)),
     rerun_failed_checks: () => "Running the failed jobs again",
     // A computer without git, or with an old one, when faked.

@@ -6,7 +6,7 @@ import type { DiffTarget } from "../../lib/diffTargets";
 import { toolLabel, useDiffTools } from "../../lib/diffTools";
 import { useStoredState } from "../../lib/settings";
 import { describeActor, useActorNames } from "../../lib/actorNames";
-import { BlameIcon, ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon, SplitIcon } from "../Icons";
+import { BlameIcon, ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon, SplitIcon, WrapIcon } from "../Icons";
 import { DiffBinary } from "./DiffBinary";
 import { DiffMedia } from "./DiffMedia";
 import { describeOwners, useCodeOwners } from "../../lib/codeOwners";
@@ -47,6 +47,8 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
   const target = targets[index];
   const [ignoreWhitespace, setIgnoreWhitespace] = useStoredState("diff.ignoreWhitespace", false);
   const [split, setSplit] = useStoredState("diff.sideBySide", false);
+  // Long lines wrapped to the width of the changes, rather than scrolled to.
+  const [wrap, setWrap] = useStoredState("diff.wrap", false);
   // Side by side needs room for two columns of code: narrower, the changes show in one.
   const body = useRef<HTMLDivElement>(null);
   const [roomy, setRoomy] = useState(true);
@@ -208,6 +210,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
             Ignore whitespace
           </label>
         )}
+
         {(conflicted || (target.file.status !== "untracked" && !diff?.submodule)) && (
           <Button
             kind="outline" className="tool-button"
@@ -223,6 +226,19 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           >
             <ExternalLinkIcon size={13} />
             <span className="button-label">{toolButton}</span>
+          </Button>
+        )}
+        {!whole && !conflicted && (
+          // Side by side, each half is too narrow to scroll sideways: its lines always wrap.
+          <Button
+            kind="icon" className={wrap || (split && roomy) ? "active" : undefined}
+            onClick={() => setWrap(!wrap)}
+            disabled={split && roomy}
+            aria-pressed={wrap || (split && roomy)}
+            title={split && roomy ? "Side by side, long lines always wrap" : wrap ? "Scroll sideways to long lines instead of wrapping them" : "Wrap long lines to fit, instead of scrolling sideways to them"}
+            aria-label="Wrap lines"
+          >
+            <WrapIcon size={15} />
           </Button>
         )}
         {!whole && !conflicted && (
@@ -271,7 +287,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         ) : diff.hunks.length === 0 ? (
           <div className="diff-message muted">{ignoreWhitespace ? "Only whitespace changed." : "No changes to show (only the file's name or mode changed)."}</div>
         ) : (
-          <DiffLines hunks={diff.hunks} picking={picking} language={languageFor(path)} split={split && roomy} />
+          <DiffLines hunks={diff.hunks} picking={picking} language={languageFor(path)} split={split && roomy} wrap={wrap} />
         )}
       </div>
         {picking && selected.size > 0 && (

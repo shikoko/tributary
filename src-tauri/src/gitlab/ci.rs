@@ -17,6 +17,7 @@ struct RawCommit {
 struct RawPipeline {
     id: u64,
     status: String,
+    web_url: Option<String>,
 }
 
 /// How to send the token: as a personal access token or an OAuth token (None: without).
@@ -84,19 +85,29 @@ pub(crate) async fn commit_states(
 
 /// The jobs of `sha`'s latest pipeline, failures first.
 pub(crate) async fn commit_checks(project: &Project, token: Option<&str>, sha: &str) -> Vec<Check> {
-    let Ok(client) = client() else {
-        return Vec::new();
-    };
+    let mut checks = pipeline_jobs(project, token, sha)
+        .await
+        .map(|(_, jobs)| jobs)
+        .unwrap_or_default();
+    sort_checks(&mut checks);
+    checks
+}
+
+/// The jobs of `sha`'s latest pipeline in the order they run, stage by stage (each a check,
+/// its stage as its workflow), and the pipeline's page.
+pub(crate) async fn pipeline_jobs(
+    project: &Project,
+    token: Option<&str>,
+    sha: &str,
+) -> Option<(Option<String>, Vec<Check>)> {
+    let client = client().ok()?;
     let (token, bearer) = bearer(&client, project, token).await;
-    let Some(pipeline) = last_pipeline(&client, project, token.as_deref(), bearer, sha).await
-    else {
-        return Vec::new();
-    };
+    let pipeline = last_pipeline(&client, project, token.as_deref(), bearer, sha).await?;
     let url = format!(
         "{}/pipelines/{}/jobs?per_page=100",
         project.api, pipeline.id
     );
-    let mut checks: Vec<Check> = match get(&client, &url, token.as_deref(), bearer).await {
+    let mut jobs: Vec<Check> = match get(&client, &url, token.as_deref(), bearer).await {
         Ok(answer) if answer.status().is_success() => answer
             .json::<Vec<RawJob>>()
             .await
@@ -104,8 +115,9 @@ pub(crate) async fn commit_checks(project: &Project, token: Option<&str>, sha: &
             .unwrap_or_default(),
         _ => Vec::new(),
     };
-    sort_checks(&mut checks);
-    checks
+    // Newest first: a pipeline's jobs are made stage by stage, so the oldest come first.
+    jobs.reverse();
+    Some((pipeline.web_url, jobs))
 }
 
 /// Retry the failed jobs of `sha`'s latest pipeline.

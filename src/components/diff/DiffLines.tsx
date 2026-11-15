@@ -39,12 +39,15 @@ export function DiffLines({
   picking,
   language,
   split = false,
+  wrap = false,
 }: {
   hunks: Hunk[];
   picking?: LinePicking;
   language?: string | null;
   /** Before and after side by side, instead of in one column. */
   split?: boolean;
+  /** Long lines wrapped to the width there is, instead of scrolled to (side by side, they always are). */
+  wrap?: boolean;
 }) {
   const segments = useMemo(() => hunks.map((hunk) => wordSegments(hunk.lines)), [hunks]);
   const syntax = useMemo(() => {
@@ -92,7 +95,7 @@ export function DiffLines({
   };
 
   return (
-    <div className={`diff-lines${picking ? " picking" : ""}${split ? " split" : ""}`} role="table" aria-label="Changed lines">
+    <div className={`diff-lines${picking ? " picking" : ""}${split ? " split" : ""}${wrap ? " wrap" : ""}`} role="table" aria-label="Changed lines">
       {hunks.map((hunk, hunkIndex) => {
         const keys = picking ? hunkKeys(hunk) : [];
         const chosenHere = picking ? keys.filter((key) => picking.selected.has(key)) : [];

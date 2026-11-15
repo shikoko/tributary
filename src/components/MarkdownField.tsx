@@ -61,6 +61,7 @@ export function MarkdownField({ value, className, onKeyDown, ...rest }: Props) {
         </div>
       ) : (
         <textarea
+          spellCheck
           {...rest}
           ref={input}
           className={`markdown-field-input${className ? ` ${className}` : ""}`}

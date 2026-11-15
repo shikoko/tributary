@@ -18,6 +18,7 @@
 @import "./styles/sidebar.css";
 @import "./styles/commit-box-and-tabs.css";
 @import "./styles/bars-and-palette.css";
+@import "./styles/shortcuts.css";
 @import "./styles/list-extras-and-status-bar.css";
 @import "./styles/mark-hover.css";
 @import "./styles/rebase-and-dialogs.css";
@@ -36,6 +37,8 @@
 @import "./styles/check-timeline.css";
 @import "./styles/request-actions.css";
 @import "./styles/commit-checks.css";
+@import "./styles/run-graph.css";
+@import "./styles/details-site.css";
 @import "./styles/reviews.css";
 @import "./styles/merge-and-patches.css";
 @import "./styles/rewrites.css";

@@ -4,7 +4,7 @@ use super::backups::back_up_rewrite;
 use super::stacks::{and_moved, branch_tips, moved_along, updates_refs};
 use super::support::{count, is_merge, ref_id, short};
 use super::validate::{commit_id, commit_ids, current_branch, revision_name};
-use super::{MergeMode, RebaseStep, StepAction};
+use super::{Extra, MergeMode, RebaseStep, StepAction};
 use crate::error::{Error, Result};
 use crate::git::Git;
 
@@ -88,6 +88,144 @@ pub(super) fn cherry_pick(repo: &gix::Repository, git: &Git, id: String) -> Resu
         "Cherry-picked {} onto {branch}",
         id.to_hex_with_len(7)
     ))
+}
+
+/// Cherry-pick commit `id` onto `branch`, dropped on its label. The checked-out branch gets
+/// the usual cherry-pick. Another is left where it is, files and all: the new commit is made
+/// without touching them (`git merge-tree --write-tree --merge-base`, git 2.40 and later),
+/// with the picked commit's author, date and message, and `branch` moves onto it. When that
+/// would conflict it stops, changing nothing, for `branch` to be checked out and the
+/// conflicts resolved there. The new commit's id goes in `extra.backup`, to undo it with
+/// [`super::Action::DropTip`].
+pub(super) fn cherry_pick_onto(
+    repo: &gix::Repository,
+    git: &Git,
+    id: String,
+    branch: String,
+    extra: &mut Extra,
+) -> Result<String> {
+    if current_branch(repo).ok().as_deref() == Some(branch.as_str()) {
+        return cherry_pick(repo, git, id);
+    }
+    let id = commit_id(repo, &id)?;
+    let short_id = id.to_hex_with_len(7).to_string();
+    let full = format!("refs/heads/{branch}");
+    let tip = ref_id(repo, &full).ok_or_else(|| format!("There's no branch called {branch}."))?;
+    let (id_hex, tip_hex) = (id.to_string(), tip.to_string());
+    if git
+        .run(&["merge-base", "--is-ancestor", &id_hex, &tip_hex])
+        .is_ok()
+    {
+        return Err(format!("{branch} already has {short_id}.").into());
+    }
+    let parent = git
+        .run(&["rev-parse", "--verify", "--quiet", &format!("{id_hex}^1")])
+        .map_err(|_| "A repository's first commit can't be cherry-picked onto a branch.")?
+        .trim()
+        .to_owned();
+    let base = format!("--merge-base={parent}");
+    let (code, output) = git.run_status(&[
+        "merge-tree",
+        "--write-tree",
+        "--no-messages",
+        &base,
+        &tip_hex,
+        &id_hex,
+    ])?;
+    match code {
+        Some(0) => {}
+        Some(1) => {
+            return Err(format!(
+                "{short_id} conflicts with {branch}: check out {branch} to cherry-pick it there, \
+                 and resolve the conflicts."
+            )
+            .into());
+        }
+        _ => {
+            return Err(format!(
+                "This needs git 2.40 or later: check out {branch} to cherry-pick {short_id} there."
+            )
+            .into());
+        }
+    }
+    let tree = output.lines().next().unwrap_or_default().trim().to_owned();
+    // Nothing to add: the branch has these changes already (picked before, say).
+    if git
+        .run(&["rev-parse", &format!("{tip_hex}^{{tree}}")])?
+        .trim()
+        == tree
+    {
+        return Err(format!("{branch} already has {short_id}'s changes.").into());
+    }
+    let who = git.run(&[
+        "log",
+        "-1",
+        "--format=%an%x00%ae%x00%ad",
+        "--date=raw",
+        &id_hex,
+    ])?;
+    let mut who = who.trim_end_matches('\n').split('\0');
+    let (name, email, date) = (
+        who.next().unwrap_or_default(),
+        who.next().unwrap_or_default(),
+        who.next().unwrap_or_default(),
+    );
+    let message = git.run(&["log", "-1", "--format=%B", &id_hex])?;
+    let new = git
+        .run_with_env(
+            &[
+                "commit-tree",
+                &tree,
+                "-p",
+                &tip_hex,
+                "-m",
+                message.trim_end(),
+            ],
+            &[
+                ("GIT_AUTHOR_NAME", name),
+                ("GIT_AUTHOR_EMAIL", email),
+                ("GIT_AUTHOR_DATE", date),
+            ],
+        )?
+        .trim()
+        .to_owned();
+    // Only if it's still where it was.
+    let reason = format!("cherry-pick {short_id} onto {branch}");
+    git.run(&["update-ref", "-m", &reason, &full, &new, &tip_hex])?;
+    extra.backup = Some(new);
+    Ok(format!("Cherry-picked {short_id} onto {branch}"))
+}
+
+/// Undo [`cherry_pick_onto`] onto a branch that isn't checked out: move `branch` back off its
+/// tip `id`, onto `id`'s parent, when it's still there and still not checked out.
+pub(super) fn drop_tip(
+    repo: &gix::Repository,
+    git: &Git,
+    branch: String,
+    id: String,
+) -> Result<String> {
+    if current_branch(repo).ok().as_deref() == Some(branch.as_str()) {
+        return Err(format!("{branch} is checked out now, so it's left as it is.").into());
+    }
+    let id = commit_id(repo, &id)?;
+    let full = format!("refs/heads/{branch}");
+    if ref_id(repo, &full) != Some(id) {
+        return Err(format!("{branch} has moved on since, so it's left as it is.").into());
+    }
+    let id_hex = id.to_string();
+    let parent = git
+        .run(&["rev-parse", "--verify", "--quiet", &format!("{id_hex}^1")])?
+        .trim()
+        .to_owned();
+    git.run(&[
+        "update-ref",
+        "-m",
+        "undo a cherry-pick",
+        &full,
+        &parent,
+        &id_hex,
+    ])?;
+    Ok(format!("Took {} back off {branch}", id.to_hex_with_len(7)))
 }
 
 /// Make a new commit that undoes a commit.

@@ -449,3 +449,22 @@
     animation: none;
   }
 }
+
+/* In a narrow pull request view (a small window, with the sidebar and details open), the
+   streams would have no room beside the verdict and run under it: it goes under them instead,
+   after the row a check's caption hangs in, and its line wraps. (Last, to win over the rules
+   above.) */
+@container request-status (max-width: 460px) {
+  .tributaries {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+  }
+
+  .tributaries-verdict {
+    grid-row: 3;
+  }
+
+  .tributaries-line {
+    white-space: normal;
+  }
+}

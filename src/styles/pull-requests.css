@@ -216,6 +216,8 @@ button.request-ref:hover {
 
 /* Where it stands: a card with whether it can be merged, Merge, and its checks. */
 .request-status {
+  /* How wide it is decides where the river's verdict goes (tributaries.css). */
+  container: request-status / inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--space-16);
@@ -325,13 +327,12 @@ button.request-ref:hover {
   filter: brightness(1.08);
 }
 
-/* The checks: how far they've got, a bar (one piece each, in their colours), then each one. */
+/* The checks: Checks, the site's chip beside it, and under them how they went (ChecksSummary),
+   as a commit's details have them; then the river, and each one on the clock. */
 .request-checks-head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-12);
-  margin-bottom: calc(var(--space-6) * -1);
+  align-items: center;
+  gap: var(--space-8);
   color: var(--text-muted);
   font-size: var(--type-base);
 }
@@ -339,6 +340,35 @@ button.request-ref:hover {
 .request-checks-title {
   color: var(--text-secondary);
   font-weight: 600;
+}
+
+/* Its title names the checks that failed, which can be long: it wraps instead of being cut. */
+.request-status .commit-checks-headline {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* In a narrow view (a small window, with the sidebar and details open), Open goes under the
+   counts, so the title and the counts have the width to themselves. */
+@container request-status (max-width: 460px) {
+  .request-status .site-item {
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+
+  .request-status .site-item-under {
+    grid-column: 2;
+  }
+
+  .request-status .commit-checks-counts {
+    white-space: normal;
+  }
+
+  .request-status .site-item .section-button {
+    grid-row: 3;
+    grid-column: 2;
+    justify-self: start;
+    margin-top: var(--space-6);
+  }
 }
 
 .request-status .request-check-name {

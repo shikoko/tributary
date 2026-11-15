@@ -5,6 +5,7 @@ import type { ToastMessage } from "../components/Toast";
 import { rewritable } from "../lib/graph";
 import type { LfsLocks } from "../lib/locks";
 import { baseName, joinPath } from "../lib/paths";
+import { CiStatesContext } from "../lib/ciStates";
 import { PullRequestsContext } from "../lib/pullRequests";
 import { openInBrowser } from "../lib/weblinks";
 import { openInApp, type PullRequest, type Stacked } from "../api";
@@ -29,6 +30,8 @@ interface Options {
   showRequest: (pr: PullRequest) => void;
   /** Show what changed when a branch was rewritten. */
   showRewrite: (rewrite: { branch: string; base: string | null }) => void;
+  /** Show a commit's checks, each run as a graph of its jobs. */
+  showChecks: (commit: CommitRow) => void;
   /** Branches built on other unmerged branches. */
   stacks: Map<string, Stacked>;
   highlight: Highlight;
@@ -55,6 +58,7 @@ export function useRepositoryMenus({
   openDialog,
   showRequest,
   showRewrite,
+  showChecks,
   stacks,
   highlight,
   settings,
@@ -71,6 +75,7 @@ export function useRepositoryMenus({
   updateSubmodules,
 }: Options) {
   const requests = useContext(PullRequestsContext);
+  const ciStates = useContext(CiStatesContext);
   const openApps = useOpenApps();
   const run = (action: Action) => act(action);
   const ctx: MenuContext = {
@@ -82,6 +87,8 @@ export function useRepositoryMenus({
     requests,
     showRequest: showRequest,
     showRewrite,
+    hasChecks: (id) => ciStates.has(id),
+    showChecks,
     stackOf: (branch: string) => stacks.get(branch),
     focus: highlight.highlightHistory,
     focusAuthor: highlight.highlightAuthor,

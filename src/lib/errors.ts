@@ -23,3 +23,5 @@ export function hookFailure(message: string): { hook: string; what: "commit" | "
 
 /** What the backend's message about too little disk space for Git LFS files starts with. */
 export const NOT_ENOUGH_SPACE = "Not enough disk space";
+/** What a sync's error starts with when the branch was amended or rebased after it was pushed (remote.rs). */
+export const REWRITTEN = "Rewritten since it was pushed";

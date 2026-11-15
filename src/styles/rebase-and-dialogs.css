@@ -143,6 +143,11 @@
   font-size: var(--type-sm);
 }
 
+/* First in the dialog: the space is below it. */
+.force-push-reason {
+  margin: 0 0 var(--space-10);
+}
+
 .clone-progress {
   display: flex;
   flex-direction: column;

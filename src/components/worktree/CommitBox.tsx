@@ -168,6 +168,7 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
           onKeyDown={onKeyDown}
           placeholder="Commit summary"
           aria-label="Commit summary"
+          spellCheck
         />
         {draft.summary.length > 0 && (
           <span
@@ -186,6 +187,7 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
         placeholder="Description (optional)"
         aria-label="Commit description"
         rows={3}
+        spellCheck
       />
       {confirmLarge && (
         <div className="commit-warning" role="alert">

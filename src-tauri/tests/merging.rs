@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{TempRepo, files, head, parents, read, run, with_identity};
+use common::{TempRepo, files, head, outcome, parents, read, run, with_identity};
 use tributary_lib::actions::{Action, MergeMode, Side};
 use tributary_lib::repo::{FileStatus, OperationKind};
 use tributary_lib::{actions, repo};
@@ -220,6 +220,67 @@ fn cherry_picks_and_reverts() {
     let merge = head(&repo);
     run(&repo, Action::Revert { id: merge }).unwrap();
     assert!(!repo.path().join("b.txt").exists());
+}
+
+#[test]
+fn cherry_picks_onto_a_branch_that_isnt_checked_out() {
+    let mut repo = TempRepo::new("pick-onto");
+    with_identity(&repo);
+    repo.commit("a.txt", "base");
+    repo.git(&["switch", "--quiet", "--create", "release"]);
+    repo.commit("a.txt", "Release a");
+    repo.git(&["switch", "--quiet", "--create", "feature", "main"]);
+    let picked = repo.commit("b.txt", "Add b");
+    let conflicting = repo.commit("a.txt", "Feature a");
+    repo.git(&["switch", "--quiet", "main"]);
+    let before = repo.git(&["rev-parse", "release"]);
+    let main_before = head(&repo);
+    std::fs::write(repo.path().join("notes.txt"), "work in progress\n").unwrap();
+    let onto = |id: &str, branch: &str| Action::CherryPickOnto {
+        id: id.to_owned(),
+        branch: branch.to_owned(),
+    };
+
+    // A new commit on release, with the picked one's message and author; main, its files
+    // and the work in progress are as they were.
+    let done = outcome(&repo, onto(&picked, "release"));
+    assert_eq!(
+        done.message,
+        format!("Cherry-picked {} onto release", &picked[..7])
+    );
+    let new = repo.git(&["rev-parse", "release"]);
+    assert_eq!(done.backup.as_deref(), Some(new.as_str()));
+    assert_eq!(repo.git(&["rev-parse", "release^"]), before);
+    assert_eq!(
+        repo.git(&["log", "-1", "--format=%s|%an", "release"]),
+        "Add b|Test Author"
+    );
+    assert_eq!(repo.git(&["show", "release:b.txt"]), "Add b");
+    assert_eq!(repo.git(&["show", "release:a.txt"]), "Release a");
+    assert_eq!(head(&repo), main_before);
+    assert!(!repo.path().join("b.txt").exists());
+    assert_eq!(read(&repo, "notes.txt"), "work in progress\n");
+
+    // Again: release has it already. One that conflicts there: nothing changes.
+    let again = run(&repo, onto(&picked, "release")).unwrap_err();
+    assert!(again.contains("already has"), "{again}");
+    let conflict = run(&repo, onto(&conflicting, "release")).unwrap_err();
+    assert!(conflict.contains("conflicts with release"), "{conflict}");
+    assert_eq!(repo.git(&["rev-parse", "release"]), new);
+
+    // Undo: back where it was. Not twice: it has moved on since.
+    let drop = || Action::DropTip {
+        branch: "release".into(),
+        id: new.clone(),
+    };
+    run(&repo, drop()).unwrap();
+    assert_eq!(repo.git(&["rev-parse", "release"]), before);
+    let twice = run(&repo, drop()).unwrap_err();
+    assert!(twice.contains("moved on"), "{twice}");
+
+    // Onto the checked-out branch: the usual cherry-pick.
+    run(&repo, onto(&picked, "main")).unwrap();
+    assert_eq!(read(&repo, "b.txt"), "Add b");
 }
 
 #[test]

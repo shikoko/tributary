@@ -125,13 +125,15 @@ export function restore() {
 
 /**
  * The controls in `screenshot` whose H's don't have as many rows of pixels above them as below,
- * inside the control: what each said, its class, and the two counts. A row's ink is its
+ * inside the control (or more than `tolerance` rows apart: at 150%, a control's room around
+ * its words can be an odd number of rows, which can't be shared out evenly): what each said,
+ * its class, and the two counts. A row's ink is its
  * sharpest step from one pixel to the next: the H's stems are steep, while a gradient behind
  * them or a line across the control is not. The H's end on the last row with at least half
  * the strongest ink (their baseline is on a whole pixel, so that row is a whole one), and
  * their capitals are as many rows tall as their height rounds to.
  */
-export function offCentre(screenshot, measured) {
+export function offCentre(screenshot, measured, { tolerance = 0 } = {}) {
   const image = decodePng(screenshot);
   const difference = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
   const found = [];
@@ -153,7 +155,7 @@ export function offCentre(screenshot, measured) {
     const letters = Math.round(control.cap * control.scale);
     const below = ink.length - 1 - last;
     const above = ink.length - below - letters;
-    if (above !== below) found.push({ name: control.name, classes: control.classes, above, below, height: ink.length, letters });
+    if (Math.abs(above - below) > tolerance) found.push({ name: control.name, classes: control.classes, above, below, height: ink.length, letters });
   }
   return found;
 }

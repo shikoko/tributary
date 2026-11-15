@@ -142,7 +142,10 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             to_json(folder.display().to_string())
         }
         "init_repository" => to_json(actions::init_repository(&path()?)?),
-        "prune_candidates" => to_json(actions::prune_candidates(&path()?)?),
+        "prune_candidates" => to_json(actions::prune_candidates(
+            &path()?,
+            optional(args, "idleDays")?,
+        )?),
         "branch_backups" => to_json(actions::backups(&path()?)?),
         "lost_commits" => {
             let reference: String = arg(args, "reference")?;
@@ -187,6 +190,10 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             let mode: actions::SearchMode = arg(args, "mode")?;
             let query: String = arg(args, "query")?;
             to_json(actions::search_commits(&path()?, mode, &query)?)
+        }
+        "find_commit" => {
+            let query: String = arg(args, "query")?;
+            to_json(actions::find_commit(&path()?, &query)?)
         }
         "blame_file" => {
             let file: String = arg(args, "file")?;

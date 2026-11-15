@@ -7,6 +7,8 @@ export interface ShortcutHandlers {
   open: () => void;
   newTab: () => void;
   closeTab: () => void;
+  /** ⌘⇧R: the tab closed last, open again. */
+  reopenTab: () => void;
   /** ⌘1…⌘9: the nth tab (0-based). */
   showTab: (index: number) => void;
   /** Ctrl+Tab and Ctrl+Shift+Tab. */
@@ -15,6 +17,8 @@ export interface ShortcutHandlers {
   moveTab: (step: -1 | 1) => void;
   refresh: () => void;
   focusSearch: () => void;
+  /** ⌘G: Go to Commit. */
+  goToCommit: () => void;
   toggleSidebar: () => void;
   toggleActivity: () => void;
   toggleTeam: () => void;
@@ -53,8 +57,10 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
       else if (mod && /^[1-9]$/.test(key)) run(() => on.showTab(Number(key) - 1));
       else if (event.ctrlKey && event.key === "Tab") run(() => on.cycleTab(event.shiftKey));
       else if (event.ctrlKey && event.shiftKey && (event.key === "PageUp" || event.key === "PageDown")) run(() => on.moveTab(event.key === "PageUp" ? -1 : 1));
+      else if (mod && event.shiftKey && key === "r") run(on.reopenTab);
       else if ((mod && key === "r") || event.key === "F5") run(on.refresh);
       else if (mod && key === "f") run(on.focusSearch);
+      else if (mod && key === "g" && !event.shiftKey) run(on.goToCommit);
       else if (mod && key === "b") run(on.toggleSidebar);
       else if (mod && event.shiftKey && key === "l") run(on.toggleActivity);
       else if (mod && event.shiftKey && key === "t") run(on.toggleTeam);

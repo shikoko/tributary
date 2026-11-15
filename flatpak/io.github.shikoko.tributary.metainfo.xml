@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- What software centres (GNOME Software, Discover, Flathub) show about Tributary. -->
+<component type="desktop-application">
+  <id>io.github.shikoko.tributary</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Tributary</name>
+  <summary>A fast, friendly git client, with first-class Git LFS, locks and art diffs</summary>
+  <developer id="io.github.shikoko">
+    <name>shikoko</name>
+  </developer>
+  <description>
+    <p>
+      A commit graph that's a pleasure to read, Undo for almost everything, and pull requests in the app, with first-class big files too: Git LFS, locks, and art you can actually see in a diff.
+    </p>
+    <ul>
+      <li>A colourful commit graph, with branches, remote branches, tags and stashes labelled, and search by message, author, file or code.</li>
+      <li>Diffs coloured by syntax, and staging whole files, hunks or single lines.</li>
+      <li>Merge, rebase, cherry-pick, revert and interactive rebase, with conflicts resolved in the app.</li>
+      <li>Pull and merge requests on GitHub and GitLab: review, comment and merge, with their checks.</li>
+      <li>Undo for almost everything, and backups of branches before they're rewritten or deleted.</li>
+      <li>Git LFS downloads with progress, locks, and textures, models and sounds shown as what they are.</li>
+    </ul>
+    <p>
+      Tributary uses the computer's own git (and Git LFS, for repositories that use it), with its settings, credentials and SSH keys, so install git first.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.shikoko.tributary.desktop</launchable>
+  <url type="homepage">https://github.com/shikoko/tributary</url>
+  <url type="bugtracker">https://github.com/shikoko/tributary/issues</url>
+  <url type="vcs-browser">https://github.com/shikoko/tributary</url>
+  <url type="donation">https://github.com/sponsors/shikoko</url>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/shikoko/tributary/main/docs/images/overview.png</image>
+      <caption>A repository's commit graph, its branches and a commit's changes</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/shikoko/tributary/main/docs/images/pull-request.png</image>
+      <caption>A pull request with its reviews and checks</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/shikoko/tributary/main/docs/images/conflicts.png</image>
+      <caption>Resolving a merge conflict in the app</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/shikoko/tributary/main/docs/images/textures.png</image>
+      <caption>A texture's changed pixels</caption>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+  <provides>
+    <binary>tributary-flatpak</binary>
+  </provides>
+  <categories>
+    <category>Development</category>
+    <category>RevisionControl</category>
+  </categories>
+  <releases>
+    <release version="0.8.0" date="2026-11-14">
+      <description>
+        <p>Tabs go where you drag them, uncommitted changes can be shown in their folders, and Tributary comes to Linux.</p>
+      </description>
+    </release>
+  </releases>
+</component>

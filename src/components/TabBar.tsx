@@ -105,6 +105,32 @@ function useTabMotion(row: RefObject<HTMLDivElement | null>, tabs: Tab[], startT
 }
 
 /**
+ * A name too long for its tab fades out at the tab's end, as in a browser (`data-clipped` on
+ * the tab, see .tab::after): only one cut short, so a name that fits keeps its last letters.
+ * Checked again whenever a name's room changes (a narrower window, more tabs, one growing in).
+ */
+function useClippedNames(row: RefObject<HTMLDivElement | null>, tabs: Tab[], startTab: boolean) {
+  useLayoutEffect(() => {
+    const element = row.current;
+    if (!element) return;
+    const check = (name: Element) => {
+      const text = name.firstElementChild;
+      const tab = name.closest<HTMLElement>(".tab");
+      if (!text || !tab) return;
+      // (The attribute isn't one React sets, so a new class on the tab doesn't clear it.)
+      if (text.scrollWidth > text.clientWidth + 1) tab.dataset.clipped = "";
+      else delete tab.dataset.clipped;
+    };
+    const observer = new ResizeObserver((entries) => entries.forEach((entry) => check(entry.target)));
+    element.querySelectorAll(".tab-name").forEach((name) => {
+      observer.observe(name);
+      check(name);
+    });
+    return () => observer.disconnect();
+  }, [row, tabs, startTab]);
+}
+
+/**
  * One tab per open repository, in an order you can change by dragging them. It's also the
  * title bar: the empty space drags the window, and on Windows the minimize, maximize and
  * close buttons are at its right.
@@ -112,6 +138,7 @@ function useTabMotion(row: RefObject<HTMLDivElement | null>, tabs: Tab[], startT
 export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onMove, onCloseStart, onNew, menuBar, extra, news, onContextMenu, busy }: Props) {
   const row = useRef<HTMLDivElement>(null);
   useTabMotion(row, tabs, startTab);
+  useClippedNames(row, tabs, startTab);
   const drag = useTabDrag(
     row,
     tabs.map((tab) => tab.path),

@@ -15,9 +15,10 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { buildDemos, demoEnv, STUDIO_PULL_REQUEST_CONVERSATIONS, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
+import { buildDemos, demoEnv, studioCommitRuns, STUDIO_PULL_REQUEST_CONVERSATIONS, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
 import { CONTROLS, describe as describeAligned, EXCEPT, misaligned } from "./aligned.mjs";
 import { describeOffCentre, moving, offCentre as offInPixels, probe, restore } from "../e2e/centred.mjs";
+import { decodePng } from "../e2e/png.mjs";
 import { startLockServer } from "./lfs-locks.mjs";
 import { startPreview } from "./server.mjs";
 
@@ -373,6 +374,49 @@ try {
     await page.locator(".details", { hasText: "Priya Nair" }).waitFor({ timeout: 5000 });
   });
 
+  await step("wraps long lines when asked, and remembers it", async () => {
+    const store = join(demos.notebook, "src", "store.ts");
+    const before = readFileSync(store, "utf8");
+    writeFileSync(store, `${before}// ${"How notebooks are kept, a note that goes on and on. ".repeat(6).trim()}\n`);
+    try {
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+      const open = async () => {
+        await page.locator(".details .file", { hasText: "store.ts" }).first().click();
+        await view.locator(".diff-row.added", { hasText: "goes on and on" }).waitFor({ timeout: 10_000 });
+      };
+      const close = async () => {
+        await view.getByRole("button", { name: "Close the changes" }).click();
+        await view.waitFor({ state: "detached", timeout: 5000 });
+      };
+      const view = page.locator(".diff-view");
+      const wrap = view.getByRole("button", { name: "Wrap lines" });
+      const pressed = async () => (await wrap.getAttribute("aria-pressed")) === "true";
+      const sideways = () => view.locator(".diff-body").evaluate((element) => element.scrollWidth > element.clientWidth + 1);
+      await open();
+      expect(!(await pressed()) && (await sideways()), "the long line didn't need scrolling to");
+      await wrap.click();
+      expect(!(await sideways()), "wrapped, the changes still scroll sideways");
+      const tall = (await view.locator(".diff-row.added", { hasText: "goes on and on" }).boundingBox()).height;
+      expect(tall >= 40, `the wrapped line is ${tall}px tall`);
+      // Remembered the next time.
+      await close();
+      await open();
+      expect(await pressed(), "Wrap lines wasn't remembered");
+      // Side by side, lines always wrap: pressed, and not to be turned off there.
+      await view.getByRole("button", { name: "Side by side" }).click();
+      await view.locator(".diff-split-row").first().waitFor({ timeout: 5000 });
+      expect((await pressed()) && (await wrap.isDisabled()), "side by side, Wrap lines isn't pressed and greyed");
+      await view.getByRole("button", { name: "Side by side" }).click();
+      await view.locator(".diff-row").first().waitFor({ timeout: 5000 });
+      await wrap.click();
+      expect(await sideways(), "unwrapped again, the long line doesn't need scrolling to");
+      await close();
+    } finally {
+      writeFileSync(store, before);
+    }
+  });
+
   await step("shows your changes, and follows a file you stage", async () => {
     await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
     await page.locator(".details .file", { hasText: "README.md" }).click();
@@ -466,7 +510,7 @@ try {
     writeFileSync(store, before);
   });
 
-  await step("discards all changes, new files too, and puts them back", async () => {
+  await step("discards all changes, new files too, showing it's working, and puts them back", async () => {
     const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" });
     const status = () => git("status", "--porcelain", "--untracked-files=all");
     const sketches = join(demos.notebook, "sketches");
@@ -484,9 +528,28 @@ try {
     await listed.waitFor({ timeout: 5000 });
     await page.getByRole("button", { name: "Discard all changes" }).click();
     const dialog = page.locator(".dialog", { hasText: "Discard all uncommitted changes?" });
-    await dialog.locator("li", { hasText: /new files? will be deleted/ }).waitFor({ timeout: 5000 });
-    await dialog.getByRole("button", { name: "Discard changes" }).click();
-    await page.locator(".toast", { hasText: "Discarded all uncommitted changes" }).waitFor({ timeout: 10_000 });
+    // The new folder, with everything in it: not "1 new file".
+    await dialog.locator("li", { hasText: "1 new folder will be deleted, with everything in it" }).waitFor({ timeout: 5000 });
+    // git says nothing while it puts thousands of files away. Held back here for a moment, as
+    // a big discard is, it shows it's working, with how many files go, and no Cancel: stopped
+    // halfway, some of the files would be gone and some not.
+    const slowly = async (route) => {
+      if (route.request().postData()?.includes('"discardAll"')) await new Promise((done) => setTimeout(done, 1500));
+      // Already let through if the step stopped holding requests back while this one waited.
+      await route.continue().catch(() => {});
+    };
+    await page.route("**/__preview/invoke", slowly);
+    try {
+      await dialog.getByRole("button", { name: "Discard changes" }).click();
+      const strip = page.locator(".progress-strip");
+      await strip.waitFor({ timeout: 5000 });
+      const said = (await strip.innerText()).replace(/\s+/g, " ");
+      expect(/Discarding \d+ files? and 1 new folder…/.test(said), `the progress said "${said}"`);
+      expect((await strip.getByRole("button", { name: "Cancel" }).count()) === 0, "a discard can be cancelled halfway");
+      await page.locator(".toast", { hasText: "Discarded all uncommitted changes" }).waitFor({ timeout: 10_000 });
+    } finally {
+      await page.unroute("**/__preview/invoke", slowly);
+    }
     expect(!existsSync(sketches), "the new file wasn't deleted");
     expect(status() === "", "changes were left");
     await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
@@ -535,12 +598,33 @@ try {
     }
     try {
       await page.keyboard.press("F5");
+      // Once the app has read the repository again, with the stash: its row goes in near the
+      // top and the commits below move down one. A right-click while they move landed on the
+      // row that took the commit's place (High-contrast theme, on feature/themes, not in
+      // main's history), and bisecting from there failed.
+      await row("smoke: bisect").waitFor({ timeout: 10_000 });
       await row("Fix the note counter in the sidebar").click({ button: "right" });
       await page.locator(".menu-item", { hasText: "Find what broke since this commit (bisect)…" }).click();
       const dialog = page.locator(".dialog", { hasText: "Find the commit that broke it" });
+      await dialog.waitFor({ timeout: 5000 });
+      expect((await dialog.innerText()).includes("Fix the note counter in the sidebar"), `bisecting from the wrong commit: ${(await dialog.innerText()).replace(/\s+/g, " ")}`);
       await dialog.getByRole("button", { name: "Start bisecting" }).click();
       const bar = page.locator(".bisect-bar");
-      await bar.filter({ hasText: "then say whether it's good or bad" }).waitFor({ timeout: 10_000 });
+      const prompt = bar.filter({ hasText: "then say whether it's good or bad" });
+      const failed = page.locator(".error-banner");
+      // Started, or said why not: either way, without waiting the whole time for it.
+      await prompt.or(failed).first().waitFor({ timeout: 15_000 }).catch(() => {});
+      if (!(await prompt.count())) {
+        // What the bar, an error and git said, so a failure here says why.
+        const said = async (locator) => ((await locator.count()) ? (await locator.first().innerText()).replace(/\s+/g, " ").trim() : "nothing");
+        let log;
+        try {
+          log = git("bisect", "log").split("\n").filter((line) => !line.startsWith("#")).join("; ");
+        } catch {
+          log = "not bisecting";
+        }
+        throw new Error(`no bisect prompt. The bar: ${await said(bar)}. An error: ${await said(failed)}. git bisect log: ${log}. git status: ${git("status", "--short") || "clean"}`);
+      }
       // Everything after the good commit is bad: the first one after it is the culprit.
       for (let tries = 0; tries < 5 && !(await bar.filter({ hasText: "Found it" }).count()); tries++) {
         await bar.getByRole("button", { name: "Bad", exact: true }).click();
@@ -862,6 +946,31 @@ try {
     await row("Add a tavern chair").waitFor({ timeout: 10_000 });
   });
 
+  await step("checks the spelling of commit messages, with the webview's menu for suggestions", async () => {
+    await page.locator(".tab", { hasText: /^notebook$/ }).dispatchEvent("mousedown", { button: 0 });
+    await row("Export notes as Markdown").waitFor({ timeout: 10_000 });
+    await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+    const summary = page.getByPlaceholder("Commit summary");
+    const description = page.getByLabel("Commit description");
+    await summary.waitFor({ timeout: 5000 });
+    for (const field of [summary, description]) {
+      const checked = await field.evaluate((element) => element.spellcheck);
+      expect(checked, `${await field.getAttribute("aria-label")} isn't spell-checked`);
+    }
+    // A right-click keeps the webview's own menu, with its suggestions, only in text fields.
+    const prevented = (locator) =>
+      locator.evaluate((element) => {
+        const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+        element.dispatchEvent(event);
+        return event.defaultPrevented;
+      });
+    expect(!(await prevented(description)), "the description's own menu was stopped");
+    expect(!(await prevented(summary)), "the summary's own menu was stopped");
+    expect(await prevented(page.locator("body")), "the webview's menu showed outside a text field");
+    await page.locator(".tab", { hasText: "studio" }).dispatchEvent("mousedown", { button: 0 });
+    await row("Add a tavern chair").waitFor({ timeout: 10_000 });
+  });
+
   await step("puts a tab elsewhere by dragging it, or from the keyboard", async () => {
     const tabs = page.locator(".tabs > .tab[data-path]");
     const order = async () => (await tabs.allTextContents()).map((name) => name.trim()).join(", ");
@@ -892,6 +1001,124 @@ try {
     await page.waitForTimeout(250);
     expect((await order()) === before, `Escape didn't put it back: ${await order()}`);
     await page.locator(".tab", { hasText: "studio" }).dispatchEvent("mousedown", { button: 0 });
+    await row("Add a tavern chair").waitFor({ timeout: 10_000 });
+  });
+
+  await step("reopens closed tabs in their places, from the keyboard or a tab's menu", async () => {
+    const tabs = page.locator(".tabs > .tab[data-path]");
+    const tab = (name) => tabs.filter({ hasText: name });
+    const order = async () => (await tabs.allTextContents()).map((name) => name.trim()).join(", ");
+    const tabMenu = async (name, item) => {
+      await tab(name).click({ button: "right" });
+      await page.locator(".menu-item", { hasText: item }).click();
+    };
+    const before = await order();
+    // A tab closed from its menu comes back with Ctrl+Shift+R, where it was, and open.
+    await tabMenu(/^notebook$/, "Close tab");
+    await tab(/^notebook$/).waitFor({ state: "detached", timeout: 5000 });
+    await page.keyboard.press("Control+Shift+R");
+    await row("Export notes as Markdown").waitFor({ timeout: 10_000 });
+    expect((await order()) === before, `reopened, the tabs are ${await order()}, not ${before}`);
+    // The others, closed at once, come back one by one from a tab's menu, each in its place.
+    await tabMenu("studio", "Close other tabs");
+    await row("Add a tavern chair").waitFor({ timeout: 10_000 });
+    expect((await tabs.count()) === 1, `${await tabs.count()} tabs after closing the others`);
+    for (let left = before.split(", ").length - 1; left > 0; left--) {
+      await tabMenu("studio", "Reopen closed tab");
+      await page.waitForFunction((count) => document.querySelectorAll(".tabs > .tab[data-path]").length === count, before.split(", ").length - left + 1, { timeout: 10_000 });
+    }
+    expect((await order()) === before, `reopened, the tabs are ${await order()}, not ${before}`);
+    // Nothing left to reopen.
+    await tab("studio").click({ button: "right" });
+    expect(await page.locator(".menu-item", { hasText: "Reopen closed tab" }).isDisabled(), "Reopen closed tab with nothing to reopen");
+    await page.keyboard.press("Escape");
+    await tab("studio").dispatchEvent("mousedown", { button: 0 });
+    await row("Add a tavern chair").waitFor({ timeout: 10_000 });
+  });
+
+  await step("sizes tabs to their names, with the close button on the open one and over the name's end on hover", async () => {
+    const tabs = page.locator(".tabs > .tab[data-path]");
+    const notebook = tabs.filter({ hasText: /^notebook$/ });
+    const close = notebook.locator(".tab-close");
+    const opacity = (locator) => locator.evaluate((element) => getComputedStyle(element).opacity);
+    // A tab is its name, the padding either side (26px) and a new commits dot if it has one
+    // (11px), or 64px for a short name. Only the open one has room for its close button (26px):
+    // with room for it in every tab, each was the name and about 50px.
+    const widths = await tabs.evaluateAll((all) =>
+      all.map((tab) => {
+        const name = tab.querySelector(".tab-name > span");
+        return { name: name.textContent, width: tab.getBoundingClientRect().width, text: name.scrollWidth, open: tab.classList.contains("active") };
+      }),
+    );
+    for (const { name, width, text, open } of widths) expect(width <= Math.max(64, text + 38 + (open ? 26 : 0)), `${name}'s tab is ${width}px wide, for a name ${text}px wide`);
+    await page.mouse.move(5, 400);
+    // The open tab's close button shows, after its name.
+    const open = page.locator(".tabs > .tab.active[data-path]");
+    const openName = await open.locator(".tab-name").boundingBox();
+    expect((await opacity(open.locator(".tab-close"))) === "1", "the open tab's close button doesn't show");
+    expect((await open.locator(".tab-close").boundingBox()).x >= openName.x + openName.width, "the open tab's close button is over its name");
+    expect((await opacity(close)) === "0", "the close button shows without the pointer on the tab");
+    // On another tab: over the end of the name, which fades out under it.
+    await notebook.hover();
+    await page.waitForFunction(() => getComputedStyle(document.querySelector(".tabs > .tab[data-path]:hover .tab-close")).opacity === "1", null, { timeout: 2000 });
+    const x = await close.boundingBox();
+    const tab = await notebook.boundingBox();
+    const name = await notebook.locator(".tab-name").boundingBox();
+    expect(x.x + x.width <= tab.x + tab.width && x.x < name.x + name.width, "the close button isn't over the end of the name");
+    // Its X lines up with the middle of the name's small letters, in the screen's own pixels:
+    // "no", where notebook starts, has nothing taller. (The pointer is still on the tab.)
+    const scale = await page.evaluate(() => devicePixelRatio);
+    const shot = decodePng(await page.screenshot());
+    const screen = (box) => ({ x: Math.round(box.x * scale), y: Math.round(box.y * scale), w: Math.round(box.width * scale), h: Math.round(box.height * scale) });
+    const area = screen(await notebook.boundingBox());
+    const behind = shot.at(area.x + 4, area.y + area.h - 4);
+    const inked = (from, width) => {
+      const rows = [];
+      for (let y = area.y; y < area.y + area.h; y++)
+        for (let at = from; at < from + width; at++) {
+          const pixel = shot.at(at, y);
+          if (pixel.reduce((sum, value, index) => sum + Math.abs(value - behind[index]), 0) > 120) {
+            rows.push(y);
+            break;
+          }
+        }
+      return (rows[0] + rows[rows.length - 1]) / 2;
+    };
+    const letters = inked(screen(await notebook.locator(".tab-name").boundingBox()).x, Math.round(12 * scale));
+    const button = screen(await close.boundingBox());
+    const cross = inked(button.x + 2, button.w - 4);
+    expect(Math.abs(cross - letters) <= 1, `the X's middle is ${letters - cross} screen pixels above the letters'`);
+    await close.click();
+    await notebook.waitFor({ state: "detached", timeout: 5000 });
+    await page.keyboard.press("Control+Shift+R");
+    await row("Export notes as Markdown").waitFor({ timeout: 10_000 });
+    // Only a name cut short fades out at the tab's end: none at full width (two tabs), and
+    // notebook's in a window too narrow for both tabs (at 560px they just fit; at 440px the open
+    // tab shrinks to 64px). On a timeout, each tab's measurements say why.
+    const measured = () =>
+      tabs.evaluateAll((all) =>
+        all.map((tab) => {
+          const name = tab.querySelector(".tab-name > span");
+          return `${name.textContent}: tab ${tab.getBoundingClientRect().width}px, name ${name.scrollWidth}px in ${name.clientWidth}px${tab.hasAttribute("data-clipped") ? ", cut short" : ""}`;
+        }),
+      );
+    const until = async (clipped, why, which = ".tabs > .tab[data-clipped]") => {
+      for (let tries = 0; tries < 50; tries++) {
+        if ((await page.locator(which).count()) > 0 === clipped) return;
+        await page.waitForTimeout(100);
+      }
+      throw new Error(`${why}: ${(await measured()).join("; ")}`);
+    };
+    await until(false, "a name is cut short at full width");
+    const size = page.viewportSize();
+    await page.setViewportSize({ width: 440, height: size.height });
+    try {
+      await until(true, "notebook's name isn't cut short in a narrow window", '.tabs > .tab.active[data-clipped]');
+    } finally {
+      await page.setViewportSize(size);
+    }
+    await until(false, "a name is still cut short at full width again");
+    await tabs.filter({ hasText: "studio" }).dispatchEvent("mousedown", { button: 0 });
     await row("Add a tavern chair").waitFor({ timeout: 10_000 });
   });
 
@@ -1082,6 +1309,59 @@ try {
 
   await step("shows pull requests on their branches", async () => {
     await page.locator(".pr-badge").first().waitFor({ timeout: 10_000 });
+    // On the commit list's labels, the icon for the checks alone (a cross for #14's failed
+    // ones), with the number in the badge's name for screen readers. The sidebar has both.
+    const label = page.locator(".commit-list .pr-badge.failure", { hasText: "#14" }).first();
+    expect(await label.locator(".pr-check-icon").isVisible(), "no icon for the failed checks");
+    expect(!(await label.locator(".pr-number").isVisible()), "the number shows on the label");
+    expect((await label.getAttribute("aria-label")).includes("#14"), `the badge's name is ${await label.getAttribute("aria-label")}`);
+    expect(await page.locator(".sidebar-item .pr-badge.failure .pr-number", { hasText: "#14" }).first().isVisible(), "no number in the sidebar");
+  });
+
+  await step("keeps the words in the middle of badges and buttons at 150% and 200% too", async () => {
+    // The checks so far are at 100%. At other scales letters round differently: their baseline
+    // goes on a whole CSS pixel and a control's edges on the nearest screen pixel, so a control
+    // starting half a pixel down had its words a screen pixel low (the sidebar's pull request
+    // badges, and the toolbar's buttons and branch). In a page of its own at each scale, in
+    // Chromium: WebKit's rounding hasn't been looked at at these scales.
+    if (browserName !== "chromium") return;
+    for (const scale of [1.5, 2]) {
+      const scaled = await browser.newPage({ viewport: { width: 1440, height: 860 }, deviceScaleFactor: scale, userAgent });
+      try {
+        await scaled.addInitScript(([pick, pullRequests]) => {
+          window.__PREVIEW__ = { pick, pullRequests };
+          localStorage.setItem("tributary.fetch.auto", "false");
+          localStorage.setItem("tributary.whatsNew.seen", JSON.stringify("999.0.0"));
+          localStorage.setItem("tributary.tours.off", "true");
+        }, [demos.studio, STUDIO_PULL_REQUESTS]);
+        await scaled.goto(preview.url);
+        await scaled.getByText("Open repository").first().click();
+        await scaled.locator(".sidebar-item .pr-badge").first().waitFor({ timeout: 15_000 });
+        await scaled.evaluate(() => document.fonts.ready);
+        await scaled.waitForFunction(`(${moving})() === 0`, null, { timeout: 3000 }).catch(() => {});
+        const measured = await scaled.evaluate(`(${probe})(${JSON.stringify(CONTROLS)}, ${JSON.stringify(EXCEPT)})`);
+        expect(measured.some((control) => control.classes === "pr-badge"), "no pull request badge measured");
+        const shot = await scaled.screenshot();
+        const found = describeOffCentre(offInPixels(shot, measured, { tolerance: 1 }));
+        expect(found.length === 0, `at ${scale * 100}%: ${found.slice(0, 6).join("; ")}`);
+      } finally {
+        await scaled.close();
+      }
+    }
+  });
+
+  await step("shows pull requests' numbers on their labels when asked", async () => {
+    const number = page.locator(".commit-list .pr-badge.failure", { hasText: "#14" }).first().locator(".pr-number");
+    await page.keyboard.press("Control+,");
+    const settings = page.locator(".dialog", { hasText: "Settings" }).first();
+    await settings.locator(".settings-nav").getByText("Commit list").click();
+    const toggle = settings.getByRole("switch", { name: "Pull request numbers" });
+    await toggle.click();
+    await number.waitFor({ state: "visible", timeout: 5000 });
+    await toggle.click();
+    await number.waitFor({ state: "hidden", timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await settings.waitFor({ state: "detached", timeout: 5000 });
   });
 
   await step("colours checks as you pick, and as the theme does again", async () => {
@@ -1115,6 +1395,51 @@ try {
     await dismissToast();
   });
 
+  await step("shows a commit's checks as a graph of each run, and opens a job's page", async () => {
+    await page.evaluate((runs) => Object.assign(window.__PREVIEW__, { commitRuns: runs }), studioCommitRuns());
+    const current = page.locator(".commit-row", { has: page.locator(".ref-pill.current") }).first();
+    await page.locator(".details .commit-checks").getByRole("button", { name: "Open" }).click();
+    const view = page.locator(".checks-view");
+    const build = view.locator(".run-card", { hasText: "Build" }).first();
+    // The platforms in one box, the one still running at its step, and the jobs still waiting.
+    await build.locator(".run-group", { hasText: "3 jobs" }).waitFor({ timeout: 10_000 });
+    await build.locator(".run-job.running .run-step-name", { hasText: "Cook the tavern level" }).waitFor({ timeout: 5000 });
+    expect((await build.locator(".run-card-job.waiting").count()) === 2, "the jobs still waiting aren't shown");
+    // A line from each group to each that waits for it, left to right: Version and Lint to
+    // Build, Build to Package, Package to Upload.
+    await page.waitForFunction(() => document.querySelector(".checks-view .run-card")?.querySelectorAll(".run-edge path").length === 4, null, { timeout: 5000 });
+    const ends = await build.locator(".run-edge path").evaluateAll((paths) => paths.map((path) => path.getAttribute("d").match(/^M([\d.]+) [\d.]+ C.* ([\d.]+) [\d.]+$/)));
+    expect(ends.every((found) => found && Number(found[1]) < Number(found[2])), `a line doesn't go left to right: ${JSON.stringify(ends)}`);
+    // Wider than the view beside the panels: the graph scrolls rather than squeezing, with an
+    // arrow on the side there's more of.
+    const graph = build.locator(".run-graph-scroll");
+    expect(await graph.evaluate((element) => element.scrollWidth > element.clientWidth), "the Build graph was squeezed to fit");
+    await build.locator(".run-graph-more.right").click();
+    await build.locator(".run-graph-more.left").waitFor({ timeout: 5000 });
+    expect(await graph.evaluate((element) => element.scrollLeft > 0), "the arrow didn't scroll the graph");
+    await view.locator(".checks-count.failure", { hasText: "1 failed" }).waitFor({ timeout: 5000 });
+    await accessible("a commit's checks as graphs");
+    // A job opens its page.
+    await view.locator(".run-card-job", { hasText: "Audio loudness" }).click();
+    expect((await page.evaluate(() => window.__PREVIEW__.opened)).some((url) => url.endsWith("/42/job/7")), "the job's page didn't open");
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+    // The commit's menu opens them too.
+    await current.click({ button: "right" });
+    await page.locator(".menu-item", { hasText: "Show checks" }).click();
+    await view.locator(".run-card", { hasText: "Asset checks" }).waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+    // And its CI dot in the list, which selects the commit too: here, one further down.
+    const older = page.locator(".commit-row", { has: page.locator(".graph-ci") }).nth(3);
+    await older.locator(".graph-ci").click();
+    await view.locator(".run-card", { hasText: "Asset checks" }).waitFor({ timeout: 10_000 });
+    expect(await older.evaluate((row) => row.classList.contains("selected")), "clicking the dot didn't select its commit");
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+    await current.click();
+  });
+
   await step("shows a pull request's reviews and checks", async () => {
     await page.evaluate((details) => Object.assign(window.__PREVIEW__, { pullRequestDetails: details }), STUDIO_PULL_REQUEST_DETAILS);
     // Pressing the badge opens the pull request, and leaves the selected commit as it was: a
@@ -1126,6 +1451,25 @@ try {
     await view.locator(".request-merge", { hasText: "changes were asked for" }).waitFor({ timeout: 10_000 });
     await view.locator(".request-check.failure", { hasText: "Audio loudness" }).waitFor({ timeout: 5000 });
     await view.locator(".request-status-said", { hasText: "diego-ramos asked for changes" }).waitFor({ timeout: 5000 });
+    // The river under the checks' summary counts them and shows each, so the summary's title
+    // names what failed instead, and it has no pips.
+    await view.locator(".request-status .commit-checks-headline", { hasText: /^Audio loudness failed$/ }).waitFor({ timeout: 5000 });
+    await view.locator(".tributaries-line", { hasText: /checks failed/ }).waitFor({ timeout: 5000 });
+    expect((await view.locator(".request-status .check-pips").count()) === 0, "the pull request's checks have pips as well as the river");
+    // In the smallest window, with the sidebar and details open, the river's verdict goes under
+    // its streams instead of over them, and the checks under it keep their names (without bars).
+    const size = page.viewportSize();
+    await page.setViewportSize({ width: 900, height: size.height });
+    try {
+      await page.waitForFunction(() => {
+        const streams = document.querySelector(".request-view .tributaries-streams")?.getBoundingClientRect();
+        const verdict = document.querySelector(".request-view .tributaries-verdict")?.getBoundingClientRect();
+        const name = document.querySelector(".request-view .request-timeline-row .request-check-name")?.getBoundingClientRect();
+        return streams && verdict && name && verdict.top >= streams.bottom && name.width > 40;
+      }, null, { timeout: 5000 });
+    } finally {
+      await page.setViewportSize(size);
+    }
     // The description and comments are Markdown, shown as such.
     await view.locator(".request-comment-text").first().waitFor({ timeout: 5000 });
     await accessible("a pull request");
@@ -1138,13 +1482,24 @@ try {
   });
 
   await step("shows an open pull request from its branch's commit", async () => {
-    // The commit at the tip of fix/door: its pull request, open, with Show beside it.
+    // The commit at the tip of fix/door: its pull request, saying where it stands as its view
+    // does, with its title, who opened it and Show, under a heading with the site's chip, and
+    // its checks under it, built the same way.
     await page.locator(".commit-row", { has: page.locator(".pr-badge", { hasText: "#14" }) }).first().click();
-    const mention = page.locator(".details .mentioned-issue", { hasText: "#14" });
-    await mention.locator(".mentioned-issue-status", { hasText: "Open" }).waitFor({ timeout: 5000 });
-    await mention.locator(".mentioned-issue-title", { hasText: "Make the door creak" }).waitFor({ timeout: 5000 });
+    const card = page.locator(".details .commit-request", { hasText: "#14" });
+    await card.locator(".commit-request-standing", { hasText: "Can't be merged yet: changes were asked for" }).waitFor({ timeout: 5000 });
+    expect(await card.evaluate((item) => item.classList.contains("bad")), "a pull request that can't be merged isn't shown in red");
+    await card.locator(".commit-request-name", { hasText: "Make the door creak · theo-park" }).waitFor({ timeout: 5000 });
+    await page.locator(".details .commit-requests h3", { hasText: "Pull request" }).waitFor({ timeout: 5000 });
+    await page.locator(".details .commit-requests .site-chip", { hasText: "GitHub" }).waitFor({ timeout: 5000 });
+    // Its checks, built the same way, with a pip for each.
+    const headline = page.locator(".details .commit-checks-headline");
+    await headline.filter({ hasText: /^\d+ of \d+ checks failed$/ }).waitFor({ timeout: 5000 });
+    const total = Number((await headline.textContent()).match(/of (\d+)/)[1]);
+    expect((await page.locator(".details .check-pips > span").count()) === total, `not a pip for each of the ${total} checks`);
+    expect((await page.locator(".details .mentioned-issue", { hasText: "#14" }).count()) === 0, "the pull request is listed with the issues too");
     await accessible("an open pull request in a commit's details");
-    await mention.getByRole("button", { name: "Show" }).click();
+    await card.getByRole("button", { name: "Show" }).click();
     const view = page.locator(".request-view");
     await view.locator(".request-merge", { hasText: "changes were asked for" }).waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");
@@ -1253,9 +1608,44 @@ try {
     await page.getByRole("button", { name: "Create worktree" }).click();
     await page.locator(".head-chip", { hasText: "feature/themes" }).waitFor({ timeout: 15_000 });
     await page.locator(".tab.active", { hasText: "notebook-feature-themes" }).waitFor({ timeout: 5000 });
+    // The sidebar reads the worktrees after the tab opens: counted once they're there, as
+    // counting straight away found none now and then.
+    await page.waitForFunction(() => document.querySelectorAll(".sidebar-worktree").length === 2, null, { timeout: 10_000 }).catch(() => {});
     const entries = await page.locator(".sidebar-worktree").count();
     expect(entries === 2, `${entries} worktrees in the sidebar`);
     await dismissToast();
+  });
+
+  await step("lists the keyboard shortcuts in groups, finds one, and fits a short window", async () => {
+    const size = page.viewportSize();
+    // Shorter than the list: it used to run past the window's top and bottom.
+    await page.setViewportSize({ width: 1100, height: 560 });
+    try {
+      await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
+      await page.locator(".menu-item", { hasText: "Keyboard Shortcuts" }).click();
+      const dialog = page.locator(".shortcuts-window");
+      const rows = dialog.locator(".shortcut-row");
+      await rows.filter({ hasText: "Cherry-pick it onto that branch" }).waitFor({ timeout: 5000 });
+      const box = await dialog.boundingBox();
+      expect(box.y >= 0 && box.y + box.height <= 560, `the window runs from ${box.y} to ${box.y + box.height}, past the 560px window`);
+      expect(await dialog.locator(".shortcuts-body").evaluate((element) => element.scrollHeight > element.clientHeight), "the list doesn't scroll inside the window");
+      // Each key a keycap of its own: Ctrl and K apart.
+      expect((await rows.filter({ hasText: "Command palette" }).locator("kbd").count()) === 2, "the palette's keys aren't two keycaps");
+      await accessible("the keyboard shortcuts");
+      // Typing finds them in every group: the search box has the keyboard from the start.
+      await page.keyboard.type("cherry");
+      await page.waitForFunction(() => document.querySelectorAll(".shortcuts-window .shortcut-row").length === 1, null, { timeout: 5000 });
+      expect((await rows.first().textContent()).includes("Cherry-pick"), "searching for cherry didn't find the cherry-pick");
+      await dialog.locator(".shortcuts-find").fill("");
+      // A group on its own, then all again.
+      await dialog.locator(".shortcuts-nav button", { hasText: "Tabs" }).click();
+      await page.waitForFunction(() => [...document.querySelectorAll(".shortcuts-window .shortcuts-group h3")].map((h) => h.textContent).join() === "Tabs", null, { timeout: 5000 });
+      await dialog.locator(".shortcuts-nav button", { hasText: "All" }).click();
+      await page.keyboard.press("Escape");
+      await dialog.waitFor({ state: "detached", timeout: 5000 });
+    } finally {
+      await page.setViewportSize(size);
+    }
   });
 
   await step("works the menus from the keyboard", async () => {
@@ -1549,6 +1939,65 @@ try {
     await page.locator(".commit-row").first().waitFor({ timeout: 10_000 });
   });
 
+  await step("cherry-picks a commit dragged onto a branch that isn't checked out, and undoes it", async () => {
+    const was = (await page.locator('.tabs > .tab[aria-selected="true"]').textContent()).trim();
+    await page.locator(".tab", { hasText: /^notebook$/ }).dispatchEvent("mousedown", { button: 0 });
+    await row("Export notes as Markdown").waitFor({ timeout: 10_000 });
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, "-c", "user.name=Sam Okafor", "-c", "user.email=sam@example.com", ...args], { encoding: "utf8" }).trim();
+    // A commit on a branch of its own, and a branch to pick it onto: on a commit with no
+    // other labels, so its label is the one the row shows.
+    const bare = git("log", "--format=%H%x09%D", "-30", "main").split("\n").slice(1).find((line) => line.endsWith("\t"))?.split("\t")[0];
+    expect(bare, "no commit without labels to put the branch on");
+    // Made with git's plumbing, so the files on disk stay as they are.
+    const head = git("rev-parse", "HEAD");
+    const blob = execFileSync("git", ["-C", demos.notebook, "hash-object", "-w", "--stdin"], { input: "Things to pick up.\n", encoding: "utf8" }).trim();
+    const listing = `${git("ls-tree", "HEAD")}\n100644 blob ${blob}\tPICK.md\n`;
+    const tree = execFileSync("git", ["-C", demos.notebook, "mktree"], { input: listing, encoding: "utf8" }).trim();
+    git("branch", "pick-source", git("commit-tree", tree, "-p", head, "-m", "Add a pick list"));
+    git("branch", "pick-target", bare);
+    await page.keyboard.press("F5");
+    const source = row("Add a pick list");
+    await source.waitFor({ timeout: 10_000 });
+    const dragOnto = async (target) => {
+      const from = await source.locator(".cell.description").first().boundingBox();
+      await page.mouse.move(from.x + 40, from.y + from.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(from.x + 50, from.y + from.height / 2, { steps: 3 });
+      // Where it is once the press has selected the row: the list can move.
+      await page.waitForTimeout(300);
+      const to = await target.boundingBox();
+      await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+      expect(await target.evaluate((element) => element.classList.contains("drop-target")), "the branch isn't marked as where it goes");
+      await page.mouse.up();
+    };
+    // Onto its label in the graph: picked without checking it out, and Undo takes it back off.
+    await dragOnto(page.locator('.commit-row .ref-pill[data-drop-branch="pick-target"]'));
+    let text = await toast();
+    expect(/Cherry-picked [0-9a-f]{7} onto pick-target/.test(text), `toast "${text}"`);
+    expect(git("log", "-1", "--format=%s", "pick-target") === "Add a pick list", "pick-target doesn't have the commit");
+    expect(git("rev-parse", "pick-target^") === bare, "the commit wasn't put on pick-target's tip");
+    expect(git("rev-parse", "HEAD") === head && git("branch", "--show-current") === "main", "the checkout changed");
+    await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
+    text = await toast();
+    expect(/Took [0-9a-f]{7} back off pick-target/.test(text), `toast "${text}"`);
+    expect(git("rev-parse", "pick-target") === bare, "Undo didn't move pick-target back");
+    await dismissToast();
+    // Onto it in the sidebar too; a second time, it says the branch has it already.
+    const inSidebar = page.locator('.sidebar-item[data-drop-branch="pick-target"]');
+    await dragOnto(inSidebar);
+    text = await toast();
+    expect(/onto pick-target/.test(text), `toast "${text}"`);
+    await dismissToast();
+    await dragOnto(inSidebar);
+    await page.locator(".error-banner", { hasText: "pick-target already has" }).waitFor({ timeout: 10_000 });
+    await page.locator(".error-banner").getByRole("button", { name: "Dismiss" }).click();
+    git("branch", "-D", "pick-source", "pick-target");
+    await page.keyboard.press("F5");
+    await page.locator(".tabs > .tab[data-path]").filter({ hasText: new RegExp(`^${was}$`) }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator('.tabs > .tab[aria-selected="true"]', { hasText: was }).waitFor({ timeout: 10_000 });
+    await page.locator(".commit-row").first().waitFor({ timeout: 10_000 });
+  });
+
   await step("takes a tour from Help → Tours", async () => {
     await page.locator(".menu-bar-item", { hasText: "Help" }).dispatchEvent("mousedown", { button: 0 });
     await page.locator(".menu-item", { hasText: "Tours" }).click();
@@ -1559,6 +2008,59 @@ try {
     await card.locator("h3").filter({ hasNotText: "The graph" }).waitFor({ timeout: 5000 });
     await page.keyboard.press("Escape");
     await card.waitFor({ state: "detached", timeout: 5000 });
+  });
+
+  await step("syncs a branch with commits on both sides, and asks for a force push when it was rewritten", async () => {
+    const was = (await page.locator('.tabs > .tab[aria-selected="true"]').textContent()).trim();
+    await page.locator(".tab", { hasText: /^notebook$/ }).dispatchEvent("mousedown", { button: 0 });
+    await row("Export notes as Markdown").waitFor({ timeout: 10_000 });
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" }).trim();
+    // A teammate pushes a commit of their own to main.
+    const teammate = join(folder, "sync-teammate");
+    execFileSync("git", ["clone", "-q", git("remote", "get-url", "origin"), teammate]);
+    const theirs = (...args) => execFileSync("git", ["-C", teammate, "-c", "user.name=Lea Fischer", "-c", "user.email=lea@example.com", ...args], { encoding: "utf8" }).trim();
+    writeFileSync(join(teammate, "TEAM.md"), "Who looks after what.\n");
+    theirs("add", "TEAM.md");
+    theirs("commit", "-qm", "Say who looks after what");
+    theirs("push", "-q", "origin", "HEAD:main");
+    // Fetched, main has commits on both sides: Push becomes Sync.
+    await page.getByRole("button", { name: "Fetch", exact: true }).click();
+    const sync = page.locator(".split-button .tool-button").first();
+    await sync.filter({ hasText: "Sync" }).waitFor({ timeout: 15_000 });
+    await sync.click();
+    // git won't merge while changes are staged (the notebook has some): Sync offers to put
+    // them aside, sync, and bring them back, as a pull does.
+    const synced = page.locator(".toast", { hasText: /Synced main: pulled \d+ commits?, then pushed \d+ commits?/ });
+    const aside = page.getByRole("button", { name: "Stash changes and retry" });
+    await synced.or(aside).first().waitFor({ timeout: 20_000 });
+    if (await aside.isVisible()) await aside.click();
+    await synced.waitFor({ timeout: 20_000 });
+    expect(git("rev-parse", "main") === git("rev-parse", "origin/main"), "main and origin/main differ after syncing");
+    expect(git("ls-tree", "--name-only", "main").split("\n").includes("TEAM.md"), "the teammate's commit wasn't pulled");
+    await dismissToast();
+    // Amended after it was pushed: Sync stops before pulling the old version back, and asks
+    // for a force push instead. Nothing is pushed.
+    const pushed = git("rev-parse", "main");
+    // --only: just the message, not what's staged.
+    git("-c", "user.name=Sam Okafor", "-c", "user.email=sam@example.com", "commit", "-q", "--amend", "--only", "--allow-empty", "-m", "Sync with the team, amended");
+    // The remote moves on too, so main has commits on both sides again.
+    theirs("pull", "-q", "--no-rebase", "origin", "main");
+    writeFileSync(join(teammate, "TEAM.md"), "Who looks after what, and when.\n");
+    theirs("commit", "-qam", "Say when, too");
+    theirs("push", "-q", "origin", "HEAD:main");
+    await page.getByRole("button", { name: "Fetch", exact: true }).click();
+    await sync.filter({ hasText: "Sync" }).waitFor({ timeout: 15_000 });
+    await sync.click();
+    const dialog = page.locator(".dialog", { hasText: "Force push main?" });
+    await dialog.getByText("Sync stopped.", { exact: false }).waitFor({ timeout: 20_000 });
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    expect(git("rev-parse", "origin/main") !== git("rev-parse", "main"), "something was pushed");
+    // Back as it was before the amend, for the steps after this one (the working files as they are).
+    git("reset", "-q", "--soft", pushed);
+    await page.keyboard.press("F5");
+    await page.locator(".tabs > .tab[data-path]").filter({ hasText: new RegExp(`^${was}$`) }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator('.tabs > .tab[aria-selected="true"]', { hasText: was }).waitFor({ timeout: 10_000 });
+    await page.locator(".commit-row").first().waitFor({ timeout: 10_000 });
   });
 
   await step("exports the settings to a git repository, and imports them back", async () => {
@@ -1581,6 +2083,95 @@ try {
     await page.locator(".toast", { hasText: "Imported" }).waitFor({ timeout: 20_000 });
     // Tributary starts again with them.
     await reloaded;
+  });
+
+  await step("goes to a commit by its id, a tag or a day, loading older history to reach it", async () => {
+    // A history longer than a page (10,000 commits), made at once with git fast-import: a
+    // commit a minute from 2023-11-14 22:13 (UTC).
+    const long = join(folder, "long-history");
+    mkdirSync(long);
+    execFileSync("git", ["init", "-q", "-b", "main", long]);
+    let stream = "";
+    for (let step = 1; step <= 10_050; step++) {
+      const message = `Step ${step}`;
+      stream += `commit refs/heads/main\nmark :${step}\ncommitter Ada Wright <ada@example.com> ${1_700_000_000 + step * 60} +0000\ndata ${message.length}\n${message}\n${step > 1 ? `from :${step - 1}\n` : ""}\n`;
+    }
+    execFileSync("git", ["-C", long, "fast-import", "--quiet"], { input: stream });
+    const at = (step) => execFileSync("git", ["-C", long, "rev-parse", `main~${10_050 - step}`], { encoding: "utf8" }).trim();
+    execFileSync("git", ["-C", long, "tag", "v0.1", at(10)]);
+    // The tab that was open, to go back to.
+    const was = (await page.locator('.tabs > .tab[aria-selected="true"]').textContent()).trim();
+    await page.evaluate((pick) => Object.assign(window.__PREVIEW__, { pick }), long);
+    await page.getByRole("button", { name: "New tab" }).click();
+    await page.getByText("Open repository").first().click();
+    await row("Step 10050").waitFor({ timeout: 20_000 });
+    const selected = page.locator(".commit-row.selected .summary");
+    const goTo = async (query) => {
+      await page.keyboard.press("Control+g");
+      const dialog = page.locator(".dialog", { hasText: "Go to commit" });
+      await dialog.getByRole("textbox").fill(query);
+      await dialog.getByRole("button", { name: "Go" }).click();
+      return dialog;
+    };
+    // The first commit, by the start of its id: past the first page, so older history loads.
+    await goTo(at(1).slice(0, 10));
+    await page.waitForFunction(() => document.querySelector(".commit-row.selected .summary")?.textContent.trim() === "Step 1", null, { timeout: 30_000 });
+    // A tag, and a day: the last commit made by its end (2023-11-15 23:59 is step 1546).
+    await goTo("v0.1");
+    await page.waitForFunction(() => document.querySelector(".commit-row.selected .summary")?.textContent.trim() === "Step 10", null, { timeout: 10_000 });
+    await goTo("2023-11-15");
+    await page.waitForFunction(() => document.querySelector(".commit-row.selected .summary")?.textContent.trim() === "Step 1546", null, { timeout: 10_000 });
+    // Nothing called that: said in the dialog, which stays open.
+    const dialog = await goTo("no-such-thing");
+    await dialog.getByText('no commit, branch or tag called "no-such-thing"').waitFor({ timeout: 5000 });
+    expect((await selected.textContent()).trim() === "Step 1546", "the selection moved");
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "detached", timeout: 5000 });
+    await page.keyboard.press("Control+w");
+    await page.locator(".tab", { hasText: "long-history" }).waitFor({ state: "detached", timeout: 5000 });
+    await page.locator(".tabs > .tab[data-path]").filter({ hasText: new RegExp(`^${was}$`) }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator('.tabs > .tab[aria-selected="true"]', { hasText: was }).waitFor({ timeout: 10_000 });
+    await page.locator(".commit-row").first().waitFor({ timeout: 10_000 });
+  });
+
+  await step("offers old branches to prune when asked, with how long they've gone without commits, and undoes it", async () => {
+    // The tab that was open, to go back to.
+    const was = (await page.locator('.tabs > .tab[aria-selected="true"]').textContent()).trim();
+    await page.locator(".tab", { hasText: "studio" }).dispatchEvent("mousedown", { button: 0 });
+    await row("Add a tavern chair").waitFor({ timeout: 10_000 });
+    // A branch with a commit of its own that nobody has touched since March 2024.
+    const when = "2024-03-01T12:00:00Z";
+    const git = (...args) =>
+      execFileSync("git", ["-C", demos.studio, ...args], { encoding: "utf8", env: { ...process.env, GIT_AUTHOR_DATE: when, GIT_COMMITTER_DATE: when } }).trim();
+    const old = git("commit-tree", git("rev-parse", "HEAD^{tree}"), "-p", "HEAD", "-m", "Try a lantern on the sign");
+    git("branch", "spike/lantern", old);
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await page.getByRole("button", { name: "Prune branches" }).click();
+    const dialog = page.locator(".dialog", { hasText: "Prune branches" });
+    const idle = dialog.locator(".prune-idle select");
+    await idle.waitFor({ timeout: 20_000 });
+    const lantern = dialog.locator(".prune-row", { hasText: "spike/lantern" });
+    expect((await lantern.count()) === 0, "an old branch was offered without asking");
+    await idle.selectOption("6");
+    await lantern.waitFor({ timeout: 10_000 });
+    const said = await lantern.innerText();
+    expect(/no commits for over (a|\d+) years?/.test(said), `the old branch says "${said.replace(/\s+/g, " ")}"`);
+    expect(!(await lantern.locator("input").isChecked()), "the old branch, with a commit in no other branch, was ticked");
+    // Just it: deleted, then back with Undo.
+    for (const box of await dialog.locator(".prune-row input:checked").all()) await box.uncheck();
+    await lantern.locator("input").check();
+    await dialog.getByRole("button", { name: "Delete 1 branch" }).click();
+    await page.locator(".toast", { hasText: "Deleted branch spike/lantern" }).waitFor({ timeout: 10_000 });
+    expect(git("branch", "--list", "spike/lantern") === "", "the branch is still there");
+    await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
+    for (let tries = 0; tries < 20 && git("branch", "--list", "spike/lantern") === ""; tries++) await page.waitForTimeout(250);
+    expect(git("rev-parse", "spike/lantern") === old, "Undo didn't bring the branch back");
+    await dismissToast();
+    git("branch", "-D", "spike/lantern");
+    await page.evaluate(() => localStorage.removeItem("tributary.prune.idleMonths"));
+    await page.locator(".tabs > .tab[data-path]").filter({ hasText: new RegExp(`^${was}$`) }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator('.tabs > .tab[aria-selected="true"]', { hasText: was }).waitFor({ timeout: 10_000 });
+    await page.locator(".commit-row").first().waitFor({ timeout: 10_000 });
   });
 
   await step("reads well in the light theme", async () => {

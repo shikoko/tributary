@@ -20,6 +20,8 @@ export function usePreferences() {
   const [columnWidths, setColumnWidths] = useStoredState<ColumnWidths>("columns", { refs: null, graph: null });
   const [columnOptions, setColumnOptions] = useStoredState<ColumnOptions>("columns.shown", DEFAULT_COLUMNS);
   const [daySeparators, setDaySeparators] = useStoredState("list.daySeparators", true);
+  /** Pull requests' numbers beside the icon for their checks, on the commit list's labels. */
+  const [prNumbers, setPrNumbers] = useStoredState("list.prNumbers", false);
   const [dense, setDense] = useStoredState("rows.compact", false);
   const [zoom, setZoom] = useStoredState("zoom", 1);
   const [autoFetch, setAutoFetch] = useStoredState("fetch.auto", true);
@@ -65,7 +67,7 @@ export function usePreferences() {
   return {
     tabs, setTabs, setActiveTab,
     sidebarOpen, setSidebarOpen, sidebarWidth, setSidebarWidth, detailsWidth, setDetailsWidth,
-    columnWidths, setColumnWidths, columnOptions, setColumnOptions, daySeparators, setDaySeparators,
+    columnWidths, setColumnWidths, columnOptions, setColumnOptions, daySeparators, setDaySeparators, prNumbers, setPrNumbers,
     dense, setDense, zoom, setZoom, autoFetch, setAutoFetch, reopenTabs, setReopenTabs,
     firstParentOnly, setFirstParentOnly, profilePictures, setProfilePictures, previews, setPreviews,
     activityOpen, setActivityOpen, fetchMinutes, setFetchMinutes, newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices,

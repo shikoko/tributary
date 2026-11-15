@@ -1,0 +1,54 @@
+# Tributary's Flatpak (see README.md here).
+#
+# The app is the .deb the Build workflow makes for Linux, put in input/tributary.deb: the
+# same program as the AppImage, without the libraries the GNOME runtime has (WebKitGTK
+# among them). git, Git LFS, editors, terminals and diff tools are the computer's: `git`
+# here hands git to the computer's own, and src-tauri/src/host.rs runs the others there.
+id: io.github.shikoko.tributary
+runtime: org.gnome.Platform
+runtime-version: "50"
+sdk: org.gnome.Sdk
+command: tributary-flatpak
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --share=network
+  # Repositories anywhere on the computer, at the same paths as outside the sandbox, where
+  # its git runs.
+  - --filesystem=host
+  # git, editors, terminals and diff tools run on the computer (flatpak-spawn --host), with
+  # its settings, credentials, SSH keys and Git LFS, as they do for the AppImage.
+  - --talk-name=org.freedesktop.Flatpak
+  - --talk-name=org.freedesktop.Notifications
+modules:
+  - name: tributary
+    buildsystem: simple
+    sources:
+      - type: file
+        path: input/tributary.deb
+      - type: file
+        path: git
+      - type: file
+        path: tributary-flatpak
+      - type: file
+        path: io.github.shikoko.tributary.desktop
+      - type: file
+        path: io.github.shikoko.tributary.metainfo.xml
+    build-commands:
+      - ar x tributary.deb
+      - tar -xf data.tar.*
+      # The program with its files in the layout it expects (usr/bin, and usr/lib/Tributary
+      # beside it), where the launcher starts it.
+      - mkdir -p /app/lib/tributary
+      - cp -a usr /app/lib/tributary/
+      - install -Dm755 tributary-flatpak /app/bin/tributary-flatpak
+      - install -Dm755 git /app/bin/git
+      - |
+        for folder in usr/share/icons/hicolor/*/apps; do
+          size=$(basename "$(dirname "$folder")")
+          install -Dm644 "$folder/tributary.png" "/app/share/icons/hicolor/$size/apps/io.github.shikoko.tributary.png"
+        done
+      - install -Dm644 io.github.shikoko.tributary.desktop /app/share/applications/io.github.shikoko.tributary.desktop
+      - install -Dm644 io.github.shikoko.tributary.metainfo.xml /app/share/metainfo/io.github.shikoko.tributary.metainfo.xml

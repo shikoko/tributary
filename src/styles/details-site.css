@@ -1,0 +1,166 @@
+/* What the site says about a commit, in its details: its pull requests and its checks
+   (CommitRequests, CommitChecks), each section built alike: an icon in its state's colour, a
+   line saying what it is, a button at its end, and a muted line under it. */
+
+/* Which site, beside the section's heading: a quiet pill (its size and shape are in chips.css). */
+.site-chip {
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+}
+
+.site-chip svg {
+  flex: none;
+}
+
+/* Icon, text and button on one line, what it says under the text. */
+.site-item {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4) var(--space-10);
+}
+
+.site-item + .site-item {
+  margin-top: var(--space-14);
+}
+
+.site-item-icon {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+/* A pull request's icon in the colour of where it stands, as its view's status card has it:
+   merged purple, ready green, held back red, waiting amber. (The checks' icon, RunStateIcon,
+   has its own.) */
+.commit-request.merged .site-item-icon {
+  color: var(--purple);
+}
+
+.commit-request.good .site-item-icon {
+  color: var(--success-text);
+}
+
+.commit-request.bad .site-item-icon {
+  color: var(--danger-text);
+}
+
+.commit-request.waiting .site-item-icon {
+  color: var(--warning-text);
+}
+
+/* Under it, its number (a link to it on the site), title and who opened it, cut short to fit. */
+.commit-request-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.site-item-text {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--type-base);
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Where a pull request stands can be a long sentence ("Conflicts with main: merge main into
+   fix/door (or rebase it) and resolve them"), so it wraps instead of being cut short. */
+.commit-request-standing {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* A pull request's number, a link to it on the site. */
+.commit-request-key {
+  font-size: var(--type-sm);
+}
+
+.site-item-under {
+  display: flex;
+  grid-column: 2 / 4;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: 20px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  white-space: nowrap;
+}
+
+.commit-checks-counts {
+  display: block;
+  text-overflow: ellipsis;
+}
+
+/* Show, Open. */
+.section-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 25px;
+  padding: 0 var(--space-10);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+}
+
+.section-button:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* Under the failed and running ones: Show all and Re-run failed. */
+.commit-checks-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-14);
+  margin-top: var(--space-8);
+  font-size: var(--type-sm);
+}
+
+/* A pip for each check, in its state's colour: what the checks came to at a glance. Cancelled
+   and skipped ones are grey. */
+.check-pips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-12);
+}
+
+.check-pips > span {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-xs);
+  background: var(--text-faint);
+}
+
+.check-pips > .success {
+  background: var(--check-success);
+}
+
+.check-pips > .failure {
+  background: var(--check-failure);
+}
+
+.check-pips > .pending {
+  background: var(--check-pending);
+  animation: request-pending 1.4s ease-in-out infinite;
+}
+
+.check-pips > .cancelled,
+.check-pips > .skipped {
+  background: var(--border-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .check-pips > .pending {
+    animation: none;
+  }
+}

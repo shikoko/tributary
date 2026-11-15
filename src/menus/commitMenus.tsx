@@ -16,6 +16,7 @@ import {
   CommitIcon,
   CopyIcon,
   ExternalLinkIcon,
+  WorkflowIcon,
   RewriteIcon,
   FixupIcon,
   CheckIcon,
@@ -98,6 +99,7 @@ export function commitMenu(ctx: MenuContext, commit: CommitRow): MenuItem[] {
   if (page && remote) {
     items.push({ label: `Open on ${siteName(remote)}`, icon: <ExternalLinkIcon />, url: page, onSelect: () => ctx.openUrl(page) });
   }
+  if (ctx.hasChecks(commit.id)) items.push({ label: "Show checks", icon: <WorkflowIcon />, onSelect: () => ctx.showChecks(commit) });
 
   const checkouts: MenuItem[] = [];
   for (const ref of commit.refs) {

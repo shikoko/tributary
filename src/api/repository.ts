@@ -59,6 +59,11 @@ export function searchCommits(path: string, mode: CommitSearchMode, query: strin
   return invoke<{ ids: string[]; truncated: boolean }>("search_commits", { path, mode, query });
 }
 
+/** The commit `query` names: an id or its start, a branch, a tag, or a day (2026-10-01), for Go to Commit. */
+export function findCommit(path: string, query: string): Promise<string | null> {
+  return invoke<string | null>("find_commit", { path, query });
+}
+
 /** Compare commit `to` with `from`: directly, or with `split`, since they split (like a pull request). */
 export function compareCommits(path: string, from: string, to: string, split: boolean): Promise<Comparison> {
   return invoke<Comparison>("compare_commits", { path, from, to, split });

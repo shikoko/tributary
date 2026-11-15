@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState, useMemo } from "react";
+import { onCommitDrop } from "../lib/drag";
 import { usePresence } from "../lib/usePresence";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { fullRefName, PAGE_SIZE, teamPulse, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type PullRequest, type RepoSnapshot, type Worktree } from "../api";
@@ -18,6 +19,7 @@ import { RepoSettingsDialog } from "../components/RepoSettingsDialog";
 import { ComparePanel } from "../components/ComparePanel";
 import { useFileViews } from "./useFileViews";
 import { EMPTY_DRAFT } from "../components/worktree/CommitBox";
+import type { ChecksOf } from "../components/ChecksView";
 import { ListOverlays, type RewriteShown } from "./ListOverlays";
 import { useStacks } from "./useStacks";
 import { useRepositoryMenus } from "./useRepositoryMenus";
@@ -55,12 +57,14 @@ import type { Submodules } from "./useSubmodules";
 import type { Selection } from "./useSelection";
 import type { ActivityLog } from "./useWindowEvents";
 import { ThemeContext } from "./useAppearance";
+import { useGoToCommit } from "./useGoToCommit";
 import { ViewPanel } from "../components/ViewPanel";
 
 const REMOTE_ACTIONS: Record<RemoteAction, Action> = {
   fetch: { kind: "fetch" },
   pull: { kind: "pull" },
   push: { kind: "push", force: false },
+  sync: { kind: "sync" },
 };
 
 interface Props {
@@ -150,10 +154,19 @@ export function RepositoryView(props: Props) {
   const stacks = useStacks(snapshot);
   /** A branch whose rewrite is shown over the list (what changed when it was force-pushed). */
   const [rewrite, setRewrite] = useState<RewriteShown | null>(null);
+  /** A commit whose checks are shown over the list, each run as a graph. */
+  const [checksOf, setChecksOf] = useState<ChecksOf | null>(null);
   const shownIn = useRef(snapshot.path);
   if (shownIn.current !== snapshot.path) {
     shownIn.current = snapshot.path;
     if (rewrite) setRewrite(null);
+    if (checksOf) setChecksOf(null);
+  }
+  // A pull request or the team view opened since: it's shown, not the checks over it.
+  const othersShown = useRef<unknown[]>([props.request, props.teamOpen]);
+  if (othersShown.current[0] !== props.request || othersShown.current[1] !== props.teamOpen) {
+    othersShown.current = [props.request, props.teamOpen];
+    if ((props.request || props.teamOpen) && checksOf) setChecksOf(null);
   }
 
   // A file's changes, who changed each line, and two commits compared.
@@ -167,6 +180,7 @@ export function RepositoryView(props: Props) {
       if (props.teamOpen) props.onCloseTeam();
       if (props.request) props.onCloseRequest();
       setRewrite(null);
+      setChecksOf(null);
     },
   });
   const { comparing, compared, showChanges, showBlame, shownDiff } = views;
@@ -192,6 +206,7 @@ export function RepositoryView(props: Props) {
     openDialog,
     showRequest: props.onShowRequest,
     showRewrite: setRewrite,
+    showChecks: setChecksOf,
     stacks,
     highlight,
     settings,
@@ -242,6 +257,20 @@ export function RepositoryView(props: Props) {
 
   const myLocks = lfs.locks?.locks.filter((lock) => lock.mine) ?? [];
   const notLoaded = () => props.notify({ text: "That commit isn't loaded: load more commits, or fetch" });
+  // Go to Commit, and links to commits that aren't loaded yet (a parent, a commit a message
+  // mentions): older history loads until they are.
+  const { goTo } = useGoToCommit({
+    snapshot,
+    load: repo.load,
+    select,
+    onMissing: (reason) =>
+      props.notify({
+        text:
+          reason === "far"
+            ? "That commit is too far back to load here"
+            : "That commit isn't in the graph as it's shown: its branch may be hidden, or it may only be in a stash or the reflog",
+      }),
+  });
   /** The status bar's "changed elsewhere": the branches, and your files on each. */
   const [elsewhereAt, setElsewhereAt] = useState<HTMLElement | null>(null);
   // The View button at the end of the column headings, which the View panel opens under.
@@ -249,6 +278,14 @@ export function RepositoryView(props: Props) {
   const { theme } = useContext(ThemeContext);
   // The branch or tag label the pointer is on: its lanes light up in the graph.
   const [laneLabel, hoverLane] = useLaneHover();
+  // A commit dragged onto a local branch's label is cherry-picked onto it (with Undo). The
+  // label moves to the new commit's row, so the pointer never leaves it: its lane goes out here.
+  const dropCommit = useRef<(id: string, branch: string) => void>(() => {});
+  dropCommit.current = (id, branch) => {
+    hoverLane(null);
+    if (canChange) act({ kind: "cherryPickOnto", id, branch });
+  };
+  useEffect(() => onCommitDrop((id, branch) => dropCommit.current(id, branch)), []);
   const showBranch = (branch: string) => {
     const tip = snapshot.commits.find((commit) => commit.refs.some((ref) => (ref.kind === "branch" || ref.kind === "remote") && ref.name === branch));
     if (!tip) return notLoaded();
@@ -310,12 +347,13 @@ export function RepositoryView(props: Props) {
         comparing={comparing}
         onOpenFile={(file) => compared && showChanges(file, { kind: "range", from: compared.base, to: compared.to.id })}
         isShown={(path) => Boolean(compared && isShown(shownDiff && { source: shownDiff.source, path: shownDiff.file.path }, { kind: "range", from: compared.base, to: compared.to.id }, path))}
-        onSelect={(id) => (byId.has(id) ? select(id) : notLoaded())}
+        onSelect={goTo}
         hasCommit={(id) => byId.has(id)}
       />
     ) : detailsOpen ? (
       <DetailsPane
         notify={(text) => props.notify({ text })}
+        onShowChecks={setChecksOf}
         snapshot={snapshot}
         selection={selection}
         actions={actions}
@@ -365,7 +403,7 @@ export function RepositoryView(props: Props) {
           onSearchStep={search.step}
           onSearchMode={search.setMode}
           onRemote={(action) => act(REMOTE_ACTIONS[action], action)}
-          onPushMenu={(anchor) => menu.under(anchor, pushMenuItems(() => act({ kind: "push", force: false }, "push"), openDialog))}
+          onPushMenu={(anchor) => menu.under(anchor, pushMenuItems(() => act({ kind: "push", force: false }, "push"), () => act({ kind: "sync" }, "sync"), openDialog))}
           lastFetch={snapshot.lastFetched ? snapshot.lastFetched * 1000 : null}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
@@ -444,6 +482,7 @@ export function RepositoryView(props: Props) {
               onColumnWidths={preferences.setColumnWidths}
               columnOptions={preferences.columnOptions}
               daySeparators={preferences.daySeparators}
+              prNumbers={preferences.prNumbers}
               onHeaderContextMenu={(x, y) =>
                 menu.show(x, y, columnMenuItems(preferences.columnOptions, preferences.setColumnOptions, preferences.daySeparators, preferences.setDaySeparators))
               }
@@ -454,6 +493,7 @@ export function RepositoryView(props: Props) {
               onContextMenu={(commit, x, y) =>
                 menu.show(x, y, selection.multi && selectedIds?.has(commit.id) ? selectionMenu(ctx, selectedCommits) : commitMenu(ctx, commit))
               }
+              onShowChecks={setChecksOf}
               onPillActivate={(pill, commit) => checkout({ pill, commit })}
               onPillContextMenu={(pill, commit, x, y) => menu.show(x, y, pillMenu(ctx, pill, commit))}
               onMorePills={(pills, commit, x, y) =>
@@ -495,6 +535,9 @@ export function RepositoryView(props: Props) {
               rewrite={rewrite}
               onShowRewrite={setRewrite}
               onCloseRewrite={() => setRewrite(null)}
+              checksOf={checksOf}
+              onShowChecks={setChecksOf}
+              onCloseChecks={() => setChecksOf(null)}
             />
           </div>
           {detailsPanel.shown && (
@@ -580,7 +623,7 @@ export function RepositoryView(props: Props) {
           overlaps={props.overlaps}
           anchor={elsewhereAt}
           onClose={() => setElsewhereAt(null)}
-          onShowCommit={(id) => (byId.has(id) ? select(id) : notLoaded())}
+          onShowCommit={goTo}
           onShowBranch={showBranch}
         />
       )}
@@ -600,6 +643,7 @@ export function RepositoryView(props: Props) {
         loadDetails={props.details.load}
         run={act}
         select={select}
+        goTo={goTo}
         open={openDialog}
         onClose={() => openDialog(null)}
         onFinish={(message, undo) => {

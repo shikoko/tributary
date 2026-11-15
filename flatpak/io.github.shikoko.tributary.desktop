@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Tributary
+Comment=A fast, friendly git client, with first-class Git LFS, locks and art diffs
+Exec=tributary-flatpak
+Icon=io.github.shikoko.tributary
+Terminal=false
+Categories=Development;RevisionControl;
+Keywords=git;version control;lfs;

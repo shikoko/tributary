@@ -48,6 +48,77 @@ pub struct CommitChecks {
     pub site: String,
 }
 
+/// A commit's CI run by run, for a graph of each: its GitHub Actions workflow runs, or its
+/// latest GitLab pipeline, each with its jobs in groups and which group waits for which.
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitRuns {
+    pub runs: Vec<Run>,
+    /// Checks that aren't a run's jobs: other apps' checks, and commit statuses.
+    pub others: Vec<Check>,
+    /// Failed ones can be run again from here (signed in, and some failed).
+    pub can_rerun: bool,
+    /// Asked with a token: it can be asked again often, since an unchanged answer costs
+    /// nothing then (without one, GitHub allows 60 requests an hour).
+    pub signed_in: bool,
+    /// "GitHub" or "GitLab".
+    pub site: String,
+    /// The commit's checks on the site.
+    pub url: Option<String>,
+}
+
+/// A workflow run (or a GitLab pipeline).
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct Run {
+    /// Its workflow's name, like "Build" (or "Pipeline").
+    pub name: String,
+    /// What started it, like "on push to develop".
+    pub trigger: Option<String>,
+    /// Its page on the site.
+    pub url: Option<String>,
+    /// None when it was skipped.
+    pub state: Option<CheckState>,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+    /// Its jobs, a group for each job of the workflow file (a stage on GitLab), in the
+    /// file's order.
+    pub groups: Vec<JobGroup>,
+}
+
+/// A job of a workflow file (or a GitLab stage) and the jobs it ran as: one, several for a
+/// matrix, or none yet while it waits.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct JobGroup {
+    /// Its id in the workflow file (or the stage's name): what other groups' `needs` say.
+    pub key: String,
+    /// What to call it: its name without its `${{ }}` expressions, or its id.
+    pub name: String,
+    /// The keys of the groups it waits for.
+    pub needs: Vec<String>,
+    /// Its jobs show together, in a box: a matrix, or a stage.
+    pub matrix: bool,
+    pub jobs: Vec<Job>,
+}
+
+/// A job, with how far through its steps it is.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct Job {
+    pub name: String,
+    /// None when it was skipped. Pending while queued or running (`started_at` says which).
+    pub state: Option<CheckState>,
+    pub url: Option<String>,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+    /// Steps finished, and in all (both 0 when they aren't known, as on GitLab).
+    pub steps_done: u32,
+    pub steps: u32,
+    /// The step it's on while it runs.
+    pub step: Option<String>,
+}
+
 /// The CI state of each of `ids` (full commit ids) that has one.
 pub async fn commit_states(path: &Path, ids: Vec<String>) -> Result<HashMap<String, CheckState>> {
     let repo = path.to_string_lossy().into_owned();
@@ -173,6 +244,139 @@ pub async fn commit_checks(path: &Path, id: String) -> Result<CommitChecks> {
     })
 }
 
+/// Commit `id`'s CI run by run (its GitHub Actions workflow runs, or its latest GitLab
+/// pipeline), with its jobs in groups and which group waits for which.
+pub async fn commit_runs(path: &Path, id: String) -> Result<CommitRuns> {
+    let site = site_of(path).await?;
+    let (runs, others, signed_in, name, url) = match &site {
+        Site::GitHub {
+            full_name, token, ..
+        } => {
+            let client = crate::github::client()?;
+            let token = token.as_deref();
+            let (runs, suites) =
+                crate::github::runs::commit_runs(&client, full_name, token, &id).await;
+            // The commit's other checks: other apps', and commit statuses.
+            let others = crate::github::pulls::commit_checks(&client, full_name, token, &id)
+                .await
+                .into_iter()
+                .filter(|check| check.suite.is_none_or(|suite| !suites.contains(&suite)))
+                .collect();
+            let url = format!(
+                "https://{}/{full_name}/commit/{id}/checks",
+                crate::github::HOST
+            );
+            (runs, others, token.is_some(), "GitHub", Some(url))
+        }
+        Site::GitLab { project, token } => {
+            let (url, jobs) = crate::gitlab::ci::pipeline_jobs(project, token.as_deref(), &id)
+                .await
+                .unwrap_or_default();
+            let runs = if jobs.is_empty() {
+                Vec::new()
+            } else {
+                vec![pipeline(url.clone(), jobs)]
+            };
+            (runs, Vec::new(), token.is_some(), "GitLab", url)
+        }
+    };
+    let states: Vec<Check> = runs
+        .iter()
+        .flat_map(|run| run.groups.iter().flat_map(|group| &group.jobs))
+        .map(|job| Check {
+            name: job.name.clone(),
+            state: job.state,
+            ..Check::default()
+        })
+        .chain(others.iter().cloned())
+        .collect();
+    // What's seen here is the latest: the dot follows it.
+    if let Some(state) = summary(&states) {
+        let mut known = KNOWN.lock().unwrap_or_else(|e| e.into_inner());
+        known.get_or_insert_with(HashMap::new).insert(
+            (path.to_string_lossy().into_owned(), id.clone()),
+            (Instant::now(), Some(state)),
+        );
+    }
+    let can_rerun = signed_in
+        && states.iter().any(|check| {
+            matches!(
+                check.state,
+                Some(CheckState::Failure | CheckState::Cancelled)
+            )
+        });
+    Ok(CommitRuns {
+        runs,
+        others,
+        can_rerun,
+        signed_in,
+        site: name.to_owned(),
+        url,
+    })
+}
+
+/// A GitLab pipeline as a run: a group for each stage, in order, each waiting for the one
+/// before (as stages do).
+pub(crate) fn pipeline(url: Option<String>, jobs: Vec<Check>) -> Run {
+    let mut groups: Vec<JobGroup> = Vec::new();
+    for check in jobs {
+        let stage = check.workflow.clone().unwrap_or_else(|| "jobs".into());
+        if groups.last().is_none_or(|group| group.key != stage) {
+            let needs = groups
+                .last()
+                .map(|group| vec![group.key.clone()])
+                .unwrap_or_default();
+            groups.push(JobGroup {
+                key: stage.clone(),
+                name: stage,
+                needs,
+                matrix: true,
+                jobs: Vec::new(),
+            });
+        }
+        if let Some(group) = groups.last_mut() {
+            group.jobs.push(Job {
+                name: check.name,
+                state: check.state,
+                url: check.url,
+                started_at: check.started_at,
+                finished_at: check.finished_at,
+                steps_done: 0,
+                steps: 0,
+                step: None,
+            });
+        }
+    }
+    let states: Vec<Check> = groups
+        .iter()
+        .flat_map(|group| &group.jobs)
+        .map(|job| Check {
+            state: job.state,
+            ..Check::default()
+        })
+        .collect();
+    let starts = groups
+        .iter()
+        .flat_map(|group| &group.jobs)
+        .filter_map(|job| job.started_at.clone());
+    let state = summary(&states);
+    let finished = state != Some(CheckState::Pending);
+    Run {
+        name: "Pipeline".into(),
+        trigger: None,
+        url,
+        state,
+        started_at: starts.clone().min(),
+        finished_at: groups
+            .iter()
+            .flat_map(|group| &group.jobs)
+            .filter_map(|job| job.finished_at.clone())
+            .max()
+            .filter(|_| finished),
+        groups,
+    }
+}
+
 /// Run commit `id`'s failed checks again.
 pub async fn rerun_failed(path: &Path, id: String) -> Result<String> {
     if id.len() != 40 || !id.chars().all(|c| c.is_ascii_hexdigit()) {
@@ -245,5 +449,41 @@ mod tests {
             ]),
             Some(CheckState::Failure)
         );
+    }
+
+    #[test]
+    fn makes_a_gitlab_pipelines_stages_its_groups_each_after_the_last() {
+        let job = |name: &str, stage: &str, state: CheckState| Check {
+            name: name.into(),
+            state: Some(state),
+            workflow: Some(stage.into()),
+            started_at: Some(format!("2026-11-14T10:0{}:00Z", name.len() % 10)),
+            ..Check::default()
+        };
+        let run = pipeline(
+            Some("https://gitlab.example/p/-/pipelines/7".into()),
+            vec![
+                job("lint", "test", CheckState::Success),
+                job("unit", "test", CheckState::Success),
+                job("package", "build", CheckState::Pending),
+                job("deploy", "release", CheckState::Pending),
+            ],
+        );
+        let groups: Vec<(&str, Vec<String>, usize)> = run
+            .groups
+            .iter()
+            .map(|group| (group.key.as_str(), group.needs.clone(), group.jobs.len()))
+            .collect();
+        assert_eq!(
+            groups,
+            [
+                ("test", vec![], 2),
+                ("build", vec!["test".to_owned()], 1),
+                ("release", vec!["build".to_owned()], 1)
+            ]
+        );
+        assert_eq!(run.state, Some(CheckState::Pending));
+        assert_eq!(run.finished_at, None);
+        assert!(run.groups.iter().all(|group| group.matrix));
     }
 }

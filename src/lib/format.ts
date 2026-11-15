@@ -35,6 +35,14 @@ export function compactTime(seconds: number, now = Date.now() / 1000): string {
   return date.getFullYear() === new Date(now * 1000).getFullYear() ? dayInYear.format(date) : shortDate.format(date);
 }
 
+/** How long ago `seconds` was, in months or years, for "no commits for 8 months". */
+export function idleFor(seconds: number, now = Date.now() / 1000): string {
+  const months = Math.floor((now - seconds) / (30.44 * DAY));
+  if (months < 12) return plural(Math.max(months, 1), "month");
+  const years = Math.floor(months / 12);
+  return years === 1 ? "over a year" : `over ${years} years`;
+}
+
 const longDateUtc = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
 
 export function fullDate(seconds: number): string {

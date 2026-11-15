@@ -34,14 +34,16 @@ export function ResetDialog({ snapshot, target, protectedName, onCancel, onDone,
   // That's discarding them all, new files too, to put back later; not in a merge or a rebase.
   const discardAll = discardOnly && !snapshot.operation;
 
-  const { head, leaving, lostFiles, untrackedFiles } = useMemo(() => {
+  const { head, leaving, lostFiles, untrackedFiles, newFolders } = useMemo(() => {
     const byId = new Map(snapshot.commits.map((commit) => [commit.id, commit]));
     const leaving = countMissing(ancestors(snapshot.headCommit, byId), ancestors(target.id, byId));
     const changes = [...(snapshot.worktree?.staged ?? []), ...(snapshot.worktree?.unstaged ?? [])];
     const lost = new Set(changes.filter((f) => f.status !== "untracked").map((f) => f.path));
-    const untracked = changes.filter((f) => f.status === "untracked").length;
+    // A new folder is listed as itself ("exports/"), however many files are in it.
+    const untracked = changes.filter((f) => f.status === "untracked");
+    const newFolders = untracked.filter((f) => f.path.endsWith("/")).length;
     const head = snapshot.headCommit ? byId.get(snapshot.headCommit) : undefined;
-    return { head, leaving, lostFiles: lost.size, untrackedFiles: untracked };
+    return { head, leaving, lostFiles: lost.size, untrackedFiles: untracked.length - newFolders, newFolders };
   }, [snapshot, target]);
 
   const reset = async () => {
@@ -98,7 +100,12 @@ export function ResetDialog({ snapshot, target, protectedName, onCancel, onDone,
         {discardAll ? (
           <>
             {lostFiles > 0 && <li className="danger">Changes to {plural(lostFiles, "file")} will be discarded.</li>}
-            {untrackedFiles > 0 && <li className="danger">{plural(untrackedFiles, "new file")} will be deleted.</li>}
+            {untrackedFiles + newFolders > 0 && (
+              <li className="danger">
+                {[untrackedFiles > 0 && plural(untrackedFiles, "new file"), newFolders > 0 && plural(newFolders, "new folder")].filter(Boolean).join(" and ")} will be
+                deleted{newFolders > 0 ? `, with everything in ${newFolders === 1 ? "it" : "them"}` : ""}.
+              </li>
+            )}
             <li>You can put them back with Undo, for 30 days.</li>
           </>
         ) : (
@@ -108,7 +115,7 @@ export function ResetDialog({ snapshot, target, protectedName, onCancel, onDone,
                 Uncommitted changes to {plural(lostFiles, "file")} will be discarded. This can't be undone.
               </li>
             )}
-            {untrackedFiles > 0 && <li>New files are kept.</li>}
+            {untrackedFiles + newFolders > 0 && <li>New files are kept.</li>}
             {leaving === 0 && lostFiles === 0 && <li>No commits or uncommitted changes will be lost.</li>}
           </>
         )}

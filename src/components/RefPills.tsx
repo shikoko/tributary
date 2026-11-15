@@ -1,4 +1,4 @@
-import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { PullRequest } from "../api";
 import { BranchSyncContext, describeSync } from "../lib/branchSync";
 import { describeChecks, PullRequestsContext, requestNumber } from "../lib/pullRequests";
@@ -7,7 +7,7 @@ import { textOn } from "../lib/appearance";
 import { withAlpha } from "../lib/colors";
 import { pressLabel } from "../lib/drag";
 import { describePill, refPills, type RefPill } from "../lib/refs";
-import { CheckIcon, CloudIcon, CommitIcon, LaptopIcon, StashIcon, TagIcon } from "./Icons";
+import { CheckIcon, CloseIcon, CloudIcon, CommitIcon, LaptopIcon, SpinnerIcon, StashIcon, TagIcon } from "./Icons";
 
 interface Props {
   refs: RefLabel[];
@@ -120,6 +120,8 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, onHoverPill
     <span
       className={`ref-pill ${pill.kind}${pill.current ? " current" : ""}`}
       data-tour={pill.current && draggable ? "current-branch" : undefined}
+      // A commit dropped on a local branch's label is cherry-picked onto it.
+      data-drop-branch={draggable && pill.kind === "branch" && pill.local ? pill.name : undefined}
       style={style}
       title={
         describePill(pill) +
@@ -170,12 +172,26 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, onHoverPill
   );
 }
 
-/** "#12" (or "!12" for a GitLab merge request), in its checks' colour; click to see it. */
+/** The icon for a pull request's checks: turning while they run, a tick or a cross once they're done. */
+const CHECK_ICONS: Partial<Record<NonNullable<PullRequest["checks"]>, ReactNode>> = {
+  pending: <SpinnerIcon size={10} strokeWidth={2.4} className="pr-check-icon spinning" />,
+  success: <CheckIcon size={10} strokeWidth={2.4} className="pr-check-icon" />,
+  failure: <CloseIcon size={10} strokeWidth={2.4} className="pr-check-icon" />,
+};
+
+/**
+ * "#12" (or "!12" for a GitLab merge request), in its checks' colour with their icon; click to
+ * see it. In the commit list's labels only the icon shows, unless you ask for the number too
+ * (Settings → Appearance → Commit list): the number is still there for screen readers.
+ */
 export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (pr: PullRequest) => void }) {
+  const icon = pr.checks ? CHECK_ICONS[pr.checks] : undefined;
   return (
     <span
-      className={`pr-badge${pr.checks ? ` ${pr.checks}` : ""}${pr.draft ? " draft" : ""}`}
+      className={`pr-badge${pr.checks ? ` ${pr.checks}` : ""}${pr.draft ? " draft" : ""}${icon ? " with-icon" : ""}`}
       title={`${describeChecks(pr)}\nClick to see its reviews and checks`}
+      // Its name for screen readers, number and checks, whether the number shows or not.
+      aria-label={describeChecks(pr)}
       role="link"
       onPointerDown={(event) => event.stopPropagation()}
       // Not the row's either, which selects its commit on a press: a row half out of view
@@ -187,6 +203,7 @@ export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (pr:
         onOpen(pr);
       }}
     >
+      {icon}
       <span className="pr-number chip-text">{requestNumber(pr)}</span>
     </span>
   );

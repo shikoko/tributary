@@ -1,0 +1,554 @@
+/* A commit's checks as graphs (ChecksView): a card for each workflow run, with its jobs in
+   columns by which waits for which, joined by lines. Roomy on purpose: the columns keep
+   their width and the graph scrolls sideways rather than squeezing its cards. */
+.checks-view-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-28);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-32) var(--space-40) var(--space-64);
+}
+
+.checks-view-id {
+  font-size: var(--type-sm);
+}
+
+/* How many are in each state, and as a bar. */
+.checks-summary {
+  padding: var(--space-20) var(--space-24);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--bg-panel);
+}
+
+.checks-summary-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-20);
+  min-height: 28px;
+  color: var(--text-muted);
+  font-size: var(--type-base);
+}
+
+.checks-count strong {
+  color: var(--text);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.checks-count.failure strong {
+  color: var(--danger-text);
+}
+
+.checks-count.running strong,
+.checks-count.queued strong {
+  color: var(--warning-text);
+}
+
+.checks-count.success strong {
+  color: var(--success-text);
+}
+
+.checks-summary-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  margin-left: auto;
+}
+
+.checks-summary-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.checks-summary-bar {
+  display: flex;
+  gap: var(--space-2);
+  height: 6px;
+  margin-top: var(--space-16);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+}
+
+.checks-summary-bar > span {
+  min-width: 6px;
+  background: var(--text-faint);
+}
+
+.checks-summary-bar > .success {
+  background: var(--check-success);
+}
+
+.checks-summary-bar > .failure {
+  background: var(--check-failure);
+}
+
+.checks-summary-bar > .running,
+.checks-summary-bar > .queued {
+  background: var(--check-pending);
+}
+
+.checks-summary-bar > .waiting {
+  background: var(--border-strong);
+}
+
+/* A run. */
+.run-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--bg-panel);
+}
+
+.run-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 56px;
+  padding: var(--space-10) var(--space-16) var(--space-10) var(--space-20);
+  border-bottom: 1px solid var(--border);
+}
+
+.run-head h3 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--type-md);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-trigger {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+}
+
+.run-time {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.run-head .run-time + .icon-button,
+.run-head .run-trigger + .icon-button {
+  margin-left: var(--space-4);
+}
+
+.run-head h3 + .icon-button {
+  margin-left: auto;
+}
+
+/* The graph: columns left to right, scrolled sideways when they don't fit. */
+.run-graph-frame {
+  position: relative;
+}
+
+.run-graph-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Round arrows at the sides, where there's more to scroll to. */
+.run-graph-more {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  box-shadow: 0 2px 8px var(--shadow);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.run-graph-more:hover {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.run-graph-more.left {
+  left: var(--space-12);
+}
+
+.run-graph-more.right {
+  right: var(--space-12);
+}
+
+/* Where there's more to scroll to, that side fades out. */
+.run-graph-scroll.more-right {
+  mask-image: linear-gradient(to right, black calc(100% - 72px), transparent);
+}
+
+.run-graph-scroll.more-left {
+  mask-image: linear-gradient(to left, black calc(100% - 72px), transparent);
+}
+
+.run-graph-scroll.more-left.more-right {
+  mask-image: linear-gradient(to right, transparent, black 72px, black calc(100% - 72px), transparent);
+}
+
+/* The room around the graph is inside what scrolls, so it's there at both ends. */
+.run-graph {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-64);
+  width: max-content;
+  min-width: 100%;
+  padding: var(--space-32) var(--space-28);
+}
+
+.run-edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.run-column {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+/* A job on its own: a card. */
+.run-card-job {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  width: 236px;
+  padding: var(--space-12) var(--space-16);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.run-card-job:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  box-shadow: 0 2px 10px var(--shadow);
+}
+
+.run-card-job:disabled {
+  cursor: default;
+}
+
+.run-card-job.failure {
+  border-color: rgb(var(--check-failure-rgb) / 0.55);
+}
+
+.run-card-job.running {
+  border-color: rgb(var(--check-pending-rgb) / 0.5);
+}
+
+.run-card-job.waiting,
+.run-card-job.skipped {
+  border-style: dashed;
+  background: transparent;
+}
+
+.run-card-job.waiting .run-job-name,
+.run-card-job.skipped .run-job-name,
+.run-job.skipped .run-job-name {
+  color: var(--text-muted);
+}
+
+.run-others {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-16);
+  padding: var(--space-28);
+}
+
+/* A matrix job's jobs (or a stage's), in one box. */
+.run-group {
+  width: 276px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+}
+
+.run-group.failure {
+  border-color: rgb(var(--check-failure-rgb) / 0.55);
+}
+
+.run-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-10);
+  padding: var(--space-12) var(--space-16) var(--space-10);
+  border-bottom: 1px solid var(--border);
+}
+
+.run-group-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--type-sm);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-group-count {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+}
+
+.run-group-jobs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-6);
+}
+
+.run-job {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  width: 100%;
+  padding: var(--space-8) var(--space-10);
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.run-job:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.run-job:disabled {
+  cursor: default;
+}
+
+/* A job's line: how it went, its name, its time. */
+.run-job-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  width: 100%;
+  min-height: 20px;
+}
+
+.run-job-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--type-base);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-job-time {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.run-job-detail {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A running job's steps: the one it's on, and a mark for each. */
+.run-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  padding-left: var(--space-24); /* under the name, past the state mark */
+}
+
+.run-step-name {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-step-marks {
+  display: grid;
+  gap: var(--space-2);
+  height: 4px;
+}
+
+.run-step-marks > i {
+  border-radius: var(--radius-xs);
+  background: var(--border-strong);
+}
+
+.run-step-marks > i.done {
+  background: var(--check-pending);
+}
+
+.run-step-marks > i.now {
+  background: var(--check-pending);
+  animation: run-step-now 1.4s ease-in-out infinite;
+}
+
+@keyframes run-step-now {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* The lines between groups: in the colour of how the first one went, flowing while it runs. */
+.run-edge path {
+  fill: none;
+  stroke: var(--border-hover);
+  stroke-width: 1.5;
+}
+
+.run-edge circle {
+  fill: var(--bg-panel);
+  stroke: var(--border-hover);
+  stroke-width: 1.5;
+}
+
+.run-edge.success path,
+.run-edge.success circle {
+  stroke: rgb(var(--check-success-rgb) / 0.6);
+}
+
+.run-edge.failure path,
+.run-edge.failure circle {
+  stroke: rgb(var(--check-failure-rgb) / 0.65);
+}
+
+.run-edge.running path,
+.run-edge.running circle,
+.run-edge.queued path,
+.run-edge.queued circle {
+  stroke: rgb(var(--check-pending-rgb) / 0.75);
+}
+
+.run-edge.running path {
+  stroke-dasharray: 6 5;
+  animation: run-edge-flow 0.9s linear infinite;
+}
+
+.run-edge.waiting path,
+.run-edge.skipped path,
+.run-edge.cancelled path {
+  stroke: var(--border-strong);
+  stroke-dasharray: 4 4;
+}
+
+.run-edge.waiting circle,
+.run-edge.skipped circle,
+.run-edge.cancelled circle {
+  stroke: var(--border-strong);
+}
+
+@keyframes run-edge-flow {
+  to {
+    stroke-dashoffset: -11;
+  }
+}
+
+/* How something went, as a small round mark. */
+.run-state-icon {
+  flex: none;
+  overflow: visible;
+}
+
+.run-state-icon .mark {
+  fill: none;
+  stroke: var(--bg-raised);
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.run-state-icon.success .fill {
+  fill: var(--check-success);
+}
+
+.run-state-icon.failure .fill {
+  fill: var(--check-failure);
+}
+
+.run-state-icon .track {
+  fill: none;
+  stroke: rgb(var(--check-pending-rgb) / 0.3);
+  stroke-width: 2;
+}
+
+.run-state-icon .arc {
+  fill: none;
+  stroke: var(--check-pending);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.run-state-icon.running {
+  animation: run-state-turn 1s linear infinite;
+}
+
+.run-state-icon.queued .arc {
+  display: none;
+}
+
+.run-state-icon.queued .track {
+  stroke: var(--check-pending);
+  stroke-dasharray: 2.4 2.3;
+}
+
+.run-state-icon .ring,
+.run-state-icon .line,
+.run-state-icon .dashed {
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.run-state-icon .dashed {
+  stroke-dasharray: 2.2 2.5;
+}
+
+@keyframes run-state-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-edge.running path,
+  .run-state-icon.running,
+  .run-step-marks > i.now {
+    animation: none;
+  }
+}

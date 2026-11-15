@@ -55,12 +55,19 @@
   white-space: nowrap;
 }
 
+/* The file's name, its changes, folder and chips, on one line: what doesn't fit goes on a
+   second, out of sight, rather than showing cut in half (a chip without its end). The folder
+   comes last to be left out: it starts with no width and takes the room that's left, ending
+   in "…" when that's too little. */
 .diff-title {
   flex: 1;
   min-width: 0;
   display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
   align-items: baseline;
   gap: var(--space-8);
+  height: 19px;
   overflow: hidden;
   white-space: nowrap;
 }
@@ -75,6 +82,7 @@
 }
 
 .diff-dir {
+  flex: 1 1 0;
   font-family: var(--mono);
   font-size: var(--type-sm);
   color: var(--text-faint);
@@ -321,6 +329,21 @@
   padding-right: var(--space-24);
   white-space: pre;
   tab-size: 4;
+}
+
+/* Long lines wrapped to the width of the changes (Wrap lines), instead of scrolled to. A
+   wrapped line keeps its numbers and sign on its first row, and its colour on all of them. */
+.diff-lines.wrap {
+  min-width: 0;
+}
+
+.diff-lines.wrap .diff-row {
+  grid-template-columns: 52px 52px 20px minmax(0, 1fr);
+}
+
+.diff-lines.wrap .diff-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .diff-row.added {

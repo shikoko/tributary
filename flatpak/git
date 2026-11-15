@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# git, in Tributary's Flatpak: the computer's own, so its settings, credentials, SSH keys,
+# hooks and Git LFS are the ones it has outside the sandbox. It runs there in the same
+# folder, with the git settings Tributary gave it (GIT_INDEX_FILE and the like), and ends
+# when Tributary does.
+env=()
+while IFS= read -r -d '' entry; do
+  case $entry in
+    GIT_* | LANG=* | LC_*=*) env+=("--env=$entry") ;;
+  esac
+done </proc/self/environ
+exec flatpak-spawn --host --watch-bus --directory="$PWD" "${env[@]}" git "$@"

@@ -18,6 +18,7 @@ pub mod git;
 pub mod github;
 pub mod gitlab;
 pub mod graph;
+pub mod host;
 pub mod issues;
 pub mod links;
 pub mod locks;
@@ -26,6 +27,7 @@ pub mod repo;
 pub mod requests;
 pub mod reviews;
 pub mod settings_repo;
+mod spelling;
 pub mod textures;
 pub mod unreal;
 pub mod updates;
@@ -64,6 +66,7 @@ pub fn run() {
                 let _ = handle.emit("activity", entry);
             });
             app_icon::restore(app.handle());
+            spelling::turn_on(app.handle());
             // The version it was built as (a release's, not Cargo.toml's), for the log and
             // Diagnostics.
             diagnostics::set_app_version(app.package_info().version.to_string());
@@ -116,6 +119,7 @@ pub fn run() {
             commands::commit_states,
             commands::change_request,
             commands::commit_checks,
+            commands::commit_runs,
             commands::rerun_failed_checks,
             commands::save_settings_file,
             commands::read_settings_file,
@@ -136,6 +140,7 @@ pub fn run() {
             commands::actor_names,
             commands::blame_file,
             commands::search_commits,
+            commands::find_commit,
             commands::team_activity,
             commands::team_work,
             commands::team_pulse,

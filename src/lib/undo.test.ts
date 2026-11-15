@@ -17,6 +17,12 @@ describe("undoFor", () => {
     expect(undoFor({ kind: "commit", message: "s", amend: false }, onBranch)).toEqual({ kind: "resetSoft", id: "c3" });
   });
 
+  it("resets after a commit dropped on the checked-out branch, and leaves other branches to their backup", () => {
+    expect(undoFor({ kind: "cherryPickOnto", id: "c1", branch: "main" }, onBranch)).toEqual({ kind: "resetHard", id: "c3" });
+    // The branch that isn't checked out is moved back by the backup the pick reports (see useActions).
+    expect(undoFor({ kind: "cherryPickOnto", id: "c1", branch: "release" }, onBranch)).toBeNull();
+  });
+
   it("undoes stash-and-retry the same way, but not a commit", () => {
     const retried = { kind: "stashAndRetry", action: { kind: "checkoutBranch", name: "feat" }, includeUntracked: true } as const;
     expect(undoFor(retried, onBranch)).toEqual({ kind: "stashAndRetry", action: { kind: "checkoutBranch", name: "main" }, includeUntracked: true });

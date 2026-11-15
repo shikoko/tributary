@@ -3,7 +3,7 @@ import { branchVersions, pullRequestDetails, requestConversation, type MergeChec
 import { copyText } from "../lib/clipboard";
 import { plural, relativeTime } from "../lib/format";
 import { checkMerge, describeMergeCheck } from "../lib/mergeChecks";
-import { anyRunning, describeMergeable, describeReviews, requestNoun, requestNumber } from "../lib/pullRequests";
+import { anyRunning, describeMergeable, describeReviews, requestNoun, requestNumber, requestStanding } from "../lib/pullRequests";
 import { useNow } from "../lib/useNow";
 import { Avatar } from "./Avatar";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
@@ -32,6 +32,8 @@ import { CheckTributaries } from "./CheckTributaries";
 import { Markdown } from "./Markdown";
 import { AskForReview, useRequestChange } from "./RequestControls";
 import { ConversationList, MergeRequestDialog, ReviewBox } from "./RequestReview";
+import { ChecksSummary } from "./CommitChecks";
+import { SiteChip } from "./DetailsSite";
 import { Button } from "./ui/Button";
 import { Chip } from "./ui/Chip";
 
@@ -54,6 +56,8 @@ interface Props {
   notify: (text: string) => void;
   /** Show what changed when its branch was force-pushed (`branch` and `base`: their names on the remote). */
   onShowRewrite: (branch: string, base: string) => void;
+  /** Show a commit's checks, each run as a graph of its jobs: here, its latest commit's. */
+  onShowChecks?: (id: string, summary: string) => void;
 }
 
 const STATES: Record<RequestDetails["state"], string> = { open: "Open", draft: "Draft", merged: "Merged", closed: "Closed" };
@@ -86,7 +90,7 @@ const checkState = (check: RequestCheck) => check.state ?? "skipped";
  * Merge, and its checks), what can be done with it, its description and the
  * conversation. Checks still running are followed.
  */
-export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBranch, hasCommit, onCompare, notify, onShowRewrite }: Props) {
+export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBranch, hasCommit, onCompare, notify, onShowRewrite, onShowChecks }: Props) {
   const [details, setDetails] = useState<RequestDetails | null>(null);
   const [conversation, setConversation] = useState<RequestConversation | null>(null);
   const [conversationError, setConversationError] = useState<string | null>(null);
@@ -200,6 +204,8 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoPath, wanted]);
   const localSaid = local && !merge ? describeMergeCheck(local, "merge") : null;
+  // Where it stands, as the status card says it (and a commit's details too).
+  const standing = details && requestStanding(details);
   // Its branch was force-pushed since this copy of the repository first saw it: offer what changed.
   const [forcePushed, setForcePushed] = useState(false);
   const remoteBranch = `${request.remote}/${request.branch}`;
@@ -314,24 +320,9 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
 
             <StatusCard
               details={details}
-              title={
-                details.state === "merged"
-                  ? `Merged into ${details.base}`
-                  : details.state === "closed"
-                    ? "Closed without merging"
-                    : details.state === "draft" && merge?.tone !== "bad"
-                      ? "A draft: not ready for review yet"
-                      : (merge?.text ?? (localSaid ? `Into ${details.base}: ${localSaid.text[0].toLowerCase() + localSaid.text.slice(1)} (checked here)` : "Open"))
-              }
-              tone={
-                details.state === "merged"
-                  ? "merged"
-                  : details.state === "closed"
-                    ? "closed"
-                    : details.state === "draft" && merge?.tone !== "bad"
-                      ? "neutral"
-                      : (merge?.tone ?? (localSaid ? (localSaid.tone === "bad" ? "bad" : localSaid.tone === "good" ? "good" : "waiting") : "neutral"))
-              }
+              onShowChecks={onShowChecks && details.headSha ? () => onShowChecks(details.headSha!, details.title) : undefined}
+              title={standing?.text ?? (localSaid ? `Into ${details.base}: ${localSaid.text[0].toLowerCase() + localSaid.text.slice(1)} (checked here)` : "Open")}
+              tone={standing?.tone ?? (localSaid ? (localSaid.tone === "bad" ? "bad" : localSaid.tone === "good" ? "good" : "waiting") : "neutral")}
               openUrl={openUrl}
               action={
                 canAct && conversation ? (
@@ -480,9 +471,12 @@ function StatusCard({
   action,
   note,
   openUrl,
+  onShowChecks,
   children,
 }: {
   details: RequestDetails;
+  /** Its latest commit's checks, each run as a graph. */
+  onShowChecks?: () => void;
   title: string;
   tone: Tone;
   action: ReactNode;
@@ -517,7 +511,11 @@ function StatusCard({
         <>
           <div className="request-checks-head">
             <span className="request-checks-title">{gitlab ? "Pipeline" : "Checks"}</span>
+            <SiteChip site={gitlab ? "GitLab" : "GitHub"} />
           </div>
+          {/* How they went, built as a commit's details have it; the river under it shows each
+              and counts them, so its title names what failed instead, and it has no pips. */}
+          <ChecksSummary checks={checks} gitlab={gitlab} onShow={onShowChecks} river />
           {ran.length > 0 && <CheckTributaries key={details.number} checks={ran} now={now} gitlab={gitlab} openUrl={openUrl} lit={lit} onLight={setLit} />}
           <CheckTimeline checks={checks} now={now} openUrl={openUrl} lit={lit} onLight={setLit} />
         </>

@@ -295,7 +295,7 @@ fn prunes_gone_and_merged_branches_and_restores_them() {
     let snapshot = repo::load(alice.path(), 100, false).unwrap();
     assert_eq!(snapshot.gone_branches, ["feat/merged", "feat/squashed"]);
 
-    let info = actions::prune_candidates(alice.path()).unwrap();
+    let info = actions::prune_candidates(alice.path(), None).unwrap();
     assert_eq!(info.base.as_deref(), Some("origin/main"));
     let found: Vec<(&str, bool, bool, u32)> = info
         .candidates
@@ -315,6 +315,30 @@ fn prunes_gone_and_merged_branches_and_restores_them() {
     assert_eq!(squashed.upstream.as_deref(), Some("origin/feat/squashed"));
     assert_eq!(squashed.remote.as_deref(), Some("origin"));
     assert_eq!(squashed.merge.as_deref(), Some("refs/heads/feat/squashed"));
+    assert!(info.candidates.iter().all(|c| !c.idle));
+
+    // Old branches too: the test's commits are from 2023, so after a year without any,
+    // feat/active is offered, idle and with its commit not in main. main and develop never are.
+    let old = actions::prune_candidates(alice.path(), Some(365)).unwrap();
+    let active = old
+        .candidates
+        .iter()
+        .find(|c| c.name == "feat/active")
+        .expect("feat/active is offered");
+    assert!(active.idle && !active.merged && !active.gone);
+    assert_eq!(active.unmerged, 1);
+    assert!(
+        old.candidates
+            .iter()
+            .all(|c| c.name != "main" && c.name != "develop")
+    );
+    // Nothing is a hundred years old.
+    let none = actions::prune_candidates(alice.path(), Some(36_500)).unwrap();
+    assert!(
+        none.candidates
+            .iter()
+            .all(|c| !c.idle && c.name != "feat/active")
+    );
 
     let tips: Vec<BranchTip> = info
         .candidates

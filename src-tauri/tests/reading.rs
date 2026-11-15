@@ -515,6 +515,43 @@ fn shows_who_changed_each_line() {
 }
 
 #[test]
+fn finds_a_commit_by_id_branch_tag_or_day() {
+    use tributary_lib::actions::find_commit;
+    let repo = TempRepo::new("goto");
+    // Days apart: 2026-03-01, 2026-03-02 and 2026-03-03, at noon (UTC).
+    let noon = |day: i64| 1_772_366_400 + day * 86_400;
+    std::fs::write(repo.path().join("notes.txt"), "one\n").unwrap();
+    repo.git_at(&["add", "-A"], noon(0));
+    repo.git_at(&["commit", "-qm", "First"], noon(0));
+    let first = repo.git(&["rev-parse", "HEAD"]);
+    repo.git_at(&["tag", "v1.0"], noon(0));
+    std::fs::write(repo.path().join("notes.txt"), "two\n").unwrap();
+    repo.git_at(&["commit", "-qam", "Second"], noon(1));
+    let second = repo.git(&["rev-parse", "HEAD"]);
+    repo.git_at(&["switch", "-q", "-c", "feature"], noon(1));
+    std::fs::write(repo.path().join("notes.txt"), "three\n").unwrap();
+    repo.git_at(&["commit", "-qam", "Third"], noon(2));
+    let third = repo.git(&["rev-parse", "HEAD"]);
+    repo.git(&["switch", "-q", "main"]);
+
+    let find = |query: &str| find_commit(repo.path(), query).unwrap();
+    assert_eq!(find(&first), Some(first.clone()));
+    assert_eq!(find(&second[..8]), Some(second.clone()));
+    assert_eq!(find(" feature "), Some(third.clone()));
+    // A tag names its commit.
+    assert_eq!(find("v1.0"), Some(first.clone()));
+    assert_eq!(find("main~1"), Some(first.clone()));
+    // A day: the newest commit in any branch by its end, a branch that isn't checked out too.
+    assert_eq!(find("2026-03-02"), Some(second));
+    assert_eq!(find("2026-03-03"), Some(third));
+    assert_eq!(find("2026-02-01"), None);
+    assert_eq!(find("no-such-branch"), None);
+    assert_eq!(find(""), None);
+    // Never read as an option.
+    assert_eq!(find("--all"), None);
+}
+
+#[test]
 fn searches_history_by_file_and_by_code() {
     use tributary_lib::actions::{SearchMode, search_commits};
     let repo = TempRepo::new("search");

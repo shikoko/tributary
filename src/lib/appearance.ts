@@ -98,11 +98,11 @@ export const ACCENTS: { name: string; color: string; end: string; pair: string }
 export const LANE_PALETTES: Record<LanePaletteName, Record<Theme, string[]>> = {
   vivid: {
     dark: ["#1fb5ff", "#ff4f9a", "#8ce04a", "#ffad1f", "#a77bff", "#19d7b4", "#ff6a45", "#ffe24a", "#4d7cff", "#e65cff", "#36e07c", "#ff8e3c"],
-    light: ["#0a8bd1", "#dc2f7c", "#4b931b", "#cf8300", "#7a4fe3", "#0b9a81", "#dc4b26", "#a88b00", "#2f5ee3", "#b33ccc", "#17984f", "#d4661a"],
+    light: ["#0a8bd1", "#d72e79", "#4b931b", "#cf8300", "#7a4fe3", "#0b9a81", "#dc4b26", "#a88b00", "#2f5ee3", "#b33ccc", "#17984f", "#d4661a"],
   },
   soft: {
     dark: ["#7cc4e8", "#e895b8", "#a9cf88", "#e3bd78", "#b9a3e8", "#7fd1c0", "#e8a08a", "#ddd08a", "#8fa5e8", "#d49ae3", "#86d4a4", "#e8b088"],
-    light: ["#4a8fb5", "#b5628a", "#6a934b", "#a7833d", "#7c68b3", "#4a978a", "#b36b56", "#958737", "#5770b3", "#9a62ab", "#4a996b", "#b37d4c"],
+    light: ["#4a8fb5", "#b5628a", "#6a934b", "#a7833d", "#7c68b3", "#4a978a", "#b36b56", "#958737", "#5770b3", "#9760a8", "#4a996b", "#b37d4c"],
   },
   safe: {
     dark: ["#56b4e9", "#e69f00", "#19b38a", "#f0e442", "#cc79a7", "#e8702a", "#3d93dc", "#a0a8b8"],

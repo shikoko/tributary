@@ -7,6 +7,7 @@
    - The text is trimmed to its letters (<Chip>, or `chip-text`), so it sits in the middle
      whatever the font's spacing above and below. */
 .about-beta,
+.site-chip,
 .mentioned-issue-status,
 .request-review,
 .recent-chip,
@@ -24,6 +25,7 @@
 
 /* Small. */
 .about-beta,
+.site-chip,
 .mentioned-issue-status,
 .request-review,
 .recent-chip,
@@ -55,6 +57,7 @@
 
 /* States. */
 .about-beta,
+.site-chip,
 .mentioned-issue-status,
 .request-review,
 .recent-chip,

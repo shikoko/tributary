@@ -277,16 +277,14 @@ fn reviews(raw: Vec<RawReview>, requested: Vec<String>) -> Vec<Review> {
     result
 }
 
-fn run_check(run: RawCheckRun) -> Check {
-    // Waiting for a runner: it hasn't started, whatever its started_at says.
-    let queued = matches!(
-        run.status.as_str(),
-        "queued" | "waiting" | "pending" | "requested"
-    );
-    let state = if run.status != "completed" {
+/// How a check run or job went, from its status and conclusion (None: skipped, or neither
+/// passed nor failed), and whether it's still waiting for a runner.
+pub(super) fn job_state(status: &str, conclusion: Option<&str>) -> (Option<CheckState>, bool) {
+    let queued = matches!(status, "queued" | "waiting" | "pending" | "requested");
+    let state = if status != "completed" {
         Some(CheckState::Pending)
     } else {
-        match run.conclusion.as_deref() {
+        match conclusion {
             Some("success") => Some(CheckState::Success),
             Some("cancelled") => Some(CheckState::Cancelled),
             Some("failure" | "timed_out" | "action_required" | "startup_failure") => {
@@ -295,6 +293,12 @@ fn run_check(run: RawCheckRun) -> Check {
             _ => None,
         }
     };
+    (state, queued)
+}
+
+fn run_check(run: RawCheckRun) -> Check {
+    // Waiting for a runner: it hasn't started, whatever its started_at says.
+    let (state, queued) = job_state(&run.status, run.conclusion.as_deref());
     Check {
         name: run.name,
         state,
@@ -310,7 +314,7 @@ fn run_check(run: RawCheckRun) -> Check {
 }
 
 /// What started a workflow run, in words: "on push to develop", "on the pull request".
-fn trigger(event: &str, branch: Option<&str>) -> String {
+pub(super) fn trigger(event: &str, branch: Option<&str>) -> String {
     match (event, branch) {
         ("push", Some(branch)) => format!("on push to {branch}"),
         ("push", None) => "on push".into(),

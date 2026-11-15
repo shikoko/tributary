@@ -13,7 +13,10 @@ export function lostCommits(path: string, reference: string): Promise<LostCommit
   return invoke<LostCommits>("lost_commits", { path, reference });
 }
 
-/** Local branches that could be pruned: gone from the remote, or merged. Changes nothing. */
-export function pruneCandidates(path: string): Promise<PruneInfo> {
-  return invoke<PruneInfo>("prune_candidates", { path });
+/**
+ * Local branches that could be pruned: gone from the remote, merged, or with `idleDays`, with
+ * no commits for that long. Changes nothing.
+ */
+export function pruneCandidates(path: string, idleDays: number | null = null): Promise<PruneInfo> {
+  return invoke<PruneInfo>("prune_candidates", { path, idleDays });
 }

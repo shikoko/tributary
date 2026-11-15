@@ -44,6 +44,8 @@ interface Props {
   onCompare: (request: CompareRequest) => void;
   /** Say what was done, briefly. */
   notify: (text: string) => void;
+  /** Show a commit's checks, each run as a graph of its jobs. */
+  onShowChecks: (commit: CommitRow) => void;
 }
 
 /**
@@ -119,6 +121,7 @@ export function DetailsPane(props: Props) {
       isHighlighted={props.isHistoryFile}
       lockOf={locks ? (path) => locks.get(path) : undefined}
       notify={props.notify}
+      onShowChecks={() => props.onShowChecks(selected)}
     />
   );
 }

@@ -187,6 +187,55 @@ fn keeps_settings_in_a_repository() {
 }
 
 #[test]
+fn syncs_by_pulling_then_pushing_and_stops_for_a_rewritten_branch() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("sync-remote.git");
+    let mut alice = TempRepo::new("sync-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "First");
+    let push = || Action::Push {
+        force: false,
+        no_verify: false,
+    };
+    run(&alice, push()).unwrap();
+    let mut bob = TempRepo::clone_of("sync-bob", &remote);
+    bob.git(&["config", "user.name", "Bob"]);
+    bob.git(&["config", "user.email", "bob@example.com"]);
+
+    assert_eq!(
+        run(&bob, Action::Sync).unwrap(),
+        "main was already in sync with origin/main"
+    );
+
+    // Both sides have a commit: Alice's is pulled (merged), then Bob's and the merge pushed.
+    let hers = alice.commit("b.txt", "From Alice");
+    run(&alice, push()).unwrap();
+    let his = bob.commit("bob.txt", "From Bob");
+    assert_eq!(
+        run(&bob, Action::Sync).unwrap(),
+        "Synced main: pulled 1 commit, then pushed 2 commits"
+    );
+    assert_eq!(
+        remote.git(&["rev-parse", "main"]),
+        bob.git(&["rev-parse", "main"])
+    );
+    remote.git(&["merge-base", "--is-ancestor", &hers, "main"]);
+    remote.git(&["merge-base", "--is-ancestor", &his, "main"]);
+
+    // Amended after it was pushed: the remote branch has the old version, and pulling would
+    // bring it back. It stops, asking for a force push, and nothing moves.
+    bob.commit("bob.txt", "Tidy");
+    run(&bob, Action::Sync).unwrap();
+    bob.git(&["commit", "--quiet", "--amend", "-m", "Tidy, amended"]);
+    let amended = bob.git(&["rev-parse", "main"]);
+    let pushed = remote.git(&["rev-parse", "main"]);
+    let error = run(&bob, Action::Sync).unwrap_err();
+    assert!(error.starts_with(actions::REWRITTEN), "{error}");
+    assert_eq!(bob.git(&["rev-parse", "main"]), amended);
+    assert_eq!(remote.git(&["rev-parse", "main"]), pushed);
+}
+
+#[test]
 fn force_push_replaces_the_remote_branch() {
     let _turn = remote_turn();
     let remote = TempRepo::bare("force-remote.git");

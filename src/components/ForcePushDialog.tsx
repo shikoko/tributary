@@ -8,12 +8,14 @@ interface Props {
   snapshot: RepoSnapshot;
   /** The checked-out branch, when it's protected: its name must be typed to go ahead. */
   protectedName?: string | null;
+  /** Why it's asked for, when something stopped for it (a sync, into a rewritten branch). */
+  reason?: string;
   onCancel: () => void;
   onDone: (message: string) => void;
 }
 
 /** Asks for confirmation before `git push --force-with-lease`. */
-export function ForcePushDialog({ snapshot, protectedName, onCancel, onDone }: Props) {
+export function ForcePushDialog({ snapshot, protectedName, reason, onCancel, onDone }: Props) {
   const [typed, setTyped] = useState("");
   const confirmed = !protectedName || typed.trim() === protectedName;
   const [running, setRunning] = useState(false);
@@ -49,6 +51,8 @@ export function ForcePushDialog({ snapshot, protectedName, onCancel, onDone }: P
         </>
       }
     >
+      {/* Why it's asked for (Sync stopped for it), above what it does. */}
+      {reason && <div className="dialog-warning force-push-reason">{reason}</div>}
       <p>
         <strong>{target}</strong> will be replaced with your local <strong>{branch}</strong>.
       </p>

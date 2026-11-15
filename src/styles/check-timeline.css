@@ -429,3 +429,28 @@
 .request-conflicts li {
   overflow-wrap: anywhere;
 }
+
+/* In a narrow pull request view (a small window, with the sidebar and details open), there's
+   no room for the bars beside the names: each check is its dot, name and time, as without
+   times, and the river above shows how they ran. (Last, to win over the rules above.) */
+@container request-status (max-width: 460px) {
+  .request-timeline {
+    --timeline-columns: 8px minmax(0, 1fr) auto;
+  }
+
+  .request-timeline-origin,
+  .request-timeline-later,
+  .request-timeline-track,
+  .request-timeline-group-start,
+  .request-timeline-axis {
+    display: none;
+  }
+
+  .request-timeline-group-name {
+    grid-column: 1 / 3;
+  }
+
+  .request-timeline-group-total {
+    grid-column: 3;
+  }
+}

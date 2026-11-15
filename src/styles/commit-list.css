@@ -179,6 +179,14 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
   max-width: none;
 }
 
+/* 21px, for its words (see --cap-pixels), in a 36px row (24px when dense): centred, it starts
+   half a pixel down. Its name's baseline is drawn on a whole CSS pixel and its edges on the
+   nearest screen pixel, so the name came out a screen pixel low at 200% ("main", 11 pixels
+   above and 9 below). A pixel of margin below moves it up onto a whole pixel. */
+.refs-cell .ref-pill {
+  margin-bottom: 1px;
+}
+
 /* The checked-out branch glows; the other labels stay in the background until their row is
    hovered or selected. The labels shrink to fit, so only the glow reaches past the cell. */
 .refs-cell {

@@ -8,8 +8,9 @@ import { coAuthors } from "../lib/weblinks";
 import { Avatar } from "./Avatar";
 import { CheckIcon, CloseIcon, CopyIcon, KeyIcon } from "./Icons";
 import { describeSignature } from "../lib/signatures";
-import { CommitChecks } from "./CommitChecks";
-import { MentionedIssues } from "./MentionedIssues";
+import { CommitChecks, useCommitChecks } from "./CommitChecks";
+import { CommitRequests } from "./CommitRequests";
+import { MentionedIssues, useMentions } from "./MentionedIssues";
 import { PullRequestsContext } from "../lib/pullRequests";
 import { refPills } from "../lib/refs";
 import { MessageText } from "./MessageText";
@@ -52,6 +53,8 @@ interface Props {
   isShown?: (path: string) => boolean;
   /** Say what was done (like re-running failed checks). */
   notify?: (text: string) => void;
+  /** Show the commit's checks, each run as a graph of its jobs. */
+  onShowChecks?: () => void;
 }
 
 export interface DetailsAction {
@@ -109,6 +112,9 @@ export function CommitDetailsPanel(props: Props) {
     const found = refPills(commit.refs).flatMap((pill) => (pill.kind === "branch" ? (pullRequests?.find(pill.name, pill.local, pill.remotes) ?? []) : []));
     return [...new Map(found.map((pr) => [`${pr.remote}/${pr.number}`, pr])).values()];
   }, [commit.refs, pullRequests]);
+  // The pull requests and issues it names, and its checks.
+  const mentions = useMentions(`${details?.summary ?? commit.summary}\n${details?.body ?? ""}\n${commit.refs.map((ref) => ref.name).join("\n")}`, openRequests);
+  const checks = useCommitChecks(repoPath, commit.id, props.notify);
   const files = useMemo(() => filterFiles(highlightedFirst(details?.files ?? [], isHighlighted), query, actors), [details, isHighlighted, query, actors]);
   // The files as a list, or as a tree of their folders (remembered); a new commit starts with every folder open.
   const [layout] = useFilesLayout();
@@ -187,10 +193,12 @@ export function CommitDetailsPanel(props: Props) {
                 })}
               </div>
             )}
-            <MentionedIssues text={`${details?.summary ?? commit.summary}\n${details?.body ?? ""}\n${commit.refs.map((ref) => ref.name).join("\n")}`} open={openRequests} />
+            <MentionedIssues mentions={mentions} />
           </section>
 
-          {props.notify && <CommitChecks repoPath={repoPath} id={commit.id} notify={props.notify} />}
+          {/* What the site says about it: its pull requests and its checks, as cards. */}
+          <CommitRequests repoPath={repoPath} requests={mentions.filter((mention) => mention.request)} />
+          <CommitChecks shown={checks} onShow={props.onShowChecks} />
 
           <section className="details-section">
             <div className="details-section-head">

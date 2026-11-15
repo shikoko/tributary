@@ -310,6 +310,25 @@ export function describeMergeable(details: RequestDetails): { text: string; tone
   }
 }
 
+/** Where a pull request stands, in words, and its tone: what its view's status card says. */
+export interface Standing {
+  text: string;
+  tone: "good" | "bad" | "waiting" | "merged" | "closed" | "neutral";
+}
+
+/**
+ * Where a pull request stands, as its view says it at the top of its status card: merged,
+ * closed, a draft, or whether it can be merged (and if not, why). Null for an open one the
+ * site hasn't said that of; the view checks it here then, and others just say it's open.
+ */
+export function requestStanding(details: RequestDetails): Standing | null {
+  const merge = describeMergeable(details);
+  if (details.state === "merged") return { text: `Merged into ${details.base}`, tone: "merged" };
+  if (details.state === "closed") return { text: "Closed without merging", tone: "closed" };
+  if (details.state === "draft" && merge?.tone !== "bad") return { text: "A draft: not ready for review yet", tone: "neutral" };
+  return merge;
+}
+
 /** "Checks passed", for a pull request's badge. */
 export function describeChecks(pr: PullRequest): string {
   const gitlab = pr.forge === "gitlab";

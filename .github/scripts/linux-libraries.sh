@@ -16,6 +16,9 @@ apt=(sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire:
 elsewhere=(https://mirrors.edge.kernel.org/ubuntu/ http://mirrors.kernel.org/ubuntu/ https://archive.ubuntu.com/ubuntu/)
 
 use_elsewhere() {
+  # Those mirrors carry the archive for x86 only: ARM's packages come from ports.ubuntu.com,
+  # which stays as it is.
+  [[ $(dpkg --print-architecture) == amd64 ]] || return 0
   # The runners list their mirrors in apt-mirrors.txt (apt's mirror+file method), tried in order.
   if [[ -f /etc/apt/apt-mirrors.txt ]]; then
     for i in "${!elsewhere[@]}"; do printf '%s\tpriority:%d\n' "${elsewhere[$i]}" $((i + 1)); done | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
