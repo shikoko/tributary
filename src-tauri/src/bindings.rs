@@ -12,8 +12,8 @@ use std::collections::{BTreeMap, HashSet};
 use ts_rs::{Config, TS, TypeVisitor};
 
 use crate::{
-    accounts, actions, ci, codeowners, commands, diagnostics, git, github, issues, locks, repo,
-    requests, reviews, unreal, updates,
+    accounts, actions, ci, ci_log, codeowners, commands, diagnostics, git, github, issues, locks,
+    repo, requests, reviews, since, unreal, updates,
 };
 
 /// Where the file goes, from the crate's folder.
@@ -104,6 +104,9 @@ fn generate() -> String {
     c.visit::<crate::apps::App>();
     c.visit::<ci::CommitChecks>();
     c.visit::<ci::CommitRuns>();
+    c.visit::<ci_log::CheckLog>();
+    c.visit::<since::SeenTip>();
+    c.visit::<since::SinceThen>();
     c.visit::<codeowners::FileOwners>();
     c.visit::<commands::Notices>();
     c.visit::<diagnostics::Diagnostics>();

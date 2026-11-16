@@ -348,6 +348,36 @@ export type BranchVersion = {
 };
 
 /**
+ * A failed check's job: its steps, and the end of the log of the one that failed.
+ */
+export type CheckLog = {
+  /**
+   * The job's steps, in order (a GitLab job's sections).
+   */
+  steps: Array<LogStep>;
+  /**
+   * The step the lines are from: the one that failed.
+   */
+  step: string | null;
+  /**
+   * The end of that step's log (the job's, when the step's can't be told apart).
+   */
+  lines: Array<LogLine>;
+  /**
+   * Lines before these were left out.
+   */
+  cut: boolean;
+  /**
+   * Why there's no log, when there isn't one: to sign in, or that it's on another site.
+   */
+  missing: string | null;
+  /**
+   * The job can be run again from here (signed in).
+   */
+  canRerun: boolean;
+};
+
+/**
  * How a pull request's checks (GitHub Actions and others) went.
  */
 export type CheckState =
@@ -1236,6 +1266,26 @@ export type LogEntry = {
    * Run by Tributary on its own, like the fetch every few minutes.
    */
   background: boolean;
+};
+
+/**
+ * A line of a log, without its colours, and what kind of line it is.
+ */
+export type LogLine = { text: string; kind: LogLineKind };
+
+export type LogLineKind = "plain" | "command" | "error" | "warning";
+
+/**
+ * A step of a job.
+ */
+export type LogStep = {
+  name: string;
+  /**
+   * None when it was skipped.
+   */
+  state: CheckState | null;
+  startedAt: string | null;
+  finishedAt: string | null;
 };
 
 /**
@@ -2274,6 +2324,17 @@ export type SearchResult = {
   truncated: boolean;
 };
 
+/**
+ * Where a remote branch pointed when you last had the repository open.
+ */
+export type SeenTip = {
+  /**
+   * Like "origin/main".
+   */
+  branch: string;
+  commit: string;
+};
+
 export type SetupCheck = {
   /**
    * Stable, for the frontend ("ignore", "lfs", …).
@@ -2393,6 +2454,58 @@ export type SigningSettings = {
    * The keys found: GPG's secret keys, and SSH public keys in ~/.ssh.
    */
   keys: Array<SigningKey>;
+};
+
+export type SinceChangedFile = { path: string; commit: string; author: string };
+
+export type SinceMerged = {
+  /**
+   * "#" for a GitHub pull request, "!" for a GitLab merge request.
+   */
+  sign: string;
+  number: number;
+  title: string;
+  /**
+   * The commit that merged it.
+   */
+  commit: string;
+};
+
+export type SincePerson = { name: string; commits: number };
+
+/**
+ * What arrived on a remote branch since you saw it.
+ */
+export type SinceThen = {
+  /**
+   * Like "origin/main".
+   */
+  branch: string;
+  /**
+   * Where it pointed then: where you left off.
+   */
+  was: string;
+  /**
+   * Where it points now.
+   */
+  tip: string;
+  /**
+   * How many commits it has that it didn't then, not counting yours.
+   */
+  commits: number;
+  /**
+   * Who wrote them, most commits first (the first few), and how many people did.
+   */
+  people: Array<SincePerson>;
+  peopleCount: number;
+  /**
+   * The pull (or merge) requests merged into it, newest first.
+   */
+  merged: Array<SinceMerged>;
+  /**
+   * Which of the files asked about someone else changed, and in which commit (its newest).
+   */
+  changed: Array<SinceChangedFile>;
 };
 
 export type SizeGroup = { name: string; diskBytes: number; versions: number };

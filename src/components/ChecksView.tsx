@@ -4,6 +4,7 @@ import { shortId } from "../lib/format";
 import { checkName, checkTime } from "../lib/pullRequests";
 import { anyGoing, countStates, elapsed, groupState, jobState, jobTime, memberName, runColumns, runState, STATE_WORDS, stepProgress, type RunState } from "../lib/runGraph";
 import { useNow } from "../lib/useNow";
+import { useCheckWhy, type WhyCheck } from "./CheckWhy";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, ExternalLinkIcon, RefreshIcon } from "./Icons";
 import { Loader } from "./Loader";
 import { RunStateIcon as StateIcon } from "./RunStateIcon";
@@ -152,6 +153,7 @@ export function ChecksView({ repoPath, commit, onClose, openUrl, notify }: Props
                         time={checkTime(check, now)}
                         detail={check.detail}
                         url={check.url}
+                        about={check}
                         openUrl={openUrl}
                       />
                     );
@@ -325,7 +327,7 @@ function RunGraph({ run, now, openUrl }: { run: Run; now: number; openUrl: (url:
                 ) : (
                   <div key={group.key} data-group={group.key} className="run-node">
                     {group.jobs.length === 1 ? (
-                      <JobCard name={group.jobs[0].name} state={jobState(group.jobs[0])} job={group.jobs[0]} time={jobTime(group.jobs[0], now)} url={group.jobs[0].url} openUrl={openUrl} />
+                      <JobCard name={group.jobs[0].name} state={jobState(group.jobs[0])} job={group.jobs[0]} time={jobTime(group.jobs[0], now)} url={group.jobs[0].url} about={{ ...group.jobs[0], workflow: run.name, trigger: run.trigger }} openUrl={openUrl} />
                     ) : (
                       <JobCard name={group.name} state={groupState(group, run)} time={null} openUrl={openUrl} />
                     )}
@@ -350,7 +352,7 @@ function GroupBox({ group, run, now, openUrl }: { group: JobGroup; run: Run; now
       </div>
       <div className="run-group-jobs">
         {group.jobs.map((job, index) => (
-          <JobRow key={`${job.name}-${index}`} name={memberName(group, job)} job={job} now={now} openUrl={openUrl} />
+          <JobRow key={`${job.name}-${index}`} name={memberName(group, job)} job={job} run={run} now={now} openUrl={openUrl} />
         ))}
       </div>
     </div>
@@ -358,11 +360,12 @@ function GroupBox({ group, run, now, openUrl }: { group: JobGroup; run: Run; now
 }
 
 /** A job in a group's box: how it went, its name and time, and its steps while it runs. */
-function JobRow({ name, job, now, openUrl }: { name: string; job: Job; now: number; openUrl: (url: string) => void }) {
+function JobRow({ name, job, run, now, openUrl }: { name: string; job: Job; run: Run; now: number; openUrl: (url: string) => void }) {
   const state = jobState(job);
   const time = jobTime(job, now);
+  const why = useWhy(job.name, state, job.url, { ...job, workflow: run.name, trigger: run.trigger });
   return (
-    <button className={`run-job ${state}`} onClick={() => job.url && openUrl(job.url)} disabled={!job.url} title={job.url ? `${job.name}: open its page` : job.name} data-url={job.url ?? undefined}>
+    <button className={`run-job ${state}`} onClick={why ?? (() => job.url && openUrl(job.url))} disabled={!job.url} title={why ? `${job.name}: why it failed` : job.url ? `${job.name}: open its page` : job.name} data-url={job.url ?? undefined}>
       <span className="run-job-line">
         <StateIcon state={state} />
         <span className="run-job-name">{name}</span>
@@ -381,6 +384,7 @@ function JobCard({
   job,
   detail,
   url,
+  about,
   openUrl,
 }: {
   name: string;
@@ -389,11 +393,14 @@ function JobCard({
   job?: Job;
   detail?: string | null;
   url?: string | null;
+  /** What it's part of and when it ran, for the window saying why it failed. */
+  about?: Omit<WhyCheck, "name" | "url">;
   openUrl: (url: string) => void;
 }) {
   const said = time ?? (state === "waiting" ? "waiting" : state === "skipped" ? "skipped" : state === "queued" ? "queued" : "");
+  const why = useWhy(name, state, url, about ?? {});
   return (
-    <button className={`run-card-job ${state}`} onClick={() => url && openUrl(url)} disabled={!url} title={url ? `${name}: open its page` : name} data-url={url ?? undefined}>
+    <button className={`run-card-job ${state}`} onClick={why ?? (() => url && openUrl(url))} disabled={!url} title={why ? `${name}: why it failed` : url ? `${name}: open its page` : name} data-url={url ?? undefined}>
       <span className="run-job-line">
         <StateIcon state={state} />
         <span className="run-job-name">{name}</span>
@@ -421,4 +428,10 @@ function Steps({ job }: { job: Job }) {
       </span>
     </span>
   );
+}
+
+/** Opening the window saying why a job failed (CheckWhy), for a failed one with a page. */
+function useWhy(name: string, state: RunState, url: string | null | undefined, about: Omit<WhyCheck, "name" | "url">) {
+  const showWhy = useCheckWhy();
+  return state === "failure" && url && showWhy ? () => showWhy({ ...about, name, url }) : null;
 }

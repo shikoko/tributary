@@ -6,6 +6,7 @@ import { useNow } from "../lib/useNow";
 import { openInBrowser } from "../lib/weblinks";
 import { checksHeadline, checksVerdict } from "../lib/checkSummary";
 import { SectionButton, SiteChip } from "./DetailsSite";
+import { useCheckWhy, WhyChip } from "./CheckWhy";
 import { SlidingText } from "./SlidingText";
 import { ExternalLinkIcon, WorkflowIcon } from "./Icons";
 import { RunStateIcon } from "./RunStateIcon";
@@ -154,6 +155,9 @@ function ChecksSummary({ checks, gitlab, onShow }: { checks: RequestCheck[]; git
 /** A check: how it went, its name (and what it said), how long it took, and its page. */
 export function CheckLine({ check, time }: { check: RequestCheck; time: string | null }) {
   const state = stateOf(check);
+  // A failed one says why, in a window of its own (CheckWhy), where it can be asked.
+  const showWhy = useCheckWhy();
+  const why = state === "failure" && check.url && showWhy ? () => showWhy({ ...check, url: check.url! }) : null;
   const content = (
     <>
       <span className="commit-check-dot" title={WORDS[state]} />
@@ -162,12 +166,16 @@ export function CheckLine({ check, time }: { check: RequestCheck; time: string |
         {check.detail && <span className="commit-check-detail">{check.detail}</span>}
       </span>
       {time && <span className="commit-check-time">{time}</span>}
-      {check.url && <ExternalLinkIcon size={12} />}
+      {why ? <WhyChip /> : check.url && <ExternalLinkIcon size={12} />}
     </>
   );
   return (
     <li className={`commit-check ${state}`}>
-      {check.url ? (
+      {why ? (
+        <button className="commit-check-row" onClick={why} data-url={check.url} title={`${checkName(check.name)}: why it failed`}>
+          {content}
+        </button>
+      ) : check.url ? (
         <button className="commit-check-row" onClick={() => openInBrowser(check.url!)} data-url={check.url} title={`${checkName(check.name)}: open its page`}>
           {content}
         </button>

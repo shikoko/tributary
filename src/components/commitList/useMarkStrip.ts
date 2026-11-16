@@ -24,6 +24,8 @@ interface Input {
   headId: string | null;
   /** The selected commits. */
   marked: Set<string>;
+  /** Where you left off when you were last here (useSinceLastHere). */
+  leftOffId?: string | null;
   colors: CanvasColors;
   /** The tips of the branch whose lanes are lit. */
   tipIds: string[];
@@ -36,10 +38,10 @@ interface Input {
  * tips light up too, over the strip by `body` (the list's body).
  */
 export function useMarkStrip(canvas: RefObject<HTMLCanvasElement | null>, input: Input) {
-  const { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId, marked, colors, tipIds } = input;
+  const { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId, marked, leftOffId, colors, tipIds } = input;
   const marks = useMemo(
-    () => scrollMarks({ commits, slotOf, indexById, rowHeight, contentHeight, height: viewport.height, matchIds, headId, selectedIds: marked, colors }),
-    [commits, slotOf, indexById, rowHeight, contentHeight, viewport.height, matchIds, headId, marked, colors],
+    () => scrollMarks({ commits, slotOf, indexById, rowHeight, contentHeight, height: viewport.height, matchIds, headId, selectedIds: marked, leftOffId, colors }),
+    [commits, slotOf, indexById, rowHeight, contentHeight, viewport.height, matchIds, headId, marked, leftOffId, colors],
   );
   const [markAt, setMarkAt] = useState<{ y: number; strip: Strip } | null>(null);
   const near = useMemo(() => (markAt ? marksNear(marks, markAt.y) : []), [marks, markAt]);

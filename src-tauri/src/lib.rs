@@ -9,6 +9,7 @@ pub mod avatars;
 #[cfg(test)]
 mod bindings;
 pub mod ci;
+pub mod ci_log;
 pub mod codeowners;
 mod commands;
 mod conditional;
@@ -27,6 +28,7 @@ pub mod repo;
 pub mod requests;
 pub mod reviews;
 pub mod settings_repo;
+pub mod since;
 mod spelling;
 pub mod textures;
 pub mod unreal;
@@ -121,6 +123,9 @@ pub fn run() {
             commands::commit_checks,
             commands::commit_runs,
             commands::rerun_failed_checks,
+            commands::check_log,
+            commands::rerun_job,
+            commands::since_then,
             commands::save_settings_file,
             commands::read_settings_file,
             commands::export_settings_to_repository,

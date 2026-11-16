@@ -61,6 +61,8 @@ interface Props {
   onPillFocus: (pill: RefPill, commit: CommitRow) => void;
   /** While a branch or author is highlighted: the commits that stay bright. Other rows fade. */
   focusIds: Set<string> | null;
+  /** Where you left off when you were last here: a mark beside the scrollbar (useSinceLastHere). */
+  leftOffId?: string | null;
   /** Show a commit's preview when the pointer rests on it. */
   previews: boolean;
   loadDetails: (id: string) => Promise<CommitDetails>;
@@ -186,7 +188,7 @@ export function CommitList(props: Props) {
   useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: brightIds, colors, curves, laneWidth, avatars, litLanes });
   const marked = useMemo(() => selectedIds ?? new Set(selectedId ? [selectedId] : []), [selectedIds, selectedId]);
   // The marks beside the scrollbar, and the card for those the pointer is on.
-  const { markAt, setMarkAt, near, tipMarks, tipStrip, body } = useMarkStrip(markerCanvas, { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId: headCommit, marked, colors, tipIds });
+  const { markAt, setMarkAt, near, tipMarks, tipStrip, body } = useMarkStrip(markerCanvas, { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId: headCommit, marked, leftOffId: props.leftOffId, colors, tipIds });
   const { arrival, pickedHere } = useRevealSelected(scroller, selectedId, selectedIndex, slotOf, rowHeight);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -227,7 +229,10 @@ export function CommitList(props: Props) {
     onLaneHover: props.onLaneHover,
     onHover: (event, commit) => {
       window.clearTimeout(previewTimer.current);
-      if (!props.previews || commit.kind === "worktree" || event.buttons) return setPreview(null);
+      // Not beside the scrollbar, where the marks have a card of their own (MarkHover).
+      const list = body.current?.getBoundingClientRect();
+      const onMarks = list !== undefined && event.clientX >= list.right - (viewport.scrollbar || 6) - 2;
+      if (!props.previews || commit.kind === "worktree" || event.buttons || onMarks) return setPreview(null);
       const { clientX: x, clientY: y } = event;
       previewTimer.current = window.setTimeout(() => setPreview({ commit, x, y }), PREVIEW_DELAY);
     },

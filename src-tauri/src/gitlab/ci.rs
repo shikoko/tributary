@@ -145,3 +145,48 @@ pub(crate) async fn retry_pipeline(project: &Project, token: &str, sha: &str) ->
     }
     Ok(1)
 }
+
+/// GitLab job `job`'s log (None when GitLab didn't give it).
+pub(crate) async fn job_trace(
+    project: &Project,
+    token: Option<&str>,
+    job: u64,
+) -> Result<Option<String>> {
+    let client = client()?;
+    let (token, bearer) = bearer(&client, project, token).await;
+    let url = format!("{}/jobs/{job}/trace", project.api);
+    let answer = get(&client, &url, token.as_deref(), bearer)
+        .await
+        .map_err(|e| format!("Couldn't reach GitLab ({e})"))?;
+    if !answer.status().is_success() {
+        return Ok(None);
+    }
+    let trace = answer
+        .text()
+        .await
+        .map_err(|e| format!("Couldn't read the log ({e})"))?;
+    Ok(Some(trace))
+}
+
+/// Run GitLab job `job` again.
+pub(crate) async fn retry_job(project: &Project, token: &str, job: u64) -> Result<()> {
+    let client = client()?;
+    let (token, bearer) = bearer(&client, project, Some(token)).await;
+    let token = token.ok_or(
+        "GitLab didn't accept the token git keeps for it. Push or fetch to sign in again.",
+    )?;
+    let post = client.post(format!("{}/jobs/{job}/retry", project.api));
+    let post = if bearer {
+        post.bearer_auth(&token)
+    } else {
+        post.header("PRIVATE-TOKEN", &token)
+    };
+    let answer = post
+        .send()
+        .await
+        .map_err(|e| format!("Couldn't reach GitLab ({e})"))?;
+    if !answer.status().is_success() {
+        return Err(format!("GitLab didn't retry it ({}).", answer.status()).into());
+    }
+    Ok(())
+}

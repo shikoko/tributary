@@ -228,6 +228,11 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
         "sparse_settings" => to_json(actions::sparse_settings(&path()?)?),
         "speed_settings" => to_json(actions::speed_settings(&path()?)?),
         "branch_stacks" => to_json(actions::branch_stacks(&path()?)?),
+        "since_then" => {
+            let seen: Vec<tributary_lib::since::SeenTip> = arg(args, "seen")?;
+            let paths: Vec<String> = arg(args, "paths")?;
+            to_json(tributary_lib::since::since_then(&path()?, seen, paths)?)
+        }
         "repo_size" => to_json(actions::repo_size(&path()?)?),
         "installed_apps" => to_json(tributary_lib::apps::installed_apps()),
         "ignore_reason" => {

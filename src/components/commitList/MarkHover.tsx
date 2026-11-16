@@ -85,20 +85,31 @@ export function MarkHover({ near, strip, commits, headBranch }: Props) {
     const own = near.filter((mark) => mark.index === index);
     const kinds = new Set(own.map((mark) => mark.kind));
     // The mark it's shown by: its branch's, if it has one.
-    const shownBy = (["branch", "head", "selected", "match"] as const).map((kind) => own.find((mark) => mark.kind === kind)).find(Boolean)!;
+    const shownBy = (["branch", "head", "selected", "leftOff", "match"] as const).map((kind) => own.find((mark) => mark.kind === kind)).find(Boolean)!;
     const branches = commit.refs.filter((ref) => ref.kind === "branch").map((ref) => ref.name);
     const names =
-      branches.length > 0 ? branches : kinds.has("head") ? [headBranch ?? "Checked out"] : kinds.has("selected") ? ["Selected"] : ["Matches the search"];
+      branches.length > 0
+        ? branches
+        : kinds.has("head")
+          ? [headBranch ?? "Checked out"]
+          : kinds.has("selected")
+            ? ["Selected"]
+            : kinds.has("leftOff")
+              ? ["Where you left off"]
+              : ["Matches the search"];
     const color = kinds.has("branch")
       ? laneColor(commit.graph.column, colors.lanes)
       : kinds.has("head")
         ? colors.accent
         : kinds.has("selected")
           ? colors.ring
-          : colors.match;
+          : kinds.has("leftOff")
+            ? colors.accent
+            : colors.match;
     const states = [
       kinds.has("head") && branches.length > 0 && "Checked out",
       kinds.has("selected") && branches.length > 0 && "Selected",
+      kinds.has("leftOff") && branches.length > 0 && "Where you left off",
       kinds.has("match") && branches.length > 0 && "Matches the search",
     ]
       .filter(Boolean)

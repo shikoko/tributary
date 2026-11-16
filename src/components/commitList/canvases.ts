@@ -71,8 +71,8 @@ export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, inpu
 
 /** A mark next to the scrollbar. */
 export interface ScrollMark {
-  /** A branch's tip, a search match, the checked-out commit or a selected one. */
-  kind: "branch" | "match" | "head" | "selected";
+  /** A branch's tip, a search match, the checked-out commit, a selected one, or where you left off (useSinceLastHere). */
+  kind: "branch" | "match" | "head" | "selected" | "leftOff";
   /** The commit it marks. */
   index: number;
   /** How far down the strip it is, in pixels. */
@@ -92,12 +92,14 @@ interface MarkInput {
   matchIds: Set<string> | null;
   headId: string | null;
   selectedIds: Set<string>;
+  /** Where you left off when you were last here: the commit main was on. */
+  leftOffId?: string | null;
   colors: CanvasColors;
 }
 
 /** The marks next to the scrollbar, in the order they're drawn (later ones on top). */
 export function scrollMarks(input: MarkInput): ScrollMark[] {
-  const { commits, slotOf, indexById, rowHeight, contentHeight, height, matchIds, headId, selectedIds, colors } = input;
+  const { commits, slotOf, indexById, rowHeight, contentHeight, height, matchIds, headId, selectedIds, leftOffId, colors } = input;
   const total = Math.max(contentHeight, height);
   const marks: ScrollMark[] = [];
   const add = (kind: ScrollMark["kind"], index: number | undefined, color: string) => {
@@ -107,6 +109,7 @@ export function scrollMarks(input: MarkInput): ScrollMark[] {
     if (commit.refs.some((ref) => ref.kind === "branch")) add("branch", index, laneColor(commit.graph.column, colors.lanes));
   });
   matchIds?.forEach((id) => add("match", indexById.get(id), colors.match));
+  if (leftOffId) add("leftOff", indexById.get(leftOffId), colors.accent);
   if (headId) add("head", indexById.get(headId), colors.accent);
   selectedIds.forEach((id) => add("selected", indexById.get(id), colors.ring));
   return marks;
@@ -126,6 +129,7 @@ const MARK_SIZE: Record<ScrollMark["kind"], { size: number; inset: number }> = {
   match: { size: 2, inset: 1 },
   head: { size: 3, inset: 0 },
   selected: { size: 2, inset: 0 },
+  leftOff: { size: 2, inset: 0 },
 };
 
 /**

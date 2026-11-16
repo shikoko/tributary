@@ -1,7 +1,7 @@
 // Reading a repository: its history and graph, refs, uncommitted changes and commit details.
 import { invoke } from "@tauri-apps/api/core";
-import type { Bisect, BranchActivity, BranchVersion, CommitDetails, CommitPair, CommitRow, CommitSearchMode, CommitSignature, Comparison, FileChange, FileHistory, FileKind, FileStatus, FolderChoice, GraphLine, GraphRow, HiddenRef, Identity, IgnoreReason, InstalledApp, KindCount, MergeCheck, Operation, OperationKind, OtherChange, Overlap, PatchInfo, Person, RangeDiff, RecentRequest, RefKind, RefLabel, ReflogEntry, ReleaseNotes, RemoteState, RepoSize, RepoSnapshot, RepoSummary, RowKind, SparseSettings, SpeedSettings, SpeedUp, Stacked, TeamActivity, TeamPerson, TeamWork, Upstream, WebHost, WebRemote, Worktree, WorktreeStatus } from "./generated";
-export type { Bisect, BranchActivity, BranchVersion, CommitDetails, CommitPair, CommitRow, CommitSearchMode, CommitSignature, Comparison, FileChange, FileHistory, FileKind, FileStatus, FolderChoice, GraphLine, GraphRow, HiddenRef, Identity, IgnoreReason, InstalledApp, KindCount, MergeCheck, Operation, OperationKind, OtherChange, Overlap, PatchInfo, Person, RangeDiff, RecentRequest, RefKind, RefLabel, ReflogEntry, ReleaseNotes, RemoteState, RepoSize, RepoSnapshot, RepoSummary, RowKind, SparseSettings, SpeedSettings, SpeedUp, Stacked, TeamActivity, TeamPerson, TeamWork, Upstream, WebHost, WebRemote, Worktree, WorktreeStatus };
+import type { Bisect, BranchActivity, BranchVersion, CommitDetails, CommitPair, CommitRow, CommitSearchMode, CommitSignature, Comparison, FileChange, FileHistory, FileKind, FileStatus, FolderChoice, GraphLine, GraphRow, HiddenRef, Identity, IgnoreReason, InstalledApp, KindCount, MergeCheck, Operation, OperationKind, OtherChange, Overlap, PatchInfo, Person, RangeDiff, RecentRequest, RefKind, RefLabel, ReflogEntry, ReleaseNotes, RemoteState, RepoSize, RepoSnapshot, RepoSummary, RowKind, SeenTip, SinceChangedFile, SinceMerged, SincePerson, SinceThen, SparseSettings, SpeedSettings, SpeedUp, Stacked, TeamActivity, TeamPerson, TeamWork, Upstream, WebHost, WebRemote, Worktree, WorktreeStatus } from "./generated";
+export type { Bisect, BranchActivity, BranchVersion, CommitDetails, CommitPair, CommitRow, CommitSearchMode, CommitSignature, Comparison, FileChange, FileHistory, FileKind, FileStatus, FolderChoice, GraphLine, GraphRow, HiddenRef, Identity, IgnoreReason, InstalledApp, KindCount, MergeCheck, Operation, OperationKind, OtherChange, Overlap, PatchInfo, Person, RangeDiff, RecentRequest, RefKind, RefLabel, ReflogEntry, ReleaseNotes, RemoteState, RepoSize, RepoSnapshot, RepoSummary, RowKind, SeenTip, SinceChangedFile, SinceMerged, SincePerson, SinceThen, SparseSettings, SpeedSettings, SpeedUp, Stacked, TeamActivity, TeamPerson, TeamWork, Upstream, WebHost, WebRemote, Worktree, WorktreeStatus };
 
 /** The id of the row for uncommitted changes. */
 export const WORKTREE_ID = "worktree";
@@ -159,6 +159,11 @@ export function rangeDiff(path: string, old: string, next: string, base?: string
 /** The local branches built on other unmerged branches, and those whose base was rewritten. */
 export function branchStacks(path: string): Promise<Stacked[]> {
   return invoke<Stacked[]>("branch_stacks", { path });
+}
+
+/** What arrived on the remote branches in `seen` since they pointed where it says, not counting your own commits, with which of `paths` (your locked files) someone else changed. */
+export function sinceThen(path: string, seen: SeenTip[], paths: string[]): Promise<SinceThen[]> {
+  return invoke<SinceThen[]>("since_then", { path, seen, paths });
 }
 
 /** What went into `to` since `from` (the tag before it when left out). */

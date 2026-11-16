@@ -16,6 +16,7 @@
 //   issues         a stand-in issue tracker: { all: [issues], mine: [their keys], user },
 //                  instead of asking Jira, Linear, GitHub or GitLab
 //   recentRequests the pull requests Team activity counts, instead of asking GitHub
+//   checkLog       why a failed check failed (a CheckLog), instead of the demo's loudness log
 // and read what happened from it afterwards: opened (links and revealed files), notified.
 (() => {
   const preview = (window.__PREVIEW__ = {
@@ -143,6 +144,33 @@
     return preview.conversations[number];
   };
   const later = (value) => new Promise((resolve) => setTimeout(() => resolve(value), 300));
+
+  // Why the demo's audio loudness check failed: its job's steps, and the end of its log.
+  const DEMO_CHECK_LOG = {
+    steps: [
+      { name: "Set up job", state: "success", startedAt: null, finishedAt: null },
+      { name: "Check out", state: "success", startedAt: null, finishedAt: null },
+      { name: "Install ffmpeg", state: "success", startedAt: null, finishedAt: null },
+      { name: "Check loudness", state: "failure", startedAt: null, finishedAt: null },
+      { name: "Post Check out", state: null, startedAt: null, finishedAt: null },
+    ],
+    step: "Check loudness",
+    lines: [
+      ["command", "Run python tools/check_loudness.py --max -14"],
+      ["plain", "Checking 214 sound files in Content/Audio"],
+      ["plain", "  ok        Tavern/fire_crackle.wav      -18.2 LUFS"],
+      ["plain", "  ok        Tavern/door_creak.wav        -16.9 LUFS"],
+      ["plain", "  TOO LOUD  Tavern/door_slam.wav          -9.4 LUFS"],
+      ["plain", "  TOO LOUD  Music/tavern_theme.ogg       -11.8 LUFS"],
+      ["warning", "warning: Music/tavern_theme.ogg has no loudness tag"],
+      ["plain", "212 of 214 files are at -14 LUFS or quieter"],
+      ["error", "2 files are louder than -14 LUFS"],
+      ["error", "Process completed with exit code 1."],
+    ].map(([kind, text]) => ({ kind, text })),
+    cut: true,
+    missing: null,
+    canRerun: true,
+  };
   const say = (number, body, more = {}) => {
     const conversation = conversationOf(number);
     const id = `fake${conversation.comments.length + 1}`;
@@ -284,6 +312,9 @@
     commit_runs: () => preview.commitRuns || { runs: [], others: [], canRerun: false, signedIn: false, site: "GitHub", url: null },
     change_request: (args) => (faking() ? fakeChange(args) : server("change_request", args)),
     rerun_failed_checks: () => "Running the failed jobs again",
+    // Why a check failed: steered by checkLog (a CheckLog), or the demo's loudness check.
+    check_log: ({ url }) => ((preview.askedLogs ??= []).push(url), preview.checkLog || DEMO_CHECK_LOG),
+    rerun_job: ({ url }) => ((preview.reranJobs ??= []).push(url), "Running the job again"),
     // A computer without git, or with an old one, when faked.
     git_install: () => preview.gitInstall ?? server("git_install", {}),
     look_for_git: () => preview.gitInstall ?? server("look_for_git", {}),

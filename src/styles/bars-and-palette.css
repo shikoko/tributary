@@ -244,6 +244,20 @@
   background: rgb(var(--info-rgb) / 0.24);
 }
 
+/* What arrived since you were last here (SinceBanner): each part goes to its commit. */
+.since-banner .since-link {
+  color: var(--info-strong-text);
+  font-size: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--info-rgb) / 0.45);
+  text-underline-offset: 2px;
+}
+
+.since-banner .since-link:hover:not(:disabled) {
+  text-decoration-color: currentColor;
+}
+
 /* Commit list extras */
 
 .commit-row.drop-target {

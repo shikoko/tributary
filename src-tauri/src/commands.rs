@@ -419,6 +419,18 @@ pub async fn rerun_failed_checks(path: String, id: String) -> Result<String> {
     crate::ci::rerun_failed(&PathBuf::from(path), id).await
 }
 
+/// Why a check failed: its job's steps, and the end of the failed step's log.
+#[tauri::command]
+pub async fn check_log(path: String, url: String) -> Result<crate::ci_log::CheckLog> {
+    crate::ci_log::check_log(&PathBuf::from(path), url).await
+}
+
+/// Run a check's job again.
+#[tauri::command]
+pub async fn rerun_job(path: String, url: String) -> Result<String> {
+    crate::ci_log::rerun_job(&PathBuf::from(path), url).await
+}
+
 /// The editors and terminals installed here.
 #[tauri::command]
 pub async fn installed_apps() -> Result<Vec<crate::apps::App>> {
@@ -481,6 +493,16 @@ pub async fn publish_release(
     notes: String,
 ) -> Result<String> {
     crate::requests::publish_release(&PathBuf::from(path), tag, title, notes).await
+}
+
+/// What arrived on the remote branches you follow since you last had the repository open.
+#[tauri::command]
+pub async fn since_then(
+    path: String,
+    seen: Vec<crate::since::SeenTip>,
+    paths: Vec<String>,
+) -> Result<Vec<crate::since::SinceThen>> {
+    blocking(move || crate::since::since_then(&PathBuf::from(path), seen, paths)).await
 }
 
 /// Local branches built on other unmerged branches, and those whose base was rewritten.

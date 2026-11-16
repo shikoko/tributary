@@ -5,7 +5,9 @@ import { openInBrowser } from "../lib/weblinks";
 import { CloseIcon } from "../components/Icons";
 import { LfsHealthBanner } from "../components/LfsHealthBanner";
 import { LockReleaseBanner } from "../components/LockReleaseBanner";
+import { SinceBanner } from "../components/SinceBanner";
 import { SubmoduleBanner } from "../components/SubmoduleBanner";
+import type { SinceLastHere } from "./useSinceLastHere";
 import { OperationBar } from "../components/OperationBar";
 import { BisectBar } from "../components/BisectBar";
 import { ProgressStrip } from "../components/ProgressStrip";
@@ -41,6 +43,10 @@ interface Props {
   openWorktree: (path: string) => void;
   /** A commit was made from here (without hooks): the message box starts empty again. */
   onCommitted: () => void;
+  /** What arrived since you were last here (useSinceLastHere), going to a commit, and dismissing it. */
+  since: SinceLastHere | null;
+  goTo: (id: string) => void;
+  dismissSince: () => void;
 }
 
 /**
@@ -169,6 +175,9 @@ export function RepositoryBanners(props: Props) {
           onKeep={lockRelease.keep}
           onAlways={props.alwaysReleaseLocks}
         />
+      )}
+      {props.since && (
+        <SinceBanner since={props.since} remotes={snapshot.remotes} onGo={props.goTo} onDismiss={props.dismissSince} />
       )}
       {props.submodules.notice && !snapshot.operation && (
         <SubmoduleBanner

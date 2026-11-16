@@ -1,6 +1,7 @@
 import type { RequestCheck } from "../api";
 import { relativeTime } from "../lib/format";
 import { checkKey, checkName, checkTime, checkTimeline, formatElapsed, formatSpan, groupChecks, startedLater, type CheckGroup } from "../lib/pullRequests";
+import { useCheckWhy, WhyChip } from "./CheckWhy";
 import { ExternalLinkIcon } from "./Icons";
 import { SlidingText } from "./SlidingText";
 
@@ -44,6 +45,7 @@ export function CheckTimeline({
   lit?: string | null;
   onLight?: (key: string | null) => void;
 }) {
+  const showWhy = useCheckWhy();
   const groups = groupChecks(checks);
   const later = startedLater(groups);
   const ordered = groups.flatMap((group) => group.checks);
@@ -54,6 +56,8 @@ export function CheckTimeline({
 
   const row = (check: RequestCheck, index: number) => {
     const state = check.state ?? "skipped";
+    // A failed one says why, in a window of its own (CheckWhy), where it can be asked.
+    const why = state === "failure" && check.url && showWhy ? () => showWhy({ ...check, url: check.url! }) : null;
     const queued = check.state === "pending" && !check.startedAt;
     const bar = barOf(check);
     const name = <SlidingText className="request-check-name" text={checkName(check.name)} />;
@@ -65,15 +69,15 @@ export function CheckTimeline({
         onMouseLeave={() => onLight?.(null)}
         // Anywhere on the row opens its page, as its wave above does; its name is the button
         // for the keyboard (its click comes here).
-        onClick={check.url ? () => openUrl(check.url!) : undefined}
+        onClick={why ?? (check.url ? () => openUrl(check.url!) : undefined)}
         data-url={check.url ?? undefined}
-        title={check.detail && check.detail !== "Queued" ? `${checkName(check.name)}: ${check.detail}` : check.url ? `See ${checkName(check.name)} on its page` : undefined}
+        title={why ? `${checkName(check.name)}: why it failed` : check.detail && check.detail !== "Queued" ? `${checkName(check.name)}: ${check.detail}` : check.url ? `See ${checkName(check.name)} on its page` : undefined}
       >
         <span className="request-check-dot" aria-hidden />
         {check.url ? (
           <button className="request-check-open">
             {name}
-            <ExternalLinkIcon size={11} />
+            {why ? <WhyChip /> : <ExternalLinkIcon size={11} />}
           </button>
         ) : (
           <span className="request-timeline-name" title={checkName(check.name)}>

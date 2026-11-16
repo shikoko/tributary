@@ -828,6 +828,10 @@ try {
     await card.locator(".mark-entry-name").first().waitFor({ timeout: 5000 });
     expect((await page.locator(".mark-glow").count()) > 0, "the mark doesn't light up");
     expect((await card.locator(".mark-entry-summary").count()) > 0, "the card doesn't say which commit");
+    // The row under the pointer doesn't show its preview over the card.
+    await page.mouse.move(strip.x, strip.top + strip.marks[0] + 1);
+    await page.waitForTimeout(900);
+    expect((await page.locator(".commit-preview").count()) === 0, "a row's preview opened over the mark's card");
     await page.mouse.move(strip.x - 300, strip.top + 200);
     await card.waitFor({ state: "detached", timeout: 5000 });
   });
@@ -956,6 +960,39 @@ try {
     expect(kept === "Half-written message", `message "${kept}"`);
     await page.locator(".tab", { hasText: "studio" }).dispatchEvent("mousedown", { button: 0 });
     await row("Add a tavern chair").waitFor({ timeout: 10_000 });
+  });
+
+  await step("says what arrived since you were last here, without moving the list", async () => {
+    const tab = (name) => page.locator(".tab", { hasText: name });
+    // Away from the studio, and as if its main had been 6 commits back then, two days ago.
+    await tab(/^notebook$/).dispatchEvent("mousedown", { button: 0 });
+    await row("Export notes as Markdown").waitFor({ timeout: 10_000 });
+    const git = (...args) => execFileSync("git", ["-C", demos.studio, ...args], { encoding: "utf8" }).trim();
+    const was = git("rev-parse", "origin/main~6");
+    // Your own commits (Maya Chen's, in the demos) aren't counted.
+    const others = git("log", "--format=%ae", `${was}..origin/main`).split("\n").filter((email) => email && email !== "maya@example.com").length;
+    await page.evaluate(([path, was]) => localStorage.setItem(`tributary.seen.${path}`, JSON.stringify({ at: Date.now() - 2 * 86_400_000, tips: { "origin/main": was } })), [demos.studio, was]);
+    await tab("studio").dispatchEvent("mousedown", { button: 0 });
+    await row("Add a tavern chair").waitFor({ timeout: 10_000 });
+    const banner = page.locator(".since-banner");
+    await banner.waitFor({ timeout: 10_000 });
+    const said = (await banner.innerText()).replace(/\s+/g, " ").trim();
+    expect(new RegExp(`^Since \\w+: ${others} new commits on main from \\w+`).test(said), `it said "${said}" (${others} new commits by others)`);
+    // Nothing moved: the list is at its top, with the newest commits.
+    expect((await page.locator(".list-scroller").evaluate((list) => list.scrollTop)) === 0, "the list was scrolled");
+    await accessible("what arrived since you were last here");
+    // The count goes to where you left off.
+    await banner.getByRole("button", { name: `${others} new commits` }).click();
+    await page.locator(`#commit-${was}.selected`).waitFor({ timeout: 10_000 });
+    // Dismissed, it's gone, and coming back finds nothing new.
+    await banner.getByRole("button", { name: "Dismiss" }).click();
+    await banner.waitFor({ state: "detached", timeout: 5000 });
+    await tab(/^notebook$/).dispatchEvent("mousedown", { button: 0 });
+    await row("Export notes as Markdown").waitFor({ timeout: 10_000 });
+    await tab("studio").dispatchEvent("mousedown", { button: 0 });
+    await row("Add a tavern chair").waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(800);
+    expect((await banner.count()) === 0, "it said what arrived again, with nothing new since");
   });
 
   await step("checks the spelling of commit messages, with the webview's menu for suggestions", async () => {
@@ -1407,6 +1444,28 @@ try {
     await dismissToast();
   });
 
+  await step("says why a check failed, and runs its job again", async () => {
+    // The failed check's row says Why?, and opens a window with its job's steps, the failed
+    // one marked, and the end of its log, scrolled to its end, the errors marked.
+    const row = page.locator(".details .commit-check.failure .commit-check-row");
+    await row.locator(".check-why-chip", { hasText: "Why?" }).waitFor({ timeout: 5000 });
+    await row.click();
+    const why = page.locator(".dialog.check-why");
+    await why.getByRole("heading", { name: "Audio loudness failed" }).waitFor({ timeout: 5000 });
+    await why.locator(".check-why-line.error", { hasText: "2 files are louder than -14 LUFS" }).waitFor({ timeout: 5000 });
+    await why.locator(".check-why-said", { hasText: /^Checks, on push to main · at step 4 of 5$/ }).waitFor({ timeout: 5000 });
+    expect((await why.locator(".check-why-steps li.failed-here").textContent()) === "Check loudness", "the failed step isn't the one marked");
+    const log = why.locator(".check-why-log");
+    expect(await log.evaluate((element) => element.scrollTop + element.clientHeight >= element.scrollHeight - 1), "the log doesn't start at its end");
+    expect((await page.evaluate(() => window.__PREVIEW__.askedLogs)).at(-1).endsWith("/actions/runs/32"), "it didn't ask for the check's log");
+    await accessible("why a check failed");
+    await why.getByRole("button", { name: "Re-run job" }).click();
+    await page.locator(".toast", { hasText: "Running the job again: Audio loudness" }).waitFor({ timeout: 5000 });
+    await why.waitFor({ state: "detached", timeout: 5000 });
+    expect((await page.evaluate(() => window.__PREVIEW__.reranJobs)).at(-1).endsWith("/actions/runs/32"), "it didn't run the check's job again");
+    await dismissToast();
+  });
+
   await step("shows a commit's checks as a graph of each run, and opens a job's page", async () => {
     await page.evaluate((runs) => Object.assign(window.__PREVIEW__, { commitRuns: runs }), studioCommitRuns());
     const current = page.locator(".commit-row", { has: page.locator(".ref-pill.current") }).first();
@@ -1431,9 +1490,17 @@ try {
     expect(await graph.evaluate((element) => element.scrollLeft > 0), "the arrow didn't scroll the graph");
     await view.locator(".checks-count.failure", { hasText: "1 failed" }).waitFor({ timeout: 5000 });
     await accessible("a commit's checks as graphs");
-    // A job opens its page.
+    // A failed job says why, with its page a click away; a job that passed opens its page.
     await view.locator(".run-card-job", { hasText: "Audio loudness" }).click();
+    const why = page.locator(".dialog.check-why");
+    await why.locator(".check-why-said", { hasText: /^Asset checks, on push to main · after 2m 0s · at step 4 of 5$/ }).waitFor({ timeout: 5000 });
+    await why.getByRole("button", { name: "Open on GitHub" }).click();
     expect((await page.evaluate(() => window.__PREVIEW__.opened)).some((url) => url.endsWith("/42/job/7")), "the job's page didn't open");
+    await page.keyboard.press("Escape");
+    await why.waitFor({ state: "detached", timeout: 5000 });
+    expect(await view.isVisible(), "Esc closed the checks under the window too");
+    await view.locator(".run-card-job", { hasText: "Texture sizes" }).click();
+    expect((await page.evaluate(() => window.__PREVIEW__.opened)).some((url) => url.endsWith("/42/job/6")), "a job's page didn't open");
     await page.keyboard.press("Escape");
     await view.waitFor({ state: "detached", timeout: 5000 });
     // The commit's menu opens them too.
@@ -1485,9 +1552,13 @@ try {
     // The description and comments are Markdown, shown as such.
     await view.locator(".request-comment-text").first().waitFor({ timeout: 5000 });
     await accessible("a pull request");
-    // A check's name opens its page.
+    // A failed check's name says why it failed, with its page a click away.
     await view.locator(".request-check", { hasText: "Audio loudness" }).getByRole("button").click();
+    const why = page.locator(".dialog.check-why");
+    await why.getByRole("button", { name: "Open on GitHub" }).click();
     expect((await page.evaluate(() => window.__PREVIEW__.opened)).some((url) => url.endsWith("/actions/runs/7")), "the check's page didn't open");
+    await page.keyboard.press("Escape");
+    await why.waitFor({ state: "detached", timeout: 5000 });
     await page.keyboard.press("Escape");
     await view.waitFor({ state: "detached", timeout: 5000 });
     expect((await selected()) === before, `pressing the badge selected ${await selected()}, not ${before}`);

@@ -377,6 +377,14 @@ pub(crate) fn pipeline(url: Option<String>, jobs: Vec<Check>) -> Run {
     }
 }
 
+/// Forget what's known of the repository's commits' CI, to ask afresh: a job is running again.
+pub(crate) fn forget_states(path: &Path) {
+    let repo = path.to_string_lossy();
+    if let Some(known) = KNOWN.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+        known.retain(|(of, _), _| *of != repo);
+    }
+}
+
 /// Run commit `id`'s failed checks again.
 pub async fn rerun_failed(path: &Path, id: String) -> Result<String> {
     if id.len() != 40 || !id.chars().all(|c| c.is_ascii_hexdigit()) {

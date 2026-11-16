@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState, useMemo } from "react";
+import { useContext, useEffect, useRef, useState, useMemo, type ComponentProps, type ReactNode } from "react";
 import { onCommitDrop } from "../lib/drag";
 import { usePresence } from "../lib/usePresence";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -41,7 +41,8 @@ import { columnMenuItems, detailsActionsFor, pushMenuItems, submoduleMenuItems, 
 import { RepositoryBanners } from "./RepositoryBanners";
 import { effectiveTracker, IssueTrackerContext, type TrackerSetting } from "../lib/issues";
 import { useRepoSetting } from "../lib/repoPrefs";
-import { webRemote } from "../lib/weblinks";
+import { openInBrowser, webRemote } from "../lib/weblinks";
+import { CheckWhy, CheckWhyContext, type WhyCheck } from "../components/CheckWhy";
 import type { ActionHistory } from "./useActionHistory";
 import { undoState } from "../lib/history";
 import type { Actions } from "./useActions";
@@ -61,6 +62,7 @@ import type { Selection } from "./useSelection";
 import type { ActivityLog } from "./useWindowEvents";
 import { ThemeContext } from "./useAppearance";
 import { useGoToCommit } from "./useGoToCommit";
+import { useSinceLastHere } from "./useSinceLastHere";
 import { ViewPanel } from "../components/ViewPanel";
 
 const REMOTE_ACTIONS: Record<RemoteAction, Action> = {
@@ -161,6 +163,8 @@ export function RepositoryView(props: Props) {
   const [rewrite, setRewrite] = useState<RewriteShown | null>(null);
   /** A commit whose checks are shown over the list, each run as a graph. */
   const [checksOf, setChecksOf] = useState<ChecksOf | null>(null);
+  // The failed check whose log is shown (CheckWhy), from wherever it was asked for.
+  const [why, setWhy] = useState<WhyCheck | null>(null);
   const shownIn = useRef(snapshot.path);
   if (shownIn.current !== snapshot.path) {
     shownIn.current = snapshot.path;
@@ -261,6 +265,8 @@ export function RepositoryView(props: Props) {
   });
 
   const myLocks = lfs.locks?.locks.filter((lock) => lock.mine) ?? [];
+  // What arrived since you were last here, said in a banner and marked beside the scrollbar.
+  const sinceHere = useSinceLastHere(snapshot, myLocks.map((lock) => lock.path));
   const notLoaded = () => props.notify({ text: "That commit isn't loaded: load more commits, or fetch" });
   // Go to Commit, and links to commits that aren't loaded yet (a parent, a commit a message
   // mentions): older history loads until they are.
@@ -406,7 +412,7 @@ export function RepositoryView(props: Props) {
   );
 
   return (
-    <IssueTrackerContext.Provider value={issueTracker}>
+    <Contexts issueTracker={issueTracker} checkWhy={setWhy}>
       {!preferences.simpleMode && (
         <Toolbar
           snapshot={snapshot}
@@ -434,6 +440,9 @@ export function RepositoryView(props: Props) {
       )}
       <RepositoryBanners
         onCommitted={() => props.draft.setDraft(EMPTY_DRAFT)}
+        since={sinceHere.since}
+        goTo={goTo}
+        dismissSince={sinceHere.dismiss}
         snapshot={snapshot}
         repo={repo}
         actions={actions}
@@ -505,6 +514,7 @@ export function RepositoryView(props: Props) {
               onSelect={select}
               matchIds={search.matchIds}
               focusIds={highlight.focusIds}
+              leftOffId={sinceHere.since?.branches[0]?.was ?? null}
               dense={preferences.dense}
               columnWidths={preferences.columnWidths}
               onColumnWidths={preferences.setColumnWidths}
@@ -690,6 +700,16 @@ export function RepositoryView(props: Props) {
           props.openSettings("Accounts");
         }}
       />
+      {why && <CheckWhy repoPath={snapshot.path} check={why} openUrl={openInBrowser} notify={(text) => props.notify({ text })} onClose={() => setWhy(null)} />}
+    </Contexts>
+  );
+}
+
+/** What the views inside a repository's ask for: its issue tracker, and showing why a check failed. */
+function Contexts({ issueTracker, checkWhy, children }: { issueTracker: ComponentProps<typeof IssueTrackerContext.Provider>["value"]; checkWhy: (check: WhyCheck) => void; children: ReactNode }) {
+  return (
+    <IssueTrackerContext.Provider value={issueTracker}>
+      <CheckWhyContext.Provider value={checkWhy}>{children}</CheckWhyContext.Provider>
     </IssueTrackerContext.Provider>
   );
 }

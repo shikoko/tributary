@@ -1,6 +1,6 @@
 // GitHub: signing in, and open pull requests.
 import { invoke } from "@tauri-apps/api/core";
-import type { CheckState, CommitChecks, CommitMessage, CommitRuns, Job, JobGroup, Run, GitHubAccount, GitHubStatus, MergeMethod, MergeRequestOptions, NewRequest, NewRequestInfo, PullRequest, RequestChange, RequestCheck, RequestComment, RequestConversation, RequestDetails, RequestReview, ReviewVerdict } from "./generated";
+import type { CheckLog, CheckState, CommitChecks, CommitMessage, CommitRuns, Job, JobGroup, Run, GitHubAccount, GitHubStatus, MergeMethod, MergeRequestOptions, NewRequest, NewRequestInfo, PullRequest, RequestChange, RequestCheck, RequestComment, RequestConversation, RequestDetails, RequestReview, ReviewVerdict } from "./generated";
 export type { CheckState, CommitChecks, CommitMessage, CommitRuns, Job, JobGroup, Run, GitHubAccount, GitHubStatus, MergeMethod, MergeRequestOptions, NewRequest, NewRequestInfo, PullRequest, RequestChange, RequestCheck, RequestComment, RequestConversation, RequestDetails, RequestReview, ReviewVerdict };
 
 export function gitHubStatus(): Promise<GitHubStatus> {
@@ -73,6 +73,16 @@ export function commitRuns(path: string, id: string): Promise<CommitRuns> {
 /** Run a commit's failed checks again; says what was done. */
 export function rerunFailedChecks(path: string, id: string): Promise<string> {
   return invoke<string>("rerun_failed_checks", { path, id });
+}
+
+/** Why a check failed: its job's steps, and the end of the failed step's log (`url` is the check's page). */
+export function checkLog(path: string, url: string): Promise<CheckLog> {
+  return invoke<CheckLog>("check_log", { path, url });
+}
+
+/** Run a check's job again (`url` is the check's page); says what was done. */
+export function rerunJob(path: string, url: string): Promise<string> {
+  return invoke<string>("rerun_job", { path, url });
 }
 
 /** Change request `number`: ready or a draft, more reviewers, or auto-merge; says what was done. */

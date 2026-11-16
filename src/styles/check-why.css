@@ -1,0 +1,100 @@
+/* Why a check failed (CheckWhy): what it's part of, its job's steps with the failed one
+   marked, and the end of that step's log, its errors in red. */
+.dialog.check-why {
+  width: min(720px, 100%);
+}
+
+.dialog .check-why-said {
+  margin: 0 0 var(--space-16);
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+}
+
+.check-why-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  margin: 0 0 var(--space-12);
+  padding: 0;
+  list-style: none;
+}
+
+.check-why-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-10) var(--space-4) var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+}
+
+.check-why-steps li.skipped {
+  color: var(--text-muted);
+}
+
+.check-why-steps li.failed-here {
+  border-color: rgb(var(--check-failure-rgb) / 0.6);
+  background: rgb(var(--check-failure-rgb) / 0.08);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* The log: as the terminal had it, scrolled to its end, where it failed. */
+.check-why-log {
+  max-height: min(360px, 50vh);
+  overflow: auto;
+  padding: var(--space-8) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--sunken);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--type-sm);
+  line-height: 1.7;
+}
+
+.check-why-line {
+  padding: 0 var(--space-12);
+  white-space: pre;
+}
+
+.check-why-line.command {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.check-why-line.warning {
+  color: var(--warning-text);
+}
+
+.check-why-line.error {
+  background: rgb(var(--check-failure-rgb) / 0.12);
+  box-shadow: inset 2px 0 var(--check-failure);
+  color: var(--danger-text);
+}
+
+.check-why-cut {
+  padding: 0 var(--space-12) var(--space-6);
+  color: var(--text-muted);
+  font-family: var(--font);
+}
+
+.dialog .check-why-missing {
+  margin: var(--space-12) 0 0;
+  color: var(--text-muted);
+}
+
+/* "Why?" on a failed check's row, where its page's arrow would be. */
+.check-why-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: var(--space-4) var(--space-8);
+  border: 1px solid rgb(var(--check-failure-rgb) / 0.5);
+  border-radius: var(--radius-pill);
+  color: var(--danger-text);
+  font-size: var(--type-xs);
+  font-weight: 600;
+}

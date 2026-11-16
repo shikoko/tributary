@@ -6,7 +6,9 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
+use super::pulls::job_state;
 use super::{CheckState, api_request, client};
+use crate::ci_log::LogStep;
 use crate::error::Result;
 
 /// A rollup's state as a dot's colour, when its checks don't say more.
@@ -222,6 +224,90 @@ pub(crate) async fn rerun_failed(full_name: &str, token: &str, sha: &str) -> Res
         }
     }
     Ok(failed.len())
+}
+
+#[derive(Deserialize)]
+struct JobSteps {
+    #[serde(default)]
+    steps: Vec<JobStep>,
+}
+
+#[derive(Deserialize)]
+struct JobStep {
+    name: String,
+    status: String,
+    conclusion: Option<String>,
+    started_at: Option<String>,
+    completed_at: Option<String>,
+}
+
+/// GitHub Actions job `job`'s steps, and its log (None when GitHub didn't give it: it does
+/// only with a token, and keeps logs for a while).
+pub(crate) async fn job_log(
+    full_name: &str,
+    token: Option<&str>,
+    job: u64,
+) -> Result<(Vec<LogStep>, Option<String>)> {
+    let client = client()?;
+    let url = format!("https://api.github.com/repos/{full_name}/actions/jobs/{job}");
+    let answer = api_request(&client, url.clone(), token)
+        .send()
+        .await
+        .map_err(|e| format!("Couldn't reach GitHub ({e})"))?;
+    if !answer.status().is_success() {
+        return Err(format!("GitHub didn't find that job ({}).", answer.status()).into());
+    }
+    let steps = answer
+        .json::<JobSteps>()
+        .await
+        .map_err(|e| format!("Couldn't read GitHub's answer ({e})"))?
+        .steps
+        .into_iter()
+        .map(|step| LogStep {
+            state: job_state(&step.status, step.conclusion.as_deref()).0,
+            name: step.name,
+            started_at: step.started_at,
+            finished_at: step.completed_at,
+        })
+        .collect();
+    let Some(token) = token else {
+        return Ok((steps, None));
+    };
+    // GitHub answers with where to download it from, which reqwest follows (without the token).
+    let answer = api_request(&client, format!("{url}/logs"), Some(token))
+        .send()
+        .await
+        .map_err(|e| format!("Couldn't reach GitHub ({e})"))?;
+    if !answer.status().is_success() {
+        return Ok((steps, None));
+    }
+    let log = answer
+        .text()
+        .await
+        .map_err(|e| format!("Couldn't read the log ({e})"))?;
+    Ok((steps, Some(log)))
+}
+
+/// Run GitHub Actions job `job` again.
+pub(crate) async fn rerun_job(full_name: &str, token: &str, job: u64) -> Result<()> {
+    let answer = client()?
+        .post(format!(
+            "https://api.github.com/repos/{full_name}/actions/jobs/{job}/rerun"
+        ))
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2022-11-28")
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|e| format!("Couldn't reach GitHub ({e})"))?;
+    if answer.status().is_success() {
+        return Ok(());
+    }
+    Err(match answer.status().as_u16() {
+        403 | 404 => "GitHub didn't let you run it again: the token may not be allowed to run workflows here.".into(),
+        409 => "GitHub can't run it again yet: its workflow is still running.".into(),
+        _ => format!("GitHub didn't run it again ({}).", answer.status()).into(),
+    })
 }
 
 #[cfg(test)]
