@@ -283,9 +283,13 @@ export function RepositoryDialogs(props: Props) {
       <ForcePushDialog
         snapshot={snapshot}
         reason={dialog.reason}
+        overwrite={dialog.overwrite}
         protectedName={protectedHead}
         onCancel={() => onClose()}
-        onDone={(message) => onFinish(message)}
+        onPush={(overwrite) => {
+          onClose();
+          run({ kind: "push", force: true, overwrite }, "push");
+        }}
       />
     )}
     {dialog?.kind === "stash" && snapshot.worktree && (

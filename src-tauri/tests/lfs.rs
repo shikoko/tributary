@@ -40,6 +40,7 @@ fn reports_git_lfs_uploads_while_pushing() {
         Action::Push {
             force: false,
             no_verify: false,
+            overwrite: false,
         },
         &|progress| reports.borrow_mut().push(progress),
     )

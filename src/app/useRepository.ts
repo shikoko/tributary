@@ -22,6 +22,12 @@ export interface RepoError {
   skipHooks?: Action;
   /** There didn't seem to be room for its Git LFS files: it again, without checking. */
   anyway?: Action;
+  /** Loading the repository failed: the next load clears it. Others stay until dismissed. */
+  fromLoad?: boolean;
+  /** What failed, to run again. */
+  action?: Action;
+  /** Where the checked-out branch's remote branch was before it ran: what had been seen of it. */
+  upstreamWas?: string | null;
 }
 
 /** What the rest of the app does when the open repository changes. */
@@ -68,7 +74,9 @@ export function useRepository({ setTabs, setActiveTab, firstParentOnly, events }
     const request = ++loadCount.current;
     blockFocusRefresh.current = true;
     setBusy(mode === "open" ? { kind: "open", path } : { kind: mode });
-    setError(null);
+    // A refresh (after a fetch, or when files change) mustn't take away what an action
+    // said went wrong before anyone could read it: only an earlier load's error goes.
+    setError((shown) => (mode === "open" || shown?.fromLoad ? null : shown));
     const current = () => request === loadCount.current;
     const show = (next: RepoSnapshot) => {
       setSnapshot(next);
@@ -100,7 +108,7 @@ export function useRepository({ setTabs, setActiveTab, firstParentOnly, events }
         if (current()) show(next);
       }
     } catch (e) {
-      if (current()) setError({ message: String(e) });
+      if (current()) setError({ message: String(e), fromLoad: true });
     } finally {
       if (current()) {
         setBusy(null);

@@ -148,6 +148,54 @@
   margin: 0 0 var(--space-10);
 }
 
+/*
+ * Remove commits someone else pushed too: a box to tick, with what it does in plain words
+ * under it. Ticked, it takes the danger colour, as the Force push button has.
+ */
+.force-push-anyway {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-10);
+  margin-top: var(--space-14);
+  padding: var(--space-12) var(--space-14);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.force-push-anyway.on {
+  border-color: rgb(var(--danger-rgb) / 0.5);
+  background: rgb(var(--danger-rgb) / 0.08);
+}
+
+.force-push-anyway input {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin: var(--space-2) 0 0;
+  accent-color: var(--danger);
+}
+
+.force-push-anyway-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  line-height: 1.45;
+}
+
+.force-push-anyway-text strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.force-push-anyway.on .force-push-anyway-text strong {
+  color: var(--danger-bright-text);
+}
+
+.force-push-anyway-text span {
+  color: var(--text-secondary);
+}
+
 .clone-progress {
   display: flex;
   flex-direction: column;

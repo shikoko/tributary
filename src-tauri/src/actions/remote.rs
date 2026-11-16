@@ -1,6 +1,10 @@
 //! Fetching, pulling and pushing.
 
+use std::path::Path;
+
 use gix::bstr::ByteSlice;
+use serde::Serialize;
+use ts_rs::TS;
 
 use super::Extra;
 use super::backups::{BackupEvent, back_up};
@@ -45,6 +49,17 @@ pub(super) fn pull(
     git: &Git,
     on_progress: &dyn Fn(Progress),
 ) -> Result<String> {
+    pull_with(repo, git, on_progress, false)
+}
+
+/// Pull the checked-out branch: with `rebase`, putting its own commits on top of what
+/// arrived, whatever git's settings say.
+fn pull_with(
+    repo: &gix::Repository,
+    git: &Git,
+    on_progress: &dyn Fn(Progress),
+    rebase: bool,
+) -> Result<String> {
     let branch = current_branch(repo)?;
     // `--no-edit`: never wait for a merge message in an editor nobody can see.
     let mut args = vec!["pull", "--no-edit", "--progress"];
@@ -58,7 +73,9 @@ pub(super) fn pull(
     ]
     .iter()
     .any(|key| config.string(key.as_str()).is_some());
-    if !has_preference {
+    if rebase {
+        args.push("--rebase");
+    } else if !has_preference {
         args.push("--no-rebase");
     }
     // git fills in each Git LFS file as it checks it out, and LFS downloads each then, one
@@ -179,7 +196,7 @@ pub(super) fn sync(
         .run(&["rev-parse", "--verify", "--quiet", "@{upstream}"])
         .is_err()
     {
-        return push(repo, git, false, false, on_progress, extra);
+        return push(repo, git, Force::No, false, on_progress, extra);
     }
     let upstream = git
         .run(&["rev-parse", "--abbrev-ref", "@{upstream}"])?
@@ -204,11 +221,23 @@ pub(super) fn sync(
             )
             .into());
         }
-        pull(repo, git, on_progress)?;
+        // git set to only fast-forward (`pull.ff = only`), and nothing said about rebasing,
+        // refuses to pull a branch with commits of its own, which is what syncing is for.
+        // Rather than a merge commit, which that setting is there to avoid, its own commits
+        // go on top of what arrived: they're only here, so nobody else has them yet.
+        let config = repo.config_snapshot();
+        let ff_only = config
+            .string("pull.ff")
+            .is_some_and(|value| value == "only");
+        let says_rebase = config.string("pull.rebase").is_some()
+            || config
+                .string(format!("branch.{branch}.rebase").as_str())
+                .is_some();
+        pull_with(repo, git, on_progress, ff_only && !says_rebase)?;
     }
     let (ahead, _) = counts()?;
     if ahead > 0 {
-        push(repo, git, false, false, on_progress, extra)?;
+        push(repo, git, Force::No, false, on_progress, extra)?;
     }
     Ok(match (behind, ahead) {
         (0, 0) => format!("{branch} was already in sync with {upstream}"),
@@ -255,32 +284,45 @@ fn parse_counts(text: &str) -> (u32, u32) {
     (numbers.next().unwrap_or(0), numbers.next().unwrap_or(0))
 }
 
+/// How a push treats a remote branch it would replace commits of.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Force {
+    /// It doesn't: the remote branch must have everything that was pushed to it.
+    No,
+    /// It replaces what was there when it was last fetched (`--force-with-lease`), and
+    /// stops if someone else pushed since then.
+    Safe,
+    /// It replaces whatever is there, commits someone else pushed since the last fetch too.
+    /// They're fetched first, so the backup of what was replaced has them.
+    Overwrite,
+}
+
 /// Push the checked-out branch, setting its upstream if it has none.
-/// `force` uses `--force-with-lease`.
 pub(super) fn push(
     repo: &gix::Repository,
     git: &Git,
-    force: bool,
+    force: Force,
     no_verify: bool,
     on_progress: &dyn Fn(Progress),
     extra: &mut Extra,
 ) -> Result<String> {
     let branch = current_branch(repo)?;
+    let forced = force != Force::No;
     let mut args = vec!["push".to_owned(), "--progress".to_owned()];
-    if force {
+    if forced {
         args.push("--force-with-lease".into());
     }
     // Without the repository's pre-push hook, when it stopped the push.
     if no_verify {
         args.push("--no-verify".into());
     }
-    // What a force push replaces on the remote, to keep a backup of.
-    let mut replaced = None;
+    // The remote branch's copy here, which a force push's lease is against.
+    let mut tracking = None;
     let remote = match push_target(repo, &branch) {
         Some((remote, remote_branch)) => {
-            if force && let Some(leaf) = remote_branch.strip_prefix("refs/heads/") {
-                let tracking = format!("refs/remotes/{remote}/{leaf}");
-                replaced = ref_id(repo, &tracking).map(|id| (tracking, id));
+            if forced && let Some(leaf) = remote_branch.strip_prefix("refs/heads/") {
+                let refspec = format!("+{remote_branch}:refs/remotes/{remote}/{leaf}");
+                tracking = Some((format!("refs/remotes/{remote}/{leaf}"), refspec));
             }
             args.extend([remote.clone(), format!("HEAD:{remote_branch}")]);
             remote
@@ -291,13 +333,34 @@ pub(super) fn push(
             remote
         }
     };
+    // Replacing whatever is there: what's there is fetched first, so the lease is against
+    // it, and the backup keeps it.
+    let fetch_remote_branch =
+        |refspec: &str| git.run_progress(&["fetch", "--progress", &remote, refspec], on_progress);
+    if force == Force::Overwrite
+        && let Some((_, refspec)) = &tracking
+    {
+        fetch_remote_branch(refspec)?;
+    }
+    // What a force push replaces on the remote, to keep a backup of.
+    let replaced = tracking
+        .as_ref()
+        .and_then(|(name, _)| ref_id(repo, name).map(|id| (name.clone(), id)));
     // The files the pushed commits change (the ones the remote doesn't have yet): after the
     // push, locks on them can be released.
     let pushed_files = files_not_on(git, &remote);
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
-    let output = git
-        .run_progress(&args, on_progress)
-        .map_err(|error| super::hooks::explain(git, error, true))?;
+    let output = git.run_progress(&args, on_progress).map_err(|error| {
+        // A safe force push stopped for commits someone else pushed: fetch them, so they
+        // can be seen (and, if wanted, replaced too).
+        if force == Force::Safe
+            && error.to_string().contains("(stale info)")
+            && let Some((_, refspec)) = &tracking
+        {
+            let _ = fetch_remote_branch(refspec);
+        }
+        super::hooks::explain(git, error, true)
+    })?;
     extra.pushed_files = pushed_files;
     if let Some((tracking, id)) = replaced
         && ref_id(repo, "HEAD") != Some(id)
@@ -307,8 +370,71 @@ pub(super) fn push(
     extra.pull_request = links::pull_request_url(&output.messages);
     Ok(format!(
         "{} {branch} to {remote}",
-        if force { "Force pushed" } else { "Pushed" }
+        if forced { "Force pushed" } else { "Pushed" }
     ))
+}
+
+/// Commits on a remote branch that the checked-out branch doesn't have, and that weren't on
+/// it at `since` (where it was before the last fetch): what someone else pushed to it.
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct UnseenCommits {
+    pub count: u32,
+    /// The newest few.
+    pub commits: Vec<UnseenCommit>,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct UnseenCommit {
+    pub id: String,
+    pub summary: String,
+    pub author: String,
+    /// Seconds since 1970.
+    pub time: i64,
+}
+
+/// The commits on `reference` (a remote branch: `origin/main`) that HEAD doesn't have, and
+/// that `since` (a commit) doesn't either.
+pub fn unseen_commits(path: &Path, reference: &str, since: Option<&str>) -> Result<UnseenCommits> {
+    let repo = gix::discover(path).map_err(|e| Error::not_a_repository(path, e))?;
+    let workdir = repo.workdir().unwrap_or(repo.git_dir()).to_owned();
+    let git = Git::find(workdir)?;
+    let mut range = vec![reference.to_owned(), "^HEAD".to_owned()];
+    if let Some(since) = since.filter(|id| id.chars().all(|c| c.is_ascii_hexdigit())) {
+        range.push(format!("^{since}"));
+    }
+    let range: Vec<&str> = range.iter().map(String::as_str).collect();
+    let count = git
+        .run(&[&["rev-list", "--count", "--end-of-options"][..], &range].concat())?
+        .trim()
+        .parse()
+        .unwrap_or(0);
+    let commits = git
+        .run(
+            &[
+                &[
+                    "log",
+                    "--max-count=5",
+                    "--format=%H%x1f%s%x1f%an%x1f%ct",
+                    "--end-of-options",
+                ][..],
+                &range,
+            ]
+            .concat(),
+        )?
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.split('\x1f');
+            Some(UnseenCommit {
+                id: parts.next()?.to_owned(),
+                summary: parts.next()?.to_owned(),
+                author: parts.next()?.to_owned(),
+                time: parts.next()?.trim().parse().ok()?,
+            })
+        })
+        .collect();
+    Ok(UnseenCommits { count, commits })
 }
 
 /// The files changed by the commits on HEAD that `remote` doesn't have yet.

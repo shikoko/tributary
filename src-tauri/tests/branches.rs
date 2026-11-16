@@ -506,6 +506,7 @@ fn keeps_backups_of_changed_branches_and_restores_them() {
         Action::Push {
             force: true,
             no_verify: false,
+            overwrite: false,
         },
     )
     .unwrap();

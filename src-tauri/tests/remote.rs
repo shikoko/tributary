@@ -20,7 +20,8 @@ fn pushes_fetches_and_pulls() {
             &alice,
             Action::Push {
                 force: false,
-                no_verify: false
+                no_verify: false,
+                overwrite: false,
             }
         )
         .unwrap(),
@@ -46,6 +47,7 @@ fn pushes_fetches_and_pulls() {
         Action::Push {
             force: false,
             no_verify: false,
+            overwrite: false,
         },
     );
     assert_eq!(pushed.pushed_files, vec!["b.txt", "c.txt"]);
@@ -55,6 +57,7 @@ fn pushes_fetches_and_pulls() {
         Action::Push {
             force: true,
             no_verify: false,
+            overwrite: false,
         },
     )
     .unwrap();
@@ -81,6 +84,7 @@ fn pushes_fetches_and_pulls() {
         Action::Push {
             force: false,
             no_verify: false,
+            overwrite: false,
         },
     )
     .unwrap();
@@ -100,6 +104,7 @@ fn fetch_latest_only_fast_forwards() {
     let push = || Action::Push {
         force: false,
         no_verify: false,
+        overwrite: false,
     };
     run(&alice, push()).unwrap();
     let mut bob = TempRepo::clone_of("latest-bob", &remote);
@@ -196,6 +201,7 @@ fn syncs_by_pulling_then_pushing_and_stops_for_a_rewritten_branch() {
     let push = || Action::Push {
         force: false,
         no_verify: false,
+        overwrite: false,
     };
     run(&alice, push()).unwrap();
     let mut bob = TempRepo::clone_of("sync-bob", &remote);
@@ -236,6 +242,103 @@ fn syncs_by_pulling_then_pushing_and_stops_for_a_rewritten_branch() {
 }
 
 #[test]
+fn syncs_by_rebasing_when_git_only_fast_forwards() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("sync-ff-remote.git");
+    let mut alice = TempRepo::new("sync-ff-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "First");
+    let push = || Action::Push {
+        force: false,
+        no_verify: false,
+        overwrite: false,
+    };
+    run(&alice, push()).unwrap();
+    let mut bob = TempRepo::clone_of("sync-ff-bob", &remote);
+    bob.git(&["config", "user.name", "Bob"]);
+    bob.git(&["config", "user.email", "bob@example.com"]);
+    // Pulls only fast-forward here: git refuses to pull a branch with commits of its own.
+    bob.git(&["config", "pull.ff", "only"]);
+
+    let hers = alice.commit("b.txt", "From Alice");
+    run(&alice, push()).unwrap();
+    bob.commit("bob.txt", "From Bob");
+    assert_eq!(
+        run(&bob, Action::Sync).unwrap(),
+        "Synced main: pulled 1 commit, then pushed 1 commit"
+    );
+    // Bob's commit went on top of Alice's, without a merge commit, and was pushed.
+    assert_eq!(bob.git(&["rev-parse", "main~1"]), hers);
+    assert_eq!(bob.git(&["log", "-1", "--format=%s"]), "From Bob");
+    assert_eq!(bob.git(&["rev-list", "--merges", "--count", "main"]), "0");
+    assert_eq!(
+        remote.git(&["rev-parse", "main"]),
+        bob.git(&["rev-parse", "main"])
+    );
+}
+
+#[test]
+fn a_safe_force_push_stops_for_someone_elses_commits_and_overwrite_replaces_them() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("overwrite-remote.git");
+    let mut alice = TempRepo::new("overwrite-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "First");
+    let push = |force, overwrite| Action::Push {
+        force,
+        no_verify: false,
+        overwrite,
+    };
+    run(&alice, push(false, false)).unwrap();
+    let bob = TempRepo::clone_of("overwrite-bob", &remote);
+    let bobs = |message: &str| {
+        bob.git(&[
+            "commit",
+            "--quiet",
+            "--allow-empty",
+            "--author=Bob <bob@example.com>",
+            "-m",
+            message,
+        ]);
+        bob.git(&["push", "--quiet", "origin", "main"]);
+        bob.git(&["rev-parse", "HEAD"])
+    };
+
+    // Alice rewrites her branch, and Bob pushes to it before she fetches.
+    alice.git(&["commit", "--quiet", "--amend", "-m", "First, reworded"]);
+    let mine = alice.git(&["rev-parse", "HEAD"]);
+    let seen = alice.git(&["rev-parse", "origin/main"]);
+    let his = bobs("From Bob");
+
+    // A safe force push stops, and fetches what he pushed, to be seen.
+    let error = run(&alice, push(true, false)).unwrap_err().to_string();
+    assert!(error.contains("(stale info)"), "{error}");
+    assert_eq!(remote.git(&["rev-parse", "main"]), his);
+    assert_eq!(alice.git(&["rev-parse", "origin/main"]), his);
+    let unseen = actions::unseen_commits(alice.path(), "origin/main", Some(seen.as_str())).unwrap();
+    assert_eq!(unseen.count, 1);
+    assert_eq!(unseen.commits[0].id, his);
+    assert_eq!(unseen.commits[0].summary, "From Bob");
+    assert_eq!(unseen.commits[0].author, "Bob");
+    // Without `since`, the old version of Alice's own commit is there too.
+    let all = actions::unseen_commits(alice.path(), "origin/main", None).unwrap();
+    assert_eq!(all.count, 2);
+
+    // Bob pushes again; replacing everything replaces that too, keeping a backup of it.
+    let again = bobs("From Bob, again");
+    assert_eq!(
+        run(&alice, push(true, true)).unwrap(),
+        "Force pushed main to origin"
+    );
+    assert_eq!(remote.git(&["rev-parse", "main"]), mine);
+    let backups = actions::backups(alice.path()).unwrap();
+    assert!(
+        backups.iter().any(|backup| backup.id == again),
+        "no backup of what was replaced: {backups:?}"
+    );
+}
+
+#[test]
 fn force_push_replaces_the_remote_branch() {
     let _turn = remote_turn();
     let remote = TempRepo::bare("force-remote.git");
@@ -248,6 +351,7 @@ fn force_push_replaces_the_remote_branch() {
         Action::Push {
             force: false,
             no_verify: false,
+            overwrite: false,
         },
     )
     .unwrap();
@@ -260,7 +364,8 @@ fn force_push_replaces_the_remote_branch() {
             &alice,
             Action::Push {
                 force: false,
-                no_verify: false
+                no_verify: false,
+                overwrite: false,
             }
         )
         .is_err(),
@@ -272,7 +377,8 @@ fn force_push_replaces_the_remote_branch() {
             &alice,
             Action::Push {
                 force: true,
-                no_verify: false
+                no_verify: false,
+                overwrite: false,
             }
         )
         .unwrap(),
@@ -372,7 +478,8 @@ fn pull_and_push_need_a_branch() {
             &repo,
             Action::Push {
                 force: false,
-                no_verify: false
+                no_verify: false,
+                overwrite: false,
             }
         )
         .unwrap_err()
@@ -400,6 +507,7 @@ fn reports_progress_and_remembers_upstreams() {
         Action::Push {
             force: false,
             no_verify: false,
+            overwrite: false,
         },
         &|progress| phases.borrow_mut().push(progress.phase),
     )
@@ -552,6 +660,7 @@ fn passes_on_the_pull_request_link_the_remote_suggests() {
         Action::Push {
             force: false,
             no_verify: false,
+            overwrite: false,
         },
         &|_| {},
     )
@@ -871,6 +980,7 @@ fn adds_renames_repoints_and_removes_remotes() {
         Action::Push {
             force: false,
             no_verify: false,
+            overwrite: false,
         },
     )
     .unwrap();

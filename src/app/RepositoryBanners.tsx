@@ -21,6 +21,8 @@ import type { Repository } from "./useRepository";
 import type { RepositorySettings } from "./useRepositorySettings";
 import type { Selection } from "./useSelection";
 import type { Submodules } from "./useSubmodules";
+import type { OpenDialog } from "../menus/context";
+import { RepoErrorBanner } from "./RepoErrorBanner";
 import { Button } from "../components/ui/Button";
 
 interface Props {
@@ -47,6 +49,7 @@ interface Props {
   since: SinceLastHere | null;
   goTo: (id: string) => void;
   dismissSince: () => void;
+  openDialog: (dialog: OpenDialog) => void;
 }
 
 /**
@@ -130,32 +133,17 @@ export function RepositoryBanners(props: Props) {
         </div>
       )}
       {error && !hook && (
-        <div className="error-banner inline" role="alert">
-          <span>{error.message}</span>
-          {error.retry && (
-            <button className="error-action" onClick={() => act(error.retry!)} disabled={running !== null}>
-              Stash changes and retry
-            </button>
-          )}
-          {error.anyway && (
-            <button
-              className="error-action"
-              onClick={() => act(error.anyway!, "download")}
-              disabled={running !== null}
-              title="Download them anyway: if the disk fills up, the download stops partway"
-            >
-              Download anyway
-            </button>
-          )}
-          {error.worktree && (
-            <button className="error-action" onClick={() => openWorktree(error.worktree!)}>
-              Open that worktree
-            </button>
-          )}
-          <Button kind="icon" onClick={() => setError(null)} aria-label="Dismiss">
-            <CloseIcon size={14} />
-          </Button>
-        </div>
+        <RepoErrorBanner
+          error={error}
+          snapshot={snapshot}
+          head={snapshot.headCommit ? selection.byId.get(snapshot.headCommit) : undefined}
+          running={running}
+          act={act}
+          openDialog={props.openDialog}
+          openWorktree={openWorktree}
+          goTo={props.goTo}
+          onDismiss={() => setError(null)}
+        />
       )}
       {lfsHealth.notice && (
         <LfsHealthBanner

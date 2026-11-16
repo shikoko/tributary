@@ -1,7 +1,7 @@
 // Cleaning up branches, and putting them back: prune candidates, backups and lost commits.
 import { invoke } from "@tauri-apps/api/core";
-import type { Backup, BackupEvent, BranchTip, CommitBrief, LostCommits, PruneCandidate, PruneInfo } from "./generated";
-export type { Backup, BackupEvent, BranchTip, CommitBrief, LostCommits, PruneCandidate, PruneInfo };
+import type { Backup, BackupEvent, BranchTip, CommitBrief, LostCommits, PruneCandidate, PruneInfo, UnseenCommit, UnseenCommits } from "./generated";
+export type { Backup, BackupEvent, BranchTip, CommitBrief, LostCommits, PruneCandidate, PruneInfo, UnseenCommit, UnseenCommits };
 
 /** Backups from the last 30 days, newest first. */
 export function branchBackups(path: string): Promise<Backup[]> {
@@ -11,6 +11,14 @@ export function branchBackups(path: string): Promise<Backup[]> {
 /** What deleting `reference` ("refs/heads/…" or "refs/remotes/…") would lose. */
 export function lostCommits(path: string, reference: string): Promise<LostCommits> {
   return invoke<LostCommits>("lost_commits", { path, reference });
+}
+
+/**
+ * What someone else pushed to `reference` (a remote branch: "origin/main") that the
+ * checked-out branch doesn't have, leaving out what was on it at `since`.
+ */
+export function unseenCommits(path: string, reference: string, since: string | null): Promise<UnseenCommits> {
+  return invoke<UnseenCommits>("unseen_commits", { path, reference, since });
 }
 
 /**

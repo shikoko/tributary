@@ -39,7 +39,7 @@ export type Action =
   | { kind: "pull" }
   | { kind: "fetchLatest" }
   | { kind: "sync" }
-  | { kind: "push"; force: boolean; noVerify?: boolean }
+  | { kind: "push"; force: boolean; noVerify?: boolean; overwrite?: boolean }
   | { kind: "shelve"; paths?: Array<string>; description: string; keep?: boolean }
   | { kind: "restoreFromHistory"; reference: string; paths?: Array<string> }
   | { kind: "openShelf"; reference: string }
@@ -2849,6 +2849,28 @@ export type UnitySetup = {
    * The program git runs to merge them, when set up.
    */
   configuredTool: string | null;
+};
+
+export type UnseenCommit = {
+  id: string;
+  summary: string;
+  author: string;
+  /**
+   * Seconds since 1970.
+   */
+  time: number;
+};
+
+/**
+ * Commits on a remote branch that the checked-out branch doesn't have, and that weren't on
+ * it at `since` (where it was before the last fetch): what someone else pushed to it.
+ */
+export type UnseenCommits = {
+  count: number;
+  /**
+   * The newest few.
+   */
+  commits: Array<UnseenCommit>;
 };
 
 /**

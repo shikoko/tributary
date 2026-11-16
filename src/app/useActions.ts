@@ -131,7 +131,8 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       let stopListening: (() => void) | undefined;
       let showTimer: number | undefined;
       if (kind && kind !== "other") {
-        const label = kind === "checkout" ? `Checking out ${target}` : kind === "discard" ? (discarding ?? RUNNING_LABELS.discard) : RUNNING_LABELS[kind];
+        const forced = action.kind === "push" && action.force;
+        const label = kind === "checkout" ? `Checking out ${target}` : kind === "discard" ? (discarding ?? RUNNING_LABELS.discard) : forced ? "Force pushing" : RUNNING_LABELS[kind];
         setProgress(() => ({ label, value: null, visible: false, cancellable: kind !== "checkout" && kind !== "discard" }));
         showTimer = window.setTimeout(() => setProgress((current) => current && { ...current, visible: true }), PROGRESS_DELAY);
         stopListening = await onProgress((value, path) => {
@@ -172,8 +173,8 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
         if (outcome?.message) callbacks.current.record?.(before.path, outcome.message, action, undoOf(action, outcome, before));
         return failure === null;
       }
-      // Reload even after a failure (a pull with conflicts still changes things), and only
-      // then show the result, since reloading clears old errors.
+      // Reload even after a failure (a pull with conflicts still changes things), then show
+      // the result.
       await load(before.path, "refresh", Math.max(PAGE_SIZE, before.commits.length));
       after(action, kind, outcome);
 
@@ -200,7 +201,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
           hookFailure(message) && (action.kind === "commit" || action.kind === "push") ? { ...action, noVerify: true } : undefined;
         // Too little disk space, it seemed: offer to go ahead all the same.
         const anyway: Action | undefined = message.startsWith(NOT_ENOUGH_SPACE) && action.kind !== "anyDiskSpace" ? { kind: "anyDiskSpace", action } : undefined;
-        setError({ message, retry: anyway ? undefined : retry, worktree, skipHooks, anyway });
+        setError({ message, retry: anyway ? undefined : retry, worktree, skipHooks, anyway, action, upstreamWas: before.upstream?.commit ?? null });
         return false;
       }
       const { message, pullRequest } = outcome;

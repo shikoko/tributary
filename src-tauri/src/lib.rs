@@ -93,6 +93,7 @@ pub fn run() {
             commands::prune_candidates,
             commands::branch_backups,
             commands::lost_commits,
+            commands::unseen_commits,
             commands::lfs_locks,
             commands::file_history,
             commands::file_checks,

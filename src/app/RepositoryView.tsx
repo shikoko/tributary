@@ -466,6 +466,7 @@ export function RepositoryView(props: Props) {
         }}
         showWholeHistory={() => preferences.setFirstParentOnly(false)}
         openWorktree={props.openTab}
+        openDialog={openDialog}
       />
       {preferences.simpleMode ? (
         <SimpleView

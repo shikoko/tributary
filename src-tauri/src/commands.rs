@@ -177,6 +177,17 @@ pub async fn lost_commits(path: String, reference: String) -> Result<actions::Lo
     blocking(move || actions::lost_commits(&PathBuf::from(path), &reference)).await
 }
 
+/// What someone else pushed to a remote branch since it was at `since`, that HEAD doesn't have.
+#[tauri::command]
+pub async fn unseen_commits(
+    path: String,
+    reference: String,
+    since: Option<String>,
+) -> Result<actions::UnseenCommits> {
+    blocking(move || actions::unseen_commits(&PathBuf::from(path), &reference, since.as_deref()))
+        .await
+}
+
 /// The files locked with Git LFS, and who locked them.
 #[tauri::command]
 pub async fn lfs_locks(path: String) -> Result<locks::Locks> {

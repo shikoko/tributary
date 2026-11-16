@@ -78,6 +78,7 @@ fn generate() -> String {
     c.visit::<actions::LfsSettings>();
     c.visit::<actions::LfsStorage>();
     c.visit::<actions::LostCommits>();
+    c.visit::<actions::UnseenCommits>();
     c.visit::<actions::MergeCheck>();
     c.visit::<actions::Outcome>();
     c.visit::<actions::Overlap>();

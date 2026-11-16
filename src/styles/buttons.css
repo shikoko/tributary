@@ -127,6 +127,147 @@
   white-space: pre-wrap;
 }
 
+/*
+ * An error in plain words: what happened, why, then each thing that can be done with what it
+ * does, and git's own message under a toggle.
+ */
+.error-banner.error-explained {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-10);
+  margin: var(--space-8) var(--space-12) 0;
+}
+
+.error-explained .error-icon {
+  flex: none;
+  margin-top: var(--space-2);
+  color: var(--danger-strong-text);
+}
+
+.error-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.error-headline {
+  color: var(--danger-bright-text);
+  font-size: var(--type-base);
+  font-weight: 650;
+}
+
+.error-detail {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.error-choices {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-8) var(--space-14);
+  align-items: center;
+  margin-top: var(--space-8);
+}
+
+.error-choices-title {
+  grid-column: 1 / -1;
+  color: var(--text-faint);
+  font-size: var(--type-xs);
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.error-choices .error-action {
+  justify-self: stretch;
+  margin-left: 0;
+}
+
+.error-says {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.error-says b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* The commits a force push stopped for. */
+.error-commits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.error-commits li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.error-commits code {
+  flex: none;
+  font-size: var(--type-xs);
+}
+
+.error-commits strong {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.error-commits span {
+  flex: none;
+}
+
+.error-raw {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.error-raw-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.error-raw .link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--danger-strong-text);
+  font-weight: 600;
+}
+
+.error-raw .error-raw-copy {
+  color: var(--text-muted);
+}
+
+.error-raw-toggle svg {
+  transition: transform 0.12s ease-out;
+}
+
+.error-raw-toggle svg.open {
+  transform: rotate(90deg);
+}
+
+.error-git {
+  font-size: var(--type-xs);
+}
+
 /* A hook stopped a commit or push: what it printed, readably. */
 .error-banner.hook-failure {
   align-items: flex-start;

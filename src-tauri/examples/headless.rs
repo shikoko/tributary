@@ -151,6 +151,15 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             let reference: String = arg(args, "reference")?;
             to_json(actions::lost_commits(&path()?, &reference)?)
         }
+        "unseen_commits" => {
+            let reference: String = arg(args, "reference")?;
+            let since: Option<String> = optional(args, "since")?;
+            to_json(actions::unseen_commits(
+                &path()?,
+                &reference,
+                since.as_deref(),
+            )?)
+        }
         "lfs_locks" => to_json(locks::locks(&path()?)?),
         "file_history" => {
             let file: String = arg(args, "file")?;

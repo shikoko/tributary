@@ -14,7 +14,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { buildDemos, demoEnv, studioCommitRuns, STUDIO_PULL_REQUEST_CONVERSATIONS, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "./demo.mjs";
 import { CONTROLS, describe as describeAligned, EXCEPT, misaligned } from "./aligned.mjs";
 import { describeOffCentre, moving, offCentre as offInPixels, probe, restore } from "../e2e/centred.mjs";
@@ -2179,6 +2179,10 @@ try {
     await dismissToast();
     await dragOnto(inSidebar);
     await page.locator(".error-banner", { hasText: "pick-target already has" }).waitFor({ timeout: 10_000 });
+    // A refresh (as after a fetch, or when files change) leaves it there to be read.
+    await page.keyboard.press("F5");
+    await page.waitForTimeout(1500);
+    expect(await page.locator(".error-banner", { hasText: "pick-target already has" }).isVisible(), "a refresh took the error away");
     await page.locator(".error-banner").getByRole("button", { name: "Dismiss" }).click();
     git("branch", "-D", "pick-source", "pick-target");
     await page.keyboard.press("F5");
@@ -2199,7 +2203,7 @@ try {
     await card.waitFor({ state: "detached", timeout: 5000 });
   });
 
-  await step("syncs a branch with commits on both sides, and asks for a force push when it was rewritten", async () => {
+  await step("syncs a branch with commits on both sides, and force pushes it when it was rewritten", async () => {
     const was = (await page.locator('.tabs > .tab[aria-selected="true"]').textContent()).trim();
     await page.locator(".tab", { hasText: /^notebook$/ }).dispatchEvent("mousedown", { button: 0 });
     await row("Export notes as Markdown").waitFor({ timeout: 10_000 });
@@ -2207,7 +2211,9 @@ try {
     // A teammate pushes a commit of their own to main.
     const teammate = join(folder, "sync-teammate");
     execFileSync("git", ["clone", "-q", git("remote", "get-url", "origin"), teammate]);
-    const theirs = (...args) => execFileSync("git", ["-C", teammate, "-c", "user.name=Lea Fischer", "-c", "user.email=lea@example.com", ...args], { encoding: "utf8" }).trim();
+    // Lea's commits are hers, whatever identity git has in the environment here.
+    const lea = { GIT_AUTHOR_NAME: "Lea Fischer", GIT_AUTHOR_EMAIL: "lea@example.com", GIT_COMMITTER_NAME: "Lea Fischer", GIT_COMMITTER_EMAIL: "lea@example.com" };
+    const theirs = (...args) => execFileSync("git", ["-C", teammate, ...args], { encoding: "utf8", env: { ...process.env, ...lea } }).trim();
     writeFileSync(join(teammate, "TEAM.md"), "Who looks after what.\n");
     theirs("add", "TEAM.md");
     theirs("commit", "-qm", "Say who looks after what");
@@ -2244,7 +2250,57 @@ try {
     await dialog.getByText("Sync stopped.", { exact: false }).waitFor({ timeout: 20_000 });
     await dialog.getByRole("button", { name: "Cancel" }).click();
     expect(git("rev-parse", "origin/main") !== git("rev-parse", "main"), "something was pushed");
+    // Force pushed, the dialog goes and the push shows its progress, like any push. A slow
+    // pre-push hook gives it time to show.
+    const theirTip = git("rev-parse", "origin/main");
+    const hook = join(demos.notebook, git("rev-parse", "--git-path", "hooks/pre-push"));
+    mkdirSync(dirname(hook), { recursive: true });
+    writeFileSync(hook, "#!/bin/sh\nsleep 2\n");
+    chmodSync(hook, 0o755);
+    await sync.click();
+    await dialog.getByText("Sync stopped.", { exact: false }).waitFor({ timeout: 20_000 });
+    // main is protected here: its name is typed first.
+    await dialog.getByLabel("Type main to confirm").fill("main");
+    await dialog.getByRole("button", { name: "Force push", exact: true }).click();
+    await dialog.waitFor({ state: "detached", timeout: 5000 });
+    await page.locator(".progress-strip", { hasText: "Force pushing" }).waitFor({ timeout: 5000 });
+    await page.locator(".toast", { hasText: "Force pushed main to origin" }).waitFor({ timeout: 20_000 });
+    expect(git("rev-parse", "origin/main") === git("rev-parse", "main"), "main wasn't force pushed");
+    await dismissToast();
+    rmSync(hook);
+    // The teammate pushes again before main is fetched, and main is amended again: a force
+    // push stops for the teammate's commit, says whose it is, and lists it.
+    theirs("fetch", "-q");
+    theirs("reset", "-q", "--hard", "origin/main");
+    writeFileSync(join(teammate, "TEAM.md"), "Who looks after what, when, and why.\n");
+    theirs("commit", "-qam", "Say why, too");
+    theirs("push", "-q", "origin", "HEAD:main");
+    const theirNew = theirs("rev-parse", "HEAD");
+    git("-c", "user.name=Sam Okafor", "-c", "user.email=sam@example.com", "commit", "-q", "--amend", "--only", "--allow-empty", "-m", "Sync with the team, amended again");
+    await page.keyboard.press("Control+k");
+    await page.getByRole("dialog", { name: "Commands" }).locator("input").fill("force push");
+    await page.keyboard.press("Enter");
+    await dialog.getByLabel("Type main to confirm").fill("main");
+    expect(!(await dialog.getByRole("checkbox").isChecked()), "the box to replace someone else's commits starts ticked");
+    await dialog.getByRole("button", { name: "Force push", exact: true }).click();
+    const stopped = page.locator(".error-explained", { hasText: "Force push stopped: origin/main has a commit you haven't fetched, by Lea Fischer" });
+    await stopped.locator(".error-commits li", { hasText: "Say why, too" }).waitFor({ timeout: 20_000 });
+    expect(git("rev-parse", "origin/main") === theirNew, "the teammate's commit wasn't fetched to be seen");
+    expect(git("ls-remote", "origin", "refs/heads/main").startsWith(theirNew), "the safe force push replaced the teammate's commit");
+    // git's own message is there too, behind a toggle.
+    await stopped.getByRole("button", { name: "Show git's message" }).click();
+    await stopped.locator(".error-git", { hasText: "stale info" }).waitFor({ timeout: 5000 });
+    // Force push anyway…: the dialog again, with the box ticked; it replaces the commit too.
+    await stopped.getByRole("button", { name: "Force push anyway…" }).click();
+    await dialog.getByLabel("Type main to confirm").fill("main");
+    expect(await dialog.getByRole("checkbox").isChecked(), "the box to replace someone else's commits wasn't ticked");
+    await dialog.getByRole("button", { name: "Force push anyway" }).click();
+    await page.locator(".toast", { hasText: "Force pushed main to origin" }).waitFor({ timeout: 20_000 });
+    expect(git("ls-remote", "origin", "refs/heads/main").startsWith(git("rev-parse", "main")), "main wasn't force pushed over the teammate's commit");
+    expect(!(await stopped.isVisible()), "the error stayed after the force push");
+    await dismissToast();
     // Back as it was before the amend, for the steps after this one (the working files as they are).
+    git("push", "-q", "--force", "origin", `${theirTip}:main`);
     git("reset", "-q", "--soft", pushed);
     await page.keyboard.press("F5");
     await page.locator(".tabs > .tab[data-path]").filter({ hasText: new RegExp(`^${was}$`) }).dispatchEvent("mousedown", { button: 0 });
