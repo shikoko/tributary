@@ -94,6 +94,7 @@ pub fn run() {
             commands::branch_backups,
             commands::lost_commits,
             commands::unseen_commits,
+            commands::upstream_choices,
             commands::lfs_locks,
             commands::file_history,
             commands::file_checks,

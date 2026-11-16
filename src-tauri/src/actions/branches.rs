@@ -1,7 +1,11 @@
 //! Checking out, creating, deleting, renaming and resetting branches.
 
+use std::path::Path;
+
 use gix::ObjectId;
 use gix::bstr::ByteSlice;
+use serde::Serialize;
+use ts_rs::TS;
 
 use super::BranchTip;
 use super::backups::{BackupEvent, back_up, split_remote_branch};
@@ -413,4 +417,176 @@ pub(super) fn rename_branch(
     check_new_branch_name(repo, git, new_name)?;
     git.run(&["branch", "--move", &name, new_name])?;
     Ok(format!("Renamed {name} to {new_name}"))
+}
+
+/// Make `branch` pull from and push to `upstream` (a remote branch: "origin/main"), or to
+/// none; with `rename_to`, rename it too (its remote branch goes with it).
+pub(super) fn set_upstream(
+    repo: &gix::Repository,
+    git: &Git,
+    branch: String,
+    upstream: Option<String>,
+    rename_to: Option<String>,
+) -> Result<String> {
+    require_ref(repo, &format!("refs/heads/{branch}"), &branch)?;
+    let rename_to = rename_to
+        .map(|name| name.trim().to_owned())
+        .filter(|name| !name.is_empty() && *name != branch);
+    if let Some(name) = &rename_to {
+        check_new_branch_name(repo, git, name)?;
+    }
+    match &upstream {
+        Some(upstream) => {
+            require_ref(repo, &format!("refs/remotes/{upstream}"), upstream)?;
+            git.run(&["branch", &format!("--set-upstream-to={upstream}"), &branch])?;
+        }
+        None => {
+            git.run(&["branch", "--unset-upstream", &branch])?;
+        }
+    }
+    let name = match &rename_to {
+        Some(name) => {
+            git.run(&["branch", "--move", &branch, name])?;
+            name.clone()
+        }
+        None => branch.clone(),
+    };
+    Ok(match (&upstream, &rename_to) {
+        (Some(upstream), Some(name)) => {
+            format!("Renamed {branch} to {name}, which now goes with {upstream}")
+        }
+        (Some(upstream), None) => format!("{name} now goes with {upstream}"),
+        (None, _) => format!("{name} no longer goes with a remote branch"),
+    })
+}
+
+/// What a branch whose remote branch is gone (renamed or deleted on the remote) could go
+/// with instead: the remote's branches, and the likely one.
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct UpstreamChoices {
+    /// The remote the branch goes with: "origin".
+    pub remote: String,
+    /// The remote branch it went with, which is gone: "origin/master".
+    pub gone: String,
+    /// The remote's main branch, as the remote says now ("origin/main"), if known.
+    pub default_branch: Option<String>,
+    /// The likely one: the remote branch with the branch's own name, or else the remote's
+    /// main branch.
+    pub suggested: Option<String>,
+    /// The suggested one has every commit the gone one had (when that's known here).
+    pub suggested_has_all: bool,
+    /// The remote's branches, the suggested one first, then the newest first.
+    pub branches: Vec<RemoteBranchChoice>,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteBranchChoice {
+    /// "origin/main".
+    pub name: String,
+    /// Its newest commit's summary and author, and when it was committed (seconds).
+    pub summary: String,
+    pub author: String,
+    pub time: i64,
+}
+
+/// See [`UpstreamChoices`]. `branch` is a local branch with a remote branch configured.
+pub fn upstream_choices(path: &Path, branch: &str) -> Result<UpstreamChoices> {
+    let repo = gix::discover(path).map_err(|e| Error::not_a_repository(path, e))?;
+    let workdir = repo.workdir().unwrap_or(repo.git_dir()).to_owned();
+    let git = Git::find(workdir)?;
+    let config = |key: String| {
+        git.run(&["config", "--get", &key])
+            .ok()
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    };
+    let remote = config(format!("branch.{branch}.remote"))
+        .ok_or_else(|| format!("{branch} doesn't go with a remote branch."))?;
+    let merge = config(format!("branch.{branch}.merge"))
+        .ok_or_else(|| format!("{branch} doesn't go with a remote branch."))?;
+    let gone = format!(
+        "{remote}/{}",
+        merge.strip_prefix("refs/heads/").unwrap_or(&merge)
+    );
+    let exists = |name: &str| ref_id(&repo, &format!("refs/remotes/{name}")).is_some();
+    // The remote's main branch, as it says now (it may have been renamed there too), or as
+    // it was last fetched.
+    let default_branch = git
+        .run(&["ls-remote", "--symref", "--", &remote, "HEAD"])
+        .ok()
+        .and_then(|output| {
+            output.lines().find_map(|line| {
+                let target = line.strip_prefix("ref: ")?.split('\t').next()?;
+                Some(format!("{remote}/{}", target.strip_prefix("refs/heads/")?))
+            })
+        })
+        .or_else(|| {
+            let target = git
+                .run(&[
+                    "symbolic-ref",
+                    "--quiet",
+                    &format!("refs/remotes/{remote}/HEAD"),
+                ])
+                .ok()?;
+            Some(target.trim().strip_prefix("refs/remotes/")?.to_owned())
+        })
+        .filter(|name| exists(name));
+    let same_name = format!("{remote}/{branch}");
+    let suggested = [Some(same_name), default_branch.clone()]
+        .into_iter()
+        .flatten()
+        .find(|name| *name != gone && exists(name));
+    // Whether it has everything the gone one had: known while its copy here is left.
+    let suggested_has_all = match (&suggested, ref_id(&repo, &format!("refs/remotes/{gone}"))) {
+        (Some(name), Some(old)) => git
+            .run(&[
+                "merge-base",
+                "--is-ancestor",
+                &old.to_string(),
+                &format!("refs/remotes/{name}"),
+            ])
+            .is_ok(),
+        _ => false,
+    };
+    let listed = git.run(&[
+        "for-each-ref",
+        "--sort=-committerdate",
+        "--count=200",
+        "--format=%(refname:short)%1f%(subject)%1f%(authorname)%1f%(committerdate:unix)%1f%(symref)",
+        &format!("refs/remotes/{remote}/"),
+    ])?;
+    let mut branches: Vec<RemoteBranchChoice> = listed
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.split('\x1f');
+            let name = parts.next()?.to_owned();
+            let summary = parts.next()?.to_owned();
+            let author = parts.next()?.to_owned();
+            let time = parts.next()?.trim().parse().ok()?;
+            // Not the remote's HEAD (a pointer to another branch), nor the gone one.
+            let symref = parts.next().unwrap_or("");
+            (symref.is_empty() && name != gone && name != remote).then_some(RemoteBranchChoice {
+                name,
+                summary,
+                author,
+                time,
+            })
+        })
+        .collect();
+    if let Some(name) = &suggested
+        && let Some(at) = branches.iter().position(|choice| choice.name == *name)
+    {
+        let first = branches.remove(at);
+        branches.insert(0, first);
+    }
+    Ok(UpstreamChoices {
+        remote,
+        gone,
+        default_branch,
+        suggested,
+        suggested_has_all,
+        branches,
+    })
 }

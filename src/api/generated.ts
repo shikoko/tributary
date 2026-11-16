@@ -73,6 +73,7 @@ export type Action =
   | { kind: "restoreBackup"; reference: string }
   | { kind: "removeBackup"; reference: string }
   | { kind: "renameBranch"; name: string; newName: string }
+  | { kind: "setUpstream"; branch: string; upstream?: string | null; renameTo?: string | null }
   | { kind: "merge"; target: string; mode?: MergeMode }
   | { kind: "rebase"; onto: string }
   | { kind: "cherryPick"; id: string }
@@ -1885,6 +1886,19 @@ export type ReleaseNotes = {
   commits: number;
 };
 
+export type RemoteBranchChoice = {
+  /**
+   * "origin/main".
+   */
+  name: string;
+  /**
+   * Its newest commit's summary and author, and when it was committed (seconds).
+   */
+  summary: string;
+  author: string;
+  time: number;
+};
+
 /**
  * A remote and where it is.
  */
@@ -2905,6 +2919,38 @@ export type Upstream = {
    * Where it points, or `None` if it hasn't been fetched yet.
    */
   commit: string | null;
+};
+
+/**
+ * What a branch whose remote branch is gone (renamed or deleted on the remote) could go
+ * with instead: the remote's branches, and the likely one.
+ */
+export type UpstreamChoices = {
+  /**
+   * The remote the branch goes with: "origin".
+   */
+  remote: string;
+  /**
+   * The remote branch it went with, which is gone: "origin/master".
+   */
+  gone: string;
+  /**
+   * The remote's main branch, as the remote says now ("origin/main"), if known.
+   */
+  defaultBranch: string | null;
+  /**
+   * The likely one: the remote branch with the branch's own name, or else the remote's
+   * main branch.
+   */
+  suggested: string | null;
+  /**
+   * The suggested one has every commit the gone one had (when that's known here).
+   */
+  suggestedHasAll: boolean;
+  /**
+   * The remote's branches, the suggested one first, then the newest first.
+   */
+  branches: Array<RemoteBranchChoice>;
 };
 
 /**

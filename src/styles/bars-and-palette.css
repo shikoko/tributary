@@ -339,6 +339,24 @@ body.dragging-commit * {
   pointer-events: none;
 }
 
+/* What the thing under the pointer says (a branch's label, the checks' dot), above the commit. */
+.preview-hint {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-10);
+  padding-bottom: var(--space-10);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+  overflow-wrap: anywhere;
+}
+
+.preview-hint > div:first-child {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .preview-summary {
   font-weight: 650;
   overflow-wrap: anywhere;
@@ -379,6 +397,18 @@ body.dragging-commit * {
   margin-left: auto;
   color: var(--text-faint);
   font-family: var(--mono);
+  font-size: var(--type-xs);
+}
+
+.preview-meta .muted {
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+}
+
+.preview-dates {
+  margin-top: var(--space-4);
+  color: var(--text-muted);
   font-size: var(--type-xs);
 }
 

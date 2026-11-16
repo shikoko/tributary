@@ -18,6 +18,7 @@ import { compactTime, fullDate, shortId } from "../../lib/format";
 import type { RefPill } from "../../lib/refs";
 import type { SelectHow } from "../../lib/selection";
 import { Avatar } from "../Avatar";
+import { HintsInCardContext, useHint } from "../hints";
 import { ChangeCounts } from "../ChangeCounts";
 import { laneX, type GraphMetrics } from "../graphPainter";
 import { RefPills } from "../RefPills";
@@ -89,6 +90,9 @@ export const ListRow = memo(function ListRow(props: RowProps) {
   // A line from the label to the commit's node in the graph (which can be narrower than its lane).
   const lane = laneX(commit.graph.column, metrics);
   const time = options.dateKind === "committed" ? commit.commitTime : commit.time;
+  // With the hover card on, it says what these would (see hints.ts).
+  const inCard = useContext(HintsInCardContext);
+  const hint = useHint();
   const dateTitle =
     commit.commitTime !== commit.time
       ? `Authored ${fullDate(commit.time)}\nCommitted ${fullDate(commit.commitTime)}`
@@ -169,7 +173,7 @@ export const ListRow = memo(function ListRow(props: RowProps) {
           <span
             className={`graph-node${head ? " head" : ""}${selected ? " selected" : ""}${lit ? " lit" : ""}`}
             style={{ left: lane, ["--lane" as string]: color }}
-            title={`${commit.authorName} <${commit.authorEmail}>`}
+            title={inCard ? undefined : `${commit.authorName} <${commit.authorEmail}>`}
           >
             <Avatar name={commit.authorName} email={commit.authorEmail} size={nodeAvatarSize(dense)} />
           </span>
@@ -182,7 +186,7 @@ export const ListRow = memo(function ListRow(props: RowProps) {
               ["--lane" as string]: color,
               ["--ci-offset" as string]: onDot ? "0px" : `${ciOffset({ avatar: authorNode, dense, head, merge: commit.parents.length > 1 })}px`,
             }}
-            title={`${describeCiState(ci)}: click to see them`}
+            {...hint(`${describeCiState(ci)}: click to see them`)}
             aria-label={describeCiState(ci)}
             // The row's own press has selected the commit; this opens its checks too.
             onClick={() => on().onShowChecks(commit)}
@@ -203,26 +207,26 @@ export const ListRow = memo(function ListRow(props: RowProps) {
         <>
           <div className="cell description">
             {bisectMark && (
-              <span className={`bisect-tag ${bisectMark}`} title={BISECT_TITLES[bisectMark]}>
+              <span className={`bisect-tag ${bisectMark}`} {...hint(BISECT_TITLES[bisectMark])}>
                 {bisectMark === "found" ? "first bad" : bisectMark}
               </span>
             )}
             <span
               className={`summary${commit.kind === "stash" ? " stash" : commit.parents.length > 1 ? " merge" : ""}`}
-              title={commit.summary}
+              title={inCard ? undefined : commit.summary}
             >
               {commit.summary || "(no message)"}
             </span>
           </div>
           {visible.author && (
-            <div className="cell author" title={`${commit.authorName} <${commit.authorEmail}>`}>
+            <div className="cell author" title={inCard ? undefined : `${commit.authorName} <${commit.authorEmail}>`}>
               {/* On the graph already: the name is enough here. */}
               {!authorNode && <Avatar name={commit.authorName} email={commit.authorEmail} size={dense ? 18 : 22} />}
               {!narrow && <span className="author-name">{commit.authorName}</span>}
             </div>
           )}
           {visible.date && (
-            <div className="cell date" title={dateTitle}>
+            <div className="cell date" title={inCard ? undefined : dateTitle}>
               {options.dateFormat === "exact" ? fullDate(time) : compactTime(time)}
             </div>
           )}

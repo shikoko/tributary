@@ -35,6 +35,36 @@
   font-size: var(--type-sm);
 }
 
+/* A branch's remote branch is gone: which of the remote's it goes with instead. */
+.upstream-choices {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.upstream-choice-tag {
+  margin-left: var(--space-8);
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--accent-rgb) / 0.14);
+  color: var(--accent-text);
+  font-size: var(--type-xs);
+  font-weight: 600;
+}
+
+.upstream-rename {
+  align-items: flex-start;
+  line-height: 1.45;
+}
+
+.upstream-rename input {
+  margin-top: var(--space-2);
+}
+
+.upstream-rename strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .dialog-note-line.warning {
   color: var(--warning-text);
 }

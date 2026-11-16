@@ -295,9 +295,9 @@ try {
     await page.locator(".menu-item", { hasText: /Highlight origin\/(main|feature\/onboarding)'s history/ }).waitFor({ timeout: 5000 });
     await page.keyboard.press("Escape");
     // A teammate merged main into feature/export: the local branch's label says it's behind.
-    const exportLabel = page.locator(".commit-list .ref-pill[title^='Branch feature/export (local)']");
+    const exportLabel = page.locator(".commit-list .ref-pill:is([title^='Branch feature/export (local)'], [data-hint^='Branch feature/export (local)'])");
     await exportLabel.locator(".ref-sync", { hasText: "↓" }).waitFor({ timeout: 10_000 });
-    expect((await exportLabel.getAttribute("title"))?.includes("behind origin/feature/export"), "the label doesn't say it's behind");
+    expect((await exportLabel.getAttribute("data-hint"))?.includes("behind origin/feature/export"), "the label doesn't say it's behind");
     await dismissToast();
   });
 
@@ -317,7 +317,7 @@ try {
   });
 
   await step("offers a hard reset from a branch label, and uses your own colours", async () => {
-    await page.locator(".commit-list .ref-pill[title^='Branch feature/export (local']").first().click({ button: "right" });
+    await page.locator(".commit-list .ref-pill:is([title^='Branch feature/export (local'], [data-hint^='Branch feature/export (local'])").first().click({ button: "right" });
     await page.locator(".menu-item", { hasText: "Hard reset main to feature/export…" }).waitFor({ timeout: 5000 });
     await page.keyboard.press("Escape");
     await page.keyboard.press("Control+,");
@@ -711,7 +711,7 @@ try {
   });
 
   await step("compares a branch with the checked-out one, and opens a file's change", async () => {
-    await page.locator(".commit-list .ref-pill[title^='Branch feature/export (local']").first().click({ button: "right" });
+    await page.locator(".commit-list .ref-pill:is([title^='Branch feature/export (local'], [data-hint^='Branch feature/export (local'])").first().click({ button: "right" });
     await page.locator(".menu-item", { hasText: "Compare with main" }).click();
     const panel = page.locator(".compare-panel");
     await panel.locator(".file", { hasText: "zip.ts" }).click({ timeout: 10_000 });
@@ -834,6 +834,19 @@ try {
     expect((await page.locator(".commit-preview").count()) === 0, "a row's preview opened over the mark's card");
     await page.mouse.move(strip.x - 300, strip.top + 200);
     await card.waitFor({ state: "detached", timeout: 5000 });
+  });
+
+  await step("says what a branch's label is in the row's hover card, not in a tooltip as well", async () => {
+    const label = page.locator(".commit-row .ref-pill.branch").first();
+    expect((await label.getAttribute("title")) === null, "a branch's label in the list still has a tooltip");
+    const box = await label.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 4 });
+    const hint = page.locator(".commit-preview .preview-hint");
+    await hint.waitFor({ timeout: 5000 });
+    expect(/^(Checked out branch|Branch) /.test(await hint.textContent()), `the card says "${await hint.textContent()}"`);
+    await page.mouse.move(box.x + box.width / 2, box.y + 400);
+    await page.mouse.move(10, 10);
+    await page.locator(".commit-preview").waitFor({ state: "detached", timeout: 5000 });
   });
 
   await step("lights up a branch's lane while the pointer is on it", async () => {
@@ -2302,6 +2315,46 @@ try {
     // Back as it was before the amend, for the steps after this one (the working files as they are).
     git("push", "-q", "--force", "origin", `${theirTip}:main`);
     git("reset", "-q", "--soft", pushed);
+    await page.keyboard.press("F5");
+    await page.locator(".tabs > .tab[data-path]").filter({ hasText: new RegExp(`^${was}$`) }).dispatchEvent("mousedown", { button: 0 });
+    await page.locator('.tabs > .tab[aria-selected="true"]', { hasText: was }).waitFor({ timeout: 10_000 });
+    await page.locator(".commit-row").first().waitFor({ timeout: 10_000 });
+  });
+
+  await step("offers to go with another remote branch when a branch's own was renamed on the remote", async () => {
+    const was = (await page.locator('.tabs > .tab[aria-selected="true"]').textContent()).trim();
+    await page.locator(".tab", { hasText: /^notebook$/ }).dispatchEvent("mousedown", { button: 0 });
+    await row("Export notes as Markdown").waitFor({ timeout: 10_000 });
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" }).trim();
+    const remote = git("remote", "get-url", "origin");
+    const bare = (...args) => execFileSync("git", ["--git-dir", remote, ...args], { encoding: "utf8" }).trim();
+    // main is renamed to trunk on the remote, which makes it its main branch: pulling fails.
+    bare("branch", "-m", "main", "trunk");
+    bare("symbolic-ref", "HEAD", "refs/heads/trunk");
+    await page.locator(".toolbar .tool-button", { hasText: "Pull" }).first().click();
+    const banner = page.locator(".error-explained", { hasText: "origin has no branch called main any more" });
+    const use = banner.getByRole("button", { name: "Use origin/trunk" });
+    await use.waitFor({ timeout: 20_000 });
+    await banner.getByText("It's origin's main branch, and has everything origin/main had.").waitFor({ timeout: 5000 });
+    // Choose another…: origin's branches, the likely one first, with a box to rename main to match.
+    await banner.getByRole("button", { name: "Choose another…" }).click();
+    const dialog = page.locator(".dialog", { hasText: "Which branch on origin does main go with?" });
+    const first = dialog.locator(".merge-method").first();
+    await first.waitFor({ timeout: 10_000 });
+    expect((await first.textContent()).includes("origin/trunk") && (await first.textContent()).includes("origin's main branch"), "origin/trunk isn't first, as origin's main branch");
+    expect(await dialog.getByRole("checkbox", { name: /Also rename main to trunk/ }).isChecked(), "the box to rename main to match isn't ticked");
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    // The likely one, in one click: main goes with origin/trunk.
+    await use.click();
+    await page.locator(".toast", { hasText: "main now goes with origin/trunk" }).waitFor({ timeout: 20_000 });
+    expect(git("config", "branch.main.merge") === "refs/heads/trunk", "main doesn't go with origin/trunk");
+    expect(!(await banner.isVisible()), "the error stayed after it was fixed");
+    await dismissToast();
+    // Back as it was, for the steps after this one.
+    bare("branch", "-m", "trunk", "main");
+    bare("symbolic-ref", "HEAD", "refs/heads/main");
+    git("fetch", "-q", "--prune", "origin");
+    git("branch", "-q", "--set-upstream-to=origin/main", "main");
     await page.keyboard.press("F5");
     await page.locator(".tabs > .tab[data-path]").filter({ hasText: new RegExp(`^${was}$`) }).dispatchEvent("mousedown", { button: 0 });
     await page.locator('.tabs > .tab[aria-selected="true"]', { hasText: was }).waitFor({ timeout: 10_000 });

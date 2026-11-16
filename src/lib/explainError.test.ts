@@ -105,6 +105,14 @@ fatal: could not read Username for 'https://gitlab.com': terminal prompts disabl
     expect(explainError(message)?.headline).toBe("git couldn't sign in to gitlab.com");
   });
 
+  it("says a branch's remote branch is gone, and offers to go with another or push it back", () => {
+    const message = "Your configuration specifies to merge with the ref 'refs/heads/master'\nfrom the remote, but no such ref was fetched.";
+    const explained = explainError(message, { branch: "master", upstream: "origin/master" });
+    expect(explained?.headline).toBe("origin has no branch called master any more");
+    expect(explained?.detail).toBe("Your master pulls from origin/master, which was renamed or deleted on origin.");
+    expect(explained?.fixes).toEqual(["useUpstream", "chooseUpstream", "pushBack"]);
+  });
+
   it("leaves other messages alone", () => {
     expect(explainError("pick-target already has the commit")).toBeNull();
   });

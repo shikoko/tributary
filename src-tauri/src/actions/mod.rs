@@ -67,6 +67,7 @@ use crate::git::{Git, Progress};
 pub use backups::{BACKUP_DAYS, Backup, BackupEvent, backups};
 pub use bisect::Verdict;
 pub use blame::{Blame, BlameCommit, BlameLine, blame};
+pub use branches::{RemoteBranchChoice, UpstreamChoices, upstream_choices};
 pub use clone::{CloneOptions, clone_repository, init_repository};
 pub use conflicts::{ConflictText, conflict_text};
 pub use diff::{
@@ -247,6 +248,16 @@ pub enum Action {
         name: String,
         #[serde(rename = "newName")]
         new_name: String,
+    },
+    /// Make a local branch pull from and push to `upstream`, a remote branch ("origin/main"),
+    /// or to none; with `rename_to`, rename it too. For a branch whose remote branch is gone.
+    SetUpstream {
+        branch: String,
+        #[ts(optional = nullable)]
+        upstream: Option<String>,
+        #[ts(optional = nullable)]
+        #[serde(default, rename = "renameTo")]
+        rename_to: Option<String>,
     },
     /// Merge a branch, tag or commit into the checked-out branch.
     Merge {
@@ -731,6 +742,11 @@ fn perform(
         Action::RenameBranch { name, new_name } => {
             branches::rename_branch(&repo, &git, name, new_name)
         }
+        Action::SetUpstream {
+            branch,
+            upstream,
+            rename_to,
+        } => branches::set_upstream(&repo, &git, branch, upstream, rename_to),
         Action::Merge { target, mode } => history::merge(&repo, &git, target, mode),
         Action::Rebase { onto } => history::rebase(&repo, &git, onto),
         Action::CherryPick { id } => history::cherry_pick(&repo, &git, id),

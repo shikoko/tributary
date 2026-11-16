@@ -339,6 +339,67 @@ fn a_safe_force_push_stops_for_someone_elses_commits_and_overwrite_replaces_them
 }
 
 #[test]
+fn a_branch_renamed_on_the_remote_goes_with_its_new_name_again() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("renamed-remote.git");
+    let mut alice = TempRepo::new("renamed-alice");
+    alice.git(&["branch", "--move", "main", "master"]);
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.commit("a.txt", "First");
+    alice.git(&["push", "--quiet", "--set-upstream", "origin", "master"]);
+    remote.git(&["symbolic-ref", "HEAD", "refs/heads/master"]);
+
+    // master is renamed to main on the remote, which makes it its main branch.
+    remote.git(&["branch", "--move", "master", "main"]);
+    remote.git(&["symbolic-ref", "HEAD", "refs/heads/main"]);
+    alice.git(&["fetch", "--quiet", "--prune", "origin"]);
+    let error = run(&alice, Action::Pull).unwrap_err().to_string();
+    assert!(error.contains("no such ref was fetched"), "{error}");
+
+    // The likely one is origin/main, as the remote says its main branch is now.
+    let choices = actions::upstream_choices(alice.path(), "master").unwrap();
+    assert_eq!(choices.remote, "origin");
+    assert_eq!(choices.gone, "origin/master");
+    assert_eq!(choices.default_branch.as_deref(), Some("origin/main"));
+    assert_eq!(choices.suggested.as_deref(), Some("origin/main"));
+    assert_eq!(choices.branches[0].name, "origin/main");
+    assert_eq!(choices.branches[0].summary, "First");
+
+    // Going with it, renamed to match: pulling works again.
+    let set = Action::SetUpstream {
+        branch: "master".into(),
+        upstream: Some("origin/main".into()),
+        rename_to: Some("main".into()),
+    };
+    assert_eq!(
+        run(&alice, set).unwrap(),
+        "Renamed master to main, which now goes with origin/main"
+    );
+    assert_eq!(alice.git(&["branch", "--show-current"]), "main");
+    assert_eq!(
+        alice.git(&["config", "branch.main.merge"]),
+        "refs/heads/main"
+    );
+    remote.git(&["branch", "--quiet", "side", "main"]);
+    run(&alice, Action::Pull).unwrap();
+
+    // Going with none.
+    let unset = Action::SetUpstream {
+        branch: "main".into(),
+        upstream: None,
+        rename_to: None,
+    };
+    assert_eq!(
+        run(&alice, unset).unwrap(),
+        "main no longer goes with a remote branch"
+    );
+    assert_eq!(
+        alice.git(&["config", "--default", "", "branch.main.merge"]),
+        ""
+    );
+}
+
+#[test]
 fn force_push_replaces_the_remote_branch() {
     let _turn = remote_turn();
     let remote = TempRepo::bare("force-remote.git");

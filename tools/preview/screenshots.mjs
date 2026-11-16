@@ -237,7 +237,7 @@ const shots = {
   /** A branch compared with the checked-out one. */
   async compare() {
     const page = await open(demos.notebook);
-    await page.locator(".commit-list .ref-pill[title^='Branch feature/export (local']").first().click({ button: "right" });
+    await page.locator(".commit-list .ref-pill:is([title^='Branch feature/export (local'], [data-hint^='Branch feature/export (local'])").first().click({ button: "right" });
     await page.locator(".menu-item", { hasText: "Compare with main" }).click();
     await page.locator(".compare-panel .file", { hasText: "zip.ts" }).waitFor();
     // Off the commit list, so no commit's preview pops up.
@@ -249,7 +249,7 @@ const shots = {
   /** A branch's menu saying whether merging it would conflict, worked out without merging. */
   async "merge-check"() {
     const page = await open(fresh().studio);
-    await page.locator(".commit-list .ref-pill[title*='art/barber-v2']").first().click({ button: "right" });
+    await page.locator(".commit-list .ref-pill:is([title*='art/barber-v2'], [data-hint*='art/barber-v2'])").first().click({ button: "right" });
     await page.locator(".menu-detail", { hasText: "Conflicts in" }).first().waitFor({ timeout: 20_000 });
     await settle(page);
     return page;
@@ -258,7 +258,7 @@ const shots = {
   /** What changed when a teammate force-pushed a branch, commit by commit. */
   async rewrite() {
     const page = await open(fresh().studio);
-    await page.locator(".commit-list .ref-pill[title*='fix/stool']").first().click({ button: "right" });
+    await page.locator(".commit-list .ref-pill:is([title*='fix/stool'], [data-hint*='fix/stool'])").first().click({ button: "right" });
     await page.locator(".menu-item", { hasText: "force-pushed" }).click();
     await page.locator(".rewrite-pair").first().waitFor();
     await settle(page);

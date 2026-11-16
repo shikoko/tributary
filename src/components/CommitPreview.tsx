@@ -12,11 +12,13 @@ interface Props {
   /** Where the pointer is, in window coordinates. */
   x: number;
   y: number;
+  /** What the thing under the pointer says (a branch's label, the checks' dot), on top. */
+  hint?: string | null;
   loadDetails: (id: string) => Promise<CommitDetails>;
 }
 
 /** A card with a commit's full message and changed-file counts, shown on hover. */
-export function CommitPreview({ commit, x, y, loadDetails }: Props) {
+export function CommitPreview({ commit, x, y, hint, loadDetails }: Props) {
   const colors = useThemeColors();
   const [details, setDetails] = useState<CommitDetails | null>(null);
   const card = useRef<HTMLDivElement>(null);
@@ -41,7 +43,7 @@ export function CommitPreview({ commit, x, y, loadDetails }: Props) {
     const left = Math.min(x + 16, window.innerWidth - width - 8);
     const top = y + 16 + height > window.innerHeight - 8 ? y - height - 12 : y + 16;
     setPosition({ left: Math.max(8, left), top: Math.max(8, top) });
-  }, [x, y, details]);
+  }, [x, y, details, hint]);
 
   const counts = details && {
     added: details.files.filter((f) => f.status === "added" || f.status === "copied" || f.status === "untracked").length,
@@ -52,6 +54,13 @@ export function CommitPreview({ commit, x, y, loadDetails }: Props) {
 
   return (
     <div ref={card} className="commit-preview" style={position} role="tooltip">
+      {hint && (
+        <div className="preview-hint">
+          {hint.split("\n").map((line, index) => (
+            <div key={index}>{line}</div>
+          ))}
+        </div>
+      )}
       <div className="preview-summary">{details?.summary ?? commit.summary}</div>
       {body && <div className="preview-body">{body}</div>}
       {commit.refs.length > 0 && (
@@ -62,8 +71,11 @@ export function CommitPreview({ commit, x, y, loadDetails }: Props) {
       <div className="preview-meta">
         <Avatar name={commit.authorName} email={commit.authorEmail} size={18} />
         <span>{commit.authorName}</span>
-        <span className="muted">· {fullDate(commit.time)}</span>
+        <span className="muted">&lt;{commit.authorEmail}&gt;</span>
         <code>{shortId(commit.id)}</code>
+      </div>
+      <div className="preview-dates">
+        {commit.commitTime !== commit.time ? `Authored ${fullDate(commit.time)} · committed ${fullDate(commit.commitTime)}` : fullDate(commit.time)}
       </div>
       <div className="preview-files">
         {!details ? (

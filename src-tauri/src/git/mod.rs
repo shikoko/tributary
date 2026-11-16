@@ -370,8 +370,12 @@ pub fn working() -> bool {
 }
 
 pub(crate) fn command(executable: &Path) -> Command {
-    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut command = Command::new(executable);
+    // git's messages in English, whatever language the computer is in: the app reads them
+    // (to explain an error in plain words, or to offer to put changes aside), and a
+    // translated one would go unrecognised. LANGUAGE only chooses the messages' language,
+    // unlike LC_ALL, so hooks git runs still get the computer's own locale for the rest.
+    command.env("LANGUAGE", "en");
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -385,6 +389,16 @@ pub(crate) fn command(executable: &Path) -> Command {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn asks_git_for_its_messages_in_english() {
+        let command = command(Path::new("git"));
+        let language = command
+            .get_envs()
+            .find(|(name, _)| *name == "LANGUAGE")
+            .and_then(|(_, value)| value);
+        assert_eq!(language, Some(std::ffi::OsStr::new("en")));
+    }
 
     #[test]
     fn waits_for_a_background_refresh_of_the_index() {

@@ -15,6 +15,7 @@ import { glowRect, MarkGlow, MarkHover } from "./commitList/MarkHover";
 import { useMarkStrip } from "./commitList/useMarkStrip";
 import { useRevealSelected } from "./commitList/useReveal";
 import { CommitPreview } from "./CommitPreview";
+import { hintAt, HintsInCardContext } from "./hints";
 import { Loader } from "./Loader";
 import { Button } from "./ui/Button";
 
@@ -92,7 +93,8 @@ export function CommitList(props: Props) {
   const markerCanvas = useRef<HTMLCanvasElement>(null);
   const [scrollTop, setScrollTop] = useState(props.initialScrollTop);
   const [viewport, setViewport] = useState({ width: 0, height: 0, scrollbar: 0 });
-  const [preview, setPreview] = useState<{ commit: CommitRow; x: number; y: number } | null>(null);
+  // The hover card: the commit, where the pointer is, and what's under it says (hints.ts).
+  const [preview, setPreview] = useState<{ commit: CommitRow; x: number; y: number; hint: string | null } | null>(null);
   const previewTimer = useRef<number | undefined>(undefined);
   const hidePreview = () => {
     window.clearTimeout(previewTimer.current);
@@ -234,7 +236,10 @@ export function CommitList(props: Props) {
       const onMarks = list !== undefined && event.clientX >= list.right - (viewport.scrollbar || 6) - 2;
       if (!props.previews || commit.kind === "worktree" || event.buttons || onMarks) return setPreview(null);
       const { clientX: x, clientY: y } = event;
-      previewTimer.current = window.setTimeout(() => setPreview({ commit, x, y }), PREVIEW_DELAY);
+      const hint = hintAt(event.target);
+      // The card's already up for this commit: what's under the pointer shows straight away.
+      setPreview((shown) => (shown && shown.commit.id === commit.id && shown.hint !== hint ? { ...shown, hint } : shown));
+      previewTimer.current = window.setTimeout(() => setPreview({ commit, x, y, hint }), PREVIEW_DELAY);
     },
     onLeave: hidePreview,
     onShowChecks: (commit) => {
@@ -335,7 +340,8 @@ export function CommitList(props: Props) {
             <div className="list-empty">This repository doesn't have any commits yet.</div>
           ) : (
             <div className="list-spacer" style={{ height: contentHeight }}>
-              {rows}
+              {/* With the hover card on, what's in a row says what it is in the card, not in a tooltip. */}
+              <HintsInCardContext.Provider value={Boolean(props.previews)}>{rows}</HintsInCardContext.Provider>
               {/* In the same columns as the rows, so the lines move with the nodes. */}
               <div className="graph-layer" style={{ top: first * rowHeight }}>
                 <canvas ref={canvas} className="graph-canvas" />
@@ -352,7 +358,7 @@ export function CommitList(props: Props) {
           )}
         </div>
       </div>
-      {preview && <CommitPreview commit={preview.commit} x={preview.x} y={preview.y} loadDetails={props.loadDetails} />}
+      {preview && <CommitPreview commit={preview.commit} x={preview.x} y={preview.y} hint={preview.hint} loadDetails={props.loadDetails} />}
       {tipStrip &&
         [...new Set(tipMarks.map((mark) => mark.index))].map((index) => {
           const own = tipMarks.filter((mark) => mark.index === index);

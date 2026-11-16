@@ -8,6 +8,7 @@ import { withAlpha } from "../lib/colors";
 import { pressLabel } from "../lib/drag";
 import { describePill, refPills, type RefPill } from "../lib/refs";
 import { CheckIcon, CloseIcon, CloudIcon, CommitIcon, LaptopIcon, SpinnerIcon, StashIcon, TagIcon } from "./Icons";
+import { useHint } from "./hints";
 
 interface Props {
   refs: RefLabel[];
@@ -35,6 +36,7 @@ export function revisionOf(pill: RefPill): string | null {
 
 export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocusPill, onHoverPill, draggable, onMore }: Props) {
   const pills = useMemo(() => refPills(refs), [refs]);
+  const hint = useHint();
   if (pills.length === 0) return null;
   const shown = limit ? pills.slice(0, limit) : pills;
   const hidden = pills.slice(shown.length);
@@ -59,7 +61,7 @@ export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocu
           // (A commit's row is a single control: a button in it couldn't be reached.)
           <span
             className="ref-pill more openable"
-            title={`${hidden.map(describePill).join("\n")}\nClick for their menus`}
+            {...hint(`${hidden.map(describePill).join("\n")}\nClick for their menus`)}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
@@ -75,7 +77,7 @@ export function RefPills({ refs, color, limit, onActivate, onContextMenu, onFocu
             <span className="ref-name">+{hidden.length}</span>
           </span>
         ) : (
-          <span className="ref-pill more" title={hidden.map(describePill).join("\n")}>
+          <span className="ref-pill more" {...hint(hidden.map(describePill).join("\n"))}>
             <span className="ref-name">+{hidden.length}</span>
           </span>
         ))}
@@ -100,6 +102,7 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, onHoverPill
   // A local branch that isn't where the branch it tracks is: how far ahead and behind.
   const sync = useContext(BranchSyncContext).get(pill.kind === "branch" && pill.local ? pill.name : "");
   const syncText = sync ? describeSync(sync) : null;
+  const hint = useHint();
   const style: React.CSSProperties = pill.current
     ? // --pill-glow: the glow it gets in the commit list.
       ({
@@ -123,11 +126,11 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, onHoverPill
       // A commit dropped on a local branch's label is cherry-picked onto it.
       data-drop-branch={draggable && pill.kind === "branch" && pill.local ? pill.name : undefined}
       style={style}
-      title={
+      {...hint(
         describePill(pill) +
-        (syncText ? `\n${syncText}` : "") +
-        (onActivate && pill.kind === "branch" && !pill.current ? "\nDouble-click to check out" : "")
-      }
+          (syncText ? `\n${syncText}` : "") +
+          (onActivate && pill.kind === "branch" && !pill.current ? "\nDouble-click to check out" : ""),
+      )}
       onMouseEnter={() => onHoverPill?.(pill)}
       onMouseLeave={() => onHoverPill?.(null)}
       onDoubleClick={(event) => {
@@ -186,10 +189,11 @@ const CHECK_ICONS: Partial<Record<NonNullable<PullRequest["checks"]>, ReactNode>
  */
 export function PullRequestBadge({ pr, onOpen }: { pr: PullRequest; onOpen: (pr: PullRequest) => void }) {
   const icon = pr.checks ? CHECK_ICONS[pr.checks] : undefined;
+  const hint = useHint();
   return (
     <span
       className={`pr-badge${pr.checks ? ` ${pr.checks}` : ""}${pr.draft ? " draft" : ""}${icon ? " with-icon" : ""}`}
-      title={`${describeChecks(pr)}\nClick to see its reviews and checks`}
+      {...hint(`${describeChecks(pr)}\nClick to see its reviews and checks`)}
       // Its name for screen readers, number and checks, whether the number shows or not.
       aria-label={describeChecks(pr)}
       role="link"

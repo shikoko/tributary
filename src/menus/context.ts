@@ -14,6 +14,8 @@ export type OpenDialog =
    * `overwrite`: start with "even if someone else pushed" ticked.
    */
   | { kind: "forcePush"; reason?: string; overwrite?: boolean }
+  /** Which of the remote's branches `branch` goes with, now that its own is gone. */
+  | { kind: "chooseUpstream"; branch: string }
   /** Go to Commit (Ctrl+G). */
   | { kind: "goToCommit" }
   /** `paths`: the files to start with (all of them when left out). */

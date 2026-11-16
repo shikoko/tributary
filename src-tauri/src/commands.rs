@@ -177,6 +177,12 @@ pub async fn lost_commits(path: String, reference: String) -> Result<actions::Lo
     blocking(move || actions::lost_commits(&PathBuf::from(path), &reference)).await
 }
 
+/// What a branch whose remote branch is gone could go with instead.
+#[tauri::command]
+pub async fn upstream_choices(path: String, branch: String) -> Result<actions::UpstreamChoices> {
+    blocking(move || actions::upstream_choices(&PathBuf::from(path), &branch)).await
+}
+
 /// What someone else pushed to a remote branch since it was at `since`, that HEAD doesn't have.
 #[tauri::command]
 pub async fn unseen_commits(

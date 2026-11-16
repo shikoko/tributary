@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { unseenCommits, type Action, type CommitRow, type RepoSnapshot, type UnseenCommits } from "../api";
+import { unseenCommits, upstreamChoices, type Action, type CommitRow, type RepoSnapshot, type UnseenCommits, type UpstreamChoices } from "../api";
 import { ErrorBanner, type ErrorChoice } from "../components/ErrorBanner";
 import { byWhom, explainError, gitHeadline, type ErrorFix } from "../lib/explainError";
 import { relativeTime, shortId } from "../lib/format";
@@ -54,6 +54,20 @@ export function RepoErrorBanner({ error, snapshot, head, running, act, openDialo
       live = false;
     };
   }, [stale, snapshot.path, upstream, error.upstreamWas, error.message]);
+
+  // The branch's remote branch is gone: what it could go with instead.
+  const gone = error.message.includes("but no such ref was fetched");
+  const [others, setOthers] = useState<UpstreamChoices | null>(null);
+  useEffect(() => {
+    if (!gone || !snapshot.headBranch) return;
+    let live = true;
+    upstreamChoices(snapshot.path, snapshot.headBranch)
+      .then((found) => live && setOthers(found))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [gone, snapshot.path, snapshot.headBranch, error.message]);
 
   // Whose commits they are: who pushed them isn't known (a merge brings in others' commits).
   const by = unseen ? byWhom(unseen.commits.map((commit) => commit.author), unseen.count > unseen.commits.length) : null;
@@ -126,6 +140,31 @@ export function RepoErrorBanner({ error, snapshot, head, running, act, openDialo
               disabled: busy,
             }
           : null;
+      case "useUpstream": {
+        const suggested = others?.suggested;
+        if (!suggested || !others) return null;
+        const why = suggested === others.defaultBranch ? `It's ${others.remote}'s main branch` : `It has the same name as your ${branch}`;
+        return {
+          label: `Use ${suggested}`,
+          says: `Pull from and push to ${suggested} from now on. ${why}${others.suggestedHasAll ? `, and has everything ${others.gone} had.` : "."}`,
+          run: () => act({ kind: "setUpstream", branch, upstream: suggested }),
+          disabled: busy,
+        };
+      }
+      case "chooseUpstream":
+        return {
+          label: others?.suggested ? "Choose another…" : "Choose…",
+          says: `Pick which of ${others?.remote ?? "the remote"}'s branches ${branch} goes with.`,
+          run: () => openDialog({ kind: "chooseUpstream", branch }),
+          disabled: busy,
+        };
+      case "pushBack":
+        return {
+          label: `Push ${branch}`,
+          says: `Put ${branch} back on ${others?.remote ?? "the remote"}, as a branch of its own.`,
+          run: () => act({ kind: "push", force: false }, "push"),
+          disabled: busy,
+        };
       case "moveToLfs":
         return { label: "Move into Git LFS…", says: "See which files are too big, and move them into Git LFS.", run: () => openDialog({ kind: "repoSize" }) };
     }

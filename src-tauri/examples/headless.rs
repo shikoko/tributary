@@ -151,6 +151,10 @@ fn handle(command: &str, args: &Value) -> Result<Value> {
             let reference: String = arg(args, "reference")?;
             to_json(actions::lost_commits(&path()?, &reference)?)
         }
+        "upstream_choices" => {
+            let branch: String = arg(args, "branch")?;
+            to_json(actions::upstream_choices(&path()?, &branch)?)
+        }
         "unseen_commits" => {
             let reference: String = arg(args, "reference")?;
             let since: Option<String> = optional(args, "since")?;

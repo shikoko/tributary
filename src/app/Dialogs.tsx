@@ -7,6 +7,7 @@ import { openInBrowser, webRemote } from "../lib/weblinks";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DeleteBranchDialog, DeleteRemoteBranchDialog } from "../components/DeleteBranchDialogs";
 import { ForcePushDialog } from "../components/ForcePushDialog";
+import { ChooseUpstreamDialog } from "../components/ChooseUpstreamDialog";
 import { InteractiveRebaseDialog } from "../components/InteractiveRebaseDialog";
 import { PruneLfsDialog } from "../components/LfsCleanup";
 import { NewBranchDialog } from "../components/NewBranchDialog";
@@ -276,6 +277,18 @@ export function RepositoryDialogs(props: Props) {
         onConfirm={() => {
           onClose();
           run(dialog.action, "other", { confirmed: true });
+        }}
+      />
+    )}
+    {dialog?.kind === "chooseUpstream" && (
+      <ChooseUpstreamDialog
+        repoPath={snapshot.path}
+        branch={dialog.branch}
+        localBranches={localBranches}
+        onCancel={() => onClose()}
+        onChoose={(action) => {
+          onClose();
+          run(action);
         }}
       />
     )}

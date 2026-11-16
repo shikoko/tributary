@@ -22,7 +22,13 @@ export type ErrorFix =
   /** Make a branch for the commits (the branch they're on is protected). */
   | "newBranch"
   /** Move the files too big for the host into Git LFS. */
-  | "moveToLfs";
+  | "moveToLfs"
+  /** The branch's remote branch is gone: go with the likely one instead. */
+  | "useUpstream"
+  /** The branch's remote branch is gone: choose which of the remote's it goes with. */
+  | "chooseUpstream"
+  /** The branch's remote branch is gone: push it, which puts it back. */
+  | "pushBack";
 
 export interface Explained {
   /** What happened, in one line: "Push stopped: origin/main has commits you don't have yet". */
@@ -85,6 +91,15 @@ export function explainError(message: string, context: ErrorContext = {}): Expla
         : `Force push stopped: ${remoteBranch} has commits you haven't fetched`,
       detail: "A force push stops for commits you haven't seen, so they aren't removed by mistake.",
       fixes: ["forcePushAnyway", "showUnseen"],
+    };
+  }
+  const gone = /Your configuration specifies to merge with the ref 'refs\/heads\/([^']+)'\s+from the remote, but no such ref was fetched/i.exec(message);
+  if (gone) {
+    const remote = context.upstream?.split("/")[0] ?? "the remote";
+    return {
+      headline: `${remote} has no branch called ${gone[1]} any more`,
+      detail: `Your ${branch} pulls from ${remote === "the remote" ? gone[1] : `${remote}/${gone[1]}`}, which was renamed or deleted on ${remote}.`,
+      fixes: ["useUpstream", "chooseUpstream", "pushBack"],
     };
   }
   if (/Not possible to fast-forward/i.test(message)) {

@@ -1,7 +1,19 @@
 // Cleaning up branches, and putting them back: prune candidates, backups and lost commits.
 import { invoke } from "@tauri-apps/api/core";
-import type { Backup, BackupEvent, BranchTip, CommitBrief, LostCommits, PruneCandidate, PruneInfo, UnseenCommit, UnseenCommits } from "./generated";
-export type { Backup, BackupEvent, BranchTip, CommitBrief, LostCommits, PruneCandidate, PruneInfo, UnseenCommit, UnseenCommits };
+import type {
+  Backup,
+  BackupEvent,
+  BranchTip,
+  CommitBrief,
+  LostCommits,
+  PruneCandidate,
+  PruneInfo,
+  RemoteBranchChoice,
+  UnseenCommit,
+  UnseenCommits,
+  UpstreamChoices,
+} from "./generated";
+export type { Backup, BackupEvent, BranchTip, CommitBrief, LostCommits, PruneCandidate, PruneInfo, RemoteBranchChoice, UnseenCommit, UnseenCommits, UpstreamChoices };
 
 /** Backups from the last 30 days, newest first. */
 export function branchBackups(path: string): Promise<Backup[]> {
@@ -27,4 +39,9 @@ export function unseenCommits(path: string, reference: string, since: string | n
  */
 export function pruneCandidates(path: string, idleDays: number | null = null): Promise<PruneInfo> {
   return invoke<PruneInfo>("prune_candidates", { path, idleDays });
+}
+
+/** What `branch`, whose remote branch is gone (renamed or deleted on the remote), could go with instead. */
+export function upstreamChoices(path: string, branch: string): Promise<UpstreamChoices> {
+  return invoke<UpstreamChoices>("upstream_choices", { path, branch });
 }
