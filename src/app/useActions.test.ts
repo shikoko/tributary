@@ -6,11 +6,11 @@ import { busyTabs, type Run } from "./useActions";
 describe("busyTabs", () => {
   it("rings each repository's tab whose progress shows, at how far it is", () => {
     const runs = new Map<string, Run>([
-      ["/game", { kind: "pull", progress: { label: "Pulling", value: { phase: "Receiving objects", percent: 40 }, visible: true, cancellable: true } }],
-      ["/tools", { kind: "fetch", progress: { label: "Fetching", value: null, visible: true, cancellable: true } }],
+      ["/game", { kind: "pull", label: "Pulling", progress: { label: "Pulling", value: { phase: "Receiving objects", percent: 40 }, visible: true, cancellable: true } }],
+      ["/tools", { kind: "fetch", label: "Fetching", progress: { label: "Fetching", value: null, visible: true, cancellable: true } }],
       // Just started: its progress doesn't show yet.
-      ["/site", { kind: "push", progress: { label: "Pushing", value: null, visible: false, cancellable: true } }],
-      ["/docs", { kind: "other", progress: null }],
+      ["/site", { kind: "push", label: "Pushing", progress: { label: "Pushing", value: null, visible: false, cancellable: true } }],
+      ["/docs", { kind: "other", label: null, progress: null }],
     ]);
     expect(busyTabs(runs)).toEqual({
       "/game": { label: "Pulling", percent: 40 },
@@ -42,7 +42,7 @@ describe("discardLabel", () => {
   it("writes big counts with separators, and says something when it can't count", () => {
     const many = { staged: [], unstaged: Array.from({ length: 12345 }, (_, index) => file(`Saved/${index}.tmp`)) } as unknown as WorktreeStatus;
     expect(discardLabel({ kind: "discardAll" }, many)).toBe(`Discarding ${(12345).toLocaleString()} files`);
-    expect(discardLabel({ kind: "discardAll" }, null)).toBe("Discarding changes");
+    expect(discardLabel({ kind: "discardAll" }, null)).toBeNull();
   });
 
   it("counts a new folder as a folder, not as one file", () => {

@@ -163,8 +163,8 @@ pub fn without_credentials(url: &str) -> String {
     }
 }
 
-/// Where a program run by name (like `git`) is, found the way the system finds it: in
-/// the folders on the `PATH`.
+/// Where a program run by name (like `git`) is, found the way Tributary finds it: in the
+/// folders of its `PATH` (see `host`).
 fn full_path(program: &Path) -> PathBuf {
     if program.components().count() > 1 {
         return program.to_owned();
@@ -174,7 +174,7 @@ fn full_path(program: &Path) -> PathBuf {
     } else {
         vec![program.to_owned()]
     };
-    std::env::var_os("PATH")
+    crate::host::search_path()
         .iter()
         .flat_map(std::env::split_paths)
         .flat_map(|folder| names.iter().map(move |name| folder.join(name)))

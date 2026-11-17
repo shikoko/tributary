@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { submodules as readSubmodules, type Action, type RepoSnapshot, type Submodule } from "../api";
 import { submoduleNotice } from "../lib/submodules";
-import type { Running } from "./constants";
 import type { SubmoduleUpdates } from "./usePreferences";
 
 const NONE: Submodule[] = [];
@@ -24,7 +23,7 @@ const SWITCHES = new Set<Action["kind"]>([
 interface Options {
   snapshot: RepoSnapshot | null;
   mode: SubmoduleUpdates;
-  act: (action: Action, kind?: Running) => Promise<boolean>;
+  act: (action: Action) => Promise<boolean>;
 }
 
 /**
@@ -66,7 +65,7 @@ export function useSubmodules({ snapshot, mode, act }: Options) {
   const list = useMemo(() => (found && path && found.key.startsWith(`${path}|`) ? found.list : NONE), [found, path]);
   const fresh = found?.key === key;
 
-  const update = useCallback((paths: string[]) => act({ kind: "updateSubmodules", paths }, "submodules"), [act]);
+  const update = useCallback((paths: string[]) => act({ kind: "updateSubmodules", paths }), [act]);
 
   // Updating without asking, right after a checkout or pull.
   useEffect(() => {

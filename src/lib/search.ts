@@ -32,3 +32,30 @@ export function stepThrough(indexes: number[], from: number, step: 1 | -1): numb
     ? (indexes.find((index) => index > from) ?? indexes[0])
     : ([...indexes].reverse().find((index) => index < from) ?? indexes[indexes.length - 1]);
 }
+
+/** Indexes of the commits with a branch or tag whose name contains `query`, ignoring case. */
+export function findRefMatches(commits: CommitRow[], query: string): number[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return [];
+  return commits.flatMap((commit, index) => (commit.refs.some((ref) => ref.kind !== "stash" && ref.kind !== "head" && ref.name.toLowerCase().includes(needle)) ? [index] : []));
+}
+
+/** What a prefix typed in the search box (`author:`, `tag:`…) asks to search, and the rest. */
+export function searchPrefix(text: string): { mode: "messages" | "authors" | "refs" | "hashes" | "files" | "code"; rest: string } | null {
+  const match = /^\s*(message|msg|author|branch|tag|hash|sha|id|file|path|code):\s*(.*)$/i.exec(text);
+  if (!match) return null;
+  const kind = match[1].toLowerCase();
+  const mode =
+    kind === "message" || kind === "msg"
+      ? "messages"
+      : kind === "author"
+        ? "authors"
+        : kind === "branch" || kind === "tag"
+          ? "refs"
+          : kind === "hash" || kind === "sha" || kind === "id"
+            ? "hashes"
+            : kind === "file" || kind === "path"
+              ? "files"
+              : "code";
+  return { mode, rest: match[2] };
+}

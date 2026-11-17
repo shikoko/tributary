@@ -1,6 +1,8 @@
 import type { ColumnOptions } from "../components/CommitList";
 import { appearanceRows } from "../components/AppearanceRows";
-import { BranchIcon, ClockIcon, ColumnsIcon, ContrastIcon, DiffIcon, FetchIcon, GearIcon, HistoryIcon, LockIcon, TransferIcon, UserIcon } from "../components/Icons";
+import { BranchIcon, ClockIcon, ColumnsIcon, ContrastIcon, DiffIcon, FetchIcon, GearIcon, HistoryIcon, KeyIcon, LockIcon, SidebarIcon, TransferIcon, UserIcon } from "../components/Icons";
+import { SshKeys } from "../components/SshKeys";
+import { SIDEBAR_SECTIONS } from "../components/sidebar/WorkLists";
 import { describeRun, nextRun, type ScheduleDays } from "../lib/schedule";
 import type { SettingRow, SettingsSection } from "../components/SettingsDialog";
 import type { GitHubStatus, GitLabStatus } from "../api";
@@ -42,7 +44,7 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
   const { newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
   const { daySeparators, setDaySeparators, previews, setPreviews, profilePictures, setProfilePictures, prNumbers, setPrNumbers } = preferences;
-  const { columnOptions, setColumnOptions, zoom, setZoom } = preferences;
+  const { columnOptions, setColumnOptions, zoom, setZoom, hiddenSections, setHiddenSections } = preferences;
   const { historyMinutes, setHistoryMinutes, historyMaxMB, setHistoryMaxMB, historyDays, setHistoryDays } = preferences;
   const { scheduleDays, setScheduleDays, scheduleTime, setScheduleTime, scheduleRun } = preferences;
   const next = nextRun(scheduleDays, scheduleTime, new Date());
@@ -185,6 +187,21 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
       ],
     },
     {
+      title: "Sidebar",
+      icon: <SidebarIcon size={15} />,
+      parent: "Appearance",
+      // The same switches as the menu by the sidebar's filter.
+      rows: SIDEBAR_SECTIONS.map(
+        (entry): SettingRow => ({
+          kind: "toggle",
+          label: entry.title,
+          hint: entry.hint || undefined,
+          value: !hiddenSections.includes(entry.id),
+          set: (shown) => setHiddenSections(shown ? hiddenSections.filter((id) => id !== entry.id) : [...hiddenSections, entry.id]),
+        }),
+      ),
+    },
+    {
       title: "Accounts",
       icon: <UserIcon size={15} />,
       rows: [
@@ -213,6 +230,11 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
           onSignOut: accounts.onSignOut,
         }),
       ],
+    },
+    {
+      title: "SSH keys",
+      icon: <KeyIcon size={15} />,
+      rows: [{ kind: "block", label: "Your SSH keys", content: <SshKeys /> }],
     },
     {
       title: "Fetching",

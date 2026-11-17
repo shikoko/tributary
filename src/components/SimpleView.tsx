@@ -16,7 +16,7 @@ interface Props {
   ahead: number;
   behind: number;
   running: Running;
-  act: (action: Action, kind?: Running, options?: { quiet?: boolean }) => Promise<boolean>;
+  act: (action: Action, options?: { quiet?: boolean }) => Promise<boolean>;
   locks: LfsLocks;
   checks: FileChecks | null;
   localBranches: string[];
@@ -86,16 +86,16 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
     // Exactly the chosen files go in.
     const chosenPaths = new Set(chosen.map((file) => file.path));
     const unchoose = (snapshot.worktree?.staged ?? []).filter((file) => !chosenPaths.has(file.path));
-    if (unchoose.length > 0 && !(await act({ kind: "unstage", paths: pathsOf(unchoose) }, "other", { quiet: true }))) return;
-    if (!(await act({ kind: "stage", paths: pathsOf(chosen) }, "other", { quiet: true }))) return;
-    if (!(await act({ kind: "commit", message, amend: false }, "other", { quiet: true }))) return;
+    if (unchoose.length > 0 && !(await act({ kind: "unstage", paths: pathsOf(unchoose) }, { quiet: true }))) return;
+    if (!(await act({ kind: "stage", paths: pathsOf(chosen) }, { quiet: true }))) return;
+    if (!(await act({ kind: "commit", message, amend: false }, { quiet: true }))) return;
     setDraft({ summary: "", description: "", amend: false });
     setLeft(new Set());
     // The team's updates first, or the server turns it away.
-    if (behind > 0 && !(await act({ kind: "pull" }, "pull"))) return;
-    await act({ kind: "push", force: false }, "push");
+    if (behind > 0 && !(await act({ kind: "pull" }))) return;
+    await act({ kind: "push", force: false });
   };
-  const send = () => void act({ kind: "push", force: false }, "push");
+  const send = () => void act({ kind: "push", force: false });
 
   const status = !snapshot.upstream
     ? { text: "Not on the server yet", tone: "warning" }
@@ -115,7 +115,7 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
           <select
             value={snapshot.headBranch ?? ""}
             disabled={busy || !canChange || localBranches.length < 2}
-            onChange={(event) => void act({ kind: "checkoutBranch", name: event.target.value }, "checkout")}
+            onChange={(event) => void act({ kind: "checkoutBranch", name: event.target.value })}
             aria-label="Branch"
           >
             {!snapshot.headBranch && <option value="">No branch</option>}
@@ -256,7 +256,7 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
           <section className="simple-card simple-latest" data-tour="simple-latest">
             <div className="simple-card-head">
               <h2>Get latest</h2>
-              <Button kind="link" onClick={() => void act({ kind: "fetch" }, "fetch")} disabled={busy || !snapshot.upstream}>
+              <Button kind="link" onClick={() => void act({ kind: "fetch" })} disabled={busy || !snapshot.upstream}>
                 <FetchIcon size={13} />
                 Check now
               </Button>
@@ -269,7 +269,7 @@ export function SimpleView({ snapshot, ahead, behind, running, act, locks, check
                   : "You have everything the team has sent."}
               {snapshot.lastFetched ? <span className="simple-muted"> Checked {relativeTime(snapshot.lastFetched)}.</span> : null}
             </p>
-            <Button kind="primary" size="large" className="simple-get" onClick={() => void act({ kind: "pull" }, "pull")} disabled={busy || !canChange || !snapshot.upstream}>
+            <Button kind="primary" size="large" className="simple-get" onClick={() => void act({ kind: "pull" })} disabled={busy || !canChange || !snapshot.upstream}>
               <PullIcon size={16} />
               Get latest
             </Button>

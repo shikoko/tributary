@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type { CommitRow, RefLabel } from "../api";
-import { hookFailure, involvesUntrackedFiles, isLocalChangesError, isNotMergedError } from "./errors";
 import { ancestors, countMissing } from "./graph";
 import { refPills } from "./refs";
 import { findMatches } from "./search";
@@ -47,23 +46,3 @@ describe("findMatches", () => {
   });
 });
 
-describe("errors", () => {
-  it("recognizes git's messages", () => {
-    expect(isLocalChangesError("error: Your local changes to the following files would be overwritten by checkout")).toBe(true);
-    expect(involvesUntrackedFiles("The following untracked working tree files would be overwritten")).toBe(true);
-    expect(isNotMergedError("error: the branch 'x' is not fully merged.")).toBe(true);
-    expect(isLocalChangesError("fatal: not a git repository")).toBe(false);
-  });
-});
-
-describe("hook failures", () => {
-  it("reads which hook stopped what, and its output", () => {
-    expect(hookFailure("The pre-commit hook stopped the commit.\n\nlint: 2 problems\nin a.txt")).toEqual({
-      hook: "pre-commit",
-      what: "commit",
-      output: "lint: 2 problems\nin a.txt",
-    });
-    expect(hookFailure("The pre-push hook stopped the push.")?.output).toBe("");
-    expect(hookFailure("fatal: not a git repository")).toBeNull();
-  });
-});

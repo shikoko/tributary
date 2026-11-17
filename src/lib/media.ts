@@ -30,7 +30,7 @@ export function describeSizes(diff: FileDiff): string {
 }
 
 /** Why one side has nothing to show: it wasn't there, was deleted, or is too big. */
-export function missingSide(diff: FileDiff, side: "before" | "after"): string {
+export function missingSide(diff: Pick<FileDiff, "sizeBefore" | "sizeAfter">, side: "before" | "after"): string {
   const size = side === "before" ? diff.sizeBefore : diff.sizeAfter;
   if (size !== null) return `Too big to show here (${formatBytes(size)})`;
   return side === "before" ? "Not there yet" : "Deleted";

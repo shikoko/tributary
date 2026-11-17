@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { stepFocus, usingKeyboard } from "../lib/inputMode";
 import { CheckIcon, ChevronRightIcon } from "./Icons";
 
@@ -40,8 +40,23 @@ const HOVER_MS = 140;
  * Enter picks, → opens a submenu and ← closes it, Esc and Tab close.
  */
 export function ContextMenu({ x, y, items, onClose, onSideways }: Props) {
+  const backdrop = useRef<HTMLDivElement>(null);
+  // Esc closes it wherever the focus is. A menu opened with the mouse doesn't always keep
+  // the focus it takes (WebKit can give it back to what was clicked), and then its own
+  // keys never reach it. Only Esc: nothing else behind the menu acts on it.
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || backdrop.current?.contains(document.activeElement)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", escape, true);
+    return () => window.removeEventListener("keydown", escape, true);
+  }, [onClose]);
   return (
     <div
+      ref={backdrop}
       className="menu-backdrop"
       onMouseDown={onClose}
       onContextMenu={(event) => {
@@ -171,7 +186,9 @@ function MenuPanel({ x, y, flipX, items, onClose, onSideways, onBack, focusFirst
             {item.separated && <div className="menu-separator" role="separator" />}
             <button
               className={`menu-item${item.danger ? " danger" : ""}${open?.index === index ? " open" : ""}`}
-              role="menuitem"
+              // An on/off setting says whether it's on.
+              role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
+              aria-checked={item.checked}
               aria-haspopup={item.submenu ? "menu" : undefined}
               aria-expanded={item.submenu ? open?.index === index : undefined}
               disabled={item.disabled}

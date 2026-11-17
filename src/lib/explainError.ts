@@ -2,6 +2,7 @@
  * git's errors in plain words: what happened, and what can be done about it. git's own
  * message stays available beside it, for whoever wants the details.
  */
+import type { ErrorKind } from "../api/invoke";
 
 /** What can be done about an error, when the app can do it. */
 export type ErrorFix =
@@ -49,162 +50,133 @@ export interface ErrorContext {
   unseen?: { count: number; by: string | null } | null;
 }
 
-/** The host in git's message ("github.com"): where it pushed to ("To …"), or the first address in it. */
-function host(message: string): string | null {
-  const pushedTo = /^To (?:[a-z+]+:\/\/)?(?:[^@/\s]+@)?([^/:\s]+)/m.exec(message)?.[1];
-  if (pushedTo) return pushedTo;
-  const match = /(?:https?|ssh|git):\/\/(?:[^@/\s]+@)?([^/:\s'"]+)|[\w.-]+@([\w.-]+\.[a-z]{2,}):/i.exec(message);
-  return match ? (match[1] ?? match[2]) : null;
-}
-
-/** The files git lists after a line like "...would be overwritten by checkout:", indented by a tab. */
-function listedFiles(message: string): string[] {
-  return message
-    .split("\n")
-    .filter((line) => /^\t\S/.test(line))
-    .map((line) => line.trim());
-}
-
 const files = (count: number, what = "file") => `${count === 1 ? "1" : count.toLocaleString()} ${what}${count === 1 ? "" : "s"}`;
 
 /**
- * git's message (or the backend's, built on it) in plain words, or null when it isn't one
- * of the errors known here: then git's message is shown as it is.
+ * A failure in plain words, from its kind (the backend says which it is), or null when it
+ * isn't one explained here: then its message is shown as it is.
  */
-export function explainError(message: string, context: ErrorContext = {}): Explained | null {
-  const rejected = /! \[rejected\]\s+(\S+)\s+->\s+(\S+)\s+\(([^)]+)\)/.exec(message);
-  const branch = rejected?.[2] ?? context.branch ?? "the branch";
-  const remoteBranch = context.upstream ?? (rejected ? `the remote's ${branch}` : `the remote branch`);
-  const where = host(message);
+export function explainError(kind: ErrorKind | null, context: ErrorContext = {}): Explained | null {
+  if (!kind) return null;
+  // The branch a push was refused for, as git named it; else the checked-out one.
+  const pushed = kind.kind === "pushRejected" || kind.kind === "staleLease" ? kind.branch : null;
+  const branch = pushed ?? context.branch ?? "the branch";
+  const remoteBranch = context.upstream ?? (pushed ? `the remote's ${branch}` : "the remote branch");
+  const where = "host" in kind ? kind.host : null;
 
-  if (rejected && (rejected[3] === "fetch first" || rejected[3] === "non-fast-forward")) {
-    return {
-      headline: `Push stopped: ${remoteBranch} has commits you don't have yet`,
-      detail: `Someone pushed to ${branch} after you last fetched.`,
-      fixes: ["sync", "forcePush"],
-    };
+  switch (kind.kind) {
+    case "pushRejected":
+      return {
+        headline: `Push stopped: ${remoteBranch} has commits you don't have yet`,
+        detail: `Someone pushed to ${branch} after you last fetched.`,
+        fixes: ["sync", "forcePush"],
+      };
+    case "staleLease": {
+      const { unseen } = context;
+      return {
+        headline: unseen
+          ? `Force push stopped: ${remoteBranch} has ${unseen.count === 1 ? "a commit" : `${unseen.count.toLocaleString()} commits`} you haven't fetched${unseen.by ? `, by ${unseen.by}` : ""}`
+          : `Force push stopped: ${remoteBranch} has commits you haven't fetched`,
+        detail: "A force push stops for commits you haven't seen, so they aren't removed by mistake.",
+        fixes: ["forcePushAnyway", "showUnseen"],
+      };
+    }
+    case "upstreamGone": {
+      const remote = context.upstream?.split("/")[0] ?? "the remote";
+      return {
+        headline: `${remote} has no branch called ${kind.branch} any more`,
+        detail: `Your ${branch} pulls from ${remote === "the remote" ? kind.branch : `${remote}/${kind.branch}`}, which was renamed or deleted on ${remote}.`,
+        fixes: ["useUpstream", "chooseUpstream", "pushBack"],
+      };
+    }
+    case "notFastForward":
+      return {
+        headline: `Pull stopped: ${branch} and ${remoteBranch} both have new commits`,
+        detail: "git is set to only fast-forward (pull.ff = only), so it won't combine them.",
+        fixes: ["sync"],
+      };
+    case "tooLarge":
+      return {
+        headline: `${kind.file ?? "A file"} is too big for ${where ?? "GitHub"}`,
+        detail: "GitHub takes files up to 100 MB. Bigger ones go in Git LFS.",
+        fixes: ["moveToLfs"],
+      };
+    case "protected":
+      return {
+        headline: `${branch} is protected${where ? ` on ${where}` : ""}`,
+        detail: `Changes go into ${branch} through a pull request.`,
+        fixes: ["newBranch"],
+      };
+    case "signIn":
+      return {
+        headline: `git couldn't sign in to ${where ?? "the remote"}`,
+        detail: "Sign in once with git in a terminal, or set up a credential helper, then try again.",
+        fixes: ["retry"],
+      };
+    case "repositoryNotFound":
+      return {
+        headline: `git can't find the repository${where ? ` on ${where}` : ""}`,
+        detail: "Its address may be wrong (see Repository → Remotes), or you may not have access to it with the account git signs in with.",
+        fixes: [],
+      };
+    case "unreachable":
+      return {
+        headline: `Couldn't reach ${where ?? "the remote"}`,
+        detail: "Check your internet connection (and VPN, if you use one), then try again.",
+        fixes: ["retry"],
+      };
+    case "connectionDropped":
+      return {
+        headline: `The connection to ${where ?? "the remote"} dropped partway`,
+        detail: "Big pushes and pulls sometimes do on slow or unsteady connections. Try again.",
+        fixes: ["retry"],
+      };
+    case "changesInTheWay":
+      return kind.untracked
+        ? {
+            headline: kind.files > 0 ? `${files(kind.files, "new file")} of yours ${kind.files === 1 ? "is" : "are"} in the way` : "New files of yours are in the way",
+            detail: "Files with the same names would replace them.",
+            fixes: ["stash"],
+          }
+        : {
+            headline: kind.files > 0 ? `Your changes to ${files(kind.files)} are in the way` : "Your changes are in the way",
+            detail: "Doing this would overwrite them.",
+            fixes: ["stash"],
+          };
+    case "noUpstream":
+      return {
+        headline: `${branch} isn't linked to a remote branch`,
+        detail: "git doesn't know which remote branch to pull from.",
+        fixes: ["push"],
+      };
+    case "indexLocked":
+      return {
+        headline: "Another git program is busy in this repository",
+        detail: "Wait for it to finish. If none is running, one stopped halfway and left .git/index.lock behind: delete that file, then try again.",
+        fixes: ["retry"],
+      };
+    case "unrelatedHistories":
+      return {
+        headline: "These two histories have no commit in common",
+        detail: "They don't come from the same repository, so git won't combine them.",
+        fixes: [],
+      };
+    case "diskFull":
+      return {
+        headline: "The disk is full",
+        detail: "Make some room, then try again.",
+        fixes: ["retry"],
+      };
+    case "noLfs":
+      return {
+        headline: "Git LFS isn't installed",
+        detail: "This repository keeps big files in Git LFS. Install it from git-lfs.com, then try again.",
+        fixes: [],
+      };
+    default:
+      // The rest have a banner or a dialog of their own, or their message says it all.
+      return null;
   }
-  if (rejected && rejected[3] === "stale info") {
-    return {
-      headline: context.unseen
-        ? `Force push stopped: ${remoteBranch} has ${context.unseen.count === 1 ? "a commit" : `${context.unseen.count.toLocaleString()} commits`} you haven't fetched${context.unseen.by ? `, by ${context.unseen.by}` : ""}`
-        : `Force push stopped: ${remoteBranch} has commits you haven't fetched`,
-      detail: "A force push stops for commits you haven't seen, so they aren't removed by mistake.",
-      fixes: ["forcePushAnyway", "showUnseen"],
-    };
-  }
-  const gone = /Your configuration specifies to merge with the ref 'refs\/heads\/([^']+)'\s+from the remote, but no such ref was fetched/i.exec(message);
-  if (gone) {
-    const remote = context.upstream?.split("/")[0] ?? "the remote";
-    return {
-      headline: `${remote} has no branch called ${gone[1]} any more`,
-      detail: `Your ${branch} pulls from ${remote === "the remote" ? gone[1] : `${remote}/${gone[1]}`}, which was renamed or deleted on ${remote}.`,
-      fixes: ["useUpstream", "chooseUpstream", "pushBack"],
-    };
-  }
-  if (/Not possible to fast-forward/i.test(message)) {
-    return {
-      headline: `Pull stopped: ${branch} and ${remoteBranch} both have new commits`,
-      detail: "git is set to only fast-forward (pull.ff = only), so it won't combine them.",
-      fixes: ["sync"],
-    };
-  }
-  const large = /GH001|exceeds GitHub's file size limit|Large files detected/i.test(message);
-  if (large) {
-    const named = /File (\S+) is [\d.]+ ?MB; this exceeds/i.exec(message)?.[1];
-    return {
-      headline: `${named ?? "A file"} is too big for ${where ?? "GitHub"}`,
-      detail: "GitHub takes files up to 100 MB. Bigger ones go in Git LFS.",
-      fixes: ["moveToLfs"],
-    };
-  }
-  if (/GH006|protected branch hook declined|not allowed to push code to protected branches/i.test(message)) {
-    return {
-      headline: `${branch} is protected${where ? ` on ${where}` : ""}`,
-      detail: `Changes go into ${branch} through a pull request.`,
-      fixes: ["newBranch"],
-    };
-  }
-  if (/Git needs your credentials|Authentication failed|could not read Username|terminal prompts disabled|Permission denied \(publickey/i.test(message)) {
-    return {
-      headline: `git couldn't sign in to ${where ?? "the remote"}`,
-      detail: "Sign in once with git in a terminal, or set up a credential helper, then try again.",
-      fixes: ["retry"],
-    };
-  }
-  if (/Repository not found|does not appear to be a git repository|repository '.*' not found/i.test(message)) {
-    return {
-      headline: `git can't find the repository${where ? ` on ${where}` : ""}`,
-      detail: "Its address may be wrong (see Repository → Remotes), or you may not have access to it with the account git signs in with.",
-      fixes: [],
-    };
-  }
-  if (/Could not resolve host|Failed to connect to|Connection timed out|Couldn't connect to server|Network is unreachable|Operation timed out|Connection refused/i.test(message)) {
-    return {
-      headline: `Couldn't reach ${where ?? "the remote"}`,
-      detail: "Check your internet connection (and VPN, if you use one), then try again.",
-      fixes: ["retry"],
-    };
-  }
-  if (/The remote end hung up unexpectedly|early EOF|RPC failed|unexpected disconnect/i.test(message)) {
-    return {
-      headline: `The connection to ${where ?? "the remote"} dropped partway`,
-      detail: "Big pushes and pulls sometimes do on slow or unsteady connections. Try again.",
-      fixes: ["retry"],
-    };
-  }
-  if (/untracked working tree files would be (?:overwritten|removed)/i.test(message)) {
-    const count = listedFiles(message).length;
-    return {
-      headline: count > 0 ? `${files(count, "new file")} of yours ${count === 1 ? "is" : "are"} in the way` : "New files of yours are in the way",
-      detail: "Files with the same names would replace them.",
-      fixes: ["stash"],
-    };
-  }
-  if (/Your local changes to the following files would be overwritten|commit your changes or stash them/i.test(message)) {
-    const count = listedFiles(message).length;
-    return {
-      headline: count > 0 ? `Your changes to ${files(count)} are in the way` : "Your changes are in the way",
-      detail: "Doing this would overwrite them.",
-      fixes: ["stash"],
-    };
-  }
-  if (/There is no tracking information for the current branch|has no upstream branch/i.test(message)) {
-    return {
-      headline: `${branch} isn't linked to a remote branch`,
-      detail: "git doesn't know which remote branch to pull from.",
-      fixes: ["push"],
-    };
-  }
-  if (/index\.lock': File exists/i.test(message)) {
-    return {
-      headline: "Another git program is busy in this repository",
-      detail: "Wait for it to finish. If none is running, one stopped halfway and left .git/index.lock behind: delete that file, then try again.",
-      fixes: ["retry"],
-    };
-  }
-  if (/refusing to merge unrelated histories/i.test(message)) {
-    return {
-      headline: "These two histories have no commit in common",
-      detail: "They don't come from the same repository, so git won't combine them.",
-      fixes: [],
-    };
-  }
-  if (/No space left on device/i.test(message)) {
-    return {
-      headline: "The disk is full",
-      detail: "Make some room, then try again.",
-      fixes: ["retry"],
-    };
-  }
-  if (/git: 'lfs' is not a git command|git-lfs: command not found|git-lfs was not found/i.test(message)) {
-    return {
-      headline: "Git LFS isn't installed",
-      detail: "This repository keeps big files in Git LFS. Install it from git-lfs.com, then try again.",
-      fixes: [],
-    };
-  }
-  return null;
 }
 
 /**

@@ -1,0 +1,57 @@
+name: Website
+
+# The website in site/, on GitHub Pages: published when it changes on develop, or from the
+# Actions tab (Run workflow). It's plain files, so nothing is built. Pages needs switching
+# on once, in the repository's Settings, Pages, Source: GitHub Actions; until then this
+# says so and publishes nothing.
+on:
+  push:
+    branches: [develop]
+    paths: [site/**, .github/workflows/website.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One publish at a time, and a newer one waits instead of stopping one halfway.
+concurrency:
+  group: website
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Is Pages switched on?
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/pages" --silent 2>/dev/null; then
+            echo "on=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::GitHub Pages isn't switched on for this repository (Settings, Pages, Source: GitHub Actions), so the website wasn't published."
+            echo "on=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.pages.outputs.on == 'true'
+
+      - uses: actions/configure-pages@v6
+        if: steps.pages.outputs.on == 'true'
+
+      - uses: actions/upload-pages-artifact@v5
+        if: steps.pages.outputs.on == 'true'
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v5
+        if: steps.pages.outputs.on == 'true'

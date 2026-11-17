@@ -96,7 +96,7 @@ ESLint checks the interface's code, with React's rules of hooks:
 npm run lint
 ```
 
-A smoke test clicks through the main parts of the app in Chromium, on fresh demo repositories (it needs Playwright, see [tools/preview](../tools/preview/README.md)). `npm run preview:smoke -- --browser webkit` runs it in WebKit, Safari's engine, which draws the Mac app's window:
+A smoke test clicks through the main parts of the app in Chromium, on fresh demo repositories (it needs Playwright, see [tools/preview](../tools/preview/README.md)). Its steps are in `tools/preview/smoke/steps`, a file for each area of the app, which run three at a time, each in a browser of its own on fresh demos; a file that fails is run once more, and passes as flaky if it passes then. `npm run preview:smoke -- --browser webkit` runs it in WebKit, Safari's engine, which draws the Mac app's window:
 
 ```bash
 npm run preview:smoke
@@ -143,7 +143,7 @@ The **Build** workflow (`.github/workflows/build.yml`) makes the installers:
 - **Windows:** `-setup.exe`, Tributary's own setup, which the automatic updates run too: `_x64-setup.exe`, and `_arm64-setup.exe` for Windows on ARM, built on an ARM runner (`windows-11-arm`)
 - **Linux:** `.AppImage` (`_amd64`, and `_aarch64` for ARM, built on Ubuntu 22.04's ARM runner), built on Ubuntu 22.04 (an AppImage runs where the C library is as new as the one it was built with, or newer), which the automatic updates replace. A copy of Tributary built from source isn't offered updates (`src-tauri/src/updates.rs`).
 
-Every merge into `develop` (but one of only documentation) is a **beta**: the installers are signed for updates and published as a GitHub pre-release, like `v0.3.0-beta.4`, with what was merged since the beta before. GitHub's latest release skips pre-releases, so only the copies of Tributary that get betas are offered it (**About Tributary → Get beta versions**): they read `latest.json` from the release tagged `beta`, the beta channel, which each new beta and each new release points at itself if it's newer than what it offered (`.github/scripts/beta-channel.sh`). The newest five betas are kept. To try a branch before it's merged, start a build by hand: **Actions → Build → Run workflow**, and choose the branch, then download the installers from the run's **Artifacts**. These aren't signed for updates, so they install by hand but aren't offered as an update.
+Every merge into `develop` (but one of only documentation or the website) is a **beta**: the installers are signed for updates and published as a GitHub pre-release, like `v0.3.0-beta.4`, with what was merged since the beta before. GitHub's latest release skips pre-releases, so only the copies of Tributary that get betas are offered it (**About Tributary → Get beta versions**): they read `latest.json` from the release tagged `beta`, the beta channel, which each new beta and each new release points at itself if it's newer than what it offered (`.github/scripts/beta-channel.sh`). The newest five betas are kept. To try a branch before it's merged, start a build by hand: **Actions → Build → Run workflow**, and choose the branch, then download the installers from the run's **Artifacts**. These aren't signed for updates, so they install by hand but aren't offered as an update.
 
 Nobody sets the version by hand: it's worked out from the pull requests merged into `develop` since the last release (`.github/scripts/next-version.mjs`). Each pull request into `develop` gets one label for its kind of change, and the **Labels** check asks for it:
 
@@ -201,16 +201,22 @@ and put the public key in `tauri.conf.json`. Apps signed with the old key can't 
 npm run notices
 ```
 
+## Website
+
+The website is in `site/`: plain HTML, CSS and JavaScript, with no build step. Its fonts, logo and two pictures are in `site/assets/`; the only thing it asks for elsewhere is the latest release's list of files, from GitHub's API, for the download buttons. Open `site/index.html` in a browser to see it, or serve the folder with `python3 -m http.server --directory site`. It's dark only, follows the system's reduced motion setting, and its demos show made-up people and repositories, like the preview's.
+
+The Website workflow (`.github/workflows/website.yml`) publishes it on GitHub Pages when `site/` changes on develop, or when it's run from the Actions tab. Pages has to be switched on once, in the repository's Settings, Pages, Source: GitHub Actions; until then the workflow says so and publishes nothing. Each download button downloads its system's file from the latest release (the processor's, for Windows and Linux), found by its name: `_universal.dmg`, `_x64-setup.exe`, `_arm64-setup.exe`, `_amd64.AppImage` or `_aarch64.AppImage` at the end (`site/site.js`). So a release needs no change to the site, unless those names change. When GitHub can't be reached, the buttons go to the release's page.
+
 ## Project layout
 
 | Path | What it does |
 | --- | --- |
 | `src-tauri/src/repo/` | Reads commits, branches, tags, changed files, the reflog and worktrees with gix |
 | `src-tauri/src/graph.rs` | Gives each commit a lane and works out the lines to draw in each row |
-| `src-tauri/src/actions/` | Runs git for everything that changes the repository, one module per area (branches, history, stashes, conflicts, Git LFS, worktrees, backups, …) |
+| `src-tauri/src/actions/` | Runs git for everything that changes the repository, one module per area (branches, history, stashes, conflicts, Git LFS, worktrees, backups, …). `describe.rs` says what each action is like, for the frontend: its progress bar's words, whether it can be stopped, run again with changes put aside, or rewrites history, and what undoes it (which comes back with its outcome) |
 | `src-tauri/src/git/` | Runs the user's git: progress and cancel, Git LFS progress, the activity log, credentials |
-| `src-tauri/src/commands.rs` | The commands the frontend calls |
-| `src-tauri/src/error.rs` | The error every command can return |
+| `src-tauri/src/commands/` | The commands the frontend calls. `list.rs` lists each one once, with its arguments and result: the app's handler, the preview's backend and the TypeScript types of every call (`Commands` in `src/api/generated.ts`, which `invoke` in `src/api/invoke.ts` checks calls against) are made from it. A new command goes in `mod.rs` and in the list; the tests say what's missing |
+| `src-tauri/src/error/` | The error every command can return: its message, and the kind of failure it is when the app knows (a rejected push, a hook that stopped a commit, changes in the way, …), said where the app makes it or recognised from git's message (`kind.rs`). The frontend explains a failure and offers its fix from the kind, never from the message's words (`src/lib/explainError.ts`); a command's failure reaches it as an `AppError` (`src/api/invoke.ts`) |
 | `src-tauri/src/bindings.rs` | Makes `src/api/generated.ts`, the TypeScript types of what the commands take and give back, from the Rust ones (a test) |
 | `src-tauri/src/github/` | Open pull requests and their checks, opening one and reading one in full; signing in |
 | `src-tauri/src/gitlab/` | The same for merge requests on GitLab and their pipelines |
@@ -228,7 +234,7 @@ npm run notices
 | `src-tauri/src/links.rs` | Turns remote addresses into web pages (GitHub, GitLab, …) |
 | `src-tauri/src/updates.rs` | Finds, downloads and installs new versions from the GitHub releases |
 | `src-tauri/tests/` | Integration tests, one file per area, on throwaway repositories |
-| `src-tauri/examples/headless.rs` | The app's commands without a window, for the browser preview |
+| `src-tauri/examples/headless.rs` | The app's commands without a window, for the browser preview: the same functions, from the command list, except the few that need the app itself (its window, its events, the files it's installed with), which have their own versions here or a fake in `tools/preview/shim.js` |
 | `src/App.tsx` | Connects the parts: the tabs, the open repository or the start screen, and what opens over them |
 | `src/app/` | The app's state, in hooks (the open repository, tabs, selection, search, highlighting, actions, per-repository settings, …), and its screens, menus, command palette and dialogs |
 | `src/api/` | The commands the frontend calls, one file per area; the shapes of what they take and give back are in `generated.ts`, made from the Rust types (see [Test](#test)) |
@@ -237,6 +243,7 @@ npm run notices
 | `src/components/ui/` | The parts the interface is built from: `Button`, `Switch`, `Field` and `Chip` |
 | `src/catalogue/` | The catalogue page (`?catalogue`): the building blocks together, dark and light |
 | `src/lib/` | Logic without an interface (search, selection, undo, paths, diagnostics, …), with its tests |
+| `site/` | The website, published on GitHub Pages (see [Website](#website)) |
 | `src/styles/` | The styles, an area per file, applied in the order `src/styles.css` lists them. `theme.css` holds the colours and themes, and the scales for text (`--type-xs` to `--type-4xl`), corners (`--radius-xs` to `--radius-pill`) and space (`--space-2` to `--space-96`): sizes, corners, padding, margins and gaps use those steps, never their own pixels, which a test checks (`src/lib/styles.test.ts`). An offset that lines something up with something else can stay in pixels, with its reason in a comment beside it. Colours come from `theme.css` too; one that's the same in every theme on purpose has its reason beside it, which the same test checks. Keyboard focus shows the same ring everywhere (`--focus-ring`), which `src/lib/focus.test.ts` checks. Words on controls are trimmed to their capitals (`.button-label`, which `Button` and `labelled()` in `ui/Button.tsx` add), so they sit in the middle; the smoke test checks every control on its screens, at 100% to 200% (`tools/preview/aligned.mjs`). Browsers draw letters on whole screen pixels, so the words' box is their capitals' height in whole pixels (`--cap-pixels`), and a control with words at `--type-sm` or `--type-base` is an odd number of pixels tall, at `--type-xs` an even number; the smoke test and the desktop tests on Windows check that in a screenshot at 100% (`tools/e2e/centred.mjs`) |
 | `tools/preview/` | The browser preview, demo repositories and the smoke test |
 | `tools/e2e/` | End-to-end tests of the desktop app, through tauri-driver and WebDriver |

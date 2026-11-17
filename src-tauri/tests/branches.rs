@@ -5,7 +5,7 @@
 
 mod common;
 
-use common::{TempRepo, remote_turn, run, with_identity};
+use common::{TempRepo, outcome, remote_turn, run, with_identity};
 use tributary_lib::actions::{Action, BackupEvent, BranchTip};
 use tributary_lib::{actions, repo};
 
@@ -32,6 +32,41 @@ fn hard_reset_moves_the_branch_and_discards_changes() {
         repo.path().join("untracked.txt").exists(),
         "untracked files are kept"
     );
+}
+
+#[test]
+fn says_what_undoes_an_action_from_where_head_was() {
+    let mut repo = TempRepo::new("undo");
+    with_identity(&repo);
+    let first = repo.commit("a.txt", "First");
+    repo.commit("a.txt", "Second");
+    repo.git(&["branch", "feature", &first]);
+
+    // Back to the branch it was on.
+    let checkout = outcome(
+        &repo,
+        Action::CheckoutBranch {
+            name: "feature".into(),
+        },
+    );
+    assert_eq!(
+        checkout.undo,
+        Some(Action::CheckoutBranch {
+            name: "main".into()
+        })
+    );
+    // Back to the commit it was on, and the changes kept, for a commit.
+    std::fs::write(repo.path().join("b.txt"), "new").unwrap();
+    repo.git(&["add", "b.txt"]);
+    let commit = outcome(
+        &repo,
+        Action::Commit {
+            message: "Add b".into(),
+            amend: false,
+            no_verify: false,
+        },
+    );
+    assert_eq!(commit.undo, Some(Action::ResetSoft { id: first }));
 }
 
 #[test]

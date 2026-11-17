@@ -10,18 +10,27 @@
   flex: none;
 }
 
+/* The filter, and the button for what the sidebar shows. */
+.sidebar-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin: var(--space-10) var(--space-6) var(--space-10) var(--space-10);
+  flex: none;
+}
+
 .sidebar-filter {
   display: flex;
   align-items: center;
   gap: var(--space-6);
-  margin: var(--space-10);
+  flex: 1;
+  min-width: 0;
   padding: 0 var(--space-8);
   height: 28px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--bg);
   color: var(--text-faint);
-  flex: none;
 }
 
 .sidebar-filter:focus-within {
@@ -147,6 +156,32 @@
   align-content: unsafe end;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Pull requests and issues: the number at the end, the checks' colour on the icon. */
+.sidebar-request-number {
+  margin-left: auto;
+  padding-left: var(--space-6);
+  color: var(--text-faint);
+  font-size: var(--type-xs);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.sidebar-request.draft .sidebar-name {
+  color: var(--text-faint);
+}
+
+.sidebar-request-state.success {
+  color: var(--success);
+}
+
+.sidebar-request-state.failure {
+  color: var(--danger);
+}
+
+.sidebar-request-state.pending {
+  color: var(--warning);
 }
 
 .sidebar-empty {
@@ -476,4 +511,154 @@
   .sidebar-over {
     animation: none;
   }
+}
+
+/* What a search of everything found, by kind, in the sidebar's place (SearchResults). */
+.search-results-frame {
+  border-right: 1px solid var(--border);
+}
+
+.search-results {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-panel);
+}
+
+.search-results-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-8) var(--space-6) var(--space-14);
+  border-bottom: 1px solid var(--border);
+}
+
+.search-results-total {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-results-groups {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: var(--space-12);
+}
+
+.search-results-group {
+  padding: var(--space-6) 0;
+}
+
+.search-results-group + .search-results-group {
+  border-top: 1px solid var(--border);
+}
+
+.search-results-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: 26px;
+  margin: 0;
+  padding: 0 var(--space-8) 0 var(--space-14);
+  color: var(--text-faint);
+  font-size: var(--type-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.search-results-count {
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.search-results-all {
+  display: inline-flex;
+  align-items: center;
+  /* Odd, for words at --type-sm (see --cap-pixels). */
+  height: 21px;
+  margin-left: auto;
+  padding: 0 var(--space-6);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: var(--type-sm);
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.search-results-all:hover {
+  background: var(--bg-hover);
+}
+
+.search-result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  /* Odd, for words at --type-sm (see --cap-pixels). */
+  height: 29px;
+  padding: 0 var(--space-12) 0 var(--space-14);
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--type-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-result:hover {
+  background: var(--bg-hover);
+}
+
+.search-result-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-muted);
+}
+
+/* Trimmed to its capitals (.button-label), and clipped sideways only: "p" and "g" reach below. */
+.search-result-text {
+  flex: 1;
+  min-width: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-meta {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  white-space: nowrap;
+}
+
+.search-result-text .search-result-meta {
+  margin-left: var(--space-4);
+}
+
+.search-result mark {
+  border-radius: var(--radius-xs);
+  background: rgb(var(--accent-rgb) / 0.28);
+  color: inherit;
+}
+
+.search-results-none {
+  margin: 0;
+  padding: var(--space-10) var(--space-14);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--type-sm);
 }

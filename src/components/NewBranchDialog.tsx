@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { myIssues, runAction, type Action, type CommitRow, type Issue } from "../api";
+import { asAppError, myIssues, runAction, type Action, type AppError, type CommitRow, type Issue } from "../api";
 import { branchNameFor, useIssueTracker } from "../lib/issues";
-import { involvesUntrackedFiles, isLocalChangesError } from "../lib/errors";
 import { Dialog } from "./Dialog";
 import { CommitRef } from "./ResetDialog";
 import { Button } from "./ui/Button";
@@ -21,7 +20,7 @@ export function NewBranchDialog({ repoPath, target, canCheckout, onCancel, onDon
   const [name, setName] = useState("");
   const [checkout, setCheckout] = useState(canCheckout);
   const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AppError | null>(null);
   // Your open issues in the repository's tracker, to name the branch after one.
   const { tracker } = useIssueTracker();
   const [issues, setIssues] = useState<Issue[] | null>(null);
@@ -44,7 +43,7 @@ export function NewBranchDialog({ repoPath, target, canCheckout, onCancel, onDon
     try {
       onDone(await runAction(repoPath, action));
     } catch (e) {
-      setError(String(e));
+      setError(asAppError(e));
       setRunning(false);
     }
   };
@@ -53,19 +52,18 @@ export function NewBranchDialog({ repoPath, target, canCheckout, onCancel, onDon
     if (name.trim() && !running) run(createAction());
   };
   // Checking out failed because of uncommitted changes: offer to stash them around it.
-  const stashRetry =
-    error && checkout && isLocalChangesError(error)
-      ? {
-          label: "Stash changes and retry",
-          onClick: () =>
-            run({ kind: "stashAndRetry", action: createAction(), includeUntracked: involvesUntrackedFiles(error) }),
-        }
-      : null;
+  const inTheWay = checkout && error?.kind?.kind === "changesInTheWay" ? error.kind : null;
+  const stashRetry = inTheWay
+    ? {
+        label: "Stash changes and retry",
+        onClick: () => run({ kind: "stashAndRetry", action: createAction(), includeUntracked: inTheWay.untracked }),
+      }
+    : null;
 
   return (
     <Dialog
       title="New branch"
-      error={error}
+      error={error?.message ?? null}
       errorAction={stashRetry}
       busy={running}
       onCancel={onCancel}

@@ -1,5 +1,4 @@
 import { cancelAction, WORKTREE_ID, type RepoSnapshot } from "../api";
-import { hookFailure } from "../lib/errors";
 import { usePresence } from "../lib/usePresence";
 import { openInBrowser } from "../lib/weblinks";
 import { CloseIcon } from "../components/Icons";
@@ -21,7 +20,6 @@ import type { Repository } from "./useRepository";
 import type { RepositorySettings } from "./useRepositorySettings";
 import type { Selection } from "./useSelection";
 import type { Submodules } from "./useSubmodules";
-import type { OpenDialog } from "../menus/context";
 import { RepoErrorBanner } from "./RepoErrorBanner";
 import { Button } from "../components/ui/Button";
 
@@ -41,15 +39,12 @@ interface Props {
   alwaysUpdateSubmodules: (() => void) | null;
   /** Turn off "only the checked-out branch's own history". */
   showWholeHistory: () => void;
-  /** Open another working tree, in its tab. */
-  openWorktree: (path: string) => void;
   /** A commit was made from here (without hooks): the message box starts empty again. */
   onCommitted: () => void;
   /** What arrived since you were last here (useSinceLastHere), going to a commit, and dismissing it. */
   since: SinceLastHere | null;
   goTo: (id: string) => void;
   dismissSince: () => void;
-  openDialog: (dialog: OpenDialog) => void;
 }
 
 /**
@@ -57,12 +52,12 @@ interface Props {
  * stopped, the last error, Git LFS trouble, and what part of the history is shown.
  */
 export function RepositoryBanners(props: Props) {
-  const { snapshot, repo, actions, selection, highlight, settings, lfsHealth, lockRelease, showWholeHistory, openWorktree } = props;
+  const { snapshot, repo, actions, selection, highlight, settings, lfsHealth, lockRelease, showWholeHistory } = props;
   const { act, running } = actions;
   // An action's progress shows in the repository it runs in (its tab shows it too).
   const progress = actions.progress;
   const { error, setError } = repo;
-  const hook = error ? hookFailure(error.message) : null;
+  const hook = error?.kind?.kind === "hookFailed" ? error.kind : null;
   const { focus } = highlight;
   const branchLabel = snapshot.headBranch ?? "HEAD";
   const conflicted = (snapshot.worktree?.unstaged ?? []).filter((file) => file.status === "conflicted").map((file) => file.path);
@@ -109,7 +104,7 @@ export function RepositoryBanners(props: Props) {
         <div className="error-banner inline hook-failure" role="alert">
           <div className="hook-failure-text">
             <strong>
-              The {hook.hook} hook stopped the {hook.what}
+              The {hook.hook} hook stopped the {hook.stopped}
             </strong>
             {hook.output ? <pre className="hook-output mono">{hook.output}</pre> : <span> without saying why.</span>}
           </div>
@@ -117,14 +112,14 @@ export function RepositoryBanners(props: Props) {
             <button
               className="error-action"
               disabled={running !== null}
-              title={`Run it again without the repository's ${hook.what === "commit" ? "pre-commit and commit-msg hooks" : "pre-push hook"}: their checks are skipped this once`}
+              title={`Run it again without the repository's ${hook.stopped === "commit" ? "pre-commit and commit-msg hooks" : "pre-push hook"}: their checks are skipped this once`}
               onClick={() =>
                 act(error.skipHooks!).then((done) => {
                   if (done && error.skipHooks?.kind === "commit") props.onCommitted();
                 })
               }
             >
-              {hook.what === "commit" ? "Commit anyway (skip hooks)" : "Push anyway (skip hooks)"}
+              {hook.stopped === "commit" ? "Commit anyway (skip hooks)" : "Push anyway (skip hooks)"}
             </button>
           )}
           <Button kind="icon" onClick={() => setError(null)} aria-label="Dismiss">
@@ -135,13 +130,8 @@ export function RepositoryBanners(props: Props) {
       {error && !hook && (
         <RepoErrorBanner
           error={error}
-          snapshot={snapshot}
           head={snapshot.headCommit ? selection.byId.get(snapshot.headCommit) : undefined}
           running={running}
-          act={act}
-          openDialog={props.openDialog}
-          openWorktree={openWorktree}
-          goTo={props.goTo}
           onDismiss={() => setError(null)}
         />
       )}
@@ -149,8 +139,8 @@ export function RepositoryBanners(props: Props) {
         <LfsHealthBanner
           health={lfsHealth.notice}
           busy={running !== null}
-          onDownload={() => act({ kind: "downloadLfsFiles" }, "download")}
-          onSetUp={() => act({ kind: "setUpLfs" }, "download")}
+          onDownload={() => act({ kind: "downloadLfsFiles" })}
+          onSetUp={() => act({ kind: "setUpLfs" })}
           onGetLfs={() => openInBrowser("https://git-lfs.com")}
           onDismiss={lfsHealth.dismiss}
         />

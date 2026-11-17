@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { runAction, type Action } from "../api";
+import { asAppError, runAction, type Action, type AppError } from "../api";
 import { Dialog } from "./Dialog";
 import { Button } from "./ui/Button";
 
@@ -12,7 +12,7 @@ interface Props {
   danger?: boolean;
   action: Action;
   /** After a failure: an alternative to offer, like "Delete anyway". */
-  retryFor?: (error: string) => { label: string; action: Action } | null;
+  retryFor?: (error: AppError) => { label: string; action: Action } | null;
   onCancel: () => void;
   onDone: (message: string) => void;
 }
@@ -21,7 +21,7 @@ interface Props {
 export function ConfirmDialog(props: Props) {
   const { repoPath, title, children, confirmLabel, busyLabel, danger, action, retryFor, onCancel, onDone } = props;
   const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AppError | null>(null);
 
   const run = async (what: Action) => {
     setRunning(true);
@@ -29,7 +29,7 @@ export function ConfirmDialog(props: Props) {
     try {
       onDone(await runAction(repoPath, what));
     } catch (e) {
-      setError(String(e));
+      setError(asAppError(e));
       setRunning(false);
     }
   };
@@ -38,7 +38,7 @@ export function ConfirmDialog(props: Props) {
   return (
     <Dialog
       title={title}
-      error={error}
+      error={error?.message ?? null}
       errorAction={retry && { label: retry.label, onClick: () => run(retry.action) }}
       busy={running}
       onCancel={onCancel}

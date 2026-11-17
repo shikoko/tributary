@@ -144,6 +144,17 @@ pub fn run(repo: &TempRepo, action: Action) -> Result<String, String> {
     actions::run(repo.path(), action).map_err(|e| e.to_string())
 }
 
+/// Run `action`, which should fail: its message, and its kind when the app knows it.
+pub fn failure(
+    repo: &TempRepo,
+    action: Action,
+) -> (String, Option<tributary_lib::error::ErrorKind>) {
+    match actions::run(repo.path(), action) {
+        Ok(message) => panic!("it didn't fail: {message}"),
+        Err(error) => (error.to_string(), error.kind()),
+    }
+}
+
 /// Fetches, pulls and pushes can be cancelled all at once, so the tests that run them
 /// take turns: cancelling in one test must not stop another test's push.
 pub static REMOTE_TESTS: std::sync::Mutex<()> = std::sync::Mutex::new(());

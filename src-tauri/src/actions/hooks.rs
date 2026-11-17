@@ -5,12 +5,8 @@
 
 use std::path::PathBuf;
 
-use crate::error::Error;
+use crate::error::{Error, ErrorKind, Stopped};
 use crate::git::Git;
-
-/// What a hook failure's message starts with, for the app to recognise it.
-pub const HOOK_FAILED: &str = "The ";
-const STOPPED: &str = " hook stopped the ";
 
 /// The folder git runs hooks from: core.hooksPath (husky and the like set it), or .git/hooks.
 fn hooks_folder(git: &Git) -> Option<PathBuf> {
@@ -50,17 +46,18 @@ fn has_hook(git: &Git, name: &str) -> bool {
 }
 
 /// When `error` came from a commit (or `push`) that one of the repository's hooks stopped:
-/// a message saying which, with what it printed. Other errors are as they were.
+/// an [`ErrorKind::HookFailed`] saying which, with what it printed. Other errors are as
+/// they were.
 pub(super) fn explain(git: &Git, error: Error, push: bool) -> Error {
     let text = error.to_string();
-    let (hooks, what): (&[&str], &str) = if push {
+    let (hooks, stopped): (&[&str], Stopped) = if push {
         // A push the remote refused isn't the hook's doing.
         if text.contains("[rejected]") || text.contains("[remote rejected]") {
             return error;
         }
-        (&["pre-push"], "push")
+        (&["pre-push"], Stopped::Push)
     } else {
-        (&["pre-commit", "commit-msg"], "commit")
+        (&["pre-commit", "commit-msg"], Stopped::Commit)
     };
     let Some(hook) = hooks.iter().find(|hook| has_hook(git, hook)) else {
         return error;
@@ -69,22 +66,20 @@ pub(super) fn explain(git: &Git, error: Error, push: bool) -> Error {
         .lines()
         .filter(|line| !line.starts_with("error: failed to push some refs"))
         .collect::<Vec<_>>()
-        .join("\n");
-    Error::Message(format!(
-        "{HOOK_FAILED}{hook}{STOPPED}{what}.\n\n{}",
-        output.trim()
-    ))
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn hook_failures_start_the_same_way() {
-        let message = format!(
-            "{}pre-commit{}commit.\n\nlint failed",
-            super::HOOK_FAILED,
-            super::STOPPED
-        );
-        assert!(message.starts_with("The pre-commit hook stopped the commit."));
-    }
+        .join("\n")
+        .trim()
+        .to_owned();
+    let what = match stopped {
+        Stopped::Commit => "commit",
+        Stopped::Push => "push",
+    };
+    let message = format!("The {hook} hook stopped the {what}.\n\n{output}");
+    Error::known(
+        ErrorKind::HookFailed {
+            hook: (*hook).to_owned(),
+            stopped,
+            output,
+        },
+        message,
+    )
 }

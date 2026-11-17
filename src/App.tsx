@@ -19,7 +19,7 @@ import type { ToastMessage } from "./components/Toast";
 import { shortcutLabel } from "./app/appCommand";
 import { aboutCommandsFor, appMenus, helpCommandsFor, reopenTabCommand, settingsCommand, startCommands, type MenuBarContext } from "./app/appMenus";
 import { AppOverlays } from "./app/AppOverlays";
-import { FOCUS_REFRESH_INTERVAL, reachedRemote, type Running } from "./app/constants";
+import { FOCUS_REFRESH_INTERVAL } from "./app/constants";
 import { chooseFilesToLock } from "./app/lockPicker";
 import { paletteCommands } from "./app/paletteCommands";
 import { RepositoryView } from "./app/RepositoryView";
@@ -231,12 +231,12 @@ export default function App() {
     notify: setToast,
     blockFocusRefresh: repo.blockFocusRefresh,
     showChanges: () => selection.setSelectedId(WORKTREE_ID),
-    after: (action: Action, kind: Running, outcome) => {
+    after: (action: Action, remote: boolean, outcome) => {
       // Locks change when you lock or unlock, and may have changed on the server; a push
       // can open the way for a pull request, and a fetch can bring new ones.
       if (action.kind === "lockFiles" || action.kind === "unlockFiles") lfs.refresh(true);
-      else if (reachedRemote(kind)) lfs.refresh();
-      if (reachedRemote(kind)) prs.refresh(true);
+      else if (remote) lfs.refresh();
+      if (remote) prs.refresh(true);
       if (action.kind === "push" && outcome?.pushedFiles) lockRelease.pushedFiles(outcome.pushedFiles);
       submodules.ran(action);
     },
@@ -300,7 +300,7 @@ export default function App() {
     setLast: preferences.setScheduleLast,
     setRun: preferences.setScheduleRun,
     activePath: snapshot?.path ?? null,
-    fetchActive: async () => Boolean(await act({ kind: "fetchLatest" }, "fetch")),
+    fetchActive: async () => Boolean(await act({ kind: "fetchLatest" })),
     notify: setToast,
   });
   // A pull request merged or closed on the site moved the remote's branches: fetch now.
@@ -321,7 +321,7 @@ export default function App() {
       refreshAround();
     },
     notify: setToast,
-    pull: () => act({ kind: "pull" }, "pull"),
+    pull: () => act({ kind: "pull" }),
     show: (id) => selection.select(id),
     switchTab: tabbing.switchTab,
   });
@@ -375,7 +375,7 @@ export default function App() {
         preferences.setDetailsWidth(380);
       },
       refresh: repo.refresh,
-      act: (action, kind) => act(action, kind ?? "other"),
+      act: (action) => act(action),
       dialog: setDialog,
       select: selection.select,
       history: highlight.pickHistory,
@@ -428,7 +428,7 @@ export default function App() {
           branchLabel: snapshot.headBranch ?? "HEAD",
           focused: highlight.focus !== null,
           preferences,
-          run: (action, options) => act(action, "other", options),
+          run: (action, options) => act(action, options),
           switchTab: tabbing.switchTab,
           setFocus: highlight.setFocus,
           setHidden: settings.setHidden,

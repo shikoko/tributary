@@ -24,7 +24,7 @@ const MAX_TEXT_BYTES: u64 = MAX_DIFF_BYTES as u64;
 const TOOL_SETTLE: Duration = Duration::from_secs(2);
 
 /// Which change to a file.
-#[derive(Debug, Clone, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum DiffSource {
     /// What a commit changed, compared to its first parent.
@@ -97,7 +97,7 @@ pub struct Media {
 /// The kinds of files shown as what they are, with their types and how big they can be.
 /// Textures the window can't show itself (Targa, DDS, OpenEXR, Photoshop…) are made into
 /// PNG previews (textures.rs).
-const MEDIA_TYPES: [(&str, MediaKind, &str); 26] = [
+const MEDIA_TYPES: [(&str, MediaKind, &str); 27] = [
     ("png", MediaKind::Image, "image/png"),
     ("jpg", MediaKind::Image, "image/jpeg"),
     ("jpeg", MediaKind::Image, "image/jpeg"),
@@ -106,6 +106,8 @@ const MEDIA_TYPES: [(&str, MediaKind, &str); 26] = [
     ("bmp", MediaKind::Image, "image/bmp"),
     ("ico", MediaKind::Image, "image/x-icon"),
     ("avif", MediaKind::Image, "image/avif"),
+    // Drawn as a picture (an <img>), where its scripts never run.
+    ("svg", MediaKind::Image, "image/svg+xml"),
     ("wav", MediaKind::Audio, "audio/wav"),
     ("mp3", MediaKind::Audio, "audio/mpeg"),
     ("ogg", MediaKind::Audio, "audio/ogg"),
@@ -140,6 +142,12 @@ fn media_limit(kind: MediaKind) -> u64 {
 /// Textures are read here, not in the window, so they can be bigger (Photoshop files of
 /// a few hundred megabytes are common).
 const TEXTURE_LIMIT: u64 = 400 * 1024 * 1024;
+
+/// Kinds of files that are text as well, to show line by line too: SVGs, and 3D models
+/// like OBJ and glTF.
+fn also_text(kind: MediaKind, mime: &str) -> bool {
+    kind == MediaKind::Model || mime == "image/svg+xml"
+}
 
 /// The file's kind and type, if it's one shown as what it is.
 fn media_type(file: &str) -> Option<(MediaKind, &'static str)> {
@@ -288,8 +296,8 @@ pub fn file_diff(
         diff.hunks.clear();
         diff.additions = 0;
         diff.deletions = 0;
-        // Pictures, sounds and videos aren't text; 3D models can be (OBJ, glTF).
-        let binary_media = media.is_some_and(|(kind, _)| kind != MediaKind::Model);
+        // Pictures, sounds and videos aren't text; SVGs and 3D models can be (OBJ, glTF).
+        let binary_media = media.is_some_and(|(kind, mime)| !also_text(kind, mime));
         if !binary_media {
             let before = read_side(&git, &plan.before, file, true, Some(MAX_TEXT_BYTES));
             let after = read_side(&git, &plan.after, file, true, Some(MAX_TEXT_BYTES));
@@ -308,10 +316,10 @@ pub fn file_diff(
             diff.size_after = after.size;
         }
     }
-    // Shown as what they are: pictures, sounds and videos (never text), and 3D models
-    // (also when they're text, which then shows line by line too).
+    // Shown as what they are: pictures, sounds and videos (never text), and SVGs and 3D
+    // models (also when they're text, which then shows line by line too).
     if let Some((kind, mime)) = media
-        && (diff.binary || diff.lfs || kind == MediaKind::Model)
+        && (diff.binary || diff.lfs || also_text(kind, mime))
     {
         let format = file
             .rsplit_once('.')

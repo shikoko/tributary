@@ -376,6 +376,14 @@ pub(crate) fn command(executable: &Path) -> Command {
     // translated one would go unrecognised. LANGUAGE only chooses the messages' language,
     // unlike LC_ALL, so hooks git runs still get the computer's own locale for the rest.
     command.env("LANGUAGE", "en");
+    // The PATH a terminal would have, so git finds git-lfs, and hooks find what they run, when
+    // Tributary was opened from the Finder too (see `host`). In the Flatpak, git is a script
+    // that runs the computer's own, with the computer's PATH.
+    if !crate::host::in_flatpak()
+        && let Some(path) = crate::host::search_path()
+    {
+        command.env("PATH", path);
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -398,6 +406,17 @@ mod tests {
             .find(|(name, _)| *name == "LANGUAGE")
             .and_then(|(_, value)| value);
         assert_eq!(language, Some(std::ffi::OsStr::new("en")));
+    }
+
+    #[test]
+    fn gives_git_the_path_programs_are_found_on() {
+        let command = command(Path::new("git"));
+        let path = command
+            .get_envs()
+            .find(|(name, _)| *name == "PATH")
+            .and_then(|(_, value)| value)
+            .map(std::ffi::OsStr::to_owned);
+        assert_eq!(path, crate::host::search_path());
     }
 
     #[test]

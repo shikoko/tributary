@@ -811,3 +811,162 @@
   color: var(--text-muted);
   font-weight: 400;
 }
+
+/* A row of its own across the whole width (SSH keys). */
+.settings-block {
+  padding: var(--space-4) 0 var(--space-12);
+}
+
+/* SSH keys: a card for each, or the steps to make the first. */
+.ssh-keys {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.ssh-key {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-12) var(--space-14);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--bg-panel);
+}
+
+.ssh-key-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--text-muted);
+}
+
+.ssh-key-name {
+  color: var(--text);
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.ssh-key-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin-left: auto;
+}
+
+.ssh-key-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 21px;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--overlay-rgb) / 0.07);
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+}
+
+.ssh-key-state.accepted {
+  background: rgb(var(--success-rgb) / 0.14);
+  color: var(--success-text);
+  font-weight: 600;
+}
+
+.ssh-key-meta {
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+}
+
+.ssh-key-fingerprint {
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: var(--type-xs);
+}
+
+.ssh-key-public {
+  margin-top: var(--space-6);
+  padding: var(--space-8) var(--space-10);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--type-xs);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.ssh-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ssh-steps > li {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: var(--space-12);
+}
+
+.ssh-step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--border-strong);
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  font-weight: 700;
+}
+
+.ssh-steps > li.now .ssh-step-number {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.ssh-steps > li.done .ssh-step-number {
+  border-color: var(--success-text);
+  background: var(--success-text);
+  color: var(--bg);
+}
+
+.ssh-step-title {
+  margin: var(--space-4) 0 var(--space-2);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ssh-step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+}
+
+.ssh-make {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-10);
+  margin-top: var(--space-10);
+}
+
+.ssh-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+}
+
+.ssh-error {
+  margin: 0;
+  color: var(--danger-text);
+  font-size: var(--type-sm);
+}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { BranchSync } from "../lib/branchSync";
 import type { Stacked } from "../api";
 import { fullRefName, type CommitRow, type HiddenRef, type Lock, type Submodule, type Visibility, type Worktree } from "../api";
@@ -6,14 +7,19 @@ import { stepFocus } from "../lib/inputMode";
 import type { LaneLabel } from "../lib/lanes";
 import type { RefEntry } from "../lib/refs";
 import { useStoredState } from "../lib/settings";
-import { BranchIcon, BroomIcon, CloudIcon, GearIcon, PinIcon, PlusIcon, StashIcon, TagIcon, UnlockIcon } from "./Icons";
+import { BranchIcon, BroomIcon, CloudIcon, GearIcon, PinIcon, PlusIcon, StashIcon, TagIcon, UnlockIcon, ViewIcon } from "./Icons";
 import { LockedFileList, SubmoduleList, WorktreeList } from "./sidebar/OtherLists";
 import { RefItem, type RefHandlers } from "./sidebar/RefItem";
 import { branchCount, branchGroups, shortName, sidebarLists, stashLabel } from "./sidebar/refTree";
 import { HeadingAction, RefTree, SidebarGroup, SidebarSection, type Folding } from "./sidebar/SidebarSection";
 import { SidebarFilter, VisibilityBar } from "./sidebar/SidebarTop";
+import { IssueList, RequestList, SIDEBAR_SECTIONS, useMyIssues, useRequests } from "./sidebar/WorkLists";
+import { ContextMenu } from "./ContextMenu";
+import { Button } from "./ui/Button";
 
 interface Props {
+  /** Open Settings → Sidebar. */
+  onSidebarSettings?: () => void;
   /** The repository's folder. */
   repoPath: string;
   commits: CommitRow[];
@@ -160,6 +166,13 @@ export function Sidebar(props: Props) {
   // A branch is hidden (or shown alone) with its copies on remotes: they count once.
   const hiddenCount = branchCount(soloing ? visibility.solo : visibility.hidden, [...lists.remotes.keys()]);
   const section = { filtering, folding };
+  // The sections shown: all but those switched off (Sections menu, or Settings → Sidebar).
+  const [hiddenSections, setHiddenSections] = useStoredState<string[]>("sidebar.hiddenSections", []);
+  const shows = (id: string) => !hiddenSections.includes(id);
+  const toggleSection = (id: string) => setHiddenSections((hidden) => (hidden.includes(id) ? hidden.filter((other) => other !== id) : [...hidden, id]));
+  const [sectionsMenu, setSectionsMenu] = useState<{ x: number; y: number } | null>(null);
+  const requests = useRequests()?.list ?? [];
+  const { issues, error: issuesError } = useMyIssues(props.repoPath, shows("issues"));
 
   return (
     <aside
@@ -179,7 +192,35 @@ export function Sidebar(props: Props) {
         }
       }}
     >
-      <SidebarFilter value={filter} onChange={setFilter} />
+      <div className="sidebar-top">
+        <SidebarFilter value={filter} onChange={setFilter} />
+        <Button
+          kind="icon"
+          onClick={(event) => {
+            const box = event.currentTarget.getBoundingClientRect();
+            setSectionsMenu({ x: box.left, y: box.bottom + 4 });
+          }}
+          title="Choose what the sidebar shows"
+          aria-label="Sidebar sections"
+          aria-haspopup="menu"
+        >
+          <ViewIcon size={15} />
+        </Button>
+      </div>
+      {/* On the page, not in the sidebar's frame, which clips and animates what's in it. */}
+      {sectionsMenu &&
+        createPortal(
+        <ContextMenu
+          x={sectionsMenu.x}
+          y={sectionsMenu.y}
+          onClose={() => setSectionsMenu(null)}
+          items={[
+            ...SIDEBAR_SECTIONS.map((entry) => ({ label: entry.title, checked: shows(entry.id), onSelect: () => toggleSection(entry.id) })),
+            ...(props.onSidebarSettings ? [{ label: "Sidebar settings…", separated: true, onSelect: props.onSidebarSettings }] : []),
+          ]}
+        />,
+          document.body,
+        )}
       {hiddenCount > 0 && <VisibilityBar count={hiddenCount} soloing={soloing} onShowAll={props.onShowAll} />}
       <div className="sidebar-scroll">
         {pinned.length > 0 && (
@@ -190,6 +231,7 @@ export function Sidebar(props: Props) {
         {/* Each branch once: a local branch and its copy on the remote are one row (with what
             there is to push and pull). The checked-out one and the protected ones are at the
             top; branches only on a remote are folded away under "Only on origin". */}
+        {shows("branches") && (
         <SidebarSection
           id="branches"
           title="Branches"
@@ -233,23 +275,38 @@ export function Sidebar(props: Props) {
             ))}
           </ul>
         </SidebarSection>
-        <SidebarSection id="tags" title="Tags" count={tags.length} {...section}>
-          {tree("tags", tags, (e) => e.name, <TagIcon size={13} />)}
-        </SidebarSection>
-        <SidebarSection id="stashes" title="Stashes" count={stashes.length} {...section}>
-          <ul>{stashes.map((e) => item(e, stashLabel(e), <StashIcon size={13} />))}</ul>
-        </SidebarSection>
-        {props.worktrees.length > 1 && (
+        )}
+        {shows("pullRequests") && requests.length > 0 && (
+          <SidebarSection id="pullRequests" title="Pull requests" count={requests.length} {...section}>
+            <RequestList filter={needle} />
+          </SidebarSection>
+        )}
+        {shows("issues") && (issues?.length || issuesError) ? (
+          <SidebarSection id="issues" title="Issues" count={issues?.length ?? 0} {...section}>
+            <IssueList issues={issues ?? []} error={issuesError} filter={needle} />
+          </SidebarSection>
+        ) : null}
+        {shows("tags") && (
+          <SidebarSection id="tags" title="Tags" count={tags.length} {...section}>
+            {tree("tags", tags, (e) => e.name, <TagIcon size={13} />)}
+          </SidebarSection>
+        )}
+        {shows("stashes") && (
+          <SidebarSection id="stashes" title="Stashes" count={stashes.length} {...section}>
+            <ul>{stashes.map((e) => item(e, stashLabel(e), <StashIcon size={13} />))}</ul>
+          </SidebarSection>
+        )}
+        {shows("worktrees") && props.worktrees.length > 1 && (
           <SidebarSection id="worktrees" title="Worktrees" count={props.worktrees.length} {...section}>
             <WorktreeList worktrees={props.worktrees} onSelect={props.onSelect} onOpen={props.onOpenWorktree} onMenu={props.onWorktreeMenu} />
           </SidebarSection>
         )}
-        {submodules.length > 0 && (
+        {shows("submodules") && submodules.length > 0 && (
           <SidebarSection id="submodules" title="Submodules" count={submodules.length} {...section}>
             <SubmoduleList submodules={submodules} onOpen={props.onOpenSubmodule} onMenu={props.onSubmoduleMenu} />
           </SidebarSection>
         )}
-        {locks && (
+        {shows("locks") && locks && (
           <SidebarSection
             id="locks"
             title="Locked files"

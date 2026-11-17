@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { patchInfo, runAction, type PatchInfo } from "../api";
+import { errorKind, patchInfo, runAction, type PatchInfo } from "../api";
 import { plural } from "../lib/format";
 import { Dialog } from "./Dialog";
 import { Button } from "./ui/Button";
@@ -49,7 +49,7 @@ export function ApplyPatchDialog({
     } catch (e) {
       const message = String(e);
       // Stopped at a conflict: the bar at the top takes over from here.
-      if (/conflict/i.test(message)) onDone(message);
+      if (errorKind(e)?.kind === "conflicts") onDone(message);
       else {
         setError(message);
         setRunning(false);

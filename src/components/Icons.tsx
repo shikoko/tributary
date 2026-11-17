@@ -181,6 +181,22 @@ export const ShelfIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A target: finding the commit that broke something (bisect). */
+export const TargetIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="8" r="5.25" />
+    <circle cx="8" cy="8" r="1.75" />
+    <path d="M8 1v2M8 13v2M1 8h2M13 8h2" />
+  </Icon>
+);
+
+/** Two chevrons: skipping ahead, past one. */
+export const SkipIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 4l4 4-4 4M9 4l4 4-4 4" />
+  </Icon>
+);
+
 export const SearchIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="7" cy="7" r="4.5" />

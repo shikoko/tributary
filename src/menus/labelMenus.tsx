@@ -1,7 +1,6 @@
 // Right-click menus of branch and tag labels (in the graph and the sidebar), and dropping a label on a commit.
-import type { Action, CommitRow } from "../api";
+import type { Action, AppError, CommitRow } from "../api";
 import { copyText } from "../lib/clipboard";
-import { isNotMergedError } from "../lib/errors";
 import { type RefEntry, type RefPill } from "../lib/refs";
 import type { MenuItem } from "../components/ContextMenu";
 import {
@@ -244,8 +243,8 @@ export function dropMenu(ctx: MenuContext, revision: string): MenuItem[] {
 
 /** Delete-branch confirmations offer "Delete anyway" when git refuses an unmerged branch. */
 export function deleteAnyway(branch: string) {
-  return (error: string) =>
-    isNotMergedError(error)
+  return (error: AppError) =>
+    error.kind?.kind === "notFullyMerged"
       ? { label: "Delete anyway", action: { kind: "deleteBranch", name: branch, force: true } as Action }
       : null;
 }

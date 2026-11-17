@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../api/invoke";
 import { listen } from "@tauri-apps/api/event";
 import type { UpdateInfo } from "../api/generated";
 export type { UpdateInfo };
@@ -15,7 +15,7 @@ const CHECK_EVERY = 6 * 60 * 60 * 1000;
 
 /** A newer version, if there is one: a beta too, if `beta`. */
 export function checkForUpdate(beta = false): Promise<UpdateInfo | null> {
-  return invoke<UpdateInfo | null>("check_for_update", { beta });
+  return invoke("check_for_update", { beta });
 }
 
 /** A beta (or a build of develop, before betas were named so), like 0.3.0-beta.4. */
@@ -28,7 +28,7 @@ function downloadUpdate(): Promise<void> {
 
 /** Install the downloaded update and restart, once no git command is running. False if the wait was stopped. */
 function restartToUpdate(): Promise<boolean> {
-  return invoke<boolean>("restart_to_update");
+  return invoke("restart_to_update");
 }
 
 function onUpdateProgress(handler: (progress: UpdateProgress) => void): Promise<() => void> {

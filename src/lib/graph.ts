@@ -40,3 +40,27 @@ export function rewritable(
   if (after.some((c) => c.parents.length > 1)) return "the commits after it include merges";
   return after;
 }
+
+/** At most this many commits are offered as the last good one, besides tagged ones. */
+const GOOD_CHOICES = 30;
+
+/**
+ * The commits before `head` to choose the last good one from: tagged ones (newest first,
+ * named by their tag), then the commits just before it along its first parents.
+ */
+export function goodChoices(head: string, byId: Map<string, CommitRow>): { commit: CommitRow; tag: string | null }[] {
+  const before = ancestors(head, byId);
+  before.delete(head);
+  const tagged = [...before]
+    .map((id) => byId.get(id)!)
+    .filter((commit) => commit.refs.some((ref) => ref.kind === "tag"))
+    .sort((a, b) => b.time - a.time)
+    .map((commit) => ({ commit, tag: commit.refs.find((ref) => ref.kind === "tag")!.name }));
+  const recent: { commit: CommitRow; tag: null }[] = [];
+  for (let id = byId.get(head)?.parents[0]; id && recent.length < GOOD_CHOICES; id = byId.get(id)?.parents[0]) {
+    const commit = byId.get(id);
+    if (!commit || commit.kind !== "commit") break;
+    if (!tagged.some((choice) => choice.commit.id === id)) recent.push({ commit, tag: null });
+  }
+  return [...tagged, ...recent];
+}

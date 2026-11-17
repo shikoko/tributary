@@ -15,9 +15,9 @@ export function SidebarFilter({ value, onChange }: { value: string; onChange: (v
             onChange("");
           }
         }}
-        placeholder="Filter branches and tags"
+        placeholder="Filter the sidebar"
         spellCheck={false}
-        aria-label="Filter branches and tags"
+        aria-label="Filter the sidebar"
       />
     </div>
   );

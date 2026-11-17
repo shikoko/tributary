@@ -45,10 +45,11 @@ jobs:
           fetch-depth: 0
 
       # A merge into develop of only words and pictures (Markdown, docs/, the issue forms,
-      # the licence) would be a beta just like the one before: it isn't built. What changed is
-      # counted since the last beta or release that was published, not since the push before:
-      # each merge cancels the build of the one before, so a merge of only documentation right
-      # after merges of code would otherwise build nothing, and the code would have no beta.
+      # the licence, the website in site/ and its workflow) would be a beta just like the one
+      # before: it isn't built. What changed is counted since the last beta or release that
+      # was published, not since the push before: each merge cancels the build of the one
+      # before, so a merge of only documentation right after merges of code would otherwise
+      # build nothing, and the code would have no beta.
       - name: Anything to build?
         id: changes
         env:
@@ -62,8 +63,8 @@ jobs:
             since=$published
           fi
           changed=$(git diff --name-only "$since" "$GITHUB_SHA" 2>/dev/null || true)
-          if [ "$DEVELOP" = true ] && [ -n "$changed" ] && ! grep -qvE '(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/)' <<<"$changed"; then
-            echo "::notice::Only documentation changed: no beta."
+          if [ "$DEVELOP" = true ] && [ -n "$changed" ] && ! grep -qvE '(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/|^site/|^\.github/workflows/website\.yml$)' <<<"$changed"; then
+            echo "::notice::Only documentation or the website changed: no beta."
             echo "build=false" >> "$GITHUB_OUTPUT"
           else
             echo "build=true" >> "$GITHUB_OUTPUT"

@@ -5,7 +5,7 @@ use std::path::Path;
 
 use super::support::ref_id;
 use super::validate::{check_new_branch_name, commit_id};
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorKind, Result};
 use crate::git::Git;
 use crate::repo::{Worktree, worktrees};
 
@@ -43,7 +43,11 @@ pub(super) fn add_worktree(
             return Err(format!("There's no local branch called {branch}.").into());
         }
         if let Some(other) = checked_out_in(repo, &branch) {
-            return Err(format!("{branch} is already checked out in {}.", other.path).into());
+            let message = format!("{branch} is already checked out in {}.", other.path);
+            return Err(Error::known(
+                ErrorKind::CheckedOutElsewhere { path: other.path },
+                message,
+            ));
         }
         git.run(&["worktree", "add", "--", &path, &branch])?;
         Ok(format!("Checked out {branch} in a new worktree"))
@@ -73,10 +77,13 @@ pub(super) fn remove_worktree(
     git.run(&args).map_err(|error| {
         let message = error.to_string();
         if message.contains("--force") {
-            Error::Message(format!(
-                "{} has uncommitted changes. Remove it anyway to throw them away.",
-                worktree.path
-            ))
+            Error::known(
+                ErrorKind::WorktreeChanged,
+                format!(
+                    "{} has uncommitted changes. Remove it anyway to throw them away.",
+                    worktree.path
+                ),
+            )
         } else {
             error
         }

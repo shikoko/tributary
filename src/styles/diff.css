@@ -523,6 +523,10 @@
   image-rendering: auto;
 }
 
+.diff-image-frame img.enlarged {
+  image-rendering: pixelated;
+}
+
 .diff-image-missing {
   color: var(--text-faint);
 }

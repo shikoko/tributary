@@ -27,7 +27,7 @@ permissions:
 # purpose, with its own run of the checks, rather than one that happens by itself.
 jobs:
   # What changed decides what runs. Only words and pictures (Markdown, docs/, the issue
-  # forms, the licence): nothing is built or tested. Nothing on the Rust side (src-tauri/,
+  # forms, the licence, the website in site/): nothing is built or tested. Nothing on the Rust side (src-tauri/,
   # package.json, this workflow and its scripts): the Rust jobs on Linux, macOS and Windows
   # are skipped, which are most of the wait; the smoke test still builds the Rust side on
   # Linux.
@@ -63,8 +63,8 @@ jobs:
           echo "$changed"
           code=true
           rust=true
-          if [ -n "$changed" ] && ! grep -qvE '(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/)' <<<"$changed"; then
-            echo "::notice::Only documentation changed: the app isn't built or tested."
+          if [ -n "$changed" ] && ! grep -qvE '(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/|^site/)' <<<"$changed"; then
+            echo "::notice::Only documentation or the website changed: the app isn't built or tested."
             code=false
             rust=false
           elif [ -n "$changed" ] && ! grep -qE '^(src-tauri/|src/api/generated\.ts$|package\.json$|\.github/workflows/checks\.yml$|\.github/scripts/)' <<<"$changed"; then

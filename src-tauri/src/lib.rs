@@ -11,7 +11,7 @@ mod bindings;
 pub mod ci;
 pub mod ci_log;
 pub mod codeowners;
-mod commands;
+pub mod commands;
 mod conditional;
 pub mod diagnostics;
 pub mod error;
@@ -40,6 +40,11 @@ use tauri::Emitter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // The PATH for git and what it runs is worked out while the window opens: on a Mac it
+    // asks the login shell, which can take a moment (see `host`).
+    std::thread::spawn(|| {
+        let _ = host::search_path();
+    });
     let builder = tauri::Builder::default();
     // On macOS, WebKit's web content process can stop (out of memory, or a crash in WebKit),
     // which empties the window. Like Tauri does by default, it's loaded again, and also noted
@@ -84,122 +89,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::open_repository,
-            commands::commit_details,
-            commands::run_action,
-            commands::clone_repository,
-            commands::init_repository,
-            commands::prune_candidates,
-            commands::branch_backups,
-            commands::lost_commits,
-            commands::unseen_commits,
-            commands::upstream_choices,
-            commands::lfs_locks,
-            commands::file_history,
-            commands::file_checks,
-            commands::changed_elsewhere,
-            commands::submodules,
-            commands::repo_identity,
-            commands::commit_template,
-            commands::project_setup,
-            commands::shelves,
-            commands::take_snapshot,
-            commands::local_history,
-            commands::signing_settings,
-            commands::unity_setup,
-            commands::sparse_settings,
-            commands::speed_settings,
-            commands::patch_info,
-            commands::merge_check,
-            commands::code_owners,
-            commands::branch_versions,
-            commands::branch_stacks,
-            commands::release_notes,
-            commands::repo_size,
-            commands::ignore_reason,
-            commands::installed_apps,
-            commands::open_in_app,
-            commands::commit_states,
-            commands::change_request,
-            commands::commit_checks,
-            commands::commit_runs,
-            commands::rerun_failed_checks,
-            commands::check_log,
-            commands::rerun_job,
-            commands::since_then,
-            commands::save_settings_file,
-            commands::read_settings_file,
-            commands::export_settings_to_repository,
-            commands::import_settings_from_repository,
-            commands::publish_release,
-            commands::range_diff,
-            commands::patch_text,
-            commands::remotes,
-            commands::repo_summary,
-            commands::set_app_icon,
-            commands::lfs_settings,
-            commands::diff_tool_settings,
-            commands::set_diff_tool,
-            commands::file_diff,
-            commands::conflict_text,
-            commands::compare_commits,
-            commands::actor_names,
-            commands::blame_file,
-            commands::search_commits,
-            commands::find_commit,
-            commands::team_activity,
-            commands::team_work,
-            commands::team_pulse,
-            commands::recent_requests,
-            commands::watch_repository,
-            commands::stop_watching,
-            commands::lfs_storage,
-            commands::lfs_health,
-            commands::diagnostics,
-            commands::report_problem,
-            commands::take_recovery_note,
-            commands::pull_requests,
-            commands::new_request_info,
-            commands::create_pull_request,
-            commands::pull_request_details,
-            commands::request_conversation,
-            commands::comment_on_request,
-            commands::review_request,
-            commands::merge_request,
-            commands::issues,
-            commands::my_issues,
-            commands::tracker_status,
-            commands::tracker_sign_in,
-            commands::tracker_sign_out,
-            commands::avatars,
-            commands::forget_avatars,
-            commands::forget_missing_avatars,
-            commands::git_install,
-            commands::look_for_git,
-            commands::install_command_line_tools,
-            commands::github_status,
-            commands::github_sign_in,
-            commands::github_sign_in_with_browser,
-            commands::github_sign_out,
-            commands::github_repositories,
-            commands::gitlab_status,
-            commands::gitlab_sign_in,
-            commands::gitlab_sign_in_with_browser,
-            commands::gitlab_sign_out,
-            commands::gitlab_repositories,
-            commands::reflog,
-            commands::worktrees,
-            commands::remote_state,
-            commands::commits_between,
-            commands::check_for_update,
-            commands::download_update,
-            commands::restart_to_update,
-            commands::stop_update_restart,
-            commands::third_party_notices,
-            commands::cancel_action,
-            commands::activity_log
-        ])
+        .invoke_handler(commands::handler())
         .build(tauri::generate_context!());
     match app {
         Ok(app) => app.run(|app, event| {

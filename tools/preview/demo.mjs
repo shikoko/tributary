@@ -475,6 +475,65 @@ function buildEditorKit(root, configFile) {
 }
 
 /** The notebook's storage code, before and after it learned to open large notebooks quickly. */
+/** The theme picker's icons, 32 × 32: a sun for light, a moon for dark, half and half for high contrast. */
+function themeIcon(kind, outlined = false) {
+  return png(32, (x, y) => {
+    const dx = x - 15.5;
+    const dy = y - 15.5;
+    const distance = Math.hypot(dx, dy);
+    const edge = (radius) => Math.max(0, Math.min(1, radius - distance));
+    if (kind === "sun") {
+      const ray = distance > 10 && distance < 15 && Math.abs(Math.sin(Math.atan2(dy, dx) * 4)) < 0.25;
+      const disc = edge(8);
+      if (outlined && distance > 6.5 && distance < 8.5) return [196, 84, 0, 255];
+      if (disc > 0) return [250, 190, 40, Math.round(disc * 255)];
+      return ray ? (outlined ? [196, 84, 0, 255] : [250, 170, 40, 255]) : [0, 0, 0, 0];
+    }
+    if (kind === "moon") {
+      const cut = Math.hypot(dx - 5, dy + 4) < 9;
+      const disc = edge(11);
+      return disc > 0 && !cut ? [150, 170, 230, Math.round(disc * 255)] : [0, 0, 0, 0];
+    }
+    const disc = edge(12);
+    if (disc === 0) return [0, 0, 0, 0];
+    return distance > 10.5 || x >= 16 ? [10, 10, 10, Math.round(disc * 255)] : [255, 255, 255, 255];
+  });
+}
+
+/** The stylesheet with the theme picker's icons in it, as data: URLs. */
+function themeIcons(contrast) {
+  const url = (bytes) => `data:image/png;base64,${bytes.toString("base64")}`;
+  const tick = (colour) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="${colour}" stroke-width="${contrast ? 3 : 2}" stroke-linecap="round"/></svg>`)}`;
+  return [
+    "/* The theme picker's icons. */",
+    ".theme-icon.light {",
+    `  background: url("${url(themeIcon("sun", contrast))}") center / 16px no-repeat;`,
+    "}",
+    "",
+    ".theme-icon.dark {",
+    `  background: url("${url(themeIcon("moon"))}") center / 16px no-repeat;`,
+    "}",
+    "",
+    ...(contrast ? [".theme-icon.contrast {", `  background: url("${url(themeIcon("contrast"))}") center / 16px no-repeat;`, "}", ""] : []),
+    ".theme-option.selected::after {",
+    `  content: url("${tick(contrast ? "#000" : "#2f7d6d")}");`,
+    "}",
+    "",
+  ].join("\n");
+}
+
+/** The notebook's logo, as an SVG: a notebook with a ribbon, and darker and bolder for high contrast. */
+function logo(contrast) {
+  const [cover, ribbon, lines] = contrast ? ["#0b3d35", "#c2001b", "#ffffff"] : ["#2f7d6d", "#e4572e", "#d8efe9"];
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect x="12" y="6" width="40" height="52" rx="5" fill="${cover}"/>
+  <rect x="12" y="6" width="7" height="52" rx="3" fill="#00000033"/>
+  <path d="M40 6v20l5-4 5 4V6z" fill="${ribbon}"/>
+  <path d="M25 34h20M25 41h20M25 48h12" stroke="${lines}" stroke-width="${contrast ? 3 : 2}" stroke-linecap="round"/>
+</svg>
+`;
+}
+
 const STORE = {
   indexedDb: `import { openDB, type IDBPDatabase } from "idb";
 import type { Note } from "./note";
@@ -615,10 +674,14 @@ export function buildNotebook(root, configFile) {
   repo.write("src/store.ts", STORE.paged, { append: false });
   commit("Speed up opening large notebooks", "priya", 5);
   branch("feature/themes");
+  repo.write("src/ui/themes/logo.svg", logo(false), { append: false });
+  repo.write("src/ui/themes/icons.css", themeIcons(false), { append: false });
   commit("Add a theme picker", "maya", 3, "src/ui/theme.tsx");
   checkout("main");
   commit("Fix the note counter in the sidebar", "lena", 2, "src/ui/sidebar.tsx");
   checkout("feature/themes");
+  repo.write("src/ui/themes/logo.svg", logo(true), { append: false });
+  repo.write("src/ui/themes/icons.css", themeIcons(true), { append: false });
   commit("High-contrast theme", "maya", 2, "src/ui/themes/contrast.ts");
   checkout("main");
   // A newer editor kit, recorded by Priya.
@@ -1037,7 +1100,18 @@ function writeDemoGlobalConfig(root) {
 
 /** What to run the preview's git with on these demos (see DEMO_ENV and writeDemoGlobalConfig). */
 export function demoEnv(demos) {
-  return { ...DEMO_ENV, GIT_CONFIG_GLOBAL: demos.globalConfig };
+  return { ...DEMO_ENV, GIT_CONFIG_GLOBAL: demos.globalConfig, TRIBUTARY_SSH_DIR: demos.sshDir };
+}
+
+/**
+ * A folder of SSH keys for the preview, in place of ~/.ssh: one public key, Maya's (a key
+ * no one has the private half of), so Settings → SSH keys has something to show.
+ */
+function writeDemoSshKeys(root) {
+  const dir = join(root, "ssh");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "id_ed25519.pub"), "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGxQ4oTTN0iSGKNPhlrkKZHzrqLmVp7HmVi2cQ6HTFxa maya@studio-laptop\n");
+  return dir;
 }
 
 /** Build every demo repository in `root`. Resolves to their folders. */
@@ -1048,6 +1122,7 @@ export function buildDemos(root = join(tmpdir(), "tributary-demo"), options = {}
   return {
     root,
     globalConfig: writeDemoGlobalConfig(root),
+    sshDir: writeDemoSshKeys(root),
     notebook: buildNotebook(root, configFile),
     studio: buildStudio(root, configFile, options),
     assets: buildAssets(root, configFile),

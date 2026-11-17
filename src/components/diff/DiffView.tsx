@@ -9,6 +9,7 @@ import { describeActor, useActorNames } from "../../lib/actorNames";
 import { BlameIcon, ChevronDownIcon, ChevronUpIcon, CloseIcon, ExternalLinkIcon, SplitIcon, WrapIcon } from "../Icons";
 import { DiffBinary } from "./DiffBinary";
 import { DiffMedia } from "./DiffMedia";
+import { changedPictures } from "../../lib/embeddedPictures";
 import { describeOwners, useCodeOwners } from "../../lib/codeOwners";
 import { FileKindIcon } from "../FileKindIcon";
 import { ConflictEditor } from "./ConflictEditor";
@@ -140,8 +141,12 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
   const path = target.file.path;
   const slash = path.lastIndexOf("/");
   const conflicted = target.file.status === "conflicted";
-  // 3D models stored as text (OBJ, glTF) can show either way: in 3D, or line by line.
-  const [asText, setAsText] = useStoredState("diff.modelsAsText", false);
+  // SVGs and 3D models stored as text (OBJ, glTF) can show either way: as what they are,
+  // or line by line.
+  const [modelsAsText, setModelsAsText] = useStoredState("diff.modelsAsText", false);
+  const [picturesAsText, setPicturesAsText] = useStoredState("diff.picturesAsText", false);
+  const picture = diff?.media?.kind === "image";
+  const [asText, setAsText] = picture ? [picturesAsText, setPicturesAsText] : [modelsAsText, setModelsAsText];
   const both = Boolean(diff?.media && diff.hunks.length > 0);
   const showMedia = Boolean(diff?.media && !(both && asText));
   const tools = useDiffTools(repoPath);
@@ -151,6 +156,9 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
   const openInTool = () =>
     tools && !tool ? onChooseTool() : run(conflicted ? { kind: "openInMergeTool", path } : { kind: "openInDiffTool", source: target.source, path });
   const toolButton = tools && !tool ? `Choose a ${conflicted ? "merge" : "diff"} tool…` : `Open in ${toolLabel(tool, conflicted ? "merge" : "diff")}`;
+  // Pictures written into the text (data: URLs, notebook outputs): folded into labels, and
+  // the ones that changed shown under their lines.
+  const pictures = useMemo(() => (diff && !diff.media ? { changes: changedPictures(diff.hunks), path } : undefined), [diff, path]);
   /** Shown as something other than lines: whitespace and diff tools don't apply. */
   const whole = Boolean(diff && (diff.binary || diff.tooLarge || diff.submodule || showMedia));
   return (
@@ -197,7 +205,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         {both && (
           <div className="diff-switch" role="group" aria-label="Show as">
             <button className={showMedia ? "selected" : undefined} onClick={() => setAsText(false)} aria-pressed={showMedia}>
-              <span className="button-label">3D</span>
+              <span className="button-label">{picture ? "Picture" : "3D"}</span>
             </button>
             <button className={!showMedia ? "selected" : undefined} onClick={() => setAsText(true)} aria-pressed={!showMedia}>
               <span className="button-label">Text</span>
@@ -287,7 +295,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
         ) : diff.hunks.length === 0 ? (
           <div className="diff-message muted">{ignoreWhitespace ? "Only whitespace changed." : "No changes to show (only the file's name or mode changed)."}</div>
         ) : (
-          <DiffLines hunks={diff.hunks} picking={picking} language={languageFor(path)} split={split && roomy} wrap={wrap} />
+          <DiffLines hunks={diff.hunks} picking={picking} language={languageFor(path)} split={split && roomy} wrap={wrap} pictures={pictures} />
         )}
       </div>
         {picking && selected.size > 0 && (

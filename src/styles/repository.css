@@ -31,12 +31,15 @@
   margin-bottom: 1px;
 }
 
+/* The sidebar's button and the branch: as wide as the sidebar, so the search box starts
+   where the history does (wider only when they need it). */
 .toolbar-repo {
   display: flex;
   align-items: center;
   gap: var(--space-10);
-  min-width: 0;
-  flex: 0 1 auto;
+  flex: none;
+  width: calc(var(--history-left, 0px) - var(--space-14) - var(--space-16));
+  min-width: max-content;
 }
 
 .repo-name {
@@ -100,6 +103,7 @@
   align-items: center;
   gap: var(--space-6);
   flex: none;
+  margin-left: auto;
 }
 
 .toolbar-divider {
@@ -117,9 +121,8 @@
   gap: var(--space-4);
   flex: 1 1 240px;
   min-width: 150px;
-  max-width: 460px;
+  max-width: 520px;
   height: 30px;
-  margin-left: auto;
   padding: 0 var(--space-4) 0 var(--space-10);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
@@ -127,9 +130,26 @@
   color: var(--text-muted);
 }
 
-/* Messages, Files or Code: what the search box looks in. */
-.search-mode {
+/* Messages, Files or Code: what the search box looks in. The box is as wide as the kind's
+   name (a hidden copy of it, with the menu's padding), and the menu fills it. */
+.search-mode-box {
+  position: relative;
   flex: none;
+  display: flex;
+}
+
+.search-mode-size {
+  visibility: hidden;
+  height: 22px;
+  padding: 0 var(--space-20) 0 var(--space-6);
+  font-size: var(--type-sm);
+  white-space: nowrap;
+}
+
+.search-mode {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   height: 22px;
   padding: 0 var(--space-20) 0 var(--space-6);
   border: none;

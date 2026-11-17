@@ -598,3 +598,68 @@ fn searches_history_by_file_and_by_code() {
             .is_empty()
     );
 }
+
+#[test]
+fn searches_history_by_message_author_and_id_and_all_at_once() {
+    use tributary_lib::actions::{SearchMode, search_commits, search_overview};
+    let repo = TempRepo::new("search-all");
+    const MAYA: &str = "--author=Maya Chen <maya@example.com>";
+    let commit = |file: &str, message: &str, author: &str| {
+        let path = repo.path().join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, message).unwrap();
+        repo.git(&["add", "-A"]);
+        repo.git(&["commit", "-q", author, "-m", message]);
+        repo.git(&["rev-parse", "HEAD"])
+    };
+    commit("notes.md", "Start the notes", MAYA);
+    let pdf = commit(
+        "src/export/pdf.ts",
+        "Print notebooks\n\nExport them as PDFs, for sharing.",
+        MAYA,
+    );
+    repo.git(&["switch", "-q", "-c", "feature"]);
+    let tidy = commit(
+        "notes.md",
+        "Tidy the notes",
+        "--author=Sam Okafor <sam@example.com>",
+    );
+
+    // Any line of the message, any case, in any branch.
+    let messages = search_commits(repo.path(), SearchMode::Messages, "export them").unwrap();
+    assert_eq!(messages.ids, std::slice::from_ref(&pdf));
+    assert_eq!(messages.commits[0].summary, "Print notebooks");
+    assert_eq!(messages.commits[0].author, "Maya Chen");
+    // Not a pattern: the text as it is.
+    assert!(
+        search_commits(repo.path(), SearchMode::Messages, "no.es")
+            .unwrap()
+            .ids
+            .is_empty()
+    );
+    let authors = search_commits(repo.path(), SearchMode::Authors, "SAM@").unwrap();
+    assert_eq!(authors.ids, std::slice::from_ref(&tidy));
+    let ids = search_commits(repo.path(), SearchMode::Hashes, &tidy[..7]).unwrap();
+    assert_eq!(ids.ids, std::slice::from_ref(&tidy));
+    assert!(
+        search_commits(repo.path(), SearchMode::Hashes, "notes")
+            .unwrap()
+            .ids
+            .is_empty()
+    );
+
+    let overview = search_overview(repo.path(), "export").unwrap();
+    assert_eq!(overview.messages.ids, std::slice::from_ref(&pdf));
+    assert_eq!(overview.files.len(), 1);
+    assert_eq!(overview.files[0].path, "src/export/pdf.ts");
+    assert_eq!(overview.files[0].commits, 1);
+    assert_eq!(overview.file_commits.ids, [pdf]);
+    assert!(overview.authors.is_empty() && overview.hashes.ids.is_empty());
+    let people = search_overview(repo.path(), "example.com").unwrap();
+    let names: Vec<(&str, usize)> = people
+        .authors
+        .iter()
+        .map(|author| (author.name.as_str(), author.commits))
+        .collect();
+    assert_eq!(names, [("Maya Chen", 2), ("Sam Okafor", 1)]);
+}

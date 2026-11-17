@@ -10,15 +10,12 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use super::support::{LITERAL, in_batches};
-use crate::error::Error;
+use crate::error::{Error, ErrorKind};
 use crate::git::lfs_progress::format_bytes;
 use crate::git::{ExpectedFiles, FileCount, Git, Progress};
 
 /// Room kept free besides what the files take: git needs some for itself.
 const SPARE_SPACE: u64 = 256 * 1024 * 1024;
-
-/// What a message about too little disk space starts with (the frontend offers to go ahead).
-pub const NOT_ENOUGH_SPACE: &str = "Not enough disk space";
 
 thread_local! {
     /// The person chose to download anyway: no disk space check on this thread.
@@ -61,15 +58,18 @@ fn room_for(files: &ExpectedFiles, free: u64) -> Result<(), Error> {
         return Ok(());
     }
     let count = files.len();
-    Err(format!(
-        "{NOT_ENOUGH_SPACE}: this downloads {count} Git LFS {} ({}), about {} on disk once \
-         checked out, and only {} is free. Make room and try again.",
-        if count == 1 { "file" } else { "files" },
-        format_bytes(bytes),
-        format_bytes(needed),
-        format_bytes(free),
-    )
-    .into())
+    // The frontend offers to go ahead all the same.
+    Err(Error::known(
+        ErrorKind::NotEnoughSpace,
+        format!(
+            "Not enough disk space: this downloads {count} Git LFS {} ({}), about {} on disk \
+             once checked out, and only {} is free. Make room and try again.",
+            if count == 1 { "file" } else { "files" },
+            format_bytes(bytes),
+            format_bytes(needed),
+            format_bytes(free),
+        ),
+    ))
 }
 
 /// Run a checkout (`args`, a switch or a fast-forward to `target`) with its progress,
@@ -346,8 +346,10 @@ mod tests {
         ];
         // 8 GB, and some to spare.
         assert!(room_for(&files, 9_000_000_000).is_ok());
-        let error = room_for(&files, 7_000_000_000).unwrap_err().to_string();
-        assert!(error.starts_with(NOT_ENOUGH_SPACE), "{error}");
+        let error = room_for(&files, 7_000_000_000).unwrap_err();
+        assert_eq!(error.kind(), Some(ErrorKind::NotEnoughSpace));
+        let error = error.to_string();
+        assert!(error.starts_with("Not enough disk space: "), "{error}");
         assert!(error.contains("2 Git LFS files (4.0 GB)"), "{error}");
         assert!(error.contains("about 8.0 GB"), "{error}");
         assert!(error.contains("only 7.0 GB is free"), "{error}");

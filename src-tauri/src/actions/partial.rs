@@ -4,7 +4,7 @@
 
 use std::collections::BTreeSet;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use super::Extra;
@@ -15,7 +15,7 @@ use crate::error::Result;
 use crate::git::Git;
 
 /// What to do with the chosen lines.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum LineMode {
     /// Add them to what's staged (from the file's unstaged changes).

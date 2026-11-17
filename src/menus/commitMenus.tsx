@@ -21,7 +21,8 @@ import {
   FixupIcon,
   CheckIcon,
   CloseIcon,
-  SearchIcon,
+  SkipIcon,
+  TargetIcon,
   UserIcon,
   MinusIcon,
   PlusIcon,
@@ -197,12 +198,12 @@ export function commitMenu(ctx: MenuContext, commit: CommitRow): MenuItem[] {
     items.push(
       { label: "Bisect: this one is good", icon: <CheckIcon />, separated: true, disabled: !ctx.canChange, onSelect: mark("good") },
       { label: "Bisect: this one is bad", icon: <CloseIcon />, disabled: !ctx.canChange, onSelect: mark("bad") },
-      { label: "Bisect: skip this one", icon: <SearchIcon />, disabled: !ctx.canChange, onSelect: mark("skip") },
+      { label: "Bisect: skip this one", icon: <SkipIcon />, disabled: !ctx.canChange, onSelect: mark("skip") },
     );
   } else {
     items.push({
       label: ctx.beforeHead(commit) ? "Find what broke since this commit (bisect)…" : "Bisect: only for commits before the checked-out one",
-      icon: <SearchIcon />,
+      icon: <TargetIcon />,
       separated: true,
       disabled: busy || !snapshot.headCommit || !ctx.beforeHead(commit),
       onSelect: () => ctx.open({ kind: "bisect", good: commit }),

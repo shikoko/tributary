@@ -10,7 +10,7 @@ use super::Extra;
 use super::backups::{BackupEvent, back_up};
 use super::support::{count, ref_id};
 use super::validate::current_branch;
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorKind, Result};
 use crate::git::{Git, Progress};
 use crate::links;
 
@@ -175,15 +175,11 @@ pub(super) fn fetch_latest(
     Ok(format!("Brought {branch} up to date"))
 }
 
-/// What a sync's error starts with when the branch was rewritten (amended or rebased) after
-/// it was pushed: the app asks to force push instead.
-pub const REWRITTEN: &str = "Rewritten since it was pushed";
-
 /// Sync the checked-out branch with its remote branch: fetch, pull when the remote branch has
 /// commits this one hasn't, then push when this one has commits it hasn't. A pull that stops
 /// for conflicts stops it, before anything is pushed. A branch rewritten since it was pushed
 /// isn't pulled, which would bring back the old versions of its commits: it stops, with
-/// [`REWRITTEN`], for a force push to be asked for instead. A branch with no remote branch
+/// [`ErrorKind::Rewritten`], for a force push to be asked for instead. A branch with no remote branch
 /// yet is pushed, setting it.
 pub(super) fn sync(
     repo: &gix::Repository,
@@ -214,12 +210,14 @@ pub(super) fn sync(
     let (_, behind) = counts()?;
     if behind > 0 {
         if rewritten(git, &branch) {
-            return Err(format!(
-                "{REWRITTEN}: {upstream} has older versions of {branch}'s commits (it was amended \
-                 or rebased since it was pushed), so pulling would bring them back. Push it with \
-                 force instead, to replace them."
-            )
-            .into());
+            return Err(Error::known(
+                ErrorKind::Rewritten,
+                format!(
+                    "{upstream} has older versions of {branch}'s commits (it was amended or \
+                     rebased since it was pushed), so pulling would bring them back. Push it \
+                     with force instead, to replace them."
+                ),
+            ));
         }
         // git set to only fast-forward (`pull.ff = only`), and nothing said about rebasing,
         // refuses to pull a branch with commits of its own, which is what syncing is for.

@@ -1,5 +1,7 @@
 //! The TypeScript types for what the commands take and give back, and for the events, made
-//! from the Rust types so the two sides can't drift apart: `src/api/generated.ts`.
+//! from the Rust types so the two sides can't drift apart: `src/api/generated.ts`. The
+//! commands' types come from the command list (`commands/list.rs`), which also gives
+//! `Commands`, each command's arguments and result.
 //!
 //! The test below makes the file from the types listed in [`generate`] and every type they
 //! use, and compares it with the one in the repository. If they differ, it writes the new
@@ -11,10 +13,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use ts_rs::{Config, TS, TypeVisitor};
 
-use crate::{
-    accounts, actions, ci, ci_log, codeowners, commands, diagnostics, git, github, issues, locks,
-    repo, requests, reviews, since, unreal, updates,
-};
+use crate::{git, updates};
 
 /// Where the file goes, from the crate's folder.
 const FILE: &str = "../src/api/generated.ts";
@@ -33,8 +32,13 @@ struct Collect {
 
 impl TypeVisitor for Collect {
     fn visit<T: TS + 'static + ?Sized>(&mut self) {
-        // Only types with a declaration of their own: not strings, lists and the like.
-        if T::output_path().is_none() || !self.seen.insert(TypeId::of::<T>()) {
+        // Only types with a declaration of their own: not strings, lists and the like, but
+        // what's in a list, an option or a map is.
+        if T::output_path().is_none() {
+            T::visit_generics(self);
+            return;
+        }
+        if !self.seen.insert(TypeId::of::<T>()) {
             return;
         }
         let name = T::ident(&self.config);
@@ -60,94 +64,16 @@ fn generate() -> String {
         found: BTreeMap::new(),
     };
     let c = &mut collect;
-    // What the commands give back.
-    c.visit::<accounts::AccountRepo>();
-    c.visit::<accounts::GitLabAccount>();
-    c.visit::<accounts::GitLabStatus>();
-    c.visit::<actions::Backup>();
-    c.visit::<actions::Blame>();
-    c.visit::<actions::BranchVersion>();
-    c.visit::<actions::CommitTemplate>();
-    c.visit::<actions::ConflictText>();
-    c.visit::<actions::DiffToolSettings>();
-    c.visit::<actions::FileChecks>();
-    c.visit::<actions::FileDiff>();
-    c.visit::<actions::FileHistory>();
-    c.visit::<actions::IgnoreReason>();
-    c.visit::<actions::LfsHealth>();
-    c.visit::<actions::LfsSettings>();
-    c.visit::<actions::LfsStorage>();
-    c.visit::<actions::LostCommits>();
-    c.visit::<actions::UnseenCommits>();
-    c.visit::<actions::UpstreamChoices>();
-    c.visit::<actions::MergeCheck>();
-    c.visit::<actions::Outcome>();
-    c.visit::<actions::Overlap>();
-    c.visit::<actions::PatchInfo>();
-    c.visit::<actions::ProjectSetup>();
-    c.visit::<actions::PruneInfo>();
-    c.visit::<actions::RangeDiff>();
-    c.visit::<actions::ReleaseNotes>();
-    c.visit::<actions::RemoteInfo>();
-    c.visit::<actions::RepoIdentity>();
-    c.visit::<actions::RepoSize>();
-    c.visit::<actions::SearchResult>();
-    c.visit::<actions::Shelf>();
-    c.visit::<actions::SigningSettings>();
-    c.visit::<actions::Snapshot>();
-    c.visit::<actions::SparseSettings>();
-    c.visit::<actions::SpeedSettings>();
-    c.visit::<actions::Stacked>();
-    c.visit::<actions::Submodule>();
-    c.visit::<actions::TeamActivity>();
-    c.visit::<actions::TeamPulse>();
-    c.visit::<actions::TeamWork>();
-    c.visit::<actions::UnitySetup>();
-    c.visit::<crate::apps::App>();
-    c.visit::<ci::CommitChecks>();
-    c.visit::<ci::CommitRuns>();
-    c.visit::<ci_log::CheckLog>();
-    c.visit::<since::SeenTip>();
-    c.visit::<since::SinceThen>();
-    c.visit::<codeowners::FileOwners>();
-    c.visit::<commands::Notices>();
-    c.visit::<diagnostics::Diagnostics>();
-    c.visit::<git::LogEntry>();
-    c.visit::<git::install::GitInstall>();
-    c.visit::<github::CheckState>();
-    c.visit::<github::PullRequest>();
-    c.visit::<github::account::Account>();
-    c.visit::<github::account::GitHubStatus>();
-    c.visit::<issues::Issue>();
-    c.visit::<issues::Tracker>();
-    c.visit::<issues::TrackerStatus>();
-    c.visit::<locks::Locks>();
-    c.visit::<repo::CommitDetails>();
-    c.visit::<repo::Comparison>();
-    c.visit::<repo::NewCommits>();
-    c.visit::<repo::ReflogEntry>();
-    c.visit::<repo::RemoteState>();
-    c.visit::<repo::RepoSnapshot>();
-    c.visit::<repo::RepoSummary>();
-    c.visit::<repo::Worktree>();
-    c.visit::<requests::NewRequestInfo>();
-    c.visit::<requests::RecentRequest>();
-    c.visit::<requests::RequestDetails>();
-    c.visit::<reviews::Conversation>();
-    c.visit::<unreal::ActorName>();
-    c.visit::<updates::UpdateInfo>();
-    // What they take.
-    c.visit::<actions::Action>();
-    c.visit::<actions::CloneOptions>();
-    c.visit::<actions::DiffSource>();
-    c.visit::<actions::SearchMode>();
-    c.visit::<requests::NewRequest>();
-    c.visit::<requests::RequestChange>();
-    c.visit::<reviews::MergeRequestOptions>();
-    c.visit::<reviews::ReviewVerdict>();
+    // What the commands take and give back, from the command list.
+    crate::commands::visit_types(c);
+    // What a command that fails gives back.
+    c.visit::<crate::error::Failure>();
     // The events' payloads.
     c.visit::<git::Progress>();
     c.visit::<updates::DownloadProgress>();
+
+    let commands = commands(&collect.config);
+    collect.found.insert("Commands".into(), commands);
 
     let mut text = String::from(HEADER);
     for declaration in collect.found.values() {
@@ -156,6 +82,37 @@ fn generate() -> String {
         text.push('\n');
     }
     text
+}
+
+/// `Commands`: each command's arguments (as the frontend sends them, in camelCase, an
+/// `Option` one optional) and what it gives back, for `invoke` in `src/api/invoke.ts`.
+fn commands(config: &Config) -> String {
+    let mut members = String::new();
+    for signature in crate::commands::signatures(config) {
+        let args: String = signature
+            .args
+            .iter()
+            .map(|(name, ts)| {
+                let optional = if ts.ends_with("| null") { "?" } else { "" };
+                format!("{}{optional}: {ts}, ", crate::commands::camel(name))
+            })
+            .collect();
+        // None at all: an object with nothing in it.
+        let args = if args.is_empty() {
+            "Record<string, never>".to_owned()
+        } else {
+            format!("{{ {args}}}")
+        };
+        members.push_str(&format!(
+            "{}: {{ args: {args}, returns: {}, }}, ",
+            signature.name, signature.returns
+        ));
+    }
+    format!(
+        "/**\n * Every command the frontend can call: what it takes (its arguments, as the frontend\n * \
+         sends them) and what it gives back. Made from the command list\n * \
+         (src-tauri/src/commands/list.rs).\n */\nexport type Commands = {{ {members}}};"
+    )
 }
 
 /// How wide a line may be before a type is spread over several.

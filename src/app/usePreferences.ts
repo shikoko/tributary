@@ -22,6 +22,8 @@ export function usePreferences() {
   const [daySeparators, setDaySeparators] = useStoredState("list.daySeparators", true);
   /** Pull requests' numbers beside the icon for their checks, on the commit list's labels. */
   const [prNumbers, setPrNumbers] = useStoredState("list.prNumbers", false);
+  /** The sidebar's sections that are switched off (see SIDEBAR_SECTIONS); the Sidebar reads the same key. */
+  const [hiddenSections, setHiddenSections] = useStoredState<string[]>("sidebar.hiddenSections", []);
   const [dense, setDense] = useStoredState("rows.compact", false);
   const [zoom, setZoom] = useStoredState("zoom", 1);
   const [autoFetch, setAutoFetch] = useStoredState("fetch.auto", true);
@@ -68,6 +70,7 @@ export function usePreferences() {
     tabs, setTabs, setActiveTab,
     sidebarOpen, setSidebarOpen, sidebarWidth, setSidebarWidth, detailsWidth, setDetailsWidth,
     columnWidths, setColumnWidths, columnOptions, setColumnOptions, daySeparators, setDaySeparators, prNumbers, setPrNumbers,
+    hiddenSections, setHiddenSections,
     dense, setDense, zoom, setZoom, autoFetch, setAutoFetch, reopenTabs, setReopenTabs,
     firstParentOnly, setFirstParentOnly, profilePictures, setProfilePictures, previews, setPreviews,
     activityOpen, setActivityOpen, fetchMinutes, setFetchMinutes, newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices,

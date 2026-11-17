@@ -8,7 +8,7 @@ use serde::Serialize;
 use ts_rs::TS;
 
 use super::support::count;
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorKind, Result};
 use crate::git::Git;
 
 /// What a patch file holds.
@@ -245,9 +245,12 @@ pub(super) fn apply_patch(git: &Git, file: String, as_commits: bool) -> Result<S
                 .run(&["rev-parse", "--git-path", "rebase-apply"])
                 .is_ok_and(|folder| git.workdir().join(folder.trim()).is_dir());
             if stopped {
-                Error::from(format!(
-                    "{name} conflicts with your files: resolve the conflicts, then continue (or abort to go back)."
-                ))
+                Error::known(
+                    ErrorKind::Conflicts,
+                    format!(
+                        "{name} conflicts with your files: resolve the conflicts, then continue (or abort to go back)."
+                    ),
+                )
             } else {
                 error
             }
@@ -258,7 +261,10 @@ pub(super) fn apply_patch(git: &Git, file: String, as_commits: bool) -> Result<S
             .map_err(|error| {
                 let text = error.to_string();
                 if text.contains("with conflicts") || text.contains("U ") {
-                    Error::from(format!("Applied {name}, with conflicts to resolve."))
+                    Error::known(
+                        ErrorKind::Conflicts,
+                        format!("Applied {name}, with conflicts to resolve."),
+                    )
                 } else {
                     error
                 }

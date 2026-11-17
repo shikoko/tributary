@@ -19,6 +19,8 @@ export interface PullRequestLookup {
   byNumber(number: number): PullRequest | undefined;
   /** Show it in the app. */
   open(pr: PullRequest): void;
+  /** Every open one. */
+  list: PullRequest[];
 }
 
 export const PullRequestsContext = createContext<PullRequestLookup | null>(null);
@@ -27,6 +29,7 @@ export function makeLookup(list: PullRequest[], open: (pr: PullRequest) => void)
   const byRemoteBranch = new Map(list.map((pr) => [`${pr.remote}/${pr.branch}`, pr]));
   const byNumber = new Map(list.map((pr) => [pr.number, pr]));
   return {
+    list,
     byNumber: (number) => byNumber.get(number),
     find(name, local, remotes, upstream) {
       if (!local) return byRemoteBranch.get(name);

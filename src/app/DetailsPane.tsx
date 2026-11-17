@@ -83,7 +83,7 @@ export function DetailsPane(props: Props) {
     return (
       <WorktreeDetailsPanel
         snapshot={snapshot}
-        run={(action, options) => act(action, "other", options)}
+        run={(action, options) => act(action, options)}
         busy={running !== null}
         draft={draft.draft}
         onDraft={draft.setDraft}

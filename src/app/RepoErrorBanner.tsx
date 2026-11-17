@@ -1,48 +1,31 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { unseenCommits, upstreamChoices, type Action, type CommitRow, type RepoSnapshot, type UnseenCommits, type UpstreamChoices } from "../api";
+import { unseenCommits, upstreamChoices, type Action, type CommitRow, type UnseenCommits, type UpstreamChoices } from "../api";
 import { ErrorBanner, type ErrorChoice } from "../components/ErrorBanner";
 import { byWhom, explainError, gitHeadline, type ErrorFix } from "../lib/explainError";
 import { relativeTime, shortId } from "../lib/format";
-import type { OpenDialog } from "../menus/context";
 import type { Running } from "./constants";
 import type { RepoError } from "./useRepository";
+import { useOpenRepository } from "./OpenRepository";
 
 interface Props {
   error: RepoError;
-  snapshot: RepoSnapshot;
   /** The checked-out commit's row, for a new branch from it. */
   head: CommitRow | undefined;
   running: Running;
-  act: (action: Action, kind?: Running) => unknown;
-  openDialog: (dialog: OpenDialog) => void;
-  openWorktree: (path: string) => void;
-  goTo: (id: string) => void;
   onDismiss: () => void;
-}
-
-/** How an action shows its progress, when it runs again. */
-function runningKind(action: Action): Running {
-  switch (action.kind) {
-    case "fetch":
-    case "pull":
-    case "push":
-    case "sync":
-      return action.kind;
-    default:
-      return "other";
-  }
 }
 
 /**
  * The last error, in plain words when it's one git often gives, with what can be done about
  * it. A force push that stopped for someone else's commits lists them.
  */
-export function RepoErrorBanner({ error, snapshot, head, running, act, openDialog, openWorktree, goTo, onDismiss }: Props) {
+export function RepoErrorBanner({ error, head, running, onDismiss }: Props) {
+  const { snapshot, act, openDialog, openTab: openWorktree, goTo } = useOpenRepository();
   const branch = snapshot.headBranch ?? "HEAD";
   const upstream = snapshot.upstream?.name ?? null;
   // A safe force push stopped for commits someone else pushed: the push fetched them, to
   // be listed here.
-  const stale = error.message.includes("(stale info)");
+  const stale = error.kind?.kind === "staleLease";
   const [unseen, setUnseen] = useState<UnseenCommits | null>(null);
   useEffect(() => {
     if (!stale || !upstream) return;
@@ -56,7 +39,7 @@ export function RepoErrorBanner({ error, snapshot, head, running, act, openDialo
   }, [stale, snapshot.path, upstream, error.upstreamWas, error.message]);
 
   // The branch's remote branch is gone: what it could go with instead.
-  const gone = error.message.includes("but no such ref was fetched");
+  const gone = error.kind?.kind === "upstreamGone";
   const [others, setOthers] = useState<UpstreamChoices | null>(null);
   useEffect(() => {
     if (!gone || !snapshot.headBranch) return;
@@ -71,7 +54,7 @@ export function RepoErrorBanner({ error, snapshot, head, running, act, openDialo
 
   // Whose commits they are: who pushed them isn't known (a merge brings in others' commits).
   const by = unseen ? byWhom(unseen.commits.map((commit) => commit.author), unseen.count > unseen.commits.length) : null;
-  const explained = explainError(error.message, { branch, upstream, unseen: unseen && unseen.count > 0 ? { count: unseen.count, by } : null });
+  const explained = explainError(error.kind ?? null, { branch, upstream, unseen: unseen && unseen.count > 0 ? { count: unseen.count, by } : null });
   const headline = explained?.headline ?? gitHeadline(error.message);
   const busy = running !== null;
   const them = unseen?.count === 1 ? "it" : "them";
@@ -86,7 +69,7 @@ export function RepoErrorBanner({ error, snapshot, head, running, act, openDialo
               Get their commits, then push yours on top. <b>Nothing is lost.</b>
             </>
           ),
-          run: () => act({ kind: "sync" }, "sync"),
+          run: () => act({ kind: "sync" }),
           disabled: busy,
         };
       case "forcePush":
@@ -120,13 +103,13 @@ export function RepoErrorBanner({ error, snapshot, head, running, act, openDialo
       }
       case "retry":
         return error.action
-          ? { label: "Try again", says: "Run it again.", run: () => act(error.action!, runningKind(error.action!)), disabled: busy }
+          ? { label: "Try again", says: "Run it again.", run: () => act(error.action!), disabled: busy }
           : null;
       case "push":
         return {
           label: "Push",
           says: `Push ${branch}, which links it to a branch of the same name on the remote.`,
-          run: () => act({ kind: "push", force: false }, "push"),
+          run: () => act({ kind: "push", force: false }),
           disabled: busy,
         };
       case "stash":
@@ -162,7 +145,7 @@ export function RepoErrorBanner({ error, snapshot, head, running, act, openDialo
         return {
           label: `Push ${branch}`,
           says: `Put ${branch} back on ${others?.remote ?? "the remote"}, as a branch of its own.`,
-          run: () => act({ kind: "push", force: false }, "push"),
+          run: () => act({ kind: "push", force: false }),
           disabled: busy,
         };
       case "moveToLfs":
@@ -182,7 +165,7 @@ export function RepoErrorBanner({ error, snapshot, head, running, act, openDialo
   if (error.retry && !fixes.includes("stash")) choices.push(stashChoice(error.retry));
   if (error.anyway) {
     const anyway = error.anyway;
-    choices.push({ label: "Download anyway", says: "If the disk fills up, the download stops partway.", run: () => act(anyway, "download"), disabled: busy });
+    choices.push({ label: "Download anyway", says: "If the disk fills up, the download stops partway.", run: () => act(anyway), disabled: busy });
   }
   if (error.worktree) {
     const worktree = error.worktree;

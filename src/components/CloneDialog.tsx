@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { cancelAction, cloneRepository, onProgress, type CloneOptions, type Progress } from "../api";
+import { cancelAction, cloneRepository, errorKind, onProgress, type CloneOptions, type Progress } from "../api";
 import { useStoredState } from "../lib/settings";
 import type { Accounts, Forge } from "../app/useAccounts";
 import { AccountChips } from "./AccountChips";
@@ -86,7 +86,7 @@ export function CloneDialog({ onCancel, onDone, accounts, onSignIn }: Props) {
       const path = await cloneRepository(url.trim(), parent, name.trim(), options);
       onDone(path);
     } catch (e) {
-      setError(String(e) === "Cancelled." ? null : String(e));
+      setError(errorKind(e)?.kind === "cancelled" ? null : String(e));
       setRunning(false);
     } finally {
       stop?.();

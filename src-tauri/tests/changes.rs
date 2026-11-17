@@ -564,6 +564,9 @@ fn says_why_a_file_is_ignored_and_stages_it_anyway() {
 #[cfg(unix)]
 #[test]
 fn says_when_a_hook_stops_a_commit_and_commits_without_it() {
+    use common::failure;
+    use tributary_lib::error::{ErrorKind, Stopped};
+
     use std::os::unix::fs::PermissionsExt;
     let mut repo = TempRepo::new("hooks");
     with_identity(&repo);
@@ -584,12 +587,21 @@ fn says_when_a_hook_stops_a_commit_and_commits_without_it() {
         amend: false,
         no_verify,
     };
-    let error = run(&repo, commit(false)).unwrap_err();
+    let (error, kind) = failure(&repo, commit(false));
     assert!(
         error.starts_with("The pre-commit hook stopped the commit."),
         "{error}"
     );
-    assert!(error.contains("lint: 2 problems in a.txt"), "{error}");
+    let Some(ErrorKind::HookFailed {
+        hook,
+        stopped,
+        output,
+    }) = kind
+    else {
+        panic!("{kind:?}");
+    };
+    assert_eq!((hook.as_str(), stopped), ("pre-commit", Stopped::Commit));
+    assert!(output.contains("lint: 2 problems in a.txt"), "{output}");
     let message = run(&repo, commit(true)).unwrap();
     assert!(message.starts_with("Committed "), "{message}");
 }

@@ -164,17 +164,28 @@ pub fn parse_progress(line: &str) -> Option<Progress> {
 }
 
 /// Progress chatter that doesn't belong in an error message, like "remote: Total 3 (delta 0)".
+/// Only git's own shapes count: a hook's report such as "lint: 2 problems in TEAM.md" is
+/// what someone needs to read when the hook stops a push.
 fn is_progress_noise(line: &str) -> bool {
     let line = line.trim();
     let line = line.strip_prefix("remote:").unwrap_or(line).trim();
-    if line.starts_with("Total ") || parse_progress(line).is_some() {
+    if parse_progress(line).is_some() {
         return true;
     }
-    // "Enumerating objects: 5, done."
+    // "Total 3 (delta 0), reused 0 (delta 0), pack-reused 0"
+    if line.strip_prefix("Total ").is_some_and(|rest| {
+        rest.starts_with(|c: char| c.is_ascii_digit()) && rest.contains("(delta ")
+    }) {
+        return true;
+    }
+    // "Enumerating objects: 5, done.", or "Enumerating objects: 5" while it counts.
     line.split_once(':').is_some_and(|(phase, rest)| {
+        let count = rest.trim();
+        let count = count.strip_suffix(", done.").unwrap_or(count);
         !phase.is_empty()
             && phase.chars().all(|c| c.is_ascii_alphabetic() || c == ' ')
-            && rest.trim_start().starts_with(|c: char| c.is_ascii_digit())
+            && !count.is_empty()
+            && count.chars().all(|c| c.is_ascii_digit())
     })
 }
 
@@ -376,6 +387,12 @@ impl Git {
         if status.success() {
             return Ok(ProgressOutput { messages });
         }
+        // A pre-push hook prints to standard output, and what it said is why the push stopped.
+        let messages = if args.first() == Some(&"push") && !stdout.trim().is_empty() {
+            format!("{}\n{}", stdout.trim_end(), messages.trim_end())
+        } else {
+            messages
+        };
         Err(Error::Git(error_message(args, &status, &stdout, &messages)))
     }
 }
@@ -509,5 +526,15 @@ mod tests {
         assert!(!is_progress_noise(
             "hint: Updates were rejected because the remote contains work"
         ));
+    }
+
+    #[test]
+    fn keeps_what_a_hook_reports() {
+        assert!(is_progress_noise("remote: Enumerating objects: 12"));
+        assert!(is_progress_noise("Counting objects: 4, done."));
+        assert!(!is_progress_noise("lint: 2 problems in TEAM.md"));
+        assert!(!is_progress_noise("Tests: 3 failed, 41 passed"));
+        assert!(!is_progress_noise("Found: 2 files over 50 MB"));
+        assert!(!is_progress_noise("Total 2 problems (1 error, 1 warning)"));
     }
 }

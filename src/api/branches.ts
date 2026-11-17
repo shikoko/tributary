@@ -1,5 +1,5 @@
 // Cleaning up branches, and putting them back: prune candidates, backups and lost commits.
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./invoke";
 import type {
   Backup,
   BackupEvent,
@@ -17,12 +17,12 @@ export type { Backup, BackupEvent, BranchTip, CommitBrief, LostCommits, PruneCan
 
 /** Backups from the last 30 days, newest first. */
 export function branchBackups(path: string): Promise<Backup[]> {
-  return invoke<Backup[]>("branch_backups", { path });
+  return invoke("branch_backups", { path });
 }
 
 /** What deleting `reference` ("refs/heads/…" or "refs/remotes/…") would lose. */
 export function lostCommits(path: string, reference: string): Promise<LostCommits> {
-  return invoke<LostCommits>("lost_commits", { path, reference });
+  return invoke("lost_commits", { path, reference });
 }
 
 /**
@@ -30,7 +30,7 @@ export function lostCommits(path: string, reference: string): Promise<LostCommit
  * checked-out branch doesn't have, leaving out what was on it at `since`.
  */
 export function unseenCommits(path: string, reference: string, since: string | null): Promise<UnseenCommits> {
-  return invoke<UnseenCommits>("unseen_commits", { path, reference, since });
+  return invoke("unseen_commits", { path, reference, since });
 }
 
 /**
@@ -38,10 +38,10 @@ export function unseenCommits(path: string, reference: string, since: string | n
  * no commits for that long. Changes nothing.
  */
 export function pruneCandidates(path: string, idleDays: number | null = null): Promise<PruneInfo> {
-  return invoke<PruneInfo>("prune_candidates", { path, idleDays });
+  return invoke("prune_candidates", { path, idleDays });
 }
 
 /** What `branch`, whose remote branch is gone (renamed or deleted on the remote), could go with instead. */
 export function upstreamChoices(path: string, branch: string): Promise<UpstreamChoices> {
-  return invoke<UpstreamChoices>("upstream_choices", { path, branch });
+  return invoke("upstream_choices", { path, branch });
 }

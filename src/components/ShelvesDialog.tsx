@@ -18,7 +18,7 @@ interface Props {
   /** Whether shelves can be opened here (not in a bare repository). */
   canChange: boolean;
   /** Runs a git action (closing this first); resolves to whether it worked. */
-  run: (action: Action, kind: "push" | "download" | "other") => Promise<boolean>;
+  run: (action: Action) => Promise<boolean>;
   onClose: () => void;
 }
 
@@ -71,14 +71,14 @@ export function ShelvesDialog({ repoPath, status, paths, head, canChange, run, o
     if (picked.length === 0 || !description.trim()) return;
     const list = everything ? [] : picked.flatMap((file) => (file.oldPath ? [file.oldPath, file.path] : [file.path]));
     onClose();
-    void run({ kind: "shelve", paths: list, description: description.trim(), keep }, "push");
+    void run({ kind: "shelve", paths: list, description: description.trim(), keep });
   };
   const remove = async (shelf: Shelf) => {
     if (deleting !== shelf.reference) {
       setDeleting(shelf.reference);
       return;
     }
-    if (await run({ kind: "deleteShelf", reference: shelf.reference }, "other")) {
+    if (await run({ kind: "deleteShelf", reference: shelf.reference })) {
       setList((now) => (now ?? []).filter((each) => each.reference !== shelf.reference));
     }
     setDeleting(null);
@@ -201,7 +201,7 @@ export function ShelvesDialog({ repoPath, status, paths, head, canChange, run, o
                     title={canChange ? "Take its files into your copy, as they were shelved" : undefined}
                     onClick={() => {
                       onClose();
-                      void run({ kind: "openShelf", reference: shelf.reference }, "download");
+                      void run({ kind: "openShelf", reference: shelf.reference });
                     }}
                   >
                     <span className="button-label">Open</span>

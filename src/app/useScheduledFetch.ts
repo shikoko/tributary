@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef } from "react";
-import { remoteState, runAction } from "../api";
+import { errorKind, remoteState, runAction } from "../api";
 import type { Tab } from "../components/TabBar";
 import type { ToastMessage } from "../components/Toast";
 import { notifySystem } from "../lib/notify";
-import { isLocalChangesError, NOT_ENOUGH_SPACE } from "../lib/errors";
 import { describeRun, dueRun, type ScheduleDays, type ScheduledResult, type ScheduledRun } from "../lib/schedule";
 import { FIRST_AUTO_FETCH_DELAY } from "./constants";
 
 /** Why a repository wasn't brought up to date, in a sentence. */
-function whyNot(error: string): string {
-  if (isLocalChangesError(error)) return "Fetched, but your uncommitted changes were in the way of moving the branch forward. Pull when you're ready.";
-  if (error.startsWith(NOT_ENOUGH_SPACE)) return error.split(". ")[0] + ".";
-  return error.split("\n")[0];
+function whyNot(error: unknown): string {
+  const kind = errorKind(error)?.kind;
+  const message = String(error);
+  if (kind === "changesInTheWay") return "Fetched, but your uncommitted changes were in the way of moving the branch forward. Pull when you're ready.";
+  if (kind === "notEnoughSpace") return message.split(". ")[0] + ".";
+  return message.split("\n")[0];
 }
 
 interface Options {
@@ -58,7 +59,7 @@ export function useScheduledFetch(options: Options): () => Promise<void> {
           }
           results.push({ name: tab.name, ok: true, message: await runAction(tab.path, { kind: "fetchLatest" }) });
         } catch (error) {
-          results.push({ name: tab.name, ok: false, message: whyNot(String(error)) });
+          results.push({ name: tab.name, ok: false, message: whyNot(error) });
         }
       }
     } finally {

@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
-import { onProgress, PAGE_SIZE, runActionFor, type Action, type Outcome, type Progress, type RepoSnapshot } from "../api";
-import { hookFailure, involvesUntrackedFiles, isLocalChangesError, NOT_ENOUGH_SPACE, REWRITTEN } from "../lib/errors";
-import { undoFor } from "../lib/undo";
+import { actionInfo, asAppError, onProgress, PAGE_SIZE, runActionFor, type Action, type ActionInfo, type AppError, type Outcome, type Progress, type RepoSnapshot } from "../api";
 import { openInBrowser } from "../lib/weblinks";
 import { notifySystem } from "../lib/notify";
 import { overallPercent } from "../lib/progress";
 import type { ToastMessage } from "../components/Toast";
 import { splitRemoteBranch, type OpenDialog } from "../menus";
-import { checkoutTarget, discardLabel, LONG_ACTION, PROGRESS_DELAY, RETRYABLE, RUNNING_LABELS, type Running } from "./constants";
+import { discardLabel, LONG_ACTION, PROGRESS_DELAY, type Running } from "./constants";
 import type { LoadMode, RepoError } from "./useRepository";
 
 export interface ActOptions {
@@ -26,8 +24,8 @@ interface Options {
   setError: (error: RepoError | null) => void;
   notify: (toast: ToastMessage) => void;
   blockFocusRefresh: MutableRefObject<boolean>;
-  /** After an action and the reload, with how it ran and what it reported (to refresh locks, pull requests…). */
-  after: (action: Action, kind: Running, outcome: Outcome | null) => void;
+  /** After an action and the reload, with whether it went to a remote and what it reported (to refresh locks, pull requests…). */
+  after: (action: Action, remote: boolean, outcome: Outcome | null) => void;
   /** A squash merge waits to be committed: show the uncommitted changes. */
   showChanges: () => void;
   /** Keep what was done, with its undo, in the repository's history. */
@@ -44,18 +42,8 @@ export interface ProgressState {
   cancellable: boolean;
 }
 
-/** What undoes `action`, which reported `outcome`, in the repository as it was `before`. */
-function undoOf(action: Action, outcome: Outcome, before: RepoSnapshot): Action | null {
-  const { backup } = outcome;
-  // Discarded files and lines are kept for a while, to put back.
-  const discarded = action.kind === "discardFiles" || action.kind === "discardAll" || action.kind === "applyLines" || (action.kind === "shelve" && !action.keep);
-  if (backup && discarded) return { kind: "restoreDiscarded", reference: backup };
-  // Restored from the local history: what the files were just before was kept too.
-  // Cherry-picked onto a branch that isn't checked out: that branch goes back where it was.
-  if (backup && action.kind === "cherryPickOnto") return { kind: "dropTip", branch: action.branch, id: backup };
-  if (backup && action.kind === "restoreFromHistory") return { kind: "restoreFromHistory", reference: backup, paths: action.paths };
-  return undoFor(action, before);
-}
+/** What an action is like when that can't be asked: quick, and nothing more. */
+const QUICK: ActionInfo = { running: null, label: null, cancellable: false, remote: false, retryable: false, rewrites: null };
 
 /** For the tabs: what's running in each repository whose progress shows, and how far it is. */
 export function busyTabs(runs: ReadonlyMap<string, Run>): Record<string, { label: string; percent: number | null }> {
@@ -64,9 +52,10 @@ export function busyTabs(runs: ReadonlyMap<string, Run>): Record<string, { label
   return busy;
 }
 
-/** An action running in a repository, and its progress. */
+/** An action running in a repository, its words ("Pushing"), and its progress. */
 export interface Run {
   kind: Running;
+  label: string | null;
   progress: ProgressState | null;
 }
 
@@ -105,35 +94,36 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
 
   /** Run a git action, reload, then show what happened. Resolves to true when it worked. */
   const act = useCallback(
-    async (action: Action, requested: Running = "other", options: ActOptions = {}): Promise<boolean> => {
+    async (action: Action, options: ActOptions = {}): Promise<boolean> => {
       if (!snapshot) return false;
-      // Checkouts show their progress too (big ones, and Git LFS files, take a while), and so
-      // does discarding changes (thousands of files take a while to put away).
-      const target = checkoutTarget(action);
-      const discarding = discardLabel(action, snapshot.worktree);
-      const kind: Running = requested !== "other" ? requested : target !== null ? "checkout" : discarding !== null ? "discard" : "other";
+      const before = snapshot;
       const { openDialog, setError, notify, after, showChanges } = callbacks.current;
-      if (!options.confirmed && protectedHead && (action.kind === "rebase" || action.kind === "interactiveRebase" || action.kind === "fixupInto" || action.kind === "splitCommit" || action.kind === "restack" || action.kind === "migrateToLfs")) {
-        openDialog({ kind: "protectedAction", action, branch: protectedHead });
+      // Busy at once, while what it's like is asked.
+      change(before.path, () => ({ kind: "other", label: null, progress: null }));
+      const info = await actionInfo(action).catch(() => QUICK);
+      // Rewriting a protected branch's history is asked about first.
+      if (!options.confirmed && protectedHead && info.rewrites) {
+        change(before.path, () => undefined);
+        openDialog({ kind: "protectedAction", action, branch: protectedHead, rewrite: info.rewrites });
         return false;
       }
-      const before = snapshot;
+      // Discarding says how many files go, as the changes panel lists them.
+      const label = info.running === "discard" ? (discardLabel(action, before.worktree) ?? info.label) : info.label;
+      const kind: Running = info.running ?? "other";
       const started = Date.now();
       let last: Progress | null = null;
-      change(before.path, () => ({ kind, progress: null }));
+      change(before.path, () => ({ kind, label, progress: null }));
       setError(null);
       blockFocusRefresh.current = true;
       const setProgress = (update: (current: ProgressState | null) => ProgressState | null) =>
         change(before.path, (run) => run && { ...run, progress: update(run.progress) });
 
-      // Fetches, pulls, pushes and downloads show a progress bar, unless they finish quickly.
-      // A checkout or a discard can't be stopped: the files would be left half done.
+      // Fetches, pulls, pushes, downloads, checkouts and discards show a progress bar, unless
+      // they finish quickly.
       let stopListening: (() => void) | undefined;
       let showTimer: number | undefined;
-      if (kind && kind !== "other") {
-        const forced = action.kind === "push" && action.force;
-        const label = kind === "checkout" ? `Checking out ${target}` : kind === "discard" ? (discarding ?? RUNNING_LABELS.discard) : forced ? "Force pushing" : RUNNING_LABELS[kind];
-        setProgress(() => ({ label, value: null, visible: false, cancellable: kind !== "checkout" && kind !== "discard" }));
+      if (info.running) {
+        setProgress(() => ({ label: label ?? "Working", value: null, visible: false, cancellable: info.cancellable }));
         showTimer = window.setTimeout(() => setProgress((current) => current && { ...current, visible: true }), PROGRESS_DELAY);
         stopListening = await onProgress((value, path) => {
           // Another repository's, or a clone's.
@@ -144,68 +134,68 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
       }
 
       let outcome: Outcome | null = null;
-      let failure: string | null = null;
+      let failure: AppError | null = null;
       try {
         outcome = await runActionFor(before.path, action);
       } catch (e) {
-        failure = String(e);
+        failure = asAppError(e);
       }
+      const cancelled = failure?.kind?.kind === "cancelled";
       window.clearTimeout(showTimer);
       stopListening?.();
       change(before.path, () => undefined);
       // A long one, finished while you were elsewhere: say so.
-      if (kind && kind !== "other" && Date.now() - started > LONG_ACTION && !document.hasFocus() && failure !== "Cancelled.") {
+      if (info.running && Date.now() - started > LONG_ACTION && !document.hasFocus() && !cancelled) {
         const files = (last as Progress | null)?.files;
         const count = files && files.total > 1 ? ` · ${files.total.toLocaleString()} Git LFS files` : "";
         const minutes = Math.round((Date.now() - started) / 60_000);
         const took = minutes >= 1 ? ` in ${minutes} min` : "";
-        void notifySystem(before.name, failure ? `Didn't finish: ${failure.split("\n")[0]}` : `${outcome?.message ?? "Done"}${count}${took}`);
+        void notifySystem(before.name, failure ? `Didn't finish: ${failure.message.split("\n")[0]}` : `${outcome?.message ?? "Done"}${count}${took}`);
       }
       // You went to another repository while it ran: it's reloaded when you're back there
       // (and what follows an action waits for then), and a message says how it went. Its
       // undo is in that repository's history: the message's would run in this one.
       if (shown.current !== before.path) {
         const later = waiting.current.get(before.path) ?? [];
-        later.push(() => after(action, kind, outcome));
+        later.push(() => after(action, info.remote, outcome));
         waiting.current.set(before.path, later);
-        const text = failure === "Cancelled." ? "Cancelled" : (failure?.split("\n")[0] ?? outcome?.message ?? "Done");
+        const text = cancelled ? "Cancelled" : (failure?.message.split("\n")[0] ?? outcome?.message ?? "Done");
         notify({ text: `${before.name}: ${text}` });
-        if (outcome?.message) callbacks.current.record?.(before.path, outcome.message, action, undoOf(action, outcome, before));
+        if (outcome?.message) callbacks.current.record?.(before.path, outcome.message, action, outcome.undo ?? null);
         return failure === null;
       }
       // Reload even after a failure (a pull with conflicts still changes things), then show
       // the result.
       await load(before.path, "refresh", Math.max(PAGE_SIZE, before.commits.length));
-      after(action, kind, outcome);
+      after(action, info.remote, outcome);
 
-      if (failure === "Cancelled.") {
+      if (cancelled) {
         notify({ text: "Cancelled" });
         return false;
       }
       if (failure || !outcome) {
-        const message = failure ?? "Something went wrong";
+        const message = failure?.message ?? "Something went wrong";
+        const why = failure?.kind ?? null;
         // A sync stopped before pulling into a branch rewritten since it was pushed: what
         // it needs is a force push, which is asked for.
-        if (message.startsWith(REWRITTEN)) {
-          openDialog({ kind: "forcePush", reason: `Sync stopped. ${message.slice(REWRITTEN.length).replace(/^[:\s]+/, "")}` });
+        if (why?.kind === "rewritten") {
+          openDialog({ kind: "forcePush", reason: `Sync stopped. ${message}` });
           return false;
         }
         const retry: Action | undefined =
-          RETRYABLE.has(action.kind) && isLocalChangesError(message)
-            ? { kind: "stashAndRetry", action, includeUntracked: involvesUntrackedFiles(message) }
-            : undefined;
+          info.retryable && why?.kind === "changesInTheWay" ? { kind: "stashAndRetry", action, includeUntracked: why.untracked } : undefined;
         // The branch is checked out in another working tree: offer to open that.
-        const worktree = /already (?:used by worktree|checked out) at '([^']+)'/.exec(message)?.[1];
+        const worktree = why?.kind === "checkedOutElsewhere" ? why.path : undefined;
         // A hook stopped it: offer to go ahead without it.
         const skipHooks: Action | undefined =
-          hookFailure(message) && (action.kind === "commit" || action.kind === "push") ? { ...action, noVerify: true } : undefined;
+          why?.kind === "hookFailed" && (action.kind === "commit" || action.kind === "push") ? { ...action, noVerify: true } : undefined;
         // Too little disk space, it seemed: offer to go ahead all the same.
-        const anyway: Action | undefined = message.startsWith(NOT_ENOUGH_SPACE) && action.kind !== "anyDiskSpace" ? { kind: "anyDiskSpace", action } : undefined;
-        setError({ message, retry: anyway ? undefined : retry, worktree, skipHooks, anyway, action, upstreamWas: before.upstream?.commit ?? null });
+        const anyway: Action | undefined = why?.kind === "notEnoughSpace" && action.kind !== "anyDiskSpace" ? { kind: "anyDiskSpace", action } : undefined;
+        setError({ message, kind: why, retry: anyway ? undefined : retry, worktree, skipHooks, anyway, action, upstreamWas: before.upstream?.commit ?? null });
         return false;
       }
       const { message, pullRequest } = outcome;
-      const undo = undoOf(action, outcome, before);
+      const undo = outcome.undo ?? null;
       if (message) callbacks.current.record?.(before.path, message, action, undo);
       if (action.kind === "merge" && action.mode === "squash") showChanges();
       if (pullRequest) {
@@ -221,7 +211,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
           },
         });
       } else if (!options.quiet && message) {
-        notify({ text: message, action: undo ? { label: "Undo", onClick: () => act(undo, "other", { confirmed: true }) } : undefined });
+        notify({ text: message, action: undo ? { label: "Undo", onClick: () => act(undo, { confirmed: true }) } : undefined });
       }
       return true;
     },
@@ -231,7 +221,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
   /** A dialog did its own action: show its message, with an undo, and reload. */
   const finished = useCallback(
     (message: string, undo: Action | undefined, refresh: () => void) => {
-      callbacks.current.notify({ text: message, action: undo ? { label: "Undo", onClick: () => act(undo, "other", { confirmed: true }) } : undefined });
+      callbacks.current.notify({ text: message, action: undo ? { label: "Undo", onClick: () => act(undo, { confirmed: true }) } : undefined });
       refresh();
     },
     [act],
@@ -239,7 +229,7 @@ export function useActions({ snapshot, load, protectedHead, openDialog, setError
 
   // The repository on screen's.
   const run = snapshot ? runs.get(snapshot.path) : undefined;
-  return { act, running: run?.kind ?? null, progress: run?.progress ?? null, runs, finished };
+  return { act, running: run?.kind ?? null, runningLabel: run?.label ?? null, progress: run?.progress ?? null, runs, finished };
 }
 
 export type Actions = ReturnType<typeof useActions>;

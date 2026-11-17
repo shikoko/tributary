@@ -26,6 +26,7 @@ import { useRepositoryMenus } from "./useRepositoryMenus";
 import { BranchIcon, EyeIcon, FolderIcon, LockIcon, PinIcon, PlusIcon, StashIcon, SubmoduleIcon, TagIcon } from "../components/Icons";
 import { MessageTools } from "../components/MessageTools";
 import { ResizeHandle } from "../components/ResizeHandle";
+import { SearchResults } from "../components/SearchResults";
 import { Sidebar } from "../components/Sidebar";
 import { SidebarStrip, type StripSection } from "../components/sidebar/SidebarStrip";
 import { sidebarLists } from "../components/sidebar/refTree";
@@ -33,9 +34,9 @@ import { useSidebarStrip } from "./useSidebarStrip";
 import { StatusBar } from "../components/StatusBar";
 import type { ToastMessage } from "../components/Toast";
 import { Toolbar, type RemoteAction } from "../components/Toolbar";
-import { RUNNING_LABELS } from "./constants";
 import { DetailsPane } from "./DetailsPane";
 import { RepositoryDialogs } from "./Dialogs";
+import { OpenRepositoryContext, type OpenRepository } from "./OpenRepository";
 import { fileMenuItems, lockMenuItems } from "./fileMenus";
 import { columnMenuItems, detailsActionsFor, pushMenuItems, submoduleMenuItems, worktreeMenuItems } from "./listMenus";
 import { RepositoryBanners } from "./RepositoryBanners";
@@ -126,9 +127,21 @@ interface Props {
 /** An open repository: the toolbar, the sidebar, the commit list and graph, the details, and the status bar. */
 export function RepositoryView(props: Props) {
   const { snapshot, repo, selection, search, highlight, actions, settings, preferences, counts, lfs, menu, openDialog } = props;
-  const { act, running } = actions;
+  const { act, running, runningLabel } = actions;
   const { select, byId, selectedIds, selectedCommits } = selection;
   const { sidebarOpen, setSidebarOpen, sidebarWidth, setSidebarWidth, detailsWidth, setDetailsWidth, activityOpen, setActivityOpen } = preferences;
+  // Where the history starts across the window, for the search box to start there too. It
+  // moves with the sidebar (shown, hidden, a strip, resized) and the window.
+  const centerPane = useRef<HTMLDivElement>(null);
+  const [historyLeft, setHistoryLeft] = useState<number | null>(null);
+  useEffect(() => {
+    const pane = centerPane.current;
+    if (!pane) return;
+    const measure = () => setHistoryLeft(Math.round(pane.getBoundingClientRect().left));
+    const observer = new ResizeObserver(measure);
+    observer.observe(pane);
+    return () => observer.disconnect();
+  }, [preferences.simpleMode]);
   // In a narrow window, the sidebar is a strip of icons, and opens over the list from them.
   const strip = useSidebarStrip();
   const canChange = !snapshot.bare && running === null;
@@ -193,6 +206,16 @@ export function RepositoryView(props: Props) {
     },
   });
   const { comparing, compared, showChanges, showBlame, shownDiff } = views;
+  // A search finds commits in the history, so what's shown over it (a pull request, a
+  // commit's checks, the team, a file's changes or who changed its lines) makes way. A
+  // history rewrite being planned stays: closing it would lose the plan.
+  const showHistory = () => {
+    if (props.teamOpen) props.onCloseTeam();
+    if (props.request) props.onCloseRequest();
+    setChecksOf(null);
+    views.closeDiff();
+    views.closeBlame();
+  };
 
   // Who committed this week, for the status bar: read again when the commits change (after a fetch, say).
   const [pulse, setPulse] = useState<{ path: string; people: number; commits: number } | null>(null);
@@ -307,6 +330,24 @@ export function RepositoryView(props: Props) {
   const lastHere = [...activityHere].reverse().find((entry) => entry.folder === snapshot.path && !entry.background);
   const canFetch = !snapshot.bare && snapshot.remotes.length > 0;
 
+  // What a search of everything found, by kind (shown in the sidebar's place, or over the history).
+  const searchResults = search.everything ? (
+    <SearchResults
+      everything={search.everything}
+      commits={snapshot.commits}
+      hiddenRefs={snapshot.hiddenRefs}
+      onGo={(id) => {
+        showHistory();
+        goTo(id);
+      }}
+      onKind={search.searchKind}
+      onClose={() => {
+        search.clear();
+        search.focus();
+      }}
+    />
+  ) : null;
+
   // The side panels slide open and closed (see usePresence).
   const sidebarPanel = usePresence(
     sidebarOpen,
@@ -348,6 +389,7 @@ export function RepositoryView(props: Props) {
         onOpenSubmodule={submoduleContext.open}
         onSubmoduleMenu={(submodule, x, y) => menu.show(x, y, submoduleMenuItems(submodule, submoduleContext))}
         reveal={strip.open}
+        onSidebarSettings={() => props.openSettings("Sidebar")}
       />
     ) : null,
   );
@@ -411,10 +453,43 @@ export function RepositoryView(props: Props) {
     ) : null,
   );
 
+  // What's shown over the repository (its dialogs and banners) takes what it needs from here.
+  const repository: OpenRepository = {
+    snapshot,
+    byId,
+    branchLabel: snapshot.headBranch ?? "HEAD",
+    protectedHead: settings.protectedHead,
+    protectedBranches: settings.protectedBranches,
+    pins: settings.pins,
+    localBranches: [...counts.localBranches],
+    worktrees: props.worktrees,
+    loadDetails: props.details.load,
+    act,
+    push: () => act({ kind: "push", force: false }),
+    select,
+    goTo,
+    openDialog,
+    closeDialog: () => openDialog(null),
+    finished: (message, undo) => {
+      openDialog(null);
+      actions.finished(message, undo, repo.refresh);
+    },
+    notify: (text) => props.notify({ text }),
+    locksChanged: () => lfs.refresh(true),
+    openTab: props.openTab,
+    requestCreated: props.onRequestCreated,
+    signIn: () => {
+      openDialog(null);
+      props.openSettings("Accounts");
+    },
+    openSettings: (section) => props.openSettings(section),
+  };
+
   return (
-    <Contexts issueTracker={issueTracker} checkWhy={setWhy}>
+    <Contexts repository={repository} issueTracker={issueTracker} checkWhy={setWhy}>
       {!preferences.simpleMode && (
         <Toolbar
+          historyLeft={historyLeft}
           snapshot={snapshot}
           running={running === "fetch" || running === "pull" || running === "push" ? running : null}
           ahead={counts.ahead}
@@ -423,11 +498,17 @@ export function RepositoryView(props: Props) {
           behindCommits={counts.behindCommits}
           search={search.position}
           searchInput={search.input}
-          onSearch={search.search}
-          onSearchStep={search.step}
+          onSearch={(text) => {
+            if (text.trim()) showHistory();
+            search.search(text);
+          }}
+          onSearchStep={(by) => {
+            showHistory();
+            search.step(by);
+          }}
           onSearchMode={search.setMode}
-          onRemote={(action) => act(REMOTE_ACTIONS[action], action)}
-          onPushMenu={(anchor) => menu.under(anchor, pushMenuItems(() => act({ kind: "push", force: false }, "push"), () => act({ kind: "sync" }, "sync"), openDialog))}
+          onRemote={(action) => act(REMOTE_ACTIONS[action])}
+          onPushMenu={(anchor) => menu.under(anchor, pushMenuItems(() => act({ kind: "push", force: false }), () => act({ kind: "sync" }), openDialog))}
           lastFetch={snapshot.lastFetched ? snapshot.lastFetched * 1000 : null}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
@@ -465,8 +546,6 @@ export function RepositoryView(props: Props) {
           props.lockRelease.release();
         }}
         showWholeHistory={() => preferences.setFirstParentOnly(false)}
-        openWorktree={props.openTab}
-        openDialog={openDialog}
       />
       {preferences.simpleMode ? (
         <SimpleView
@@ -486,7 +565,17 @@ export function RepositoryView(props: Props) {
         />
       ) : (
         <main className="workspace">
-          {sidebarPanel.shown &&
+          {/* A search of everything lists what it found in the sidebar's place, as wide as it,
+              so the history and the search box above it stay where they are. With no
+              sidebar beside the history, the results go over it instead. */}
+          {searchResults && sidebarOpen && !strip.narrow ? (
+            <>
+              <div className="sidebar-frame search-results-frame" style={{ width: sidebarWidth }}>
+                {searchResults}
+              </div>
+              <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
+            </>
+          ) : sidebarPanel.shown &&
             (strip.narrow ? (
               <>
                 <SidebarStrip sections={stripSections} open={strip.open} onOpen={strip.toggle} />
@@ -504,7 +593,12 @@ export function RepositoryView(props: Props) {
                 <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
               </>
             ))}
-          <div className="center-pane" data-tour="graph">
+          {searchResults && !(sidebarOpen && !strip.narrow) && (
+            <div className="sidebar-over search-results-over" style={{ width: Math.max(sidebarWidth, 280), left: sidebarPanel.shown && strip.narrow ? undefined : 0 }}>
+              {searchResults}
+            </div>
+          )}
+          <div ref={centerPane} className="center-pane" data-tour="graph">
             <CommitList
               key={snapshot.path}
               viewButton={viewButton}
@@ -599,7 +693,7 @@ export function RepositoryView(props: Props) {
           canUndo={(entry) => undoState(entry, snapshot)}
           onUndo={(entry) => {
             if (!entry.undo) return;
-            void act(entry.undo, "other", { confirmed: true }).then((done) => done && props.history.markUndone(snapshot.path, entry.id));
+            void act(entry.undo, { confirmed: true }).then((done) => done && props.history.markUndone(snapshot.path, entry.id));
           }}
           onClearHistory={() => props.history.clear(snapshot.path)}
         />
@@ -608,11 +702,11 @@ export function RepositoryView(props: Props) {
         snapshot={snapshot}
         ahead={counts.ahead}
         behind={counts.behind}
-        running={running && running !== "other" ? RUNNING_LABELS[running] : running === "other" ? "Working" : null}
+        running={running === null ? null : (runningLabel ?? "Working")}
         hiddenCount={settings.hiddenCount}
         soloing={settings.soloing}
         onShowAll={settings.showAllBranches}
-        onFetch={canFetch && canChange ? () => act({ kind: "fetch" }, "fetch") : null}
+        onFetch={canFetch && canChange ? () => act({ kind: "fetch" }) : null}
         activityOpen={activityOpen}
         activityFailed={Boolean(lastHere && !lastHere.success)}
         onToggleActivity={() => setActivityOpen(!activityOpen)}
@@ -670,47 +764,19 @@ export function RepositoryView(props: Props) {
       {tours.offer && !tours.active && (
         <TourOffer tour={tours.offer} onStart={() => tours.start(tours.offer!.id)} onLater={tours.dismissOffer} onNever={tours.never} />
       )}
-      <RepositoryDialogs
-        notify={(text) => props.notify({ text })}
-        dialog={props.dialog}
-        snapshot={snapshot}
-        byId={byId}
-        branchLabel={snapshot.headBranch ?? "HEAD"}
-        protectedHead={settings.protectedHead}
-        protectedBranches={settings.protectedBranches}
-        pins={settings.pins}
-        loadDetails={props.details.load}
-        run={act}
-        select={select}
-        goTo={goTo}
-        open={openDialog}
-        onClose={() => openDialog(null)}
-        onFinish={(message, undo) => {
-          openDialog(null);
-          actions.finished(message, undo, repo.refresh);
-        }}
-        onLocksChanged={() => lfs.refresh(true)}
-        worktrees={props.worktrees}
-        localBranches={[...counts.localBranches]}
-        openWorktree={props.openTab}
-        push={() => act({ kind: "push", force: false }, "push")}
-        onRequestCreated={props.onRequestCreated}
-        openSettings={(section) => props.openSettings(section)}
-        signIn={() => {
-          openDialog(null);
-          props.openSettings("Accounts");
-        }}
-      />
+      <RepositoryDialogs dialog={props.dialog} />
       {why && <CheckWhy repoPath={snapshot.path} check={why} openUrl={openInBrowser} notify={(text) => props.notify({ text })} onClose={() => setWhy(null)} />}
     </Contexts>
   );
 }
 
-/** What the views inside a repository's ask for: its issue tracker, and showing why a check failed. */
-function Contexts({ issueTracker, checkWhy, children }: { issueTracker: ComponentProps<typeof IssueTrackerContext.Provider>["value"]; checkWhy: (check: WhyCheck) => void; children: ReactNode }) {
+/** What the views inside a repository's ask for: the repository itself, its issue tracker, and showing why a check failed. */
+function Contexts({ repository, issueTracker, checkWhy, children }: { repository: OpenRepository; issueTracker: ComponentProps<typeof IssueTrackerContext.Provider>["value"]; checkWhy: (check: WhyCheck) => void; children: ReactNode }) {
   return (
-    <IssueTrackerContext.Provider value={issueTracker}>
-      <CheckWhyContext.Provider value={checkWhy}>{children}</CheckWhyContext.Provider>
-    </IssueTrackerContext.Provider>
+    <OpenRepositoryContext.Provider value={repository}>
+      <IssueTrackerContext.Provider value={issueTracker}>
+        <CheckWhyContext.Provider value={checkWhy}>{children}</CheckWhyContext.Provider>
+      </IssueTrackerContext.Provider>
+    </OpenRepositoryContext.Provider>
   );
 }

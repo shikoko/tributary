@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { initRepository, openRepository, PAGE_SIZE, type Action, type RepoSnapshot } from "../api";
+import { errorKind, initRepository, openRepository, PAGE_SIZE, type Action, type ErrorKind, type RepoSnapshot } from "../api";
 import { loadPlace, type Place } from "../lib/place";
 import { loadRecent, noteBranch, rememberRepo } from "../lib/recent";
 import { readVisibility } from "../lib/repoPrefs";
@@ -14,6 +14,8 @@ export type LoadMode = "open" | "refresh" | "more";
 /** An error shown above the commit list, with what can be done about it. */
 export interface RepoError {
   message: string;
+  /** What kind of failure it is, when the app knows (the backend says). */
+  kind?: ErrorKind | null;
   /** Stash the changes in the way and run this again. */
   retry?: Action;
   /** The branch is checked out in this other working tree. */
@@ -108,7 +110,7 @@ export function useRepository({ setTabs, setActiveTab, firstParentOnly, events }
         if (current()) show(next);
       }
     } catch (e) {
-      if (current()) setError({ message: String(e), fromLoad: true });
+      if (current()) setError({ message: String(e), kind: errorKind(e), fromLoad: true });
     } finally {
       if (current()) {
         setBusy(null);
@@ -129,7 +131,7 @@ export function useRepository({ setTabs, setActiveTab, firstParentOnly, events }
     try {
       await work();
     } catch (e) {
-      setError({ message: String(e) });
+      setError({ message: String(e), kind: errorKind(e) });
     } finally {
       blockFocusRefresh.current = false;
     }

@@ -1,6 +1,13 @@
 //! The commands the frontend calls. Each one is a thin wrapper: it runs the work on a
 //! blocking thread (reading a repository or running git can take a while), and reports
-//! progress and activity as events.
+//! progress and activity as events. Each is in the command list too (`list.rs`), which the
+//! app's handler, the preview and the TypeScript types are made from.
+
+mod list;
+
+pub use list::{APP_ONLY, camel, dispatch, handler};
+#[cfg(test)]
+pub(crate) use list::{signatures, visit_types};
 
 use std::path::PathBuf;
 use ts_rs::TS;
@@ -602,6 +609,28 @@ pub async fn signing_settings(path: String) -> Result<actions::SigningSettings> 
     blocking(move || actions::signing_settings(&PathBuf::from(path))).await
 }
 
+/// The SSH keys in ~/.ssh, by their public halves.
+#[tauri::command]
+pub async fn ssh_keys() -> Result<Vec<actions::SshKey>> {
+    blocking(|| Ok(actions::ssh_keys())).await
+}
+
+/// Make a new Ed25519 SSH key in ~/.ssh with ssh-keygen (never over one already there).
+#[tauri::command]
+pub async fn generate_ssh_key(
+    name: String,
+    comment: String,
+    passphrase: String,
+) -> Result<actions::SshKey> {
+    blocking(move || actions::generate_ssh_key(&name, &comment, &passphrase)).await
+}
+
+/// Whether a host (like github.com) lets the key in, and as whom.
+#[tauri::command]
+pub async fn check_ssh_key(host: String, public_key: String) -> Result<actions::SshCheck> {
+    blocking(move || actions::check_ssh_key(&host, &public_key)).await
+}
+
 /// The repository's submodules, and whether each is at the commit it records.
 #[tauri::command]
 pub async fn submodules(path: String) -> Result<Vec<actions::Submodule>> {
@@ -638,6 +667,13 @@ pub async fn search_commits(
     query: String,
 ) -> Result<actions::SearchResult> {
     blocking(move || actions::search_commits(&PathBuf::from(path), mode, &query)).await
+}
+
+/// Every kind of match for `query` at once (but code): commits by message and id, authors,
+/// and files.
+#[tauri::command]
+pub async fn search_overview(path: String, query: String) -> Result<actions::SearchOverview> {
+    blocking(move || actions::search_overview(&PathBuf::from(path), &query)).await
 }
 
 /// The commit `query` names (an id or its start, a branch, a tag, or a day), for Go to Commit.
@@ -1018,6 +1054,13 @@ pub async fn diagnostics(path: Option<String>) -> Result<diagnostics::Diagnostic
         ))
     })
     .await
+}
+
+/// What `action` is like: how it shows while it runs, whether it can be stopped or run again
+/// with changes put aside, and whether it rewrites history.
+#[tauri::command]
+pub fn action_info(action: Action) -> actions::ActionInfo {
+    action.info()
 }
 
 /// Stop the fetch, pull or push running in the repository at `path`, or without a path,

@@ -1,6 +1,6 @@
 //! Bisecting: finding the commit that broke something by testing the ones in between.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use super::support::short;
@@ -9,7 +9,7 @@ use crate::error::Result;
 use crate::git::Git;
 
 /// What testing a commit showed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum Verdict {
     Good,

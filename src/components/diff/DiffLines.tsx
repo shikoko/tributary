@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useRef } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { Hunk, LineMode } from "../../api";
 import { changedKeys, hunkKeys, keysBetween, lineKey } from "../../lib/lineSelection";
-import { splitRows } from "../../lib/sideBySide";
+import { splitRows, type SplitRow } from "../../lib/sideBySide";
 import { highlightHunk, MAX_HIGHLIGHT_LINES, pieces, type Piece } from "../../lib/syntax";
 import { wordSegments } from "../../lib/wordDiff";
+import { foldPictures, pictureLabel, picturesIn, type EmbeddedPicture, type Folded, type PictureChange } from "../../lib/embeddedPictures";
+import { formatBytes } from "../../lib/format";
+import { InlinePicture } from "./DiffPictures";
 
 const SIGNS = { added: "+", removed: "−", context: " " } as const;
+const NOTHING = new Set<string>();
 
 /** Staging (or unstaging, or discarding) some of the lines shown. */
 export interface LinePicking {
@@ -20,12 +24,40 @@ export interface LinePicking {
   busy: boolean;
 }
 
-/** A line's pieces: coloured by syntax, with the changed words marked. */
-export function LineText({ parts }: { parts: Piece[] }) {
+/** For each run of changed rows (side by side), the row it ends at, with `of` the run's lines. */
+function runEnds<T>(rows: SplitRow[], of: (indexes: number[]) => T): Map<number, T> {
+  const ends = new Map<number, T>();
+  let run: number[] = [];
+  rows.forEach((row, index) => {
+    // An unchanged line is on both sides; a changed row has a different line on each, or one.
+    if (row.left === row.right) return;
+    run.push(...[row.left, row.right].filter((line): line is number => line !== null));
+    const next = rows[index + 1];
+    if (!next || next.left === next.right) {
+      ends.set(index, of(run));
+      run = [];
+    }
+  });
+  return ends;
+}
+
+/** A picture's label in its line: what it is, and a click shows its letters instead. */
+function PictureChip({ picture, label, onUnfold }: { picture: EmbeddedPicture; label: string; onUnfold?: () => void }) {
+  return (
+    <button type="button" className="diff-picture-chip" onClick={onUnfold} title={`${label}, written out in base64: click to show its letters`}>
+      <img src={picture.url} alt="" draggable={false} />
+      <span className="button-label">{label}</span>
+    </button>
+  );
+}
+
+/** A line's pieces: coloured by syntax, with the changed words marked (and pictures in it folded). */
+export function LineText({ parts, onUnfold }: { parts: Folded[]; onUnfold?: () => void }) {
   if (parts.length === 0) return <> </>;
   return (
     <>
       {parts.map((part, index) => {
+        if (part.picture) return <PictureChip key={index} picture={part.picture} label={part.text} onUnfold={onUnfold} />;
         const text = part.className ? <span className={part.className}>{part.text}</span> : part.text;
         return part.changed ? <mark key={index}>{text}</mark> : <span key={index}>{text}</span>;
       })}
@@ -40,7 +72,10 @@ export function DiffLines({
   language,
   split = false,
   wrap = false,
+  pictures,
 }: {
+  /** Pictures written into the lines: folded into labels, and shown under the lines they changed in. */
+  pictures?: { changes: PictureChange[]; path: string };
   hunks: Hunk[];
   picking?: LinePicking;
   language?: string | null;
@@ -55,6 +90,25 @@ export function DiffLines({
     return total > MAX_HIGHLIGHT_LINES ? null : hunks.map((hunk) => highlightHunk(hunk.lines, language ?? null));
   }, [hunks, language]);
   const order = useMemo(() => changedKeys(hunks), [hunks]);
+  // Pictures written into the lines, folded into labels until one is clicked.
+  const fold = Boolean(pictures);
+  const found = useMemo(() => (fold ? hunks.map((hunk) => hunk.lines.map((line) => picturesIn(line.text))) : null), [hunks, fold]);
+  const [unfolded, setUnfolded] = useState<{ hunks: Hunk[]; keys: Set<string> }>({ hunks, keys: new Set() });
+  const open = unfolded.hunks === hunks ? unfolded.keys : NOTHING;
+  /** The line's pieces, its pictures folded (unless it was unfolded), and how to unfold them. */
+  const lineParts = (hunkIndex: number, index: number, parts: Piece[]): { parts: Folded[]; onUnfold?: () => void } => {
+    const pictures = found?.[hunkIndex][index] ?? [];
+    const key = `${hunkIndex}:${index}`;
+    if (pictures.length === 0 || open.has(key)) return { parts };
+    return {
+      parts: foldPictures(parts, pictures, (picture) => pictureLabel(picture, formatBytes)),
+      onUnfold: () => setUnfolded({ hunks, keys: new Set([...open, key]) }),
+    };
+  };
+  /** The pictures that changed in the run of lines ending at `index`, to show under it. */
+  const changedAt = (hunkIndex: number, index: number) => pictures?.changes.filter((change) => change.hunk === hunkIndex && change.last === index) ?? [];
+  /** The pictures that changed in a run of lines (by their indexes), side by side. */
+  const changedIn = (hunkIndex: number, indexes: number[]) => pictures?.changes.filter((change) => change.hunk === hunkIndex && indexes.includes(change.last)) ?? [];
   /** Where a shift-click range starts: the line last clicked. */
   const anchor = useRef<string | null>(null);
   /** While dragging over the line numbers: whether lines are being chosen or let go. */
@@ -99,6 +153,9 @@ export function DiffLines({
       {hunks.map((hunk, hunkIndex) => {
         const keys = picking ? hunkKeys(hunk) : [];
         const chosenHere = picking ? keys.filter((key) => picking.selected.has(key)) : [];
+        const rows = split ? splitRows(hunk.lines) : [];
+        // Side by side, the pictures that changed in a run of rows go under its last row.
+        const picturesBelow = split && pictures ? runEnds(rows, (indexes) => changedIn(hunkIndex, indexes)) : null;
         return (
           <div key={hunkIndex} className="diff-hunk" role="rowgroup">
             <div className="diff-hunk-header" role="row">
@@ -136,7 +193,7 @@ export function DiffLines({
               )}
             </div>
             {split &&
-              splitRows(hunk.lines).map(({ left, right }, rowIndex) => {
+              rows.map(({ left, right }, rowIndex) => {
                 // One side of a row: the line before (left) or after (right) the change.
                 const half = (index: number | null, side: "left" | "right") => {
                   if (index === null) return <div className="diff-half empty" aria-hidden />;
@@ -161,16 +218,20 @@ export function DiffLines({
                         {SIGNS[line.kind]}
                       </span>
                       <span className="diff-text">
-                        <LineText parts={pieces(line.text, syntax?.[hunkIndex][index] ?? null, segments[hunkIndex][index])} />
+                        <LineText {...lineParts(hunkIndex, index, pieces(line.text, syntax?.[hunkIndex][index] ?? null, segments[hunkIndex][index]))} />
                       </span>
                     </div>
                   );
                 };
+                const below = picturesBelow?.get(rowIndex);
                 return (
-                  <div key={rowIndex} className="diff-split-row" role="row">
-                    {half(left, "left")}
-                    {half(right, "right")}
-                  </div>
+                  <Fragment key={rowIndex}>
+                    <div className="diff-split-row" role="row">
+                      {half(left, "left")}
+                      {half(right, "right")}
+                    </div>
+                    {below?.map((change, index) => <InlinePicture key={index} change={change} path={pictures!.path} split />)}
+                  </Fragment>
                 );
               })}
             {!split && hunk.lines.map((line, lineIndex) => {
@@ -184,21 +245,28 @@ export function DiffLines({
                     title: chosen ? "Chosen: click to leave it out" : "Click to choose this line (shift-click or drag for more)",
                   }
                 : undefined;
+              const shown = lineParts(hunkIndex, lineIndex, pieces(line.text, syntax?.[hunkIndex][lineIndex] ?? null, parts));
+              const below = changedAt(hunkIndex, lineIndex);
               return (
-                <div key={lineIndex} className={`diff-row ${line.kind}${key ? " pickable" : ""}${chosen ? " chosen" : ""}`} role="row" aria-selected={key ? chosen : undefined}>
-                  <span className="diff-number" role="cell" aria-label={line.old ? `Line ${line.old} before` : undefined} {...pick}>
-                    {line.old ?? ""}
-                  </span>
-                  <span className="diff-number" role="cell" aria-label={line.new ? `Line ${line.new} after` : undefined} {...pick}>
-                    {line.new ?? ""}
-                  </span>
-                  <span className="diff-sign" aria-hidden {...pick}>
-                    {SIGNS[line.kind]}
-                  </span>
-                  <span className="diff-text" role="cell">
-                    <LineText parts={pieces(line.text, syntax?.[hunkIndex][lineIndex] ?? null, parts)} />
-                  </span>
-                </div>
+                <Fragment key={lineIndex}>
+                  <div className={`diff-row ${line.kind}${key ? " pickable" : ""}${chosen ? " chosen" : ""}`} role="row" aria-selected={key ? chosen : undefined}>
+                    <span className="diff-number" role="cell" aria-label={line.old ? `Line ${line.old} before` : undefined} {...pick}>
+                      {line.old ?? ""}
+                    </span>
+                    <span className="diff-number" role="cell" aria-label={line.new ? `Line ${line.new} after` : undefined} {...pick}>
+                      {line.new ?? ""}
+                    </span>
+                    <span className="diff-sign" aria-hidden {...pick}>
+                      {SIGNS[line.kind]}
+                    </span>
+                    <span className="diff-text" role="cell">
+                      <LineText {...shown} />
+                    </span>
+                  </div>
+                  {below.map((change, index) => (
+                    <InlinePicture key={index} change={change} path={pictures!.path} />
+                  ))}
+                </Fragment>
               );
             })}
           </div>

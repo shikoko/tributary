@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { FileDiff, Media } from "../../api";
+import { svgSize, svgText } from "../../lib/embeddedPictures";
 import { missingSide } from "../../lib/media";
 import { comparePixels, describePixelChanges, type PixelChanges } from "../../lib/pixels";
 import { useStoredState } from "../../lib/settings";
@@ -21,20 +22,50 @@ const MODES: { mode: Mode; label: string; title: string }[] = [
 /** Changed pixels are painted in this (a vivid pink that stands out on grey). */
 const HIGHLIGHT: [number, number, number] = [255, 43, 140];
 
+/** Drawings (SVGs) are shown at least this wide, and compared pixel by pixel at least this big. */
+const VECTOR_WIDTH = 256;
+const VECTOR_PIXELS = 512;
+
+/** Small pictures (icons) are shown bigger, in whole steps, pixel by pixel, to about this size. */
+const SMALL_PICTURE = 128;
+const ENLARGED = 256;
+
+/** How many times bigger to show a picture of `size` (1 for one that isn't small). */
+function enlargement(size: Size | undefined): number {
+  const longest = size ? Math.max(size.width, size.height) : 0;
+  return longest > 0 && longest < SMALL_PICTURE ? Math.min(8, Math.floor(ENLARGED / longest)) : 1;
+}
+
+/** How big an SVG says it is (browsers say 300 × 150 for one that doesn't give a size). */
+function vectorSize(url: string | null): Size | null {
+  const text = url ? svgText(url) : null;
+  const size = text ? svgSize(text) : null;
+  return size ? { width: size[0], height: size[1] } : null;
+}
+
 /**
  * A picture before and after: side by side, one wiping over the other, faded over each
  * other (onion skin), or with the pixels that changed highlighted.
  */
-export function DiffImages({ diff, media }: { diff: FileDiff; media: Media }) {
+export function DiffImages({ diff, media }: { diff: Pick<FileDiff, "path" | "sizeBefore" | "sizeAfter">; media: Media }) {
   const [stored, setMode] = useStoredState<Mode>("diff.imageMode", "side");
   const both = Boolean(media.before && media.after);
   const mode = both ? stored : "side";
-  // How big the pictures shown are (previews of textures can be smaller than the files).
-  const [shown, setShown] = useState<Partial<Record<Side, Size>>>({});
-  useEffect(() => setShown({}), [media.before, media.after]);
+  // A drawing has the size it says, and is drawn sharp at any size.
+  const vector = media.format === "svg";
+  const drawn = useMemo(() => (vector ? { before: vectorSize(media.before), after: vectorSize(media.after) } : null), [vector, media.before, media.after]);
+  // How big the pictures shown are (previews of textures can be smaller than the files),
+  // kept with the pictures they're of: a small one can load before an effect would run.
+  const [sizes, setSizes] = useState<{ before: string | null; after: string | null; of: Partial<Record<Side, Size>> }>({ before: null, after: null, of: {} });
+  const shown = sizes.before === media.before && sizes.after === media.after ? sizes.of : {};
   const loaded = (side: Side) => (event: { currentTarget: HTMLImageElement }) => {
-    const { naturalWidth: width, naturalHeight: height } = event.currentTarget;
-    setShown((current) => (current[side]?.width === width && current[side]?.height === height ? current : { ...current, [side]: { width, height } }));
+    const { naturalWidth, naturalHeight } = event.currentTarget;
+    const { width, height } = drawn?.[side] ?? { width: naturalWidth, height: naturalHeight };
+    setSizes((current) => {
+      const of = current.before === media.before && current.after === media.after ? current.of : {};
+      if (of[side]?.width === width && of[side]?.height === height) return current;
+      return { before: media.before, after: media.after, of: { ...of, [side]: { width, height } } };
+    });
   };
 
   /** "2048 × 2048", and whether it's shown smaller. */
@@ -43,8 +74,9 @@ export function DiffImages({ diff, media }: { diff: FileDiff; media: Media }) {
     const picture = shown[side];
     const [width, height] = file ?? (picture ? [picture.width, picture.height] : []);
     if (!width || !height) return null;
-    const smaller = file && picture && picture.width < file[0] ? ", shown smaller" : "";
-    return `${width} × ${height}${smaller}`;
+    const times = vector ? 1 : enlargement(picture);
+    const shownAs = file && picture && picture.width < file[0] ? ", shown smaller" : times > 1 ? `, shown ${times}× bigger` : "";
+    return `${Math.round(width)} × ${Math.round(height)}${shownAs}`;
   };
   const missing = (side: Side) => (side === "before" ? media.beforeNote : media.afterNote) ?? missingSide(diff, side);
 
@@ -68,7 +100,25 @@ export function DiffImages({ diff, media }: { diff: FileDiff; media: Media }) {
                 {facts(side) && <span className="diff-media-facts">{facts(side)}</span>}
               </figcaption>
               <div className="diff-image-frame">
-                {media[side] ? <img src={media[side]!} alt={`${diff.path}, ${side}`} onLoad={loaded(side)} /> : <span className="diff-image-missing">{missing(side)}</span>}
+                {media[side] ? (
+                  <img
+                    src={media[side]!}
+                    alt={`${diff.path}, ${side}`}
+                    onLoad={loaded(side)}
+                    // A small drawing (an icon) is shown bigger: it stays sharp. A small picture
+                    // is too, in whole steps, its pixels kept square.
+                    className={!vector && enlargement(shown[side]) > 1 ? "enlarged" : undefined}
+                    style={
+                      vector
+                        ? { width: Math.max(shown[side]?.width ?? 0, VECTOR_WIDTH) }
+                        : enlargement(shown[side]) > 1
+                          ? { width: shown[side]!.width * enlargement(shown[side]) }
+                          : undefined
+                    }
+                  />
+                ) : (
+                  <span className="diff-image-missing">{missing(side)}</span>
+                )}
               </div>
             </figure>
           ))}
@@ -80,9 +130,17 @@ export function DiffImages({ diff, media }: { diff: FileDiff; media: Media }) {
             <span>After {facts("after") && <span className="diff-media-facts">{facts("after")}</span>}</span>
           </div>
           {mode === "pixels" ? (
-            <ChangedPixels before={media.before!} after={media.after!} path={diff.path} />
+            <ChangedPixels before={media.before!} after={media.after!} path={diff.path} size={drawn ? atLeast(drawn.after ?? drawn.before, VECTOR_PIXELS) : undefined} />
           ) : (
-            <Overlay mode={mode} before={media.before!} after={media.after!} path={diff.path} onLoad={loaded} size={shown.after ?? shown.before} />
+            <Overlay
+              mode={mode}
+              before={media.before!}
+              after={media.after!}
+              path={diff.path}
+              onLoad={loaded}
+              size={shown.after ?? shown.before}
+              pixelated={!vector && enlargement(shown.after ?? shown.before) > 1}
+            />
           )}
         </>
       )}
@@ -98,6 +156,7 @@ function Overlay({
   path,
   onLoad,
   size,
+  pixelated,
 }: {
   mode: "swipe" | "onion";
   before: string;
@@ -105,6 +164,8 @@ function Overlay({
   path: string;
   onLoad: (side: Side) => (event: { currentTarget: HTMLImageElement }) => void;
   size: Size | undefined;
+  /** A small picture, made bigger: its pixels kept square. */
+  pixelated: boolean;
 }) {
   const [swipe, setSwipe] = useState(50);
   const [fade, setFade] = useState(50);
@@ -121,7 +182,7 @@ function Overlay({
       <div className="diff-image-frame diff-overlay-frame">
         <div
           ref={stage}
-          className={`diff-overlay-stage ${mode}`}
+          className={`diff-overlay-stage ${mode}${pixelated ? " pixelated" : ""}`}
           style={{ aspectRatio: size ? `${size.width} / ${size.height}` : undefined, width: `min(100%, calc(60vh * ${ratio}))` }}
           onPointerDown={(event) => {
             if (mode !== "swipe") return;
@@ -164,6 +225,13 @@ function Overlay({
   );
 }
 
+/** `size` made bigger, keeping its shape, until its longer side is `pixels` (a drawing with no size: square). */
+function atLeast(size: Size | null, pixels: number): Size {
+  const { width, height } = size ?? { width: pixels, height: pixels };
+  const scale = Math.max(1, pixels / Math.max(width, height));
+  return { width: Math.round(width * scale), height: Math.round(height * scale) };
+}
+
 /** Loads a picture from a data: URL. */
 function loadPicture(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -175,7 +243,8 @@ function loadPicture(url: string): Promise<HTMLImageElement> {
 }
 
 /** The after picture greyed out, with the pixels that changed since before highlighted. */
-function ChangedPixels({ before, after, path }: { before: string; after: string; path: string }) {
+function ChangedPixels({ before, after, path, size }: { before: string; after: string; path: string; size?: Size }) {
+  const [wantedWidth, wantedHeight] = [size?.width, size?.height];
   const canvas = useRef<HTMLCanvasElement>(null);
   const [result, setResult] = useState<{ changes: PixelChanges; size: Size; scaled: boolean } | { error: string } | null>(null);
   useEffect(() => {
@@ -185,10 +254,10 @@ function ChangedPixels({ before, after, path }: { before: string; after: string;
       .then(([first, second]) => {
         const target = canvas.current;
         if (!current || !target) return;
-        // Pictures of different sizes are compared at the after picture's size.
-        const width = second.naturalWidth;
-        const height = second.naturalHeight;
-        const differentSize = first.naturalWidth !== width || first.naturalHeight !== height;
+        // Pictures of different sizes are compared at the after picture's size (drawings at `size`).
+        const width = wantedWidth ?? second.naturalWidth;
+        const height = wantedHeight ?? second.naturalHeight;
+        const differentSize = wantedWidth === undefined && (first.naturalWidth !== width || first.naturalHeight !== height);
         const read = (picture: HTMLImageElement) => {
           const scratch = document.createElement("canvas");
           scratch.width = width;
@@ -211,7 +280,7 @@ function ChangedPixels({ before, after, path }: { before: string; after: string;
     return () => {
       current = false;
     };
-  }, [before, after]);
+  }, [before, after, wantedWidth, wantedHeight]);
   return (
     <div className="diff-overlay">
       <div className="diff-image-frame diff-overlay-frame">

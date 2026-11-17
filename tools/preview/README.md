@@ -87,6 +87,15 @@ npm install --no-save playwright axe-core && npx playwright install chromium
 it's on Linux: Tributary's menus are in the Mac's own menu bar there, which a page in a browser hasn't got,
 and the steps open them from the window's.
 
+The steps are in `smoke/steps`, a file for each area of the app (history, changes, merging, graph,
+tabs, files, requests, app, work, remote, views). Each file runs in a worker process with a browser
+and demo repositories of its own, so what one file's steps change, another's never find. Three files
+run at a time on four cores (`-- --workers 2`, or `SMOKE_WORKERS`, says how many). A file that fails
+is run once more from the start: when it passes then, its first failures are listed as flaky at the
+end, and the run passes. `-- --only history,tabs` runs just those files. The helpers every step uses
+(`step`, `accessible`, `row`, `toast`, …) come from `smoke/session.mjs`, and a file's steps start
+on the notebook demo, opened from the start screen.
+
 ## Scripting the fakes
 
 A test can set `window.__PREVIEW__` before the page loads (Playwright's `addInitScript`):

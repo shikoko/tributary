@@ -233,6 +233,10 @@
   object-fit: contain;
 }
 
+.diff-overlay-stage.pixelated img {
+  image-rendering: pixelated;
+}
+
 /* The line between before (left of it) and after (right of it), with a grip. */
 .diff-swipe-handle {
   position: absolute;
@@ -342,4 +346,116 @@
 
 .file-spacer {
   list-style: none;
+}
+
+/* Pictures written into text files (data: URLs, notebook outputs): small before → after. */
+.diff-picture-thumbs {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.diff-picture-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: repeating-conic-gradient(var(--checker-a) 0 25%, var(--checker-b) 0 50%) 0 0 / 10px 10px;
+}
+
+.diff-picture-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.diff-picture-thumb.missing {
+  color: var(--text-faint);
+  background: var(--bg-panel);
+}
+
+.diff-picture-arrow {
+  color: var(--text-faint);
+}
+
+.diff-picture-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  text-align: left;
+}
+
+.diff-picture-card-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.diff-picture-card-sizes {
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+  font-weight: 400;
+}
+
+.diff-picture-compare {
+  padding: var(--space-16) var(--space-20) var(--space-20);
+}
+
+/* In the lines: each picture folded into a label (a button that shows its letters again). */
+.diff-picture-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  /* Odd, for words at --type-sm (see --cap-pixels), and within the line's 20px. */
+  height: 19px;
+  margin: 0 var(--space-2);
+  padding: 0 var(--space-6) 0 var(--space-2);
+  vertical-align: top;
+  margin-top: 1px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: var(--type-sm);
+  cursor: pointer;
+}
+
+.diff-picture-chip:hover {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.diff-picture-chip img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
+/* Under the lines a picture changed in: before → after, and Compare. */
+.diff-picture-inline {
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+  background: var(--bg-panel);
+  font-family: var(--font);
+}
+
+.diff-picture-inline-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-14);
+  padding: var(--space-8) var(--space-16) var(--space-8) calc(124px + var(--space-4)); /* under the lines' text: past both line numbers and the sign */
+}
+
+.diff-picture-inline.split .diff-picture-inline-bar {
+  padding-left: calc(72px + var(--space-4)); /* under the text: past a line number and the sign */
+}
+
+.diff-picture-inline .hunk-button {
+  opacity: 1;
 }

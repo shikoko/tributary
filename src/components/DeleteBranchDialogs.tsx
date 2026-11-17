@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Action } from "../api";
+import type { Action, AppError } from "../api";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { LostCommitsNote } from "./Safety";
 
@@ -13,7 +13,7 @@ export function DeleteBranchDialog({
 }: {
   repoPath: string;
   branch: string;
-  retryFor: (error: string) => { label: string; action: Action } | null;
+  retryFor: (error: AppError) => { label: string; action: Action } | null;
   onCancel: () => void;
   onDone: (message: string) => void;
 }) {

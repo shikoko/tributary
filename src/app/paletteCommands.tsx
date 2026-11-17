@@ -44,7 +44,7 @@ export interface PaletteContext {
 export function paletteCommands(ctx: PaletteContext): Command[] {
   const { menus, snapshot, tabs, canChange, localBranches, branchLabel, preferences } = ctx;
   const { activityOpen, setActivityOpen, sidebarOpen, setSidebarOpen, dense, setDense } = preferences;
-  const run = (action: Action, _kind?: string, options?: { quiet?: boolean }) => ctx.run(action, options);
+  const run = (action: Action, options?: { quiet?: boolean }) => ctx.run(action, options);
   const list: Command[] = [];
   const seen = new Set<string>();
   const add = (command: Command, enabled = true) => {
@@ -63,8 +63,8 @@ export function paletteCommands(ctx: PaletteContext): Command[] {
     if (tab.path !== snapshot.path) add({ id: `tab:${tab.path}`, label: `Switch to ${tab.name}`, group: "Tab", run: () => ctx.switchTab(tab.path) });
   }
   if (snapshot.worktree && canChange) {
-    add({ id: "stage-all", label: "Stage all changes", group: "Changes", run: () => run({ kind: "stageAll" }, "other", { quiet: true }) });
-    add({ id: "unstage-all", label: "Unstage all changes", group: "Changes", run: () => run({ kind: "unstageAll" }, "other", { quiet: true }) });
+    add({ id: "stage-all", label: "Stage all changes", group: "Changes", run: () => run({ kind: "stageAll" }, { quiet: true }) });
+    add({ id: "unstage-all", label: "Unstage all changes", group: "Changes", run: () => run({ kind: "unstageAll" }, { quiet: true }) });
   }
   if (snapshot.operation && snapshot.operation.kind !== "other" && canChange) {
     add({ id: "continue", label: `Continue the ${snapshot.operation.kind}`, group: "In progress", run: () => run({ kind: "continueOperation" }) });

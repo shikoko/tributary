@@ -257,7 +257,7 @@ fn sets_the_diff_and_merge_tools() {
 }
 
 #[test]
-fn shows_sounds_videos_and_3d_models_as_what_they_are() {
+fn shows_sounds_videos_svgs_and_3d_models_as_what_they_are() {
     let mut repo = TempRepo::new("diff-media");
     // Not real recordings: what matters is that they're binary, and their kinds.
     let wav = |n: u8| [b"RIFF\0\0\0\0WAVE".as_slice(), &[0, n, 0, 1]].concat();
@@ -269,6 +269,12 @@ fn shows_sounds_videos_and_3d_models_as_what_they_are() {
         "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n",
     )
     .unwrap();
+    let svg = |fill: &str| {
+        format!(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 8 8\">\n<circle cx=\"4\" cy=\"4\" r=\"4\" fill=\"{fill}\"/>\n</svg>\n"
+        )
+    };
+    std::fs::write(repo.path().join("Logo.svg"), svg("teal")).unwrap();
     repo.git(&["add", "."]);
     repo.git(&["commit", "--quiet", "-m", "Media"]);
     std::fs::write(repo.path().join("Theme.wav"), wav(2)).unwrap();
@@ -277,6 +283,7 @@ fn shows_sounds_videos_and_3d_models_as_what_they_are() {
         "v 0 0 0\nv 2 0 0\nv 0 1 0\nf 1 2 3\n",
     )
     .unwrap();
+    std::fs::write(repo.path().join("Logo.svg"), svg("orange")).unwrap();
     repo.commit("notes.txt", "notes");
 
     let sound = diff(&repo, DiffSource::Unstaged, "Theme.wav");
@@ -291,6 +298,27 @@ fn shows_sounds_videos_and_3d_models_as_what_they_are() {
     let model = diff(&repo, DiffSource::Unstaged, "Chair.obj");
     assert_eq!(model.media.unwrap().kind, MediaKind::Model);
     assert_eq!((model.additions, model.deletions), (1, 1));
+
+    // SVGs are text too: shown as pictures, and line by line.
+    let logo = diff(&repo, DiffSource::Unstaged, "Logo.svg");
+    let media = logo.media.unwrap();
+    assert_eq!(
+        (media.kind, media.format.as_str()),
+        (MediaKind::Image, "svg")
+    );
+    assert!(
+        media
+            .before
+            .unwrap()
+            .starts_with("data:image/svg+xml;base64,")
+    );
+    assert!(
+        media
+            .after
+            .unwrap()
+            .starts_with("data:image/svg+xml;base64,")
+    );
+    assert_eq!((logo.additions, logo.deletions, logo.binary), (1, 1, false));
 
     // A video added in a commit: nothing before it.
     let added = repo.git(&["log", "-1", "--format=%H", "--", "Intro.mp4"]);

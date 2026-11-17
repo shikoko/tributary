@@ -1,5 +1,5 @@
 // What the menus need from the app, and helpers they share with the dialogs.
-import type { Action, CommitRow, Lock, PullRequest, RepoSnapshot, Stacked, Visibility, Worktree } from "../api";
+import type { Action, CommitRow, Lock, PullRequest, RepoSnapshot, Rewrite, Stacked, Visibility, Worktree } from "../api";
 import type { PullRequestLookup } from "../lib/pullRequests";
 import { type RefPill } from "../lib/refs";
 import { shortId } from "../lib/format";
@@ -34,7 +34,8 @@ export type OpenDialog =
   /** Put back a branch from a backup. */
   | { kind: "restore" }
   /** A change to the protected, checked-out branch: type its name to go ahead. */
-  | { kind: "protectedAction"; action: Action; branch: string }
+  /** An action that rewrites a protected branch's history (`rewrite` says how): asked about first. */
+  | { kind: "protectedAction"; action: Action; branch: string; rewrite: Rewrite }
   /** `commits`: the commits after `onto`, newest first. */
   | { kind: "interactiveRebase"; onto: CommitRow; commits: CommitRow[] }
   /** Release someone else's Git LFS lock. */
@@ -65,8 +66,8 @@ export type OpenDialog =
   | { kind: "releaseNotes"; tag: string }
   /** Split a commit in two; `later`: how many commits come after it on the branch. */
   | { kind: "splitCommit"; commit: CommitRow; later: number }
-  /** Start bisecting from `good` (which worked) to the checked-out commit. */
-  | { kind: "bisect"; good: CommitRow }
+  /** Start bisecting from `good` (which worked), or one chosen in the dialog, to the checked-out commit. */
+  | { kind: "bisect"; good?: CommitRow }
   | null;
 
 /** What the menus need from the app. */
