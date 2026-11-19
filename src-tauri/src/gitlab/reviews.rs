@@ -8,7 +8,7 @@ use crate::error::Result;
 use crate::github::client;
 use crate::requests::error_message;
 use crate::reviews::{
-    Comment, Conversation, MergeMethod, MergeRequestOptions, ReviewVerdict, in_threads,
+    Comment, Conversation, LineSide, MergeMethod, MergeRequestOptions, ReviewVerdict, in_threads,
 };
 
 #[derive(Deserialize)]
@@ -86,6 +86,16 @@ fn discussion_comments(discussion: RawDiscussion) -> Vec<Comment> {
             line: position
                 .as_ref()
                 .and_then(|position| position.new_line.or(position.old_line)),
+            // A line still in the file is on it as it is after the changes (as an unchanged
+            // line is, which has both); a removed one is only before them.
+            side: position.as_ref().and_then(|position| {
+                if position.new_line.is_some() {
+                    Some(LineSide::After)
+                } else {
+                    position.old_line.map(|_| LineSide::Before)
+                }
+            }),
+            outdated: false,
             hunk: None,
             thread: Some(discussion.id.clone()),
             reply: index > 0,
@@ -345,9 +355,28 @@ mod tests {
         assert_eq!(comments.len(), 2);
         assert_eq!(comments[0].path.as_deref(), Some("Content/Barber.uasset"));
         assert_eq!(comments[0].line, Some(12));
+        // On the file as the changes leave it.
+        assert_eq!(comments[0].side, Some(LineSide::After));
         assert!(!comments[0].reply);
         assert!(comments[1].reply);
         assert_eq!(comments[1].thread.as_deref(), Some("abc"));
+    }
+
+    #[test]
+    fn says_which_side_a_comment_is_on() {
+        let side = |old_line: Option<u64>, new_line: Option<u64>| {
+            let discussion: RawDiscussion = serde_json::from_value(json!({
+                "id": "abc",
+                "notes": [{ "id": 1, "author": { "username": "rosa" }, "body": "Hm", "created_at": "2026-01-02",
+                  "position": { "new_path": "a.txt", "old_path": "a.txt", "new_line": new_line, "old_line": old_line } }]
+            }))
+            .unwrap_or_else(|e| panic!("{e}"));
+            discussion_comments(discussion)[0].side
+        };
+        // A removed line is only before the changes; an added or unchanged one is after them.
+        assert_eq!(side(Some(4), None), Some(LineSide::Before));
+        assert_eq!(side(None, Some(5)), Some(LineSide::After));
+        assert_eq!(side(Some(4), Some(5)), Some(LineSide::After));
     }
 
     #[test]

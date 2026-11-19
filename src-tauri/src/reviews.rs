@@ -27,12 +27,25 @@ pub struct Comment {
     /// The file and line it's on, for a comment on the changes.
     pub path: Option<String>,
     pub line: Option<u64>,
+    /// Which side of the changes `line` is on: the file as it was before them, or after.
+    pub side: Option<LineSide>,
+    /// The lines it was on have changed since it was written, so `line` is where they were
+    /// then (GitHub).
+    pub outdated: bool,
     /// The lines it's about, from the diff (GitHub).
     pub hunk: Option<String>,
     /// The thread it's in: replies go to it. None when it can't be replied to.
     pub thread: Option<String>,
     /// It answers an earlier comment in its thread.
     pub reply: bool,
+}
+
+/// A side of a file's changes: the file as it was before them, or after.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum LineSide {
+    Before,
+    After,
 }
 
 /// How to merge a request.
@@ -230,6 +243,8 @@ mod tests {
             review: None,
             path: None,
             line: None,
+            side: None,
+            outdated: false,
             hunk: None,
             thread: thread.map(Into::into),
             reply,

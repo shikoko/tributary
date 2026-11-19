@@ -399,3 +399,46 @@ button.request-ref:hover {
 .request-check-open:focus-visible svg {
   opacity: 1;
 }
+
+/* An open pull request's files, in the details panel: its number and title, its branch and
+   the one it goes into, then the files as a commit's are listed. */
+.request-files-number {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.request-files-sides {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-6);
+  margin: var(--space-8) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+  overflow-wrap: anywhere;
+}
+
+.request-files-lines {
+  margin-left: auto;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.request-files-lines .added {
+  color: var(--added-ink);
+}
+
+.request-files-lines .removed {
+  color: var(--deleted-ink);
+}
+
+.request-files-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+}
+
+.request-files-missing p {
+  margin: 0;
+}

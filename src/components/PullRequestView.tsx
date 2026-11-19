@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { branchVersions, pullRequestDetails, requestConversation, type MergeCheck, type PullRequest, type RequestCheck, type RequestConversation, type RequestDetails, type RequestReview } from "../api";
 import { copyText } from "../lib/clipboard";
 import { plural, relativeTime } from "../lib/format";
 import { riverWords } from "../lib/checkSummary";
 import { checkMerge, describeMergeCheck } from "../lib/mergeChecks";
 import { anyRunning, describeMergeable, describeReviews, requestNoun, requestNumber, requestStanding } from "../lib/pullRequests";
+import { isTopView } from "../lib/overlays";
 import { useNow } from "../lib/useNow";
 import { Avatar } from "./Avatar";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
@@ -14,7 +15,6 @@ import {
   ChevronRightIcon,
   ClockIcon,
   CloseIcon,
-  CompareIcon,
   CopyIcon,
   ExternalLinkIcon,
   EyeIcon,
@@ -51,8 +51,10 @@ interface Props {
   onShowBranch: (branch: string) => void;
   /** Whether a commit is loaded in the list. */
   hasCommit: (id: string) => boolean;
-  /** Compare its branch with the one it goes into, in the app. */
-  onCompare: (details: RequestDetails) => void;
+  /** Its details, as its site says, each time they're read: its files are listed beside it. */
+  onDetails?: (details: RequestDetails | null) => void;
+  /** Its conversation, each time it's read, and what to do after a reply elsewhere (say so, and read it again). */
+  onConversation?: (conversation: RequestConversation | null, onReplied: (message: string) => void) => void;
   /** Say what was done, like "Approved #12". */
   notify: (text: string) => void;
   /** Show what changed when its branch was force-pushed (`branch` and `base`: their names on the remote). */
@@ -91,8 +93,14 @@ const checkState = (check: RequestCheck) => check.state ?? "skipped";
  * Merge, and its checks), what can be done with it, its description and the
  * conversation. Checks still running are followed.
  */
-export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBranch, hasCommit, onCompare, notify, onShowRewrite, onShowChecks }: Props) {
+export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBranch, hasCommit, onDetails, onConversation, notify, onShowRewrite, onShowChecks }: Props) {
+  const view = useRef<HTMLElement>(null);
   const [details, setDetails] = useState<RequestDetails | null>(null);
+  useEffect(() => {
+    onDetails?.(details);
+    // Said when they change, not when the callback does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [details]);
   const [conversation, setConversation] = useState<RequestConversation | null>(null);
   const [conversationError, setConversationError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
@@ -163,6 +171,11 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
     refresh(message);
   };
   const { busy, error: changeError, change } = useRequestChange(repoPath, details, done);
+  useEffect(() => {
+    onConversation?.(conversation, refresh);
+    // Said when it changes, not when the callbacks do.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversation]);
 
   // Follow checks that are still running.
   const running = details?.checks.some((check) => check.state === "pending") || details?.mergeable === "checking";
@@ -175,6 +188,8 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || document.querySelector('[role="menu"], [role="dialog"], [aria-modal="true"]')) return;
+      // One of its files' changes over it closes first, back to it.
+      if (!isTopView(view.current)) return;
       event.preventDefault();
       event.stopPropagation();
       onClose();
@@ -230,7 +245,7 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
   };
 
   return (
-    <section className="diff-view request-view" aria-label={`${noun} ${requestNumber(request)}`}>
+    <section ref={view} className="diff-view request-view" aria-label={`${noun} ${requestNumber(request)}`}>
       <header className="diff-header">
         <div className="diff-title" title={details?.title ?? request.title}>
           <PullRequestIcon size={14} />
@@ -381,15 +396,6 @@ export function PullRequestView({ repoPath, request, onClose, openUrl, onShowBra
             </StatusCard>
 
             <div className="request-toolbar">
-              <Button
-                kind="outline"
-                onClick={() => onCompare(details)}
-                disabled={!fetched}
-                title={fetched ? `What ${details.branch} changes, compared with ${details.base}` : `Fetch to see its changes here: its commits aren't loaded`}
-              >
-                <CompareIcon size={14} />
-                <span className="button-label">See its changes</span>
-              </Button>
               {forcePushed && (
                 <Button kind="outline" onClick={() => onShowRewrite(details.branch, details.base)} title={`${details.branch} was force-pushed: see what changed, commit by commit`}>
                   <RebaseIcon size={14} />

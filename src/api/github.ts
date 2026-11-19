@@ -1,7 +1,7 @@
 // GitHub: signing in, and open pull requests.
 import { invoke } from "./invoke";
-import type { CheckLog, CheckState, CommitChecks, CommitMessage, CommitRuns, Job, JobGroup, Run, GitHubAccount, GitHubStatus, MergeMethod, MergeRequestOptions, NewRequest, NewRequestInfo, PullRequest, RequestChange, RequestCheck, RequestComment, RequestConversation, RequestDetails, RequestReview, ReviewVerdict } from "./generated";
-export type { CheckState, CommitChecks, CommitMessage, CommitRuns, Job, JobGroup, Run, GitHubAccount, GitHubStatus, MergeMethod, MergeRequestOptions, NewRequest, NewRequestInfo, PullRequest, RequestChange, RequestCheck, RequestComment, RequestConversation, RequestDetails, RequestReview, ReviewVerdict };
+import type { CheckLog, CheckState, CommitChecks, CommitMessage, CommitRuns, Job, JobGroup, Run, GitHubAccount, GitHubStatus, LineSide, MergeMethod, MergeRequestOptions, NewRequest, NewRequestInfo, PullRequest, RequestChange, RequestCheck, RequestComment, RequestConversation, RequestDetails, RequestReview, ReviewVerdict } from "./generated";
+export type { CheckState, CommitChecks, CommitMessage, CommitRuns, Job, JobGroup, Run, GitHubAccount, GitHubStatus, LineSide, MergeMethod, MergeRequestOptions, NewRequest, NewRequestInfo, PullRequest, RequestChange, RequestCheck, RequestComment, RequestConversation, RequestDetails, RequestReview, ReviewVerdict };
 
 export function gitHubStatus(): Promise<GitHubStatus> {
   return invoke("github_status");

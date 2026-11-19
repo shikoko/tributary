@@ -32,7 +32,7 @@
 - **Clear and comfortable.** A colourful graph that's easy to follow, diffs coloured by syntax, a command palette for everything, and short guided tours to show you around.
 - **Hard to lose work.** Almost everything has Undo, your uncommitted changes are snapshotted every few minutes, and branches are backed up before they're rewritten or deleted.
 - **At home with big files.** Textures, models, sounds and Unreal or Unity files show as what they are, Git LFS downloads are fast and checked for disk space, and locks are part of the everyday flow.
-- **Easy for the whole team.** Simple mode gives anyone who doesn't live in git (artists, designers, writers) just what they need: Get latest, their changes, Submit.
+- **Simple mode for artists, designers and writers.** It gives anyone who doesn't live in git just what they need: Get latest, their changes, Submit.
 - **Built for big repositories.** History is read directly with [gitoxide](https://github.com/GitoxideLabs/gitoxide), only the rows on screen are drawn, and the changes git makes run through your own git, exactly as on the command line.
 
 ## Highlights
@@ -81,7 +81,7 @@
       Mine, theirs, both or your own edit for text; a whole version for assets.
     </td>
     <td width="50%" valign="top">
-      <img src="docs/images/pull-request.png" alt="A pull request with its reviews, checks and conversation"><br>
+      <img src="docs/images/pull-request.png" alt="A pull request with its reviews, checks and conversation, and the files it changes beside it"><br>
       <b>Pull requests in the app</b><br>
       Reviews, checks, comments and merging, on GitHub and GitLab.
     </td>

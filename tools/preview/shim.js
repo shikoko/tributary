@@ -112,9 +112,9 @@
 
   /** Pull requests, when they're faked: their details, and opening new ones. */
   const faking = () => preview.pullRequests !== undefined;
-  const fakeDetails = ({ number }) => {
+  const fakeDetails = ({ path, number }) => {
     const known = preview.pullRequestDetails?.[number];
-    if (known) return structuredClone(known);
+    if (known) return withCommits(path, structuredClone(known));
     const pr = (preview.pullRequests || []).find((each) => each.number === number);
     if (!pr) return Promise.reject(`GitHub didn't show pull request #${number}: it isn't there.`);
     return {
@@ -136,6 +136,18 @@
       checks: [],
       forge: pr.forge || "github",
     };
+  };
+  /**
+   * A faked request's two commits, when the script didn't give them: as its site would say
+   * them, the branch it goes into and its own branch, on its remote, as they are here. The
+   * app reads its files from them.
+   */
+  const withCommits = async (path, details) => {
+    if (details.baseSha && details.headSha) return details;
+    const remote = (preview.pullRequests || []).find((pr) => pr.number === details.number)?.remote ?? "origin";
+    const find = (name) => server("find_commit", { path, query: `${remote}/${name}` }).catch(() => null);
+    const [baseSha, headSha] = await Promise.all([details.baseSha ?? find(details.base), details.headSha ?? find(details.branch)]);
+    return { ...details, baseSha, headSha };
   };
   /** A request's conversation, made up when the script didn't give one. */
   const conversationOf = (number) => {
@@ -174,14 +186,17 @@
   const say = (number, body, more = {}) => {
     const conversation = conversationOf(number);
     const id = `fake${conversation.comments.length + 1}`;
-    conversation.comments.push({ id, author: conversation.you, body, created: new Date().toISOString(), review: null, path: null, line: null, hunk: null, thread: null, reply: false, ...more });
+    conversation.comments.push({ id, author: conversation.you, body, created: new Date().toISOString(), review: null, path: null, line: null, side: null, outdated: false, hunk: null, thread: null, reply: false, ...more });
   };
   const fakeComment = ({ number, body, thread }) => {
     if (thread) {
       // After the thread's last comment.
       const comments = conversationOf(number).comments;
       const at = comments.map((comment) => comment.thread).lastIndexOf(thread) + 1;
-      comments.splice(at, 0, { id: `fake${comments.length + 1}`, author: conversationOf(number).you, body, created: new Date().toISOString(), review: null, path: null, line: null, hunk: null, thread, reply: true });
+      // On the line its thread is on, as GitHub says a reply is.
+      const first = comments.find((comment) => comment.thread === thread);
+      const where = { path: first?.path ?? null, line: first?.line ?? null, side: first?.side ?? null, outdated: first?.outdated ?? false };
+      comments.splice(at, 0, { id: `fake${comments.length + 1}`, author: conversationOf(number).you, body, created: new Date().toISOString(), review: null, ...where, hunk: null, thread, reply: true });
     } else say(number, body);
     return later(thread ? "Replied" : "Commented");
   };

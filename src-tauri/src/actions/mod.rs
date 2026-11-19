@@ -65,6 +65,7 @@ use ts_rs::TS;
 
 use crate::error::{Error, Result};
 use crate::git::{Git, Progress};
+use crate::github::Forge;
 
 pub use backups::{BACKUP_DAYS, Backup, BackupEvent, backups};
 pub use bisect::Verdict;
@@ -150,6 +151,14 @@ pub enum Action {
     Pull,
     /// Fetch, and fast-forward the checked-out branch when nothing's in the way (never a merge).
     FetchLatest,
+    /// Fetch a pull (or merge) request's own commits from `remote`, the remote it's on,
+    /// with `base`, the branch it goes into: from a fork too, whose branch isn't there.
+    FetchRequest {
+        remote: String,
+        number: u64,
+        forge: Forge,
+        base: String,
+    },
     /// Pull, then push, the checked-out branch: for one with commits of its own and its
     /// remote branch's. Stops on conflicts, and before pulling into a rewritten branch.
     Sync,
@@ -671,6 +680,12 @@ fn perform(
         Action::Fetch { background } => remote::fetch(&repo, &git, background, on_progress),
         Action::Pull => remote::pull(&repo, &git, on_progress),
         Action::FetchLatest => remote::fetch_latest(&repo, &git, on_progress),
+        Action::FetchRequest {
+            remote,
+            number,
+            forge,
+            base,
+        } => remote::fetch_request(&repo, &git, remote, number, forge, base, on_progress),
         Action::Sync => remote::sync(&repo, &git, on_progress, extra),
         Action::Push {
             force,

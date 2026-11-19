@@ -5,6 +5,7 @@ mod common;
 use common::{TempRepo, failure, outcome, remote_turn, run, with_identity};
 use tributary_lib::actions::{Action, CloneOptions};
 use tributary_lib::error::ErrorKind;
+use tributary_lib::github::Forge;
 use tributary_lib::{actions, git, repo, settings_repo};
 
 #[test]
@@ -93,6 +94,87 @@ fn pushes_fetches_and_pulls() {
     for id in [&from_bob, &from_alice] {
         bob.git(&["merge-base", "--is-ancestor", id, "main"]);
     }
+}
+
+#[test]
+fn fetches_a_pull_requests_own_commits_from_a_fork() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("request-remote.git");
+    let fork = TempRepo::bare("request-fork.git");
+    let mut alice = TempRepo::new("request-alice");
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.git(&["remote", "add", "fork", fork.url()]);
+    alice.commit("a.txt", "First");
+    alice.git(&["push", "--quiet", "origin", "main"]);
+    let bob = TempRepo::clone_of("request-bob", &remote);
+
+    // Alice's branch is on her fork. The site keeps its commits on the remote it goes
+    // to, under refs/pull/7/head on GitHub and refs/merge-requests/3/head on GitLab.
+    alice.git(&["switch", "--quiet", "-c", "feature"]);
+    let head = alice.commit("b.txt", "From the fork");
+    alice.git(&["push", "--quiet", "fork", "feature"]);
+    alice.git(&["push", "--quiet", "origin", "feature:refs/pull/7/head"]);
+    alice.git(&[
+        "push",
+        "--quiet",
+        "origin",
+        "feature:refs/merge-requests/3/head",
+    ]);
+    // The branch it goes into has moved on since Bob last fetched.
+    alice.git(&["switch", "--quiet", "main"]);
+    let base = alice.commit("c.txt", "On main");
+    alice.git(&["push", "--quiet", "origin", "main"]);
+
+    let request = |number, forge, base: &str| Action::FetchRequest {
+        remote: "origin".into(),
+        number,
+        forge,
+        base: base.into(),
+    };
+    let kept = |bob: &TempRepo| {
+        bob.git(&[
+            "for-each-ref",
+            "--format=%(objectname)",
+            "refs/tributary/requests/",
+        ])
+        .lines()
+        .map(str::to_owned)
+        .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        run(&bob, request(7, Forge::GitHub, "main")).unwrap(),
+        "Fetched #7 from origin"
+    );
+    bob.git(&["cat-file", "-e", &format!("{head}^{{commit}}")]);
+    assert_eq!(bob.git(&["rev-parse", "origin/main"]), base);
+    assert_eq!(kept(&bob), vec![head.clone()]);
+    // It isn't a branch here: the fork isn't one of Bob's remotes.
+    assert_eq!(bob.git(&["branch", "--all", "--list", "*feature*"]), "");
+
+    // Fetching it again keeps only the newest.
+    run(&bob, request(7, Forge::GitHub, "main")).unwrap();
+    assert_eq!(kept(&bob), vec![head.clone()]);
+    assert_eq!(
+        run(&bob, request(3, Forge::GitLab, "main")).unwrap(),
+        "Fetched !3 from origin"
+    );
+    assert_eq!(kept(&bob).len(), 2);
+
+    let (message, _) = failure(
+        &bob,
+        Action::FetchRequest {
+            remote: "upstream".into(),
+            number: 7,
+            forge: Forge::GitHub,
+            base: "main".into(),
+        },
+    );
+    assert_eq!(message, "This repository has no remote called upstream.");
+    let (message, _) = failure(&bob, request(7, Forge::GitHub, "--upload-pack=touch"));
+    assert_eq!(message, "--upload-pack=touch isn't a branch's name.");
+    // One the site doesn't have.
+    assert!(run(&bob, request(99, Forge::GitHub, "main")).is_err());
+    assert_eq!(kept(&bob).len(), 2);
 }
 
 #[test]

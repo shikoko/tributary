@@ -5,7 +5,7 @@ import { overlapTitle } from "../lib/elsewhere";
 import { lockOwner } from "../lib/locks";
 import { relativeTime } from "../lib/format";
 import { FileKindIcon } from "./FileKindIcon";
-import { BranchIcon, ChevronRightIcon, FolderIcon, LockIcon } from "./Icons";
+import { BranchIcon, ChevronRightIcon, CommentIcon, FolderIcon, LockIcon } from "./Icons";
 import type { FolderRow } from "../lib/fileTree";
 
 /** Each status's letter, and its colour role in the stylesheet (--added, --added-rgb, …). */
@@ -38,6 +38,8 @@ interface FileLineProps {
   shown?: boolean;
   /** In a tree, this many folders in: its name alone, indented (its folder is above it). */
   depth?: number;
+  /** How many comments a pull request has on its lines. */
+  comments?: number;
 }
 
 /** "Locked by you" or "Locked by rosa 2 days ago". */
@@ -46,7 +48,7 @@ export function lockTitle(lock: Lock): string {
   return `Locked by ${lockOwner(lock)}${Number.isNaN(when) ? "" : ` ${relativeTime(when / 1000)}`}`;
 }
 
-export function FileLine({ file, action, choices, lock, highlighted, onContextMenu, elsewhere, onOpen, shown, depth }: FileLineProps) {
+export function FileLine({ file, action, choices, lock, highlighted, onContextMenu, elsewhere, onOpen, shown, depth, comments }: FileLineProps) {
   const inTree = depth !== undefined;
   const status = STATUS[file.status];
   // Untracked folders are listed as "dir/" when everything inside them is new.
@@ -106,6 +108,12 @@ export function FileLine({ file, action, choices, lock, highlighted, onContextMe
           <bdi>{dir}</bdi>
         </span>
       )}
+      {comments ? (
+        <span className="file-comments" title={`${comments} ${comments === 1 ? "comment" : "comments"} on its lines`}>
+          <CommentIcon size={12} />
+          {comments}
+        </span>
+      ) : null}
       {choices && (
         <span className="file-choices">
           {choices.map((choice) => (

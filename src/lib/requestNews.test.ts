@@ -11,6 +11,8 @@ const comment = (id: string, author: string, more: Partial<RequestComment> = {})
   review: null,
   path: null,
   line: null,
+  side: null,
+  outdated: false,
   hunk: null,
   thread: null,
   reply: false,

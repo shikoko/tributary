@@ -2,7 +2,7 @@ import { useContext, useEffect, useRef, useState, useMemo, type ComponentProps, 
 import { onCommitDrop } from "../lib/drag";
 import { usePresence } from "../lib/usePresence";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { fullRefName, PAGE_SIZE, teamPulse, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type PullRequest, type RepoSnapshot, type Worktree } from "../api";
+import { fullRefName, PAGE_SIZE, teamPulse, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type PullRequest, type RepoSnapshot, type RequestConversation, type RequestDetails, type Worktree } from "../api";
 import { isShown } from "../lib/diffTargets";
 import { withCoAuthor } from "../lib/commitMessage";
 import type { LfsLocks } from "../lib/locks";
@@ -17,7 +17,10 @@ import { CommitList } from "../components/CommitList";
 import { ElsewherePanel } from "../components/ElsewherePanel";
 import { RepoSettingsDialog } from "../components/RepoSettingsDialog";
 import { ComparePanel } from "../components/ComparePanel";
-import { useFileViews } from "./useFileViews";
+import { RequestFilesPanel } from "../components/RequestFilesPanel";
+import { useFileViews, type RequestRange } from "./useFileViews";
+import { useRequestFiles } from "./useRequestFiles";
+import { commentsByFile } from "../lib/reviewThreads";
 import { EMPTY_DRAFT } from "../components/worktree/CommitBox";
 import type { ChecksOf } from "../components/ChecksView";
 import { ListOverlays, type RewriteShown } from "./ListOverlays";
@@ -191,8 +194,31 @@ export function RepositoryView(props: Props) {
     if ((props.request || props.teamOpen) && checksOf) setChecksOf(null);
   }
 
+  // The open pull request, as its site says (its view reads it), and its files, read here
+  // from its two commits: listed in the details panel, their changes opening over it.
+  const requestKey = props.request ? `${props.request.remote}/${props.request.number}` : null;
+  const [requestLoaded, setRequestLoaded] = useState<{ key: string; details: RequestDetails } | null>(null);
+  const requestDetails = requestLoaded && requestLoaded.key === requestKey ? requestLoaded.details : null;
+  // Asked again after each reload while its commits aren't here, as after fetching them.
+  const requestFiles = useRequestFiles(snapshot.path, requestDetails, snapshot);
+  // Fetching the pull request's own commits, from the remote it's on: a fork's too.
+  const requestFetch: Action | null =
+    props.request && requestDetails
+      ? { kind: "fetchRequest", remote: props.request.remote, number: props.request.number, forge: props.request.forge, base: requestDetails.base }
+      : null;
+  // Its conversation, as last read: its comments on lines show in its files' changes, and how many each file has.
+  const [requestTalk, setRequestTalk] = useState<{ key: string; conversation: RequestConversation; onReplied: (message: string) => void } | null>(null);
+  const requestConversation = requestTalk && requestTalk.key === requestKey ? requestTalk : null;
+  const requestComments = useMemo(() => (requestConversation ? commentsByFile(requestConversation.conversation.comments) : null), [requestConversation]);
+  const requestRange: RequestRange | null = useMemo(() => {
+    const { key, comparison } = requestFiles;
+    if (!props.request || !key || !comparison?.base || !requestDetails?.headSha) return null;
+    return { key, base: comparison.base, head: requestDetails.headSha, files: comparison.files, label: `${requestDetails.branch} → ${requestDetails.base}` };
+  }, [requestFiles, requestDetails, props.request]);
+
   // A file's changes, who changed each line, and two commits compared.
   const views = useFileViews({
+    request: requestRange,
     snapshot,
     selection,
     details: props.details,
@@ -405,10 +431,22 @@ export function RepositoryView(props: Props) {
     ...(props.submodules.list.length > 0 ? [{ id: "submodules", label: "Submodules", icon: <SubmoduleIcon size={16} /> }] : []),
     ...(locks ? [{ id: "locks", label: "Locked files", icon: <LockIcon size={16} />, count: locks.length }] : []),
   ];
-  const detailsOpen = Boolean(comparing.request || selection.selected || selection.multi);
+  const detailsOpen = Boolean(props.request || comparing.request || selection.selected || selection.multi);
   const detailsPanel = usePresence(
     detailsOpen,
-    comparing.request ? (
+    props.request ? (
+      <RequestFilesPanel
+        repoPath={snapshot.path}
+        request={props.request}
+        details={requestDetails}
+        files={requestFiles}
+        onOpenFile={views.showRequestChanges}
+        comments={requestComments}
+        isShown={(path) => Boolean(requestRange && views.overRequest && isShown(shownDiff && { source: shownDiff.source, path: shownDiff.file.path }, { kind: "range", from: requestRange.base, to: requestRange.head }, path))}
+        onFetch={requestFetch && canFetch && canChange ? () => act(requestFetch) : null}
+        onClose={props.onCloseRequest}
+      />
+    ) : comparing.request ? (
       <ComparePanel
         comparing={comparing}
         onOpenFile={(file) => compared && showChanges(file, { kind: "range", from: compared.base, to: compared.to.id })}
@@ -664,6 +702,9 @@ export function RepositoryView(props: Props) {
               onCloseTeam={props.onCloseTeam}
               request={props.request}
               onCloseRequest={props.onCloseRequest}
+              onRequestDetails={(details) => requestKey && setRequestLoaded(details ? { key: requestKey, details } : null)}
+              onRequestConversation={(conversation, onReplied) => requestKey && setRequestTalk(conversation ? { key: requestKey, conversation, onReplied } : null)}
+              requestConversation={requestConversation}
               notify={(text) => props.notify({ text })}
               rewrite={rewrite}
               onShowRewrite={setRewrite}

@@ -30,6 +30,13 @@ export const FolderIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A speech bubble: comments, like a pull request's on a line. */
+export const CommentIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2.5 3.5A1.5 1.5 0 0 1 4 2h8a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5z" />
+  </Icon>
+);
+
 /** Lines of text with a person beside them: who changed each line. */
 export const BlameIcon = (p: IconProps) => (
   <Icon {...p}>

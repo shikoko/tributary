@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Hunk, LineMode } from "../../api";
 import { changedKeys, hunkKeys, keysBetween, lineKey } from "../../lib/lineSelection";
 import { splitRows, type SplitRow } from "../../lib/sideBySide";
@@ -6,6 +6,7 @@ import { highlightHunk, MAX_HIGHLIGHT_LINES, pieces, type Piece } from "../../li
 import { wordSegments } from "../../lib/wordDiff";
 import { foldPictures, pictureLabel, picturesIn, type EmbeddedPicture, type Folded, type PictureChange } from "../../lib/embeddedPictures";
 import { formatBytes } from "../../lib/format";
+import { threadsAtLine, type ReviewThread } from "../../lib/reviewThreads";
 import { InlinePicture } from "./DiffPictures";
 
 const SIGNS = { added: "+", removed: "−", context: " " } as const;
@@ -41,6 +42,24 @@ function runEnds<T>(rows: SplitRow[], of: (indexes: number[]) => T): Map<number,
   return ends;
 }
 
+/** A pull request's review threads on these lines, and how to draw them. */
+export interface LineNotes {
+  /** By `lineAt` (lib/reviewThreads.ts). */
+  at: ReadonlyMap<string, ReviewThread[]>;
+  render: (threads: ReviewThread[]) => ReactNode;
+}
+
+/** Beside a line with review threads: how many comments, and a click hides or shows them. */
+function NoteMark({ threads, open, onToggle }: { threads: ReviewThread[]; open: boolean; onToggle: () => void }) {
+  const count = threads.reduce((sum, thread) => sum + thread.comments.length, 0);
+  const said = `${count} ${count === 1 ? "comment" : "comments"} on this line`;
+  return (
+    <button type="button" className="diff-note-mark" aria-expanded={open} onClick={onToggle} title={`${said}: click to ${open ? "hide" : "show"} ${count === 1 ? "it" : "them"}`} aria-label={said}>
+      <span className="button-label">{count}</span>
+    </button>
+  );
+}
+
 /** A picture's label in its line: what it is, and a click shows its letters instead. */
 function PictureChip({ picture, label, onUnfold }: { picture: EmbeddedPicture; label: string; onUnfold?: () => void }) {
   return (
@@ -73,7 +92,10 @@ export function DiffLines({
   split = false,
   wrap = false,
   pictures,
+  notes,
 }: {
+  /** A pull request's review threads: each under its line, with a mark beside it that hides or shows it. */
+  notes?: LineNotes;
   /** Pictures written into the lines: folded into labels, and shown under the lines they changed in. */
   pictures?: { changes: PictureChange[]; path: string };
   hunks: Hunk[];
@@ -109,6 +131,32 @@ export function DiffLines({
   const changedAt = (hunkIndex: number, index: number) => pictures?.changes.filter((change) => change.hunk === hunkIndex && change.last === index) ?? [];
   /** The pictures that changed in a run of lines (by their indexes), side by side. */
   const changedIn = (hunkIndex: number, indexes: number[]) => pictures?.changes.filter((change) => change.hunk === hunkIndex && indexes.includes(change.last)) ?? [];
+  // Review threads are shown until their mark hides them; other changes start with all shown.
+  const [closedNotes, setClosedNotes] = useState<{ hunks: Hunk[]; keys: Set<string> }>({ hunks, keys: new Set() });
+  const closed = closedNotes.hunks === hunks ? closedNotes.keys : NOTHING;
+  /** A line's threads, by its numbers: the mark's cell beside it, and the threads under it. */
+  const noted = (key: string, old: number | null, after: number | null) => {
+    const threads = notes ? threadsAtLine(notes.at, old, after) : [];
+    const open = !closed.has(key);
+    const toggle = () => {
+      const next = new Set(closed);
+      if (open) next.add(key);
+      else next.delete(key);
+      setClosedNotes({ hunks, keys: next });
+    };
+    return {
+      mark: notes && (
+        <span className="diff-note-cell" role="cell">
+          {threads.length > 0 && <NoteMark threads={threads} open={open} onToggle={toggle} />}
+        </span>
+      ),
+      below: notes && threads.length > 0 && open && (
+        <div className="diff-notes" role="row">
+          <div role="cell">{notes.render(threads)}</div>
+        </div>
+      ),
+    };
+  };
   /** Where a shift-click range starts: the line last clicked. */
   const anchor = useRef<string | null>(null);
   /** While dragging over the line numbers: whether lines are being chosen or let go. */
@@ -149,7 +197,7 @@ export function DiffLines({
   };
 
   return (
-    <div className={`diff-lines${picking ? " picking" : ""}${split ? " split" : ""}${wrap ? " wrap" : ""}`} role="table" aria-label="Changed lines">
+    <div className={`diff-lines${picking ? " picking" : ""}${split ? " split" : ""}${wrap ? " wrap" : ""}${notes ? " noted" : ""}`} role="table" aria-label="Changed lines">
       {hunks.map((hunk, hunkIndex) => {
         const keys = picking ? hunkKeys(hunk) : [];
         const chosenHere = picking ? keys.filter((key) => picking.selected.has(key)) : [];
@@ -224,12 +272,15 @@ export function DiffLines({
                   );
                 };
                 const below = picturesBelow?.get(rowIndex);
+                const note = noted(`${hunkIndex}:s${rowIndex}`, left !== null ? hunk.lines[left].old : null, right !== null ? hunk.lines[right].new : null);
                 return (
                   <Fragment key={rowIndex}>
                     <div className="diff-split-row" role="row">
                       {half(left, "left")}
                       {half(right, "right")}
+                      {note.mark}
                     </div>
+                    {note.below}
                     {below?.map((change, index) => <InlinePicture key={index} change={change} path={pictures!.path} split />)}
                   </Fragment>
                 );
@@ -247,6 +298,7 @@ export function DiffLines({
                 : undefined;
               const shown = lineParts(hunkIndex, lineIndex, pieces(line.text, syntax?.[hunkIndex][lineIndex] ?? null, parts));
               const below = changedAt(hunkIndex, lineIndex);
+              const note = noted(`${hunkIndex}:${lineIndex}`, line.old, line.new);
               return (
                 <Fragment key={lineIndex}>
                   <div className={`diff-row ${line.kind}${key ? " pickable" : ""}${chosen ? " chosen" : ""}`} role="row" aria-selected={key ? chosen : undefined}>
@@ -262,7 +314,9 @@ export function DiffLines({
                     <span className="diff-text" role="cell">
                       <LineText {...shown} />
                     </span>
+                    {note.mark}
                   </div>
+                  {note.below}
                   {below.map((change, index) => (
                     <InlinePicture key={index} change={change} path={pictures!.path} />
                   ))}

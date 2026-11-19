@@ -111,7 +111,9 @@ impl Action {
     /// one has to say.
     fn running(&self) -> Option<Running> {
         match self {
-            Action::Fetch { .. } | Action::FetchLatest => Some(Running::Fetch),
+            Action::Fetch { .. } | Action::FetchLatest | Action::FetchRequest { .. } => {
+                Some(Running::Fetch)
+            }
             Action::Pull => Some(Running::Pull),
             Action::Push { .. } | Action::Shelve { .. } => Some(Running::Push),
             Action::Sync => Some(Running::Sync),

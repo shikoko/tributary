@@ -851,6 +851,17 @@ export function buildStudio(root, configFile, { lockServer = "http://127.0.0.1:4
   commit("Add a tavern chair", "rosa");
   run(["push", "-q", "origin", "main"]);
   run(["branch", "-q", "-u", "origin/main"]);
+  // A pull request from a fork, #21. Priya made its commit in her fork, so it isn't here,
+  // and its branch isn't on origin: GitHub keeps its commits there under refs/pull/21/head.
+  const fork = join(root, "remotes", "studio-fork");
+  rmSync(fork, { recursive: true, force: true });
+  execFileSync("git", ["clone", "-q", origin, fork], { env: gitEnv(configFile) });
+  const priya = repository(fork, { configFile, start: now() - 7200 });
+  priya.write("Config/DefaultGame.ini", "LanternFlicker=0.3\n");
+  priya.write("Source/Feast/Lantern.cpp", "// Lanterns flicker by the fire\nfloat Flicker = 0.3f;\n", { append: false });
+  priya.run(["add", "-A"]);
+  priya.run(["commit", "-q", "-m", "Lanterns that flicker by the fire"], { who: "priya" });
+  priya.run(["push", "-q", "origin", "HEAD:refs/pull/21/head"]);
   // A commit that a reset threw away, to find again with Recover.
   write("Source/Feast/FeastGameMode.cpp", "// Experimental lighting\n");
   commit("Try volumetric fog in the tavern", "maya");
@@ -910,6 +921,35 @@ export const STUDIO_PULL_REQUESTS = [
   { number: 12, title: "Barber v2: new hair and apron", url: "https://github.com/example/feast/pull/12", remote: "origin", branch: "art/barber-v2", draft: false, author: "rosa-bell", checks: "success", forge: "github" },
   { number: 14, title: "Make the door creak", url: "https://github.com/example/feast/pull/14", remote: "origin", branch: "fix/door", draft: false, author: "theo-park", checks: "failure", forge: "github" },
 ];
+
+/**
+ * A pull request from Priya's fork, whose commit is only on origin under refs/pull/21/head
+ * (as GitHub keeps it), for the preview's fakes. Its head commit is read from there when
+ * it's shown: it's made anew with the demo.
+ */
+export const STUDIO_FORK_REQUEST = { number: 21, title: "Lanterns that flicker by the fire", url: "https://github.com/example/feast/pull/21", remote: "origin", branch: "lanterns", draft: false, author: "priya-nair", checks: null, forge: "github" };
+export const STUDIO_FORK_REQUEST_DETAILS = {
+  number: 21,
+  title: STUDIO_FORK_REQUEST.title,
+  url: STUDIO_FORK_REQUEST.url,
+  body: "Lanterns near the fireplace flicker a little, so the room feels warmer.",
+  author: "priya-nair",
+  state: "open",
+  base: "main",
+  branch: "lanterns",
+  created: new Date().toISOString(),
+  additions: 3,
+  deletions: 0,
+  files: 2,
+  comments: 0,
+  mergeable: "ready",
+  reviews: [],
+  checks: [],
+  forge: "github",
+  baseSha: null,
+  headSha: null,
+  autoMerge: false,
+};
 
 // The workflow runs the studio's checks are part of, and what started them.
 const BUILD_RUN = { workflow: "Build", trigger: "on the pull request" };
@@ -1045,17 +1085,18 @@ export function studioCommitRuns() {
 }
 
 /** What was said on the studio's pull requests, for the preview's fakes. */
-const comment = (id, author, body, created, more = {}) => ({ id, author, body, created, review: null, path: null, line: null, hunk: null, thread: null, reply: false, ...more });
+const comment = (id, author, body, created, more = {}) => ({ id, author, body, created, review: null, path: null, line: null, side: null, outdated: false, hunk: null, thread: null, reply: false, ...more });
 export const STUDIO_PULL_REQUEST_CONVERSATIONS = {
   12: {
     comments: [
       comment("l1", "lena-fischer", "Should the version bump go in with the art? Fine by me, just checking.", daysAgo(1.6), {
         path: "Config/DefaultGame.ini",
         line: 3,
+        side: "after",
         hunk: " [/Script/EngineSettings.GeneralProjectSettings]\n ProjectName=Feast of the Forgotten\n+ProjectVersion=0.3",
         thread: "1",
       }),
-      comment("l2", "rosa-bell", "Yes: the build script reads it for the patch notes.", daysAgo(1.5), { thread: "1", reply: true, path: "Config/DefaultGame.ini", line: 3 }),
+      comment("l2", "rosa-bell", "Yes: the build script reads it for the patch notes.", daysAgo(1.5), { thread: "1", reply: true, path: "Config/DefaultGame.ini", line: 3, side: "after" }),
       comment("c1", "sam-okafor", "I'll check the scissors socket against the cutting animation tomorrow.", daysAgo(1.2)),
       comment("r1", "maya-chen", "Looks great in the tavern. The apron reads well from across the room.", daysAgo(0.4), { review: "approved" }),
     ],

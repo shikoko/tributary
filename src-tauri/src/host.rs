@@ -151,15 +151,6 @@ fn shell_path(shell: &Path) -> Vec<PathBuf> {
     let text = reader
         .and_then(|reader| reader.join().ok())
         .unwrap_or_default();
-    eprintln!(
-        "DEBUG marks {} path-lines {:?} tail {:?}",
-        text.matches(MARK).count(),
-        text.lines()
-            .filter(|l| l.contains("PATH="))
-            .map(|l| &l[..l.len().min(40)])
-            .collect::<Vec<_>>(),
-        &text[text.len().saturating_sub(80)..]
-    );
     path_in(&text)
 }
 

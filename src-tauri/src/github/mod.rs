@@ -74,7 +74,7 @@ pub struct PullRequest {
 }
 
 /// The site a pull (or merge) request is on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum Forge {
     GitHub,

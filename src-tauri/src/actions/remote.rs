@@ -8,10 +8,11 @@ use ts_rs::TS;
 
 use super::Extra;
 use super::backups::{BackupEvent, back_up};
-use super::support::{count, ref_id};
+use super::support::{count, now_millis, ref_id};
 use super::validate::current_branch;
 use crate::error::{Error, ErrorKind, Result};
 use crate::git::{Git, Progress};
+use crate::github::Forge;
 use crate::links;
 
 /// Fetch from every remote. `background` fetches never show sign-in prompts.
@@ -41,6 +42,97 @@ pub(super) fn fetch(
         git.run_progress(&["fetch", "--all", "--prune", "--progress"], on_progress)?;
     }
     Ok(format!("Fetched from {}", in_words(&remotes)))
+}
+
+/// Where a pull (or merge) request's own commits are kept once fetched:
+/// `refs/tributary/requests/<millis>/<remote>/<number>`. Its branch can be on a fork, which
+/// isn't one of this repository's remotes, so it has no remote branch to keep them.
+pub(super) const REQUESTS: &str = "refs/tributary/requests/";
+/// How long they're kept.
+const REQUEST_DAYS: i64 = 30;
+
+/// Fetch pull (or merge) request `number`'s own commits from `remote`, the remote it's on,
+/// with `base`, the branch it goes into. The site keeps each one's commits there, under
+/// `refs/pull/<number>/head` on GitHub and `refs/merge-requests/<number>/head` on GitLab,
+/// even when its branch is on a fork.
+pub(super) fn fetch_request(
+    repo: &gix::Repository,
+    git: &Git,
+    remote: String,
+    number: u64,
+    forge: Forge,
+    base: String,
+    on_progress: &dyn Fn(Progress),
+) -> Result<String> {
+    if !repo.remote_names().iter().any(|name| *name == remote) {
+        return Err(format!("This repository has no remote called {remote}.").into());
+    }
+    // A branch's name, never read as one of git's options.
+    if base.starts_with('-')
+        || git
+            .run(&["check-ref-format", "--branch", base.as_str()])
+            .is_err()
+    {
+        return Err(format!("{base} isn't a branch's name.").into());
+    }
+    let (theirs, sign) = match forge {
+        Forge::GitHub => (format!("refs/pull/{number}/head"), '#'),
+        Forge::GitLab => (format!("refs/merge-requests/{number}/head"), '!'),
+    };
+    let kept = format!("{REQUESTS}{}/{remote}/{number}", now_millis());
+    // The branch it goes into updates its remote branch too, as git does for a branch
+    // fetched by name from a remote that fetches it anyway.
+    git.run_progress(
+        &[
+            "fetch",
+            "--progress",
+            remote.as_str(),
+            &format!("+{theirs}:{kept}"),
+            &format!("refs/heads/{base}"),
+        ],
+        on_progress,
+    )?;
+    // Only its newest fetch is kept, and none for longer than a month.
+    let cutoff = now_millis() - REQUEST_DAYS * 24 * 3600 * 1000;
+    for (reference, (millis, at, at_number)) in request_refs(repo) {
+        if reference != kept && (millis < cutoff || (at == remote && at_number == number)) {
+            let _ = git.run(&["update-ref", "-d", &reference]);
+        }
+    }
+    Ok(format!("Fetched {sign}{number} from {remote}"))
+}
+
+/// The fetched pull requests' refs: each with when it was fetched, its remote and number.
+fn request_refs(repo: &gix::Repository) -> Vec<(String, (i64, String, u64))> {
+    let Ok(platform) = repo.references() else {
+        return Vec::new();
+    };
+    let Ok(refs) = platform.prefixed(REQUESTS) else {
+        return Vec::new();
+    };
+    refs.flatten()
+        .filter_map(|reference| {
+            let name = reference.name().as_bstr().to_str_lossy().into_owned();
+            let parts = parse_request(&name)?;
+            Some((name, parts))
+        })
+        .collect()
+}
+
+/// `refs/tributary/requests/<millis>/<remote>/<number>` → its parts. A remote's name can
+/// have slashes in it.
+fn parse_request(name: &str) -> Option<(i64, String, u64)> {
+    let rest = name.strip_prefix(REQUESTS)?;
+    let (millis, rest) = rest.split_once('/')?;
+    let (remote, number) = rest.rsplit_once('/')?;
+    if remote.is_empty() {
+        return None;
+    }
+    Some((
+        millis.parse().ok()?,
+        remote.to_owned(),
+        number.parse().ok()?,
+    ))
 }
 
 /// Pull into the checked-out branch.
@@ -518,7 +610,7 @@ fn in_words(names: &[String]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{in_words, parse_counts};
+    use super::{in_words, parse_counts, parse_request};
 
     #[test]
     fn names_the_remotes_in_words() {
@@ -530,6 +622,21 @@ mod tests {
             names(&["origin", "upstream", "mirror"]),
             "origin, upstream and mirror"
         );
+    }
+
+    #[test]
+    fn reads_fetched_pull_requests_refs() {
+        assert_eq!(
+            parse_request("refs/tributary/requests/1700000000000/origin/12"),
+            Some((1_700_000_000_000, "origin".into(), 12))
+        );
+        assert_eq!(
+            parse_request("refs/tributary/requests/1/team/upstream/7"),
+            Some((1, "team/upstream".into(), 7))
+        );
+        assert_eq!(parse_request("refs/tributary/requests/1/12"), None);
+        assert_eq!(parse_request("refs/tributary/requests/x/origin/12"), None);
+        assert_eq!(parse_request("refs/tributary/backups/1/origin/12"), None);
     }
 
     #[test]

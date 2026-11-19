@@ -48,6 +48,42 @@
   flex: none;
 }
 
+/* What the changes were opened from, like a pull request: back to it, before them. */
+.diff-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 280px;
+  /* Odd, for words at --type-sm: see --cap-pixels. */
+  height: 29px;
+  padding: 0 var(--space-10) 0 var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--type-sm);
+  cursor: pointer;
+}
+
+.diff-back svg {
+  flex: none;
+}
+
+.diff-back .button-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-back:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
 .diff-count {
   margin-left: var(--space-4);
   color: var(--text-muted);
@@ -154,6 +190,8 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+  /* Review threads in it are as wide as there's room for (100cqi). */
+  container-type: inline-size;
 }
 
 .diff-lines {
@@ -339,6 +377,92 @@
 
 .diff-lines.wrap .diff-row {
   grid-template-columns: 52px 52px 20px minmax(0, 1fr);
+}
+
+/* A pull request's changes, with its review comments: a column at the start for the marks
+   on lines that have them. It's last in each row, but drawn first; the line numbers move
+   over for it. */
+.diff-lines.noted {
+  /* Where the code starts: after the marks, both line numbers and the sign. Threads line up
+     with it; side by side, with the marks' column. */
+  --code-start: calc(26px + 52px + 52px + 20px);
+  --notes-start: var(--code-start);
+}
+
+.diff-lines.noted.split {
+  --notes-start: var(--space-40);
+}
+
+.diff-lines.noted .diff-row {
+  grid-template-columns: 26px 52px 52px 20px auto;
+}
+
+.diff-lines.noted.wrap .diff-row {
+  grid-template-columns: 26px 52px 52px 20px minmax(0, 1fr);
+}
+
+.diff-lines.noted .diff-split-row {
+  grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.diff-lines.noted .diff-row > .diff-number:first-child {
+  left: 26px;
+}
+
+.diff-lines.noted .diff-row > .diff-number:nth-child(2) {
+  left: 78px;
+}
+
+.diff-note-cell {
+  grid-row: 1;
+  grid-column: 1;
+  position: sticky;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+/* How many comments a line has: filled while they show, an outline while they're hidden. */
+.diff-note-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent-fill);
+  font-family: var(--font);
+  font-size: var(--type-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.diff-note-mark[aria-expanded="false"] {
+  background: transparent;
+  color: var(--accent-text);
+}
+
+/* A line's review threads, under it: in line with the code, and kept in view while the
+   changes scroll sideways. */
+.diff-notes {
+  padding: var(--space-8) 0 var(--space-12);
+  font-family: var(--font);
+  font-size: var(--type-base);
+  font-variant-ligatures: normal;
+  white-space: normal;
+}
+
+.diff-notes > [role="cell"] {
+  position: sticky;
+  left: var(--notes-start);
+  width: min(640px, calc(100cqi - var(--notes-start) - var(--space-16)));
+  min-width: 280px;
+  margin-left: var(--notes-start);
 }
 
 .diff-lines.wrap .diff-text {

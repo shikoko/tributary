@@ -1,6 +1,6 @@
 // The smoke test: Pull requests and checks: badges, colours, failed checks and why, the checks graph, reviews, comments, merging and opening one.
 import { execFileSync } from "node:child_process";
-import { studioCommitRuns, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "../../demo.mjs";
+import { studioCommitRuns, STUDIO_FORK_REQUEST, STUDIO_FORK_REQUEST_DETAILS, STUDIO_PULL_REQUEST_DETAILS, STUDIO_PULL_REQUESTS } from "../../demo.mjs";
 import { CONTROLS, EXCEPT } from "../../aligned.mjs";
 import { describeOffCentre, moving, offCentre as offInPixels, probe } from "../../../e2e/centred.mjs";
 
@@ -283,6 +283,150 @@ export default async function ({ browserName, page, demos, folder, preview, brow
     await page.keyboard.press("Escape");
     await view.waitFor({ state: "detached", timeout: 5000 });
     expect((await selected()) === before, `pressing the badge selected ${await selected()}, not ${before}`);
+  });
+
+  await step("lists a pull request's files beside it, and opens their changes over it", async () => {
+    // Its two commits are origin/main and origin/art/barber-v2, as the preview reads them.
+    await page.locator(".pr-badge", { hasText: "#12" }).first().click();
+    const view = page.locator(".request-view");
+    await view.waitFor({ timeout: 10_000 });
+    // The details panel lists what its branch changed since it split from main.
+    const panel = page.locator(".details.request-files");
+    await panel.locator(".file", { hasText: "DefaultGame.ini" }).waitFor({ timeout: 10_000 });
+    const names = (await panel.locator(".file .file-name").allInnerTexts()).sort();
+    expect(names.join(", ") === "Barber.uasset, DefaultGame.ini, Innkeeper.uasset", `the pull request's files are ${names.join(", ")}`);
+    await accessible("a pull request's files");
+    // A file's changes open over the pull request, which stays open under them, with the way back to it.
+    await panel.locator(".file", { hasText: "DefaultGame.ini" }).click();
+    const diff = page.locator(".diff-view:not(.request-view)");
+    await diff.locator(".diff-row.added").first().waitFor({ timeout: 10_000 });
+    expect(await diff.locator(".diff-back", { hasText: "#12" }).isVisible(), "the changes have no way back to the pull request");
+    expect((await view.count()) === 1, "opening a file closed the pull request");
+    // Esc goes back to the pull request, as the way back does; Esc again closes it.
+    await page.keyboard.press("Escape");
+    await diff.waitFor({ state: "detached", timeout: 5000 });
+    expect(await view.isVisible(), "Esc closed the pull request along with its file");
+    await panel.locator(".file", { hasText: "DefaultGame.ini" }).click();
+    await diff.locator(".diff-back").click();
+    await diff.waitFor({ state: "detached", timeout: 5000 });
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+    await panel.waitFor({ state: "detached", timeout: 5000 });
+  });
+
+  await step("fetches a pull request's commits from a fork, to list its files", async () => {
+    // #21's commit is only on origin, under refs/pull/21/head as GitHub keeps it: its
+    // branch is on a fork.
+    const git = (...args) => execFileSync("git", ["-C", demos.studio, ...args], { encoding: "utf8" }).trim();
+    const origin = git("remote", "get-url", "origin");
+    const head = execFileSync("git", ["--git-dir", origin, "rev-parse", "refs/pull/21/head"], { encoding: "utf8" }).trim();
+    const here = (id) => {
+      try {
+        execFileSync("git", ["-C", demos.studio, "cat-file", "-e", `${id}^{commit}`], { stdio: "ignore" });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    expect(!here(head), "#21's commit is here already");
+    const fakes = (list, details) =>
+      page.evaluate(([list, details]) => {
+        window.__PREVIEW__.pullRequests = list;
+        window.__PREVIEW__.pullRequestDetails = { ...window.__PREVIEW__.pullRequestDetails, ...details };
+      }, [list, details]);
+    // After a fetch, the pull requests are asked for again.
+    const refetch = async () => {
+      await page.getByRole("button", { name: "Fetch", exact: true }).click();
+      await page.locator(".toast", { hasText: "Fetched from" }).waitFor({ timeout: 10_000 });
+      await dismissToast();
+    };
+    await fakes([...STUDIO_PULL_REQUESTS, STUDIO_FORK_REQUEST], { 21: { ...STUDIO_FORK_REQUEST_DETAILS, headSha: head } });
+    try {
+      await refetch();
+      await page.locator(".sidebar .sidebar-request", { hasText: "Lanterns" }).click();
+      const panel = page.locator(".details.request-files");
+      const missing = panel.locator(".request-files-missing");
+      await missing.waitFor({ timeout: 10_000 });
+      await accessible("a pull request's files before its commits are fetched");
+      await missing.getByRole("button", { name: "Fetch its commits" }).click();
+      const said = await toast();
+      expect(said.includes("Fetched #21 from origin"), `the fetch said: ${said}`);
+      await panel.locator(".file", { hasText: "Lantern.cpp" }).waitFor({ timeout: 10_000 });
+      const names = (await panel.locator(".file .file-name").allInnerTexts()).sort();
+      expect(names.join(", ") === "DefaultGame.ini, Lantern.cpp", `#21's files are ${names.join(", ")}`);
+      // Kept under Tributary's own refs: it's on no branch here.
+      expect(git("for-each-ref", "--format=%(objectname)", "refs/tributary/requests/") === head, "#21's commits aren't kept");
+      await page.keyboard.press("Escape");
+      await panel.waitFor({ state: "detached", timeout: 5000 });
+      await dismissToast();
+    } finally {
+      // As it was, for the steps after this one.
+      await page.keyboard.press("Escape");
+      await fakes(STUDIO_PULL_REQUESTS, {});
+      await refetch();
+    }
+  });
+
+  await step("shows a pull request's review comments at their lines in its files' changes, and replies there", async () => {
+    // #12 has a thread on DefaultGame.ini's line 3 (Lena's comment and Rosa's reply), and here
+    // one more, on a line that has changed since.
+    const before = await page.evaluate(() => structuredClone(window.__PREVIEW__.conversations[12]));
+    await page.evaluate(() =>
+      window.__PREVIEW__.conversations[12].comments.push({
+        id: "l9",
+        author: "diego-ramos",
+        body: "Is 0.2 still right here?",
+        created: new Date(Date.now() - 4 * 86_400_000).toISOString(),
+        review: null,
+        path: "Config/DefaultGame.ini",
+        line: 2,
+        side: "after",
+        outdated: true,
+        hunk: " ProjectName=Feast of the Forgotten\n+ProjectVersion=0.2",
+        thread: "9",
+        reply: false,
+      }),
+    );
+    try {
+      await page.locator(".pr-badge", { hasText: "#12" }).first().click();
+      const panel = page.locator(".details.request-files");
+      // Its file says how many comments it has.
+      const file = panel.locator(".file", { hasText: "DefaultGame.ini" });
+      await file.locator(".file-comments", { hasText: "3" }).waitFor({ timeout: 10_000 });
+      await file.click();
+      const diff = page.locator(".diff-view:not(.request-view)");
+      // The thread is under its line, with a mark beside the line.
+      const notes = diff.locator(".diff-notes");
+      await notes.locator(".review-thread", { hasText: "version bump" }).waitFor({ timeout: 10_000 });
+      expect((await notes.locator(".request-comment").count()) === 2, `${await notes.locator(".request-comment").count()} comments under the line`);
+      const marked = diff.locator(".diff-row", { has: page.locator(".diff-note-mark") });
+      expect((await marked.count()) === 1 && (await marked.innerText()).includes("ProjectVersion=0.3"), `marked: ${await marked.allInnerTexts()}`);
+      // The one on a line that has changed since is above the changes, with the lines it was about.
+      const elsewhere = diff.locator(".review-elsewhere");
+      await elsewhere.getByText("On an older version of this file").waitFor({ timeout: 5000 });
+      expect(await elsewhere.locator(".request-hunk", { hasText: "ProjectVersion=0.2" }).isVisible(), "the older version's lines aren't quoted");
+      await accessible("review comments at their lines");
+      // The mark hides the thread, and shows it again.
+      const mark = diff.locator(".diff-note-mark");
+      await mark.click();
+      await notes.first().waitFor({ state: "detached", timeout: 5000 });
+      expect((await mark.getAttribute("aria-expanded")) === "false", "the mark doesn't say the thread is hidden");
+      await mark.click();
+      await notes.locator(".review-thread").first().waitFor({ timeout: 5000 });
+      // A reply goes into the thread, under the line.
+      await notes.getByRole("button", { name: "Reply" }).click();
+      await notes.getByLabel("Your reply").fill("Bumped on purpose: it's in the patch notes.");
+      await notes.locator(".comment-box").getByRole("button", { name: "Reply" }).click();
+      await notes.locator(".request-comment", { hasText: "Bumped on purpose" }).waitFor({ timeout: 10_000 });
+      await dismissToast();
+      await page.keyboard.press("Escape");
+      await diff.waitFor({ state: "detached", timeout: 5000 });
+      await page.keyboard.press("Escape");
+      await panel.waitFor({ state: "detached", timeout: 5000 });
+    } finally {
+      // As it was, for the steps after this one.
+      await page.evaluate((conversation) => (window.__PREVIEW__.conversations[12] = conversation), before);
+    }
   });
 
   await step("shows an open pull request from its branch's commit", async () => {

@@ -158,3 +158,60 @@ textarea.request-body.short {
 .request-section > .comment-box {
   margin-top: var(--space-24);
 }
+
+/* A pull request's review threads in its files' changes: each a card with a line down its
+   start, its comments and a way to reply. */
+.review-threads {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.review-thread {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-14) var(--space-16);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+
+.review-thread .request-conversation {
+  align-self: stretch;
+}
+
+.review-thread .comment-box {
+  align-self: stretch;
+}
+
+/* The threads on lines the changes don't show, above them. */
+.review-elsewhere {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  max-width: 720px;
+  padding: var(--space-16) var(--space-16) var(--space-8);
+  font-family: var(--font);
+}
+
+.review-elsewhere h3 {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  font-weight: 600;
+}
+
+/* How many comments a file has on its lines, in a pull request's list of files. */
+.file-comments {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: none;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+}
+

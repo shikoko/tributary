@@ -1,6 +1,10 @@
 //! Tributary: a git history graph viewer. The Rust side reads repositories with gix and
 //! changes them with the user's own git; the frontend calls it through [`commands`].
 
+// A window app has no console to print to: what it says goes in the window or the activity
+// log. A print left in from debugging fails the checks (they deny clippy's warnings).
+#![warn(clippy::print_stdout, clippy::print_stderr, clippy::dbg_macro)]
+
 pub mod accounts;
 pub mod actions;
 mod app_icon;
@@ -99,6 +103,7 @@ pub fn run() {
             }
         }),
         // Nothing to show a window with: say why on the console, as the process ends.
+        #[allow(clippy::print_stderr)]
         Err(error) => eprintln!("Tributary couldn't start: {error}"),
     }
 }

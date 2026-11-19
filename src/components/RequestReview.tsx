@@ -248,7 +248,11 @@ export function ConversationList({
   );
 }
 
-function CommentBody({ comment, openUrl }: { comment: RequestComment; openUrl: (url: string) => void }) {
+/**
+ * A comment: who wrote it and when, a review's verdict, and what it says. A comment on a
+ * line says which, with the lines it's about, unless it's shown `atLine`, under that line.
+ */
+export function CommentBody({ comment, openUrl, atLine = false }: { comment: RequestComment; openUrl: (url: string) => void; atLine?: boolean }) {
   const when = Date.parse(comment.created) / 1000;
   return (
     <div className="request-comment-body">
@@ -260,7 +264,7 @@ function CommentBody({ comment, openUrl }: { comment: RequestComment; openUrl: (
         {comment.review && (
           <Chip className={`request-review ${comment.review}`}>{VERDICTS[comment.review]}</Chip>
         )}
-        {comment.path && !comment.reply && (
+        {comment.path && !comment.reply && !atLine && (
           <span className="request-comment-where mono" title={comment.path}>
             <span className="chip-text">
               {comment.path.split("/").pop()}
@@ -270,7 +274,7 @@ function CommentBody({ comment, openUrl }: { comment: RequestComment; openUrl: (
         )}
         {Number.isFinite(when) && <span className="request-comment-when chip-text">{relativeTime(when)}</span>}
       </div>
-      {comment.hunk && !comment.reply && (
+      {comment.hunk && !comment.reply && !atLine && (
         <pre className="request-hunk">
           {comment.hunk.split("\n").map((line, index) => (
             <span key={index} className={line.startsWith("+") ? "added" : line.startsWith("-") ? "removed" : undefined}>
@@ -285,7 +289,8 @@ function CommentBody({ comment, openUrl }: { comment: RequestComment; openUrl: (
   );
 }
 
-function CommentBox({
+/** Writing a comment, or a reply in a thread, and sending it. */
+export function CommentBox({
   repoPath,
   number,
   thread,

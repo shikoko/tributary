@@ -7,7 +7,7 @@ use super::{api_request, client};
 use crate::error::Result;
 use crate::requests::{ReviewState, error_message};
 use crate::reviews::{
-    Comment, Conversation, MergeMethod, MergeRequestOptions, ReviewVerdict, in_threads,
+    Comment, Conversation, LineSide, MergeMethod, MergeRequestOptions, ReviewVerdict, in_threads,
 };
 
 #[derive(Deserialize)]
@@ -45,6 +45,9 @@ struct RawLineComment {
     path: String,
     line: Option<u64>,
     original_line: Option<u64>,
+    /// "LEFT" for a line of the file before the changes, "RIGHT" for one after.
+    #[serde(default)]
+    side: Option<String>,
     #[serde(default)]
     diff_hunk: Option<String>,
     in_reply_to_id: Option<u64>,
@@ -127,6 +130,8 @@ pub(crate) async fn conversation(
             review: None,
             path: None,
             line: None,
+            side: None,
+            outdated: false,
             hunk: None,
             thread: None,
             reply: false,
@@ -152,26 +157,14 @@ pub(crate) async fn conversation(
             review: Some(state),
             path: None,
             line: None,
+            side: None,
+            outdated: false,
             hunk: None,
             thread: None,
             reply: false,
         });
     }
-    for comment in lines {
-        let thread = comment.in_reply_to_id.unwrap_or(comment.id);
-        all.push(Comment {
-            id: format!("l{}", comment.id),
-            author: author(comment.user),
-            body: comment.body.unwrap_or_default(),
-            created: comment.created_at,
-            review: None,
-            path: Some(comment.path),
-            line: comment.line.or(comment.original_line),
-            hunk: comment.diff_hunk.as_deref().map(hunk_tail),
-            thread: Some(thread.to_string()),
-            reply: comment.in_reply_to_id.is_some(),
-        });
-    }
+    all.extend(lines.into_iter().map(line_comment));
 
     let you = match token {
         Some(_) => match get("https://api.github.com/user".into()).await {
@@ -369,9 +362,67 @@ pub(crate) async fn merge(
     Ok(done)
 }
 
+/// A comment on a line of the changes, as the app shows it: on its line and side, in its
+/// thread.
+fn line_comment(comment: RawLineComment) -> Comment {
+    let thread = comment.in_reply_to_id.unwrap_or(comment.id);
+    Comment {
+        id: format!("l{}", comment.id),
+        author: comment
+            .user
+            .map(|user| user.login)
+            .unwrap_or_else(|| "ghost".into()),
+        body: comment.body.unwrap_or_default(),
+        created: comment.created_at,
+        review: None,
+        path: Some(comment.path),
+        line: comment.line.or(comment.original_line),
+        side: Some(match comment.side.as_deref() {
+            Some("LEFT") => LineSide::Before,
+            _ => LineSide::After,
+        }),
+        // GitHub has no line for it any more: the lines it was on have changed.
+        outdated: comment.line.is_none(),
+        hunk: comment.diff_hunk.as_deref().map(hunk_tail),
+        thread: Some(thread.to_string()),
+        reply: comment.in_reply_to_id.is_some(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_a_comment_on_a_line() {
+        let read = |value: serde_json::Value| {
+            line_comment(serde_json::from_value(value).unwrap_or_else(|e| panic!("{e}")))
+        };
+        let on_line = read(serde_json::json!({
+            "id": 7, "user": { "login": "lena" }, "body": "Why?", "created_at": "2026-01-02",
+            "path": "a.txt", "line": 3, "original_line": 3, "side": "RIGHT", "in_reply_to_id": null
+        }));
+        assert_eq!(on_line.line, Some(3));
+        assert_eq!(on_line.side, Some(LineSide::After));
+        assert!(!on_line.outdated);
+        assert_eq!(on_line.thread.as_deref(), Some("7"));
+        // On a removed line, in a thread: a reply.
+        let removed = read(serde_json::json!({
+            "id": 8, "user": null, "created_at": "2026-01-02",
+            "path": "a.txt", "line": 2, "original_line": 2, "side": "LEFT", "in_reply_to_id": 7
+        }));
+        assert_eq!(removed.side, Some(LineSide::Before));
+        assert_eq!(removed.author, "ghost");
+        assert!(removed.reply);
+        assert_eq!(removed.thread.as_deref(), Some("7"));
+        // The lines it was on have changed since: where they were.
+        let outdated = read(serde_json::json!({
+            "id": 9, "user": { "login": "diego" }, "body": "Still?", "created_at": "2026-01-01",
+            "path": "a.txt", "line": null, "original_line": 5, "side": "RIGHT", "in_reply_to_id": null
+        }));
+        assert_eq!(outdated.line, Some(5));
+        assert!(outdated.outdated);
+    }
 
     #[test]
     fn keeps_the_end_of_a_hunk() {
