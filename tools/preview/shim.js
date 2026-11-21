@@ -12,7 +12,8 @@
 //                  change those
 //   update         an update to offer, like { version: "0.2.0", notes: "…", date: null }
 //   github         a stand-in GitHub sign-in, like { account: null, browserSignIn: true },
-//                  instead of git's real credential helper
+//                  instead of git's real credential helper; with forks, your forks too, as
+//                  [{ fork, status, sync }] (demo.mjs's demoForks), syncing changes them
 //   issues         a stand-in issue tracker: { all: [issues], mine: [their keys], user },
 //                  instead of asking Jira, Linear, GitHub or GitLab
 //   recentRequests the pull requests Team activity counts, instead of asking GitHub
@@ -97,6 +98,28 @@
         if (token === "bad") return reject("GitHub didn't accept that token. Check that it was copied whole and hasn't expired.");
         preview.github.account = { login: "maya-chen", name: "Maya Chen" };
         resolve(preview.github.account);
+      }, 400),
+    );
+
+  /** Your forks, when faked: one by its name, its comparison, and syncing it (which changes it). */
+  const fakeFork = (fork) => (preview.github.forks || []).find((each) => each.fork.owner === fork.owner && each.fork.name === fork.name);
+  const fakeForkStatus = (fork) =>
+    new Promise((resolve, reject) =>
+      setTimeout(() => {
+        const entry = fakeFork(fork);
+        if (!entry) return reject(`GitHub didn't compare it with ${fork.parent.owner}/${fork.parent.name} (Not Found).`);
+        resolve(structuredClone(entry.status));
+      }, 150),
+    );
+  const fakeSyncFork = (fork) =>
+    new Promise((resolve) =>
+      setTimeout(() => {
+        const entry = fakeFork(fork);
+        (preview.syncedForks ??= []).push(`${fork.owner}/${fork.name}`);
+        const outcome = entry.sync ?? (entry.status.new === 0 ? "upToDate" : entry.status.own > 0 ? "merged" : "fastForward");
+        if (outcome === "fastForward" || outcome === "merged") entry.status = { new: 0, own: entry.status.own + (outcome === "merged" ? 1 : 0), commits: [] };
+        const message = outcome === "conflict" ? "There are merge conflicts" : `Successfully fetched and ${outcome === "merged" ? "merged" : "fast-forwarded"} from upstream ${fork.parent.owner}:${fork.parent.branch}.`;
+        resolve({ outcome, message });
       }, 400),
     );
 
@@ -342,6 +365,12 @@
     github_sign_in_with_browser: () => (preview.github ? fakeSignIn("browser") : server("github_sign_in_with_browser", {})),
     github_sign_out: () => (preview.github ? ((preview.github.account = null), null) : server("github_sign_out", {})),
     github_repositories: () => (preview.github ? (preview.github.account ? structuredClone(preview.github.repos ?? []) : []) : server("github_repositories", {})),
+    github_forks: () =>
+      preview.github
+        ? { signedIn: Boolean(preview.github.account), forks: preview.github.account ? (preview.github.forks ?? []).map((each) => structuredClone(each.fork)) : [] }
+        : server("github_forks", {}),
+    github_fork_status: ({ fork }) => (preview.github ? fakeForkStatus(fork) : server("github_fork_status", { fork })),
+    github_sync_fork: ({ fork }) => (preview.github ? fakeSyncFork(fork) : server("github_sync_fork", { fork })),
     gitlab_status: (args) =>
       preview.gitlab
         ? { host: args.host, account: preview.gitlab.account ?? null, tokenRejected: false, canKeepToken: true, browserSignIn: Boolean(preview.gitlab.browserSignIn) }

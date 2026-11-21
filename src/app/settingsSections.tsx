@@ -1,6 +1,7 @@
 import type { ColumnOptions } from "../components/CommitList";
 import { appearanceRows } from "../components/AppearanceRows";
-import { BranchIcon, ClockIcon, ColumnsIcon, ContrastIcon, DiffIcon, FetchIcon, GearIcon, HistoryIcon, KeyIcon, LockIcon, SidebarIcon, TransferIcon, UserIcon } from "../components/Icons";
+import { BranchIcon, ClockIcon, ColumnsIcon, ContrastIcon, DiffIcon, FetchIcon, ForkIcon, GearIcon, HistoryIcon, KeyIcon, LockIcon, SidebarIcon, TransferIcon, UserIcon } from "../components/Icons";
+import { describeForkRun, type ForkSyncEvery } from "../lib/forks";
 import { SshKeys } from "../components/SshKeys";
 import { SIDEBAR_SECTIONS } from "../components/sidebar/WorkLists";
 import { describeRun, nextRun, type ScheduleDays } from "../lib/schedule";
@@ -47,6 +48,7 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
   const { columnOptions, setColumnOptions, zoom, setZoom, hiddenSections, setHiddenSections } = preferences;
   const { historyMinutes, setHistoryMinutes, historyMaxMB, setHistoryMaxMB, historyDays, setHistoryDays } = preferences;
   const { scheduleDays, setScheduleDays, scheduleTime, setScheduleTime, scheduleRun } = preferences;
+  const { forksShown, setForksShown, forksEvery, setForksEvery, forksRun } = preferences;
   const next = nextRun(scheduleDays, scheduleTime, new Date());
   const looks = appearanceRows(preferences.appearance, preferences.setAppearance, theme);
   const zoomRow: SettingRow = {
@@ -229,6 +231,43 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
           onSignIn: accounts.onSignIn,
           onSignOut: accounts.onSignOut,
         }),
+      ],
+    },
+    {
+      title: "Forks",
+      icon: <ForkIcon size={15} />,
+      parent: "Accounts",
+      rows: [
+        {
+          kind: "toggle",
+          label: "Your forks",
+          hint: "A Forks button in the toolbar, and View → Your Forks, open your forks on GitHub: how far each one is behind the repository it was forked from, its new commits, and Sync, which brings them into the fork on GitHub, as its Sync fork button does. You need to be signed in to GitHub.",
+          value: forksShown,
+          set: setForksShown,
+        },
+        {
+          kind: "select",
+          label: "Sync the forks with Auto on",
+          hint: "While Tributary is open, and when it starts. Each fork has its Auto switch on the Forks screen. A fork whose own changes clash with its original's is left for you, and Tributary says which.",
+          value: forksEvery,
+          options: [
+            { value: "hour", label: "Every hour" },
+            { value: "day", label: "Every day" },
+            { value: "off", label: "Only when I press Sync" },
+          ],
+          set: (value) => setForksEvery(value as ForkSyncEvery),
+          disabled: !forksShown,
+        },
+        ...(forksRun && forksShown
+          ? [
+              {
+                kind: "custom" as const,
+                label: "Last time",
+                hint: `${new Date(forksRun.time).toLocaleString(undefined, { weekday: "long", hour: "2-digit", minute: "2-digit" })}: ${describeForkRun(forksRun) ?? "all up to date."}`,
+                content: null,
+              },
+            ]
+          : []),
       ],
     },
     {

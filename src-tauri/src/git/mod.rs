@@ -52,6 +52,11 @@ impl Git {
         }
     }
 
+    /// What keeps background work from asking the user anything (see [`QUIET`]).
+    fn quiet(&self) -> &'static [(&'static str, &'static str)] {
+        if self.background { &QUIET } else { &[] }
+    }
+
     /// The user's git, to run in `workdir`: the one found before (see [`install`], which
     /// knows where to look, and never runs Apple's placeholder git).
     pub(crate) fn find(workdir: PathBuf) -> Result<Self, Error> {
@@ -81,6 +86,7 @@ impl Git {
             .arg(&self.workdir)
             .args(args)
             .env("GIT_TERMINAL_PROMPT", "0")
+            .envs(self.quiet().iter().copied())
             .output()
             .map_err(|e| format!("Could not run git: {e}"))?;
         let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
@@ -105,6 +111,7 @@ impl Git {
             .arg(&self.workdir)
             .args(args)
             .envs(env.iter().copied())
+            .envs(self.quiet().iter().copied())
             // Nobody can answer a prompt or edit a message here: fail or accept the default.
             .env("GIT_TERMINAL_PROMPT", "0")
             .env("GIT_EDITOR", "true")
@@ -135,6 +142,7 @@ impl Git {
             .arg(&self.workdir)
             .args(args)
             .env("GIT_TERMINAL_PROMPT", "0")
+            .envs(self.quiet().iter().copied())
             .stdin(if input.is_some() {
                 Stdio::piped()
             } else {
@@ -369,8 +377,19 @@ pub fn working() -> bool {
     WORKING.load(Ordering::SeqCst) > 0
 }
 
+/// For work nobody asked for, like looking up a stored sign-in or a background fetch: never
+/// ask the user anything. Every command already has git's terminal prompt off; this also
+/// keeps its password window closed (an empty `GIT_ASKPASS` stops git from falling back to
+/// `core.askPass` or `SSH_ASKPASS`, which KDE sets to ksshaskpass, so a lookup at startup
+/// asked for a GitHub username), and ssh's and Git Credential Manager's.
+pub(crate) const QUIET: [(&str, &str); 3] = [
+    ("GIT_ASKPASS", ""),
+    ("SSH_ASKPASS_REQUIRE", "never"),
+    ("GCM_INTERACTIVE", "never"),
+];
+
 pub(crate) fn command(executable: &Path) -> Command {
-    let mut command = Command::new(executable);
+    let mut command = crate::host::program(executable);
     // git's messages in English, whatever language the computer is in: the app reads them
     // (to explain an error in plain words, or to offer to put changes aside), and a
     // translated one would go unrecognised. LANGUAGE only chooses the messages' language,
@@ -417,6 +436,64 @@ mod tests {
             .and_then(|(_, value)| value)
             .map(std::ffi::OsStr::to_owned);
         assert_eq!(path, crate::host::search_path());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn quiet_work_never_opens_git_s_password_window() {
+        use std::io::Write;
+        use std::os::unix::fs::PermissionsExt;
+        let folder = std::env::temp_dir().join(format!("tributary-askpass-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&folder);
+        std::fs::create_dir_all(&folder).unwrap();
+        // A password window that leaves a mark when git opens it, and answers "rosa", set
+        // up as KDE sets up ksshaskpass (through SSH_ASKPASS, which git falls back to).
+        let mark = folder.join("asked");
+        let askpass = folder.join("askpass.sh");
+        std::fs::write(
+            &askpass,
+            format!("#!/bin/sh\ntouch '{}'\necho rosa\n", mark.display()),
+        )
+        .unwrap();
+        std::fs::set_permissions(&askpass, std::fs::Permissions::from_mode(0o755)).unwrap();
+        // `git credential fill` with no credential helper, so git has to ask.
+        let fill = |quiet: &[(&str, &str)]| {
+            let mut child = command(Path::new("git"))
+                .args(["-c", "credential.helper=", "credential", "fill"])
+                .env_remove("GIT_ASKPASS")
+                .env("SSH_ASKPASS", &askpass)
+                .env("GIT_TERMINAL_PROMPT", "0")
+                .envs(quiet.iter().copied())
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap();
+            let mut stdin = child.stdin.take().unwrap();
+            stdin
+                .write_all(b"protocol=https\nhost=example.com\n\n")
+                .unwrap();
+            drop(stdin);
+            String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
+        };
+
+        // Without it, git opens the password window.
+        assert!(fill(&[]).contains("username=rosa"));
+        assert!(mark.exists(), "git didn't open the password window");
+        // With it, it never does, and gives up instead.
+        std::fs::remove_file(&mark).unwrap();
+        assert!(!fill(&QUIET).contains("username"));
+        assert!(!mark.exists(), "quiet work opened the password window");
+        let _ = std::fs::remove_dir_all(&folder);
+
+        // Background work is quiet; what someone asked for may still ask them.
+        let git = Git {
+            executable: PathBuf::from("git"),
+            workdir: folder,
+            background: false,
+        };
+        assert!(git.quiet().is_empty());
+        assert_eq!(git.in_background().quiet(), &QUIET);
     }
 
     #[test]

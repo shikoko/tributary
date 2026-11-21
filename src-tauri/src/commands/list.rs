@@ -228,6 +228,9 @@ commands! {
         github_sign_in_with_browser() -> github::account::Account;
         github_sign_out() -> ();
         github_repositories() -> Vec<accounts::AccountRepo>;
+        github_forks() -> github::forks::Forks;
+        github_fork_status(fork: github::forks::Fork) -> github::forks::ForkStatus;
+        github_sync_fork(fork: github::forks::Fork) -> github::forks::ForkSync;
         gitlab_status(host: String) -> accounts::GitLabStatus;
         gitlab_sign_in(host: String, token: String) -> accounts::GitLabAccount;
         gitlab_sign_in_with_browser(host: String) -> accounts::GitLabAccount;

@@ -19,6 +19,7 @@ import {
   SearchIcon,
   SidebarIcon,
   TeamIcon,
+  ForkIcon,
 } from "./Icons";
 import { relativeTime } from "../lib/format";
 import { Button } from "./ui/Button";
@@ -83,6 +84,8 @@ interface Props {
   /** Team activity: who's been working on what. */
   teamOpen: boolean;
   onToggleTeam: () => void;
+  /** Your forks on GitHub, when Settings shows them: open, and opening or closing them. */
+  forks: { open: boolean; onToggle: () => void } | null;
   /** The Open menu: the repository on its website, in Finder or Explorer, in an editor or terminal. */
   onOpenMenu: (anchor: HTMLElement) => void;
   /** This repository's own settings. */
@@ -296,6 +299,17 @@ export function Toolbar(props: Props) {
         >
           <TeamIcon />
         </Button>
+        {props.forks && (
+          <Button
+            kind="icon" className={props.forks.open ? "active" : undefined}
+            onClick={props.forks.onToggle}
+            title="Your forks: how far behind each is, and syncing them"
+            aria-label="Your forks"
+            aria-pressed={props.forks.open}
+          >
+            <ForkIcon />
+          </Button>
+        )}
         <Button
           kind="icon"
           onClick={props.onSettings}

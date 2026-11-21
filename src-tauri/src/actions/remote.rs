@@ -36,7 +36,7 @@ pub(super) fn fetch(
         let git = git.in_background();
         git.run_with_env(
             &["fetch", "--all", "--prune", "--quiet"],
-            &[("GCM_INTERACTIVE", "never")],
+            &crate::git::QUIET,
         )?;
     } else {
         git.run_progress(&["fetch", "--all", "--prune", "--progress"], on_progress)?;

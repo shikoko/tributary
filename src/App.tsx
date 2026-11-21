@@ -34,6 +34,7 @@ import { busyTabs, useActions } from "./app/useActions";
 import { useBackgroundFetch } from "./app/useBackgroundFetch";
 import { useLocalHistory } from "./app/useLocalHistory";
 import { useScheduledFetch } from "./app/useScheduledFetch";
+import { useForkSync } from "./app/useForkSync";
 import { useBranchCounts } from "./app/useBranchCounts";
 import { useChangedElsewhere } from "./app/useChangedElsewhere";
 import { useSubmodules } from "./app/useSubmodules";
@@ -97,6 +98,10 @@ export default function App() {
   /** The team activity view, over the commit list. */
   const [teamOpen, setTeamOpen] = useState(false);
   const closeTeam = useCallback(() => setTeamOpen(false), []);
+  /** Your forks on GitHub, over the commit list, when they're shown at all (Settings → Forks). */
+  const [forksWanted, setForksOpen] = useState(false);
+  const forksOpen = forksWanted && preferences.forksShown;
+  const closeForks = useCallback(() => setForksOpen(false), []);
   /** The View panel: how the window looks, under the View button at the end of the column headings. */
   const [viewOpen, setViewOpen] = useState(false);
   const closeView = useCallback(() => setViewOpen(false), []);
@@ -106,7 +111,18 @@ export default function App() {
   const closeRequest = useCallback(() => setShownRequest(null), []);
   const showRequest = useCallback((pr: PullRequest) => {
     setTeamOpen(false);
+    setForksOpen(false);
     setShownRequest(pr);
+  }, []);
+  // Team activity and your forks take the same place: one opening closes the other.
+  const toggleTeam = useCallback(() => {
+    setForksOpen(false);
+    setTeamOpen((open) => !open);
+  }, []);
+  const toggleForks = useCallback(() => {
+    setTeamOpen(false);
+    setShownRequest(null);
+    setForksOpen((open) => !open);
   }, []);
   /** The Settings section to open at (like "Diff and merge"), or the first. */
   const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
@@ -303,6 +319,22 @@ export default function App() {
     fetchActive: async () => Boolean(await act({ kind: "fetchLatest" })),
     notify: setToast,
   });
+  // Your forks with Auto on, synced by themselves (Settings → Forks).
+  useForkSync({
+    shown: preferences.forksShown,
+    auto: preferences.forksAuto,
+    every: preferences.forksEvery,
+    run: preferences.forksRun,
+    setRun: preferences.setForksRun,
+    notify: setToast,
+    onShow: snapshot
+      ? () => {
+          setTeamOpen(false);
+          setShownRequest(null);
+          setForksOpen(true);
+        }
+      : null,
+  });
   // A pull request merged or closed on the site moved the remote's branches: fetch now.
   const prLeftOpen = useLeftOpen(repoPath, prs.list);
   // A new version: said once it's ready to install (or if it couldn't be downloaded).
@@ -347,6 +379,7 @@ export default function App() {
     hiddenCount: settings.hiddenCount,
     highlightingMine: highlight.highlightingMine,
     teamOpen,
+    forksOpen,
     canReopenTab: tabbing.canReopen,
     usesLocks: Boolean(lfs.locks),
     usesLfs: Boolean(checks?.usesLfs),
@@ -366,7 +399,8 @@ export default function App() {
       search: search.focus,
       showAllBranches: settings.showAllBranches,
       highlightMine: highlight.highlightMine,
-      team: () => setTeamOpen((open) => !open),
+      team: toggleTeam,
+      forks: preferences.forksShown ? toggleForks : undefined,
       viewOptions: toggleView,
       resetLayout: () => {
         preferences.setColumnWidths({ refs: null, graph: null });
@@ -407,7 +441,7 @@ export default function App() {
     goToCommit: () => snapshot && setDialog({ kind: "goToCommit" }),
     toggleSidebar: () => preferences.setSidebarOpen((open) => !open),
     toggleActivity: () => preferences.setActivityOpen((open) => !open),
-    toggleTeam: () => setTeamOpen((open) => !open),
+    toggleTeam,
     toggleView: () => snapshot && toggleView(),
     zoom: zoomBy,
     showShortcuts: () => overlays.show("shortcuts"),
@@ -524,7 +558,17 @@ export default function App() {
               notify={setToast}
               teamOpen={teamOpen}
               onCloseTeam={closeTeam}
-              onToggleTeam={() => setTeamOpen((open) => !open)}
+              onToggleTeam={toggleTeam}
+              forks={{
+                shown: preferences.forksShown,
+                open: forksOpen,
+                onToggle: toggleForks,
+                onClose: closeForks,
+                auto: preferences.forksAuto,
+                setAuto: preferences.setForksAuto,
+                every: preferences.forksEvery,
+                onSignIn: () => overlays.show("signIn"),
+              }}
               viewOpen={viewOpen}
               onToggleView={toggleView}
               onCloseView={closeView}

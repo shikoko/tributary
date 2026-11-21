@@ -913,6 +913,24 @@ pub async fn github_repositories() -> Result<Vec<accounts::AccountRepo>> {
     accounts::github_repositories().await
 }
 
+/// Your forks on GitHub, by name (none when you aren't signed in).
+#[tauri::command]
+pub async fn github_forks() -> Result<github::forks::Forks> {
+    github::forks::forks().await
+}
+
+/// How a fork's branch compares with its original's: the original's new commits, and its own.
+#[tauri::command]
+pub async fn github_fork_status(fork: github::forks::Fork) -> Result<github::forks::ForkStatus> {
+    github::forks::status(&fork).await
+}
+
+/// Sync a fork's branch with its original on GitHub, as its Sync fork button does.
+#[tauri::command]
+pub async fn github_sync_fork(fork: github::forks::Fork) -> Result<github::forks::ForkSync> {
+    github::forks::sync(&fork).await
+}
+
 /// Who's signed in to a GitLab server (going by the token git keeps), and how one can sign in.
 #[tauri::command]
 pub async fn gitlab_status(host: String) -> Result<accounts::GitLabStatus> {

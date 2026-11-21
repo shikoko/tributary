@@ -1,3 +1,4 @@
+import type { ForksControl } from "./ListOverlays";
 import { useContext, useEffect, useRef, useState, useMemo, type ComponentProps, type ReactNode } from "react";
 import { onCommitDrop } from "../lib/drag";
 import { usePresence } from "../lib/usePresence";
@@ -115,6 +116,8 @@ interface Props {
   teamOpen: boolean;
   onCloseTeam: () => void;
   onToggleTeam: () => void;
+  /** Your forks on GitHub (the toolbar's Forks button, when Settings shows them). */
+  forks: ForksControl;
   /** The View panel (from the View button, the View menu or the keyboard). */
   viewOpen: boolean;
   onToggleView: () => void;
@@ -159,7 +162,7 @@ export function RepositoryView(props: Props) {
       usesLfs: Boolean(props.checks?.usesLfs || (lfs.locks?.locks.length ?? 0) > 0),
       actions: props.history.entries.length,
     },
-    busy: Boolean(props.dialog) || running !== null || props.teamOpen || props.request !== null,
+    busy: Boolean(props.dialog) || running !== null || props.teamOpen || props.forks.open || props.request !== null,
     openSidebar: () => setSidebarOpen(true),
   });
   /** Sizes when a panel resize started. */
@@ -187,11 +190,11 @@ export function RepositoryView(props: Props) {
     if (rewrite) setRewrite(null);
     if (checksOf) setChecksOf(null);
   }
-  // A pull request or the team view opened since: it's shown, not the checks over it.
-  const othersShown = useRef<unknown[]>([props.request, props.teamOpen]);
-  if (othersShown.current[0] !== props.request || othersShown.current[1] !== props.teamOpen) {
-    othersShown.current = [props.request, props.teamOpen];
-    if ((props.request || props.teamOpen) && checksOf) setChecksOf(null);
+  // A pull request, the team view or your forks opened since: it's shown, not the checks over it.
+  const othersShown = useRef<unknown[]>([props.request, props.teamOpen, props.forks.open]);
+  if (othersShown.current[0] !== props.request || othersShown.current[1] !== props.teamOpen || othersShown.current[2] !== props.forks.open) {
+    othersShown.current = [props.request, props.teamOpen, props.forks.open];
+    if ((props.request || props.teamOpen || props.forks.open) && checksOf) setChecksOf(null);
   }
 
   // The open pull request, as its site says (its view reads it), and its files, read here
@@ -226,6 +229,7 @@ export function RepositoryView(props: Props) {
     byId,
     closeOthers: () => {
       if (props.teamOpen) props.onCloseTeam();
+      if (props.forks.open) props.forks.onClose();
       if (props.request) props.onCloseRequest();
       setRewrite(null);
       setChecksOf(null);
@@ -237,6 +241,7 @@ export function RepositoryView(props: Props) {
   // history rewrite being planned stays: closing it would lose the plan.
   const showHistory = () => {
     if (props.teamOpen) props.onCloseTeam();
+    if (props.forks.open) props.forks.onClose();
     if (props.request) props.onCloseRequest();
     setChecksOf(null);
     views.closeDiff();
@@ -374,10 +379,13 @@ export function RepositoryView(props: Props) {
     />
   ) : null;
 
+  // Your forks aren't about this repository: while they're open, its side panels make way
+  // for them, and come back as they were when they close.
+  const sidebarShown = sidebarOpen && !props.forks.open;
   // The side panels slide open and closed (see usePresence).
   const sidebarPanel = usePresence(
-    sidebarOpen,
-    sidebarOpen ? (
+    sidebarShown,
+    sidebarShown ? (
       <Sidebar
         repoPath={snapshot.path}
         commits={snapshot.commits}
@@ -431,7 +439,7 @@ export function RepositoryView(props: Props) {
     ...(props.submodules.list.length > 0 ? [{ id: "submodules", label: "Submodules", icon: <SubmoduleIcon size={16} /> }] : []),
     ...(locks ? [{ id: "locks", label: "Locked files", icon: <LockIcon size={16} />, count: locks.length }] : []),
   ];
-  const detailsOpen = Boolean(props.request || comparing.request || selection.selected || selection.multi);
+  const detailsOpen = !props.forks.open && Boolean(props.request || comparing.request || selection.selected || selection.multi);
   const detailsPanel = usePresence(
     detailsOpen,
     props.request ? (
@@ -552,6 +560,7 @@ export function RepositoryView(props: Props) {
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           teamOpen={props.teamOpen}
           onToggleTeam={props.onToggleTeam}
+          forks={props.forks.shown ? { open: props.forks.open, onToggle: props.forks.onToggle } : null}
           onOpenMenu={(anchor) => menu.under(anchor, openMenu())}
           onSettings={() => openDialog({ kind: "repoSettings" })}
           onClose={() => props.closeTab(snapshot.path)}
@@ -606,7 +615,7 @@ export function RepositoryView(props: Props) {
           {/* A search of everything lists what it found in the sidebar's place, as wide as it,
               so the history and the search box above it stay where they are. With no
               sidebar beside the history, the results go over it instead. */}
-          {searchResults && sidebarOpen && !strip.narrow ? (
+          {searchResults && sidebarShown && !strip.narrow ? (
             <>
               <div className="sidebar-frame search-results-frame" style={{ width: sidebarWidth }}>
                 {searchResults}
@@ -631,7 +640,7 @@ export function RepositoryView(props: Props) {
                 <ResizeHandle className="panel-handle" {...panelResize("sidebar")} />
               </>
             ))}
-          {searchResults && !(sidebarOpen && !strip.narrow) && (
+          {searchResults && !(sidebarShown && !strip.narrow) && (
             <div className="sidebar-over search-results-over" style={{ width: Math.max(sidebarWidth, 280), left: sidebarPanel.shown && strip.narrow ? undefined : 0 }}>
               {searchResults}
             </div>
@@ -700,6 +709,7 @@ export function RepositoryView(props: Props) {
               overlaps={props.overlaps}
               teamOpen={props.teamOpen}
               onCloseTeam={props.onCloseTeam}
+              forks={props.forks}
               request={props.request}
               onCloseRequest={props.onCloseRequest}
               onRequestDetails={(details) => requestKey && setRequestLoaded(details ? { key: requestKey, details } : null)}

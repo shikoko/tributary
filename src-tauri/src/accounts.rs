@@ -41,7 +41,7 @@ fn git() -> Result<Git> {
 }
 
 /// The token git keeps for `https://{host}`, if it keeps one.
-async fn stored_token(host: &str) -> Result<Option<String>> {
+pub(crate) async fn stored_token(host: &str) -> Result<Option<String>> {
     let host = host.to_owned();
     tauri::async_runtime::spawn_blocking(move || {
         Ok(git()?

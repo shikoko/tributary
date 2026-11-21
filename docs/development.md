@@ -259,4 +259,4 @@ python3 tools/icons/draw.py
 node tools/icons/render.mjs
 ```
 
-The in-app logo (`Logo` in `src/components/Icons.tsx`) is the same drawing, with or without its tile; change both together.
+The in-app logo (`Logo` in `src/components/Icons.tsx`, which the loading animation in `Loader.tsx` also draws from) is the same drawing, with or without its tile, and so are the Windows setup's (`src-tauri/setup/ui/setup.ts`) and the website's (`site/assets/logo.svg`, and the marks in `site/index.html`); change them together.

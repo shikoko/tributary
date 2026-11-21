@@ -2,6 +2,7 @@ import type { Tab } from "../components/TabBar";
 import { DEFAULT_COLUMNS, type ColumnOptions, type ColumnWidths } from "../components/CommitList";
 import type { Appearance } from "../lib/appearance";
 import type { ScheduleDays, ScheduledRun } from "../lib/schedule";
+import type { ForkRun, ForkSyncEvery } from "../lib/forks";
 import type { TourId } from "../lib/tours";
 import { useStoredState } from "../lib/settings";
 import { APPEARANCE_KEY } from "./useAppearance";
@@ -64,6 +65,11 @@ export function usePreferences() {
   const [scheduleTime, setScheduleTime] = useStoredState("schedule.time", "07:00");
   const [scheduleLast, setScheduleLast] = useStoredState<string | null>("schedule.last", null);
   const [scheduleRun, setScheduleRun] = useStoredState<ScheduledRun | null>("schedule.run", null);
+  /** Your forks on GitHub: whether the Forks screen and its button show, which forks sync by themselves (as "owner/name"), how often, and how the last time went. */
+  const [forksShown, setForksShown] = useStoredState("forks.shown", false);
+  const [forksAuto, setForksAuto] = useStoredState<string[]>("forks.auto", []);
+  const [forksEvery, setForksEvery] = useStoredState<ForkSyncEvery>("forks.every", "hour");
+  const [forksRun, setForksRun] = useStoredState<ForkRun | null>("forks.run", null);
   /** Light or dark, the accent colour, the graph's and the diffs' colours (filled in by normalizeAppearance). */
   const [appearance, setAppearance] = useStoredState<Partial<Appearance>>(APPEARANCE_KEY, {});
   return {
@@ -80,6 +86,7 @@ export function usePreferences() {
     toursOff, setToursOff, skipIgnoreIntro, setSkipIgnoreIntro, toursSeen, setToursSeen, toursDone, setToursDone, toursFirst, setToursFirst,
     historyMinutes, setHistoryMinutes, historyMaxMB, setHistoryMaxMB, historyDays, setHistoryDays,
     scheduleDays, setScheduleDays, scheduleTime, setScheduleTime, scheduleLast, setScheduleLast, scheduleRun, setScheduleRun,
+    forksShown, setForksShown, forksAuto, setForksAuto, forksEvery, setForksEvery, forksRun, setForksRun,
   };
 }
 

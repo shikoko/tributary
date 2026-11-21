@@ -32,6 +32,7 @@
 @import "./styles/conflicts-and-compare.css";
 @import "./styles/blame-and-team.css";
 @import "./styles/team.css";
+@import "./styles/forks.css";
 @import "./styles/syntax.css";
 @import "./styles/pull-requests.css";
 @import "./styles/check-timeline.css";

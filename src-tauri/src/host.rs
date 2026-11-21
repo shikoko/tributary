@@ -13,7 +13,7 @@
 //! programs are at /run/host inside the sandbox (with `--filesystem=host`), and they run
 //! there through `flatpak-spawn --host`.
 
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -26,6 +26,96 @@ const HOST: &str = "/run/host";
 /// Whether Tributary is running in its Flatpak.
 pub fn in_flatpak() -> bool {
     std::env::var_os("FLATPAK_ID").is_some()
+}
+
+/// A command for one of the computer's programs (git, ssh, an editor, the login shell…), with
+/// the computer's environment rather than the one an AppImage set up for Tributary itself
+/// (see [`appimage_changes`]). Every program Tributary starts goes through here.
+pub(crate) fn program(program: impl AsRef<OsStr>) -> Command {
+    let mut command = Command::new(program);
+    for (name, value) in outside_appimage() {
+        match value {
+            Some(value) => command.env(name, value),
+            None => command.env_remove(name),
+        };
+    }
+    command
+}
+
+/// What to change in the environment Tributary was started with, for the programs it starts:
+/// nothing, except in an AppImage.
+fn outside_appimage() -> &'static [(OsString, Option<OsString>)] {
+    static CHANGES: OnceLock<Vec<(OsString, Option<OsString>)>> = OnceLock::new();
+    CHANGES.get_or_init(
+        || match (std::env::var_os("APPIMAGE"), std::env::var_os("APPDIR")) {
+            (Some(_), Some(appdir)) if !appdir.is_empty() => {
+                appimage_changes(std::env::vars_os(), &appdir.to_string_lossy())
+            }
+            _ => Vec::new(),
+        },
+    )
+}
+
+/// An environment variable as the computer has it: as Tributary was started with it, without
+/// what an AppImage put in it for itself.
+fn started_var(name: &str) -> Option<OsString> {
+    match outside_appimage()
+        .iter()
+        .find(|(changed, _)| changed == name)
+    {
+        Some((_, value)) => value.clone(),
+        None => std::env::var_os(name),
+    }
+}
+
+/// Variables an AppImage's launcher sets for the app inside it, with no folder of its own to
+/// tell them by: its own markers, a GTK theme it chooses, and a Python setting.
+const SET_BY_APPIMAGE: [&str; 6] = [
+    "APPDIR",
+    "APPIMAGE",
+    "ARGV0",
+    "OWD",
+    "GTK_THEME",
+    "PYTHONDONTWRITEBYTECODE",
+];
+
+/// How to undo, for the programs Tributary starts, what an AppImage's launcher set up for
+/// Tributary (in `vars`, from the AppImage mounted at `appdir`). It puts its own folders first
+/// in `LD_LIBRARY_PATH`, `PATH`, `PYTHONPATH` and others, and points GTK, GLib and Python at
+/// itself, so a program that inherited them would load the AppImage's libraries instead of
+/// its own: the computer's git then fails to fetch over HTTPS ("symbol lookup error" in
+/// libcurl), and a hook in Python fails to start. Each variable that names a folder in the
+/// AppImage loses it, and goes when nothing else is left in it. Variables are kept as they
+/// are otherwise.
+pub(crate) fn appimage_changes(
+    vars: impl IntoIterator<Item = (OsString, OsString)>,
+    appdir: &str,
+) -> Vec<(OsString, Option<OsString>)> {
+    let appdir = appdir.trim_end_matches('/');
+    let inside = |entry: &str| entry == appdir || entry.starts_with(&format!("{appdir}/"));
+    let mut changes = Vec::new();
+    for (name, value) in vars {
+        if SET_BY_APPIMAGE.iter().any(|set| name == *set) {
+            changes.push((name, None));
+            continue;
+        }
+        let Some(value) = value.to_str() else {
+            continue;
+        };
+        if !value.contains(appdir) {
+            continue;
+        }
+        if !value.split(':').any(inside) {
+            continue;
+        }
+        let kept: Vec<&str> = value
+            .split(':')
+            .filter(|entry| !entry.is_empty() && !inside(entry))
+            .collect();
+        let value = (!kept.is_empty()).then(|| OsString::from(kept.join(":")));
+        changes.push((name, value));
+    }
+    changes
 }
 
 /// Where to look for the computer's programs. Outside a Flatpak: the login shell's `PATH` on
@@ -49,7 +139,7 @@ pub fn search_path() -> Option<OsString> {
 
 /// The `PATH` for git and the programs Tributary starts, outside a Flatpak (see the top).
 fn full_path() -> Option<OsString> {
-    let started = std::env::var_os("PATH");
+    let started = started_var("PATH");
     if cfg!(windows) {
         return started;
     }
@@ -119,7 +209,7 @@ const MARK: &str = "__TRIBUTARY_PATH__";
 fn shell_path(shell: &Path) -> Vec<PathBuf> {
     // printenv prints it joined with colons whatever the shell keeps it as (fish keeps a list).
     let script = format!("echo {MARK}; /usr/bin/printenv PATH; echo {MARK}");
-    let Ok(mut child) = Command::new(shell)
+    let Ok(mut child) = program(shell)
         .args(["-l", "-i", "-c", &script])
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -196,7 +286,7 @@ pub fn on_host(command: Command) -> Command {
 }
 
 fn wrap(command: &Command) -> Command {
-    let mut host = Command::new("flatpak-spawn");
+    let mut host = program("flatpak-spawn");
     // --watch-bus: what it started ends when Tributary does.
     host.arg("--host").arg("--watch-bus");
     if let Some(folder) = command.get_current_dir() {
@@ -225,6 +315,93 @@ fn wrap(command: &Command) -> Command {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// What the 0.15.0 AppImage's launcher and its GTK hook set, mounted at `/tmp/.mount_tribu`.
+    fn appimage_environment() -> Vec<(OsString, OsString)> {
+        let d = "/tmp/.mount_tribu";
+        [
+            ("APPDIR", d.to_owned()),
+            ("APPIMAGE", "/home/rosa/Tributary.AppImage".to_owned()),
+            ("ARGV0", "./Tributary.AppImage".to_owned()),
+            ("OWD", "/home/rosa".to_owned()),
+            (
+                "PATH",
+                format!("{d}/usr/bin/:{d}/usr/sbin/:{d}/bin/:/usr/local/bin:/usr/bin"),
+            ),
+            (
+                "LD_LIBRARY_PATH",
+                format!("{d}/usr/lib/:{d}/usr/lib/x86_64-linux-gnu/:{d}/lib/:"),
+            ),
+            ("PYTHONHOME", format!("{d}/usr/")),
+            (
+                "PYTHONPATH",
+                format!("{d}/usr/share/pyshared/:/home/rosa/lib"),
+            ),
+            ("PYTHONDONTWRITEBYTECODE", "1".to_owned()),
+            (
+                "XDG_DATA_DIRS",
+                format!("{d}/usr/share:/usr/share:/usr/local/share"),
+            ),
+            (
+                "GDK_PIXBUF_MODULE_FILE",
+                format!("{d}//usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"),
+            ),
+            ("GTK_THEME", "Adwaita:dark".to_owned()),
+            ("HOME", "/home/rosa".to_owned()),
+            ("SSH_AUTH_SOCK", "/run/user/1000/ssh-agent".to_owned()),
+            // Another AppImage's folder that only starts the same.
+            (
+                "EDITOR_HOME",
+                "/tmp/.mount_tributary-other/share".to_owned(),
+            ),
+        ]
+        .into_iter()
+        .map(|(name, value)| (OsString::from(name), OsString::from(value)))
+        .collect()
+    }
+
+    #[test]
+    fn gives_programs_the_computer_s_environment_not_the_appimage_s() {
+        let changes = appimage_changes(appimage_environment(), "/tmp/.mount_tribu");
+        let change = |name: &str| {
+            changes
+                .iter()
+                .find(|(changed, _)| changed == name)
+                .map(|(_, value)| value.clone())
+        };
+        let kept = |value: &str| Some(Some(OsString::from(value)));
+        // The AppImage's folders go; the computer's stay, in their order.
+        assert_eq!(change("PATH"), kept("/usr/local/bin:/usr/bin"));
+        assert_eq!(change("XDG_DATA_DIRS"), kept("/usr/share:/usr/local/share"));
+        assert_eq!(change("PYTHONPATH"), kept("/home/rosa/lib"));
+        // Nothing of the computer's in them: gone.
+        for name in ["LD_LIBRARY_PATH", "PYTHONHOME", "GDK_PIXBUF_MODULE_FILE"] {
+            assert_eq!(change(name), Some(None), "{name}");
+        }
+        // Set by the launcher for Tributary alone.
+        for name in [
+            "APPDIR",
+            "APPIMAGE",
+            "ARGV0",
+            "OWD",
+            "GTK_THEME",
+            "PYTHONDONTWRITEBYTECODE",
+        ] {
+            assert_eq!(change(name), Some(None), "{name}");
+        }
+        // The rest as they are.
+        for name in ["HOME", "SSH_AUTH_SOCK", "EDITOR_HOME"] {
+            assert_eq!(change(name), None, "{name}");
+        }
+    }
+
+    #[test]
+    fn changes_nothing_but_the_markers_without_appimage_folders() {
+        let vars = [("PATH", "/usr/bin"), ("HOME", "/home/rosa")]
+            .into_iter()
+            .map(|(name, value)| (OsString::from(name), OsString::from(value)));
+        assert!(appimage_changes(vars, "/tmp/.mount_tribu").is_empty());
+    }
 
     #[test]
     fn reads_the_path_a_shell_printed_among_other_things() {
@@ -300,7 +477,7 @@ mod tests {
 
     #[test]
     fn runs_the_computers_program_in_the_same_folder_with_its_environment() {
-        let mut command = Command::new("/run/host/usr/bin/code");
+        let mut command = program("/run/host/usr/bin/code");
         command
             .arg("/home/maya/notebook")
             .current_dir("/home/maya/notebook")

@@ -6,12 +6,27 @@ import type { ReviewNotes } from "../components/diff/ReviewThreads";
 import { PullRequestView } from "../components/PullRequestView";
 import { RewriteView } from "../components/RewriteView";
 import { TeamView } from "../components/TeamView";
+import { ForksView } from "../components/ForksView";
+import type { ForkSyncEvery } from "../lib/forks";
 import { conflictSides } from "../components/WorktreeDetails";
 import { requestNumber } from "../lib/pullRequests";
 import { openInBrowser } from "../lib/weblinks";
 import { DIFF_SECTION } from "./settingsSections";
 import type { FileViews } from "./useFileViews";
 import type { Highlight } from "./useHighlight";
+
+/** Your forks on GitHub, over the commit list: whether they're shown at all (Settings → Forks), open, and what they need. */
+export interface ForksControl {
+  shown: boolean;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  /** The forks that sync by themselves, as "owner/name". */
+  auto: string[];
+  setAuto: (auto: string[]) => void;
+  every: ForkSyncEvery;
+  onSignIn: () => void;
+}
 
 interface Props {
   snapshot: RepoSnapshot;
@@ -27,6 +42,7 @@ interface Props {
   overlaps: Overlap[];
   teamOpen: boolean;
   onCloseTeam: () => void;
+  forks: ForksControl;
   request: PullRequest | null;
   onCloseRequest: () => void;
   /** The open pull request's details, as its site says, each time they're read. */
@@ -67,6 +83,7 @@ export function ListOverlays({
   overlaps,
   teamOpen,
   onCloseTeam,
+  forks,
   request,
   onCloseRequest,
   onRequestDetails,
@@ -115,6 +132,9 @@ export function ListOverlays({
   return (
     <>
       {!overRequest && diff}
+      {forks.open && (
+        <ForksView auto={forks.auto} setAuto={forks.setAuto} every={forks.every} onSignIn={forks.onSignIn} openUrl={openInBrowser} onClose={forks.onClose} />
+      )}
       {teamOpen && (
         <TeamView
           repoPath={snapshot.path}

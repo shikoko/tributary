@@ -4,7 +4,6 @@
 //! folder or file as an argument, never through a shell.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use serde::Serialize;
 use ts_rs::TS;
@@ -224,7 +223,7 @@ fn locate(id: &str) -> Option<Launch> {
 fn visual_studio() -> Option<PathBuf> {
     let installer =
         env_path("ProgramFiles(x86)")?.join("Microsoft Visual Studio/Installer/vswhere.exe");
-    let output = Command::new(installer)
+    let output = crate::host::program(installer)
         .args(["-latest", "-property", "productPath"])
         .output()
         .ok()?;
@@ -337,7 +336,7 @@ pub fn open_in(id: &str, folder: &Path, file: Option<&Path>) -> Result<()> {
     let launch = locate(id).ok_or("That app isn't installed here any more.")?;
     let mut command = match launch {
         Launch::Bundle(bundle) => {
-            let mut command = Command::new("open");
+            let mut command = crate::host::program("open");
             command.arg("-a").arg(bundle).arg(folder);
             if let Some(file) = file {
                 command.arg(file);
@@ -345,7 +344,7 @@ pub fn open_in(id: &str, folder: &Path, file: Option<&Path>) -> Result<()> {
             command
         }
         Launch::Program(program) => {
-            let mut command = Command::new(program);
+            let mut command = crate::host::program(program);
             command.arg(folder);
             if let Some(file) = file {
                 command.arg(file);
@@ -353,7 +352,7 @@ pub fn open_in(id: &str, folder: &Path, file: Option<&Path>) -> Result<()> {
             command
         }
         Launch::Terminal(program, args) => {
-            let mut command = Command::new(program);
+            let mut command = crate::host::program(program);
             let (last, before) = args
                 .split_last()
                 .map_or((None, &[][..]), |(last, before)| (Some(last), before));

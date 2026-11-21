@@ -2,7 +2,9 @@
 //! installers Tauri builds for the app. It shows the terms, then installs Tributary just for
 //! you (no administrator needed) or, from Custom install, for everyone on the PC (Windows asks
 //! for an administrator), in the folder chosen. The installers run silently (`/S`), so what
-//! they do stays theirs: the uninstall entry, the Start menu shortcut, the folder remembered.
+//! they do stays theirs: the uninstall entry, the folder remembered. They're run with `/NS`,
+//! as the desktop shortcut is the setup's to offer; the Start menu shortcut, which `/NS`
+//! skips, is made by Tributary's addition to them (`windows/hooks.nsh`).
 //!
 //! It's also what the automatic updates download and run (Tauri's updater starts it with
 //! `/UPDATE`). It updates the Tributary that started it, showing its own window when Tributary

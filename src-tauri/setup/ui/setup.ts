@@ -62,31 +62,27 @@ const appWindow = getCurrentWindow();
 const escape = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const folder = () => (state.everyone ? state.folders.everyone : state.folders.justMe);
 
-const LANES: [number, string][] = [
-  [200, "#1fb5ff"],
-  [356, "#ff4f9a"],
-  [512, "#ffad1f"],
-  [668, "#2fd38a"],
-  [824, "#8f6bff"],
-];
 const TILE = "M924 512C924 922 922 924 512 924C102 924 100 922 100 512C100 102 102 100 512 100C922 100 924 102 924 512Z";
 
-/** The app icon, as Tributary draws it. */
+/** The app icon, as Tributary draws it (tools/icons/draw.py): a branch joining the main line. */
 function logo(size: number): string {
-  const lanes = [0, 4, 1, 3, 2]
-    .map((i) => `<path d="M${LANES[i][0]} 20V320C${LANES[i][0]} 520 512 510 512 690" stroke="${LANES[i][1]}" stroke-width="86"/>`)
-    .join("");
   return `<svg class="logo" width="${size}" height="${size}" viewBox="100 100 824 824" aria-hidden="true">
     <defs>
       <linearGradient id="tile" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#1c2333"/><stop offset="1" stop-color="#0b0e14"/></linearGradient>
+      <linearGradient id="branch" gradientUnits="userSpaceOnUse" x1="0" y1="924" x2="0" y2="330"><stop offset="0" stop-color="#ff4f9a"/><stop offset="1" stop-color="#8f6bff"/></linearGradient>
+      <mask id="holes" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><rect width="1024" height="1024" fill="#fff"/><circle cx="380" cy="330" r="40"/><circle cx="380" cy="760" r="30"/></mask>
       <clipPath id="clip"><path d="${TILE}"/></clipPath>
     </defs>
     <path d="${TILE}" fill="url(#tile)"/>
     <g clip-path="url(#clip)">
-      <path d="M450 690L418 1060H606L574 690Z" fill="#fff"/>
-      <g fill="none" stroke-linecap="round">${lanes}</g>
-      <circle cx="512" cy="690" r="92" fill="#fff"/>
-      <circle cx="512" cy="690" r="36" fill="#141a26"/>
+      <g mask="url(#holes)">
+        <g fill="none" stroke-width="96">
+          <path d="M700 1060V700C700 520 380 520 380 330" stroke="url(#branch)"/>
+          <path d="M380 1060V-40" stroke="#fff"/>
+        </g>
+        <circle cx="380" cy="330" r="104" fill="#fff"/>
+        <circle cx="380" cy="760" r="76" fill="#fff"/>
+      </g>
     </g>
     <path d="${TILE}" fill="none" stroke="rgb(255 255 255 / 0.12)" stroke-width="5"/>
   </svg>`;

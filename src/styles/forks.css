@@ -1,0 +1,285 @@
+/* Your forks on GitHub (components/ForksView): each fork with its own and new commits,
+   Auto and Sync, as rows; an opened one lists the original's new commits. */
+
+.forks-body {
+  position: relative;
+  padding: var(--space-20) var(--space-24) var(--space-40);
+}
+
+/* The window to themselves (the side panels make way), but no wider than reads well. */
+.forks-top,
+.forks-table {
+  max-width: 1080px;
+  margin-inline: auto;
+}
+
+.forks-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  margin-bottom: var(--space-16);
+}
+
+.forks-summary {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  line-height: 1.5;
+}
+
+.forks-table {
+  container-type: inline-size;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* Fork, its own and new commits, when it was updated, Auto, Sync. */
+.forks-row {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) 160px 96px 40px 112px;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-8) var(--space-16) var(--space-8) var(--space-8);
+}
+
+.forks-list,
+.forks-item + .forks-item {
+  border-top: 1px solid var(--border);
+}
+
+.forks-head {
+  padding-top: var(--space-6);
+  padding-bottom: var(--space-6);
+  background: rgb(var(--overlay-rgb) / 0.03);
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.forks-head > :first-child {
+  padding-left: var(--space-24);
+}
+
+.forks-head-bars {
+  text-align: center;
+}
+
+.forks-item.open {
+  background: rgb(var(--accent-rgb) / 0.05);
+}
+
+/* The name opens the fork, to see the original's new commits. */
+.forks-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+  padding: var(--space-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.forks-name:hover {
+  background: var(--bg-hover);
+}
+
+.forks-chevron {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+
+.forks-item.open .forks-chevron {
+  transform: rotate(90deg);
+}
+
+.forks-names {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.forks-repo {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forks-from {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forks-from b {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.forks-branch {
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--type-xs);
+}
+
+/* Narrow (the details panel beside it): when each was updated makes way. */
+@container (max-width: 600px) {
+  .forks-row {
+    grid-template-columns: minmax(150px, 1fr) 160px 40px 112px;
+  }
+
+  .forks-updated {
+    display: none;
+  }
+}
+
+/* Its own commits grow left of the line, the original's new ones right, as Team's branches do. */
+.forks-bars {
+  display: flex;
+  align-items: center;
+}
+
+.forks-half {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  gap: var(--space-6);
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.forks-half.own {
+  justify-content: flex-end;
+}
+
+/* Up to four characters (1.7k): longer counts are shortened, so they never reach the next column. */
+.forks-count {
+  flex: none;
+}
+
+.forks-bar {
+  flex: none;
+  height: 8px;
+  border-radius: var(--radius-xs);
+}
+
+.forks-bar.new {
+  background: var(--accent);
+}
+
+.forks-bar.own {
+  background: var(--warning);
+}
+
+.forks-mid {
+  width: 2px;
+  height: 18px;
+  margin: 0 var(--space-4);
+  background: var(--border-strong);
+}
+
+.forks-note {
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  white-space: nowrap;
+}
+
+.forks-note.good {
+  color: var(--success-text);
+}
+
+.forks-note.bad {
+  color: var(--warning-text);
+}
+
+.forks-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* How syncing went, with an icon: Syncing…, Synced, or a chip that opens the fork to say what
+   to do when it clashed or couldn't sync. */
+.forks-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+button.forks-state {
+  height: 21px;
+  padding: 0 var(--space-8);
+  border: 1px solid rgb(var(--warning-rgb) / 0.35);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--warning-rgb) / 0.1);
+  color: var(--warning-soft-text);
+  font: inherit;
+  font-size: var(--type-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+button.forks-state:hover {
+  background: rgb(var(--warning-rgb) / 0.18);
+}
+
+.forks-detail {
+  padding: var(--space-4) var(--space-16) var(--space-16) var(--space-40);
+}
+
+.forks-detail-title {
+  margin: var(--space-4) 0 var(--space-8);
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+  font-weight: 600;
+}
+
+.forks-commit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-4) 0;
+  font-size: var(--type-sm);
+}
+
+.forks-commit-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forks-more,
+.forks-done,
+.forks-problem {
+  margin: var(--space-8) 0 0;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  line-height: 1.5;
+}
+
+.forks-done {
+  color: var(--success-text);
+}
+
+.forks-problem {
+  color: var(--warning-text);
+}

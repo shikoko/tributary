@@ -363,7 +363,7 @@ mod tests {
 
     /// git in `dir`, as someone made up, without the machine's own settings.
     fn git(dir: &Path, args: &[&str]) -> String {
-        let output = std::process::Command::new("git")
+        let output = crate::host::program("git")
             .args(args)
             .current_dir(dir)
             .env("GIT_CONFIG_GLOBAL", "/dev/null")

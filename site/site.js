@@ -235,7 +235,7 @@
      Hero: a git graph on each side of the headline. Lanes branch
      off and merge back with the app's rounded bends; the two
      trunks (main and feature/sync) meet in one commit above the
-     app, and the river runs on into it. Drawn in as the page
+     app, and one line runs on into it. Drawn in as the page
      loads; the lanes drift a little slower than the page.
      ========================================================= */
   const hero = $("#hero"), hsvg = $("#hero-graph"), hlabels = $("#hero-labels"), frame = $("#frame");
@@ -259,6 +259,8 @@
     },
   ];
   let HG = null;
+  /** The line from a commit at (x, y) down to `to`, as wide as the hero's lanes. */
+  const stemPath = (x, y, to) => `M${x - 3} ${y}V${to}H${x + 3}V${y}Z`;
 
   function buildHero() {
     const W = hero.clientWidth, H = hero.clientHeight;
@@ -371,9 +373,9 @@
     }
     tails.forEach((t) => t.p.style.setProperty("--dl", trunkEnd.toFixed(2) + "s"));
     const mergeAt = trunkEnd + 0.85;
-    // The commit they meet in, and the river into the app.
-    const river = svg("path", { class: "river", d: `M${mx - 6} ${yh}L${mx - 26} ${fy + 2}H${mx + 26}L${mx + 6} ${yh}Z` }, hsvg);
-    river.style.setProperty("--dl", (mergeAt + 0.15).toFixed(2) + "s");
+    // The commit they meet in, and the line on into the app.
+    const stem = svg("path", { class: "stem", d: stemPath(mx, yh, fy + 2) }, hsvg);
+    stem.style.setProperty("--dl", (mergeAt + 0.15).toFixed(2) + "s");
     const m = svg("g", { class: "pop" }, hsvg);
     svg("circle", { cx: mx, cy: yh, r: 40, class: "halo" }, m);
     m.style.setProperty("--dl", mergeAt.toFixed(2) + "s");
@@ -402,12 +404,13 @@
      The journey: as you scroll past the hero's commit, two
      branches spawn from it and lead down the page's sides. Each
      feature is a commit in its colour, on a loop that splits off
-     and joins again; at the end they flow into the download
-     section's mark. Drawn by scrolling; complete without motion.
+     and joins again; at the end they meet in a commit over the
+     download section, whose line runs on into the app's icon.
+     Drawn by scrolling; complete without motion.
      ========================================================= */
   const jsvg = $("#journey"), dlMark = $("#dl-mark");
-  /** The download mark's geometry, in its own pixels (index.html draws the same, for no script). */
-  const MARK = { lanes: [32, 66, 100, 134, 168], arrive: 10, splits: [38, 60, 82, 104], curve: 130, cx: 100, cy: 218 };
+  /** Where the download mark's commit is, in its own pixels (index.html draws the same, for no script). */
+  const MARK = { cx: 100, cy: 36 };
   const JOURNEY = ["graph", "theming", "undo", "art", "big-files", "reviews", "search", "simple"];
   let JY = null;
   /** A polyline with each corner rounded by its own radius (radii[i] for pts[i + 1]). */
@@ -475,21 +478,15 @@
     const lanesG = svg("g", null, jsvg), loopsG = svg("g", null, jsvg), nodesG = svg("g", null, jsvg);
     const { mx, yh, fy } = HG;
     const spawn = yh + Math.round((fy - yh) / 2);
-    // The mark they flow into: its five lanes, in the page. The two branches arrive across its
-    // top and turn down into the outer lanes; the others split off them, as the hero's do,
-    // and all five bend in, like the logo's, to the commit.
+    // The mark's commit, in the page: the two branches come in to it from each side, as the
+    // hero's trunks do theirs.
     const mk = at(dlMark), mkX = mk.x - at(main).x, mkY = mk.y - top;
-    const LX = MARK.lanes.map((x) => mkX + x), arriveY = mkY + MARK.arrive, curveY = mkY + MARK.curve;
     const cX = mkX + MARK.cx, cY = mkY + MARK.cy;
-    const intoX = [LX[0], LX[4]];
-    // On down from a lane's last corner, then the logo's bend into the commit.
-    const intoLogo = (x) => `C${r2(x)} ${r2(curveY + (cY - curveY) * 0.54)} ${r2(cX)} ${r2(cY - (cY - curveY) * 0.486)} ${r2(cX)} ${r2(cY)}`;
     const trunks = [];
     const sides = mode === "single" ? [-1] : [-1, 1];
-    sides.forEach((s, k) => {
+    sides.forEach((s) => {
       const X = side(s), x = X(trunkX), color = s < 0 ? "var(--l1)" : "var(--l5)";
-      const ix = intoX[k];
-      const d = roundedEach([[mx, yh], [mx, spawn], [x, spawn], [x, arriveY], [ix, arriveY], [ix, curveY]], [Math.min(16, spawn - yh - 2), 26, 26, 18]) + intoLogo(ix);
+      const d = roundedEach([[mx, yh], [mx, spawn], [x, spawn], [x, cY], [cX, cY]], [Math.min(16, spawn - yh - 2), 26, 26]);
       const p = svg("path", { d, class: "jl trunk" }, lanesG);
       p.style.stroke = color;
       trunks.push({ s, x, X, color, t: null, p });
@@ -522,33 +519,14 @@
       const c = svg("circle", { cx: nx, cy: ny, r: small ? 5.5 : 7.5, class: "ring" }, g); c.style.fill = color;
       nodes.push({ g, key: keyNear(owner, nx, ny) });
     });
-    // The hero's commit and its river, again, over the lanes leaving it.
+    // The hero's commit and its line, again, over the lanes leaving it.
     const copy = svg("g", { class: "copy" }, jsvg);
-    svg("path", { class: "river", d: `M${mx - 6} ${yh}L${mx - 26} ${fy + 2}H${mx + 26}L${mx + 6} ${yh}Z` }, copy);
+    svg("path", { class: "stem", d: stemPath(mx, yh, fy + 2) }, copy);
     svg("circle", { cx: mx, cy: yh, r: 17, class: "mc" }, copy);
     svg("circle", { cx: mx, cy: yh, r: 6.5, class: "md" }, copy);
-    // The middle lanes split off the arriving branches, each at a commit, with the app's bend.
-    // From both sides: pink off the left, green off the right, amber off pink; from one: each off the last.
-    const COLOURS = ["var(--l1)", "var(--l2)", "var(--l3)", "var(--l4)", "var(--l5)"];
-    const lanes = [];
-    lanes[0] = trunks[0].t;
-    if (trunks[1]) lanes[4] = trunks[1].t;
-    const SPLITS = trunks[1] ? [[0, 1, MARK.splits[0]], [4, 3, MARK.splits[0]], [1, 2, MARK.splits[1]]] : [[0, 1, MARK.splits[0]], [1, 2, MARK.splits[1]], [2, 3, MARK.splits[2]], [3, 4, MARK.splits[3]]];
-    const markLanes = [];
-    SPLITS.forEach(([from, to, sy]) => {
-      const y = mkY + sy;
-      const p = svg("path", { d: roundedEach([[LX[from], y], [LX[to], y], [LX[to], curveY]], [14]) + intoLogo(LX[to]), class: "jl" }, lanesG);
-      p.style.stroke = COLOURS[to];
-      const key = keyNear(lanes[from], LX[from], y);
-      lanes[to] = sampled(p, key);
-      markLanes.push(lanes[to]);
-      const g = svg("g", { class: "jn" }, nodesG);
-      const c = svg("circle", { cx: LX[from], cy: y, r: 4.5, class: "split" }, g); c.style.fill = COLOURS[from];
-      nodes.push({ g, key });
-    });
     dlMark.classList.add("journey-on");
-    const done = Math.max(...lanes.map((t) => keyNear(t, cX, cY)));
-    JY = { trunks, loops, nodes, copy, markLanes, done, yh };
+    const done = Math.max(...trunks.map((tr) => keyNear(tr.t, cX, cY)));
+    JY = { trunks, loops, nodes, copy, done, yh };
     updateJourney();
   }
 
@@ -561,7 +539,6 @@
     const pen = RM || atEnd ? Infinity : scrollY + innerHeight * (0.7 + 0.22 * progress) - at($("main")).y;
     JY.trunks.forEach((tr) => revealTrack(tr.t, pen));
     JY.loops.forEach((t) => revealTrack(t, pen));
-    JY.markLanes.forEach((t) => revealTrack(t, pen));
     JY.nodes.forEach((nd) => nd.g.classList.toggle("on", pen >= nd.key));
     JY.copy.classList.toggle("on", pen >= JY.yh + 2);
     dlMark.classList.toggle("done", pen >= JY.done - 2);

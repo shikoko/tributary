@@ -1,4 +1,4 @@
-/* Something loading: the logo with light running down its branches (components/Loader). */
+/* Something loading: the logo with light running up its lines (components/Loader). */
 .loader {
   display: flex;
   flex-direction: column;
@@ -23,7 +23,7 @@
   flex: none;
 }
 
-/* The branches, quieter, with the light running down them. */
+/* The lines, quieter, with the light running up them. */
 .loader-lane {
   opacity: 0.5;
 }
@@ -45,9 +45,9 @@
   }
 }
 
-/* The commit glows as the light arrives. */
+/* The merge glows as the light arrives. */
 .loader-glow {
-  fill: #ffad1f; /* the logo's orange branch (Icons.tsx) */
+  fill: #8f6bff; /* where the logo's branch joins (Icons.tsx) */
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
@@ -73,7 +73,7 @@
   }
 }
 
-.loader-dot {
+.loader-merge {
   transform-box: fill-box;
   transform-origin: center;
   animation: loader-beat 2.4s ease-in-out infinite;
@@ -86,7 +86,7 @@
   }
 
   52% {
-    transform: scale(1.35);
+    transform: scale(1.12);
   }
 
   70%,

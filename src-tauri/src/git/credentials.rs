@@ -6,7 +6,7 @@ use std::io::{Read, Write};
 use std::process::Stdio;
 use std::time::Duration;
 
-use super::{Git, command};
+use super::{Git, QUIET, command};
 use crate::error::{Error, Result};
 
 /// A user name and password (or token) for a host.
@@ -48,17 +48,7 @@ impl Git {
         timeout: Duration,
     ) -> Option<Credential> {
         let input = request(host, None).ok()?;
-        let mut child = command(&self.executable);
-        child
-            .args(["credential", "fill"])
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null());
-        if !interactive {
-            child.env("GCM_INTERACTIVE", "never");
-        }
-        let mut child = child.spawn().ok()?;
+        let mut child = self.fill_command(interactive).spawn().ok()?;
         child.stdin.take()?.write_all(input.as_bytes()).ok()?;
         let mut stdout = child.stdout.take()?;
         let (sender, answer) = std::sync::mpsc::channel();
@@ -81,6 +71,21 @@ impl Git {
             username: field("username").unwrap_or_default(),
             password,
         })
+    }
+
+    /// `git credential fill`, which only asks the user anything when `interactive`.
+    fn fill_command(&self, interactive: bool) -> std::process::Command {
+        let mut child = command(&self.executable);
+        child
+            .args(["credential", "fill"])
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null());
+        if !interactive {
+            child.envs(QUIET);
+        }
+        child
     }
 
     /// The password (for GitHub, a token) git keeps for `https://{host}`, if it has one.
@@ -118,7 +123,7 @@ impl Git {
         let mut child = command(&self.executable)
             .args(["credential", verb])
             .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GCM_INTERACTIVE", "never")
+            .envs(QUIET)
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
@@ -144,7 +149,42 @@ impl Git {
 
 #[cfg(test)]
 mod tests {
-    use super::{Credential, request};
+    use super::{Credential, Git, request};
+    use std::ffi::OsStr;
+    use std::path::PathBuf;
+
+    /// What `command` sets `name` to, if it sets it.
+    fn env<'a>(command: &'a std::process::Command, name: &str) -> Option<Option<&'a OsStr>> {
+        command
+            .get_envs()
+            .find(|(key, _)| *key == name)
+            .map(|(_, value)| value)
+    }
+
+    #[test]
+    fn looks_up_a_sign_in_without_ever_asking() {
+        let git = Git {
+            executable: PathBuf::from("git"),
+            workdir: std::env::temp_dir(),
+            background: false,
+        };
+        // Quietly: no password window (KDE's ksshaskpass, from SSH_ASKPASS, opened at
+        // startup), and no Git Credential Manager window.
+        let quiet = git.fill_command(false);
+        assert_eq!(env(&quiet, "GIT_ASKPASS"), Some(Some(OsStr::new(""))));
+        assert_eq!(
+            env(&quiet, "GCM_INTERACTIVE"),
+            Some(Some(OsStr::new("never")))
+        );
+        assert_eq!(
+            env(&quiet, "GIT_TERMINAL_PROMPT"),
+            Some(Some(OsStr::new("0")))
+        );
+        // Signing in, which someone asked for, may open the helper's window.
+        let asked = git.fill_command(true);
+        assert_eq!(env(&asked, "GIT_ASKPASS"), None);
+        assert_eq!(env(&asked, "GCM_INTERACTIVE"), None);
+    }
 
     #[test]
     fn writes_credential_requests_without_letting_values_add_lines() {

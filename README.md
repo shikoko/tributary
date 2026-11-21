@@ -155,6 +155,7 @@ One line each here; the [feature guide](docs/features.md) has the details.
 - CI status on every commit (merges show it on their own dot), and re-running failed jobs.
 - GitHub, GitLab, Jira and Linear issues, with branches named after them.
 - Code owners offered as reviewers when you open a pull request.
+- Your forks on GitHub: how far behind each is, and syncing them with their originals, by hand or by themselves.
 
 → [More about pull requests](docs/features.md#pull-requests-and-remotes)
 

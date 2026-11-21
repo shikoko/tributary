@@ -48,7 +48,6 @@
   --graph-ring: #ffffff;
   /* The logo's merge and river (the app icon's, in each theme). */
   --logo-ink: #ffffff;
-  --logo-dot: #141a26;
   --logo-tile-top: #1c2333;
   --logo-tile-bottom: #0b0e14;
   --match: #ffd23f;
@@ -208,7 +207,6 @@
   --on-danger: #ffffff;
   --graph-ring: #1b1f26;
   --logo-ink: #141a26;
-  --logo-dot: #ffffff;
   --logo-tile-top: #ffffff;
   --logo-tile-bottom: #e5eaf2;
   --match: #c99700;

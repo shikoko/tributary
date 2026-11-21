@@ -409,7 +409,7 @@ mod tests {
         std::fs::create_dir_all(two.join("submodule")).unwrap();
         // A git waiting for input until it's stopped, in each (in the second's submodule).
         let start = |workdir: &Path| {
-            let child = std::process::Command::new("git")
+            let child = crate::host::program("git")
                 .args(["hash-object", "--stdin"])
                 .stdin(Stdio::piped())
                 .stdout(Stdio::null())

@@ -1140,6 +1140,52 @@ function writeDemoGlobalConfig(root) {
 }
 
 /** What to run the preview's git with on these demos (see DEMO_ENV and writeDemoGlobalConfig). */
+/**
+ * Your forks on GitHub, for the preview's stand-in sign-in (window.__PREVIEW__.github.forks):
+ * each fork, how it compares with its original, and how syncing it goes when that isn't by
+ * its commits (a clash). Made up, like the rest.
+ */
+export function demoForks() {
+  const people = [
+    ["Sam Okafor", "sam@example.com"],
+    ["Priya Nair", "priya@example.com"],
+    ["Lena Fischer", "lena@example.com"],
+  ];
+  const commits = (subjects, daysAgo = 1) =>
+    subjects.map((summary, i) => ({
+      id: (i + 1).toString(16).padStart(40, "a"),
+      summary,
+      author: people[i % people.length][0],
+      email: people[i % people.length][1],
+      date: new Date(Date.now() - (daysAgo + i) * 86_400_000).toISOString(),
+    }));
+  const fork = (name, parentOwner, branch = "main", pushedDaysAgo = 20) => ({
+    owner: "maya-chen",
+    name,
+    branch,
+    private: false,
+    url: `https://github.com/maya-chen/${name}`,
+    pushed: new Date(Date.now() - pushedDaysAgo * 86_400_000).toISOString(),
+    parent: { owner: parentOwner, name, branch, url: `https://github.com/${parentOwner}/${name}` },
+  });
+  return [
+    {
+      fork: fork("lantern-ui", "lanternkit", "main", 60),
+      status: { new: 41, own: 2, commits: commits(["Soften the lantern glow on dark themes", "Keyboard focus rings for every control", "Fix a flicker when the window regains focus", "Smaller bundles for the icon set"]) },
+      sync: "conflict",
+    },
+    {
+      fork: fork("pixel-fonts", "typeforge", "trunk", 30),
+      status: { new: 7, own: 0, commits: commits(["Add the tavern sign typeface", "Kerning for the small sizes", "Fix the ligature for fi", "Export the fonts as WOFF2", "Bolder punctuation", "A wider space", "Build on the new toolchain"]) },
+    },
+    { fork: fork("quill-docs", "quillworks", "main", 14), status: { new: 0, own: 3, commits: [] } },
+    {
+      fork: fork("tavern-assets", "riverstone-games", "main", 5),
+      status: { new: 3, own: 0, commits: commits(["Paint a mug of ale next to the sign", "Lighter textures for the bar stools", "Name the door hinge sounds"]) },
+    },
+  ];
+}
+
 export function demoEnv(demos) {
   return { ...DEMO_ENV, GIT_CONFIG_GLOBAL: demos.globalConfig, TRIBUTARY_SSH_DIR: demos.sshDir };
 }

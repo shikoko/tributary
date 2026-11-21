@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::error::{Error, Result};
-use crate::git::Git;
+// Listing locks never pops up a sign-in window.
+use crate::git::{Git, QUIET};
 
 /// A file locked with Git LFS.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
@@ -104,9 +105,6 @@ fn unsupported(error: &str) -> bool {
     .iter()
     .any(|sign| error.to_string().contains(sign))
 }
-
-/// Don't pop up sign-in windows for listing locks.
-const QUIET: [(&str, &str); 1] = [("GCM_INTERACTIVE", "never")];
 
 /// What's known about servers that can't tell whose locks are whose.
 #[derive(Default)]

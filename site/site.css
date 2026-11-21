@@ -1,5 +1,4 @@
-/* Tributary's website. Colours come from the app's theme (src/styles/theme.css), lanes from
-   the logo (LOGO_LANES in src/components/Icons.tsx). */
+/* Tributary's website. Colours come from the app's theme (src/styles/theme.css). */
 
 @font-face {
   font-family: "Google Sans Variable";
@@ -18,7 +17,7 @@
 
 /* ---------- Tokens ---------- */
 :root {
-  /* The logo's lanes, the same in both themes. */
+  /* The lanes' colours (the logo's branch is --l2 into --l5). */
   --l1: #1fb5ff; --l2: #ff4f9a; --l3: #ffad1f; --l4: #2fd38a; --l5: #8f6bff;
   /* The lanes as text, readable on the background. */
   --t1: #1fb5ff; --t2: #ff6aa9; --t3: #ffbd4a; --t4: #3ee096; --t5: #a68cff;
@@ -137,7 +136,7 @@ svg { overflow: visible; }
 svg text.ini { font-family: var(--font); font-weight: 700; fill: var(--on-lane); text-anchor: middle; dominant-baseline: alphabetic; letter-spacing: -.01em; pointer-events: none; }
 #hero-graph .merge-c { fill: var(--logo-ink); }
 #hero-graph .merge-d { fill: var(--logo-dot); }
-#hero-graph .river { fill: var(--logo-ink); }
+#hero-graph .stem { fill: var(--logo-ink); }
 #hero-graph .halo { fill: url(#hero-halo); }
 #hero-labels { position: absolute; left: 0; top: 0; width: 100%; z-index: -1; pointer-events: none; }
 .hl-label {
@@ -154,7 +153,7 @@ svg text.ini { font-family: var(--font); font-weight: 700; fill: var(--on-lane);
 .js .hero-in .lane.draw.ease { animation-timing-function: cubic-bezier(.45, 0, .2, 1); }
 .js .hero-in .pop { opacity: 0; transform: scale(.3); transform-box: fill-box; transform-origin: center; animation: pop .5s cubic-bezier(.3, 1.5, .5, 1) var(--dl, 0s) forwards; }
 .js .hero-in .hl-label { opacity: 0; animation: label-in .6s var(--ease) var(--dl, 0s) forwards; }
-.js .hero-in .river { opacity: 0; animation: fade .7s ease var(--dl, 0s) forwards; }
+.js .hero-in .stem { opacity: 0; animation: fade .7s ease var(--dl, 0s) forwards; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes pop { to { opacity: 1; transform: none; } }
 @keyframes fade { to { opacity: 1; } }
@@ -596,20 +595,18 @@ main { position: relative; }
 #journey .jn.on { opacity: 1; transform: none; }
 #journey .jn .ring { stroke: var(--page); stroke-width: 3.5; }
 #journey .jn .halo { fill: none; stroke-width: 1.5; opacity: .4; }
-#journey .jn .split { stroke: none; }
 #journey .copy { opacity: 0; transition: opacity .3s; }
 #journey .copy.on { opacity: 1; }
 #journey .copy .mc { fill: var(--logo-ink); }
 #journey .copy .md { fill: var(--logo-dot); }
-#journey .copy .river { fill: var(--logo-ink); }
+#journey .copy .stem { fill: var(--logo-ink); }
 
-.dl-mark { width: 200px; height: 290px; margin: 0 auto 26px; }
+.dl-mark { width: 200px; height: 232px; margin: 0 auto 26px; }
 .dl-mark svg { display: block; overflow: visible; }
-.dl-mark .base { fill: var(--logo-ink); }
+.dl-mark .stem { fill: var(--logo-ink); }
 .dl-mark .mc { fill: var(--logo-ink); }
 .dl-mark .md { fill: var(--logo-dot); }
 .dl-mark .halo { fill: color-mix(in srgb, var(--l5) 22%, transparent); filter: blur(10px); }
-.dl-mark .split { stroke: none; }
 .dl-mark.journey-on .lanes { display: none; }
 .js .dl-mark .m { opacity: 0; transform: scale(.35); transform-box: fill-box; transform-origin: center; transition: opacity .35s, transform .55s cubic-bezier(.3, 1.5, .5, 1); }
 .js .dl-mark .base { opacity: 0; transition: opacity .6s .15s; }
@@ -942,6 +939,6 @@ main { position: relative; }
   .js .reveal, .js .feat-head.reveal .points li { opacity: 1; transform: none; }
   .frame { transform: none; }
   .js .hero-in .lane.draw { stroke-dasharray: none; stroke-dashoffset: 0; }
-  .js .hero-in .pop, .js .hero-in .river { opacity: 1; transform: none; }
+  .js .hero-in .pop, .js .hero-in .stem { opacity: 1; transform: none; }
   .js .hero-in .hl-label { opacity: 1; translate: none; }
 }

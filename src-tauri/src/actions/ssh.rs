@@ -3,7 +3,6 @@
 //! github.com accepts a key (`ssh -T`).
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use base64::Engine;
 use serde::Serialize;
@@ -135,7 +134,7 @@ pub fn generate_in(dir: &Path, name: &str, comment: &str, passphrase: &str) -> R
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700));
     }
-    let output = Command::new("ssh-keygen")
+    let output = crate::host::program("ssh-keygen")
         .args(["-q", "-t", "ed25519", "-C", comment, "-N", passphrase, "-f"])
         .arg(&private)
         .output()
@@ -193,7 +192,7 @@ pub fn check_ssh_key(host: &str, public_key: &str) -> Result<SshCheck> {
     let private = public_key
         .strip_suffix(".pub")
         .ok_or("That isn't a public key's file.")?;
-    let output = Command::new("ssh")
+    let output = crate::host::program("ssh")
         .args([
             "-T",
             "-o",

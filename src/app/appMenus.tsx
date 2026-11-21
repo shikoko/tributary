@@ -30,6 +30,8 @@ export interface MenuBarContext {
   highlightingMine: boolean;
   /** The team activity view is open. */
   teamOpen: boolean;
+  /** Your forks are open (they're only in the menu when Settings shows them). */
+  forksOpen: boolean;
   /** A tab was closed lately, and can be opened again. */
   canReopenTab: boolean;
   /** Whether the repository uses Git LFS locking, and Git LFS at all. */
@@ -54,6 +56,8 @@ export interface MenuBarContext {
     showAllBranches: () => void;
     highlightMine: () => void;
     team: () => void;
+    /** Your forks on GitHub; absent when Settings doesn't show them. */
+    forks?: () => void;
     /** The View panel, under the View button at the end of the column headings. */
     viewOptions: () => void;
     resetLayout: () => void;
@@ -178,6 +182,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           { id: "show-all", label: "Show All Branches", enabled: ctx.hiddenCount > 0, run: run.showAllBranches },
           { id: "mine", label: "Highlight My Commits", checked: ctx.highlightingMine, enabled: Boolean(snapshot.user), run: run.highlightMine },
           { id: "team", label: "Team Activity", keys: "CmdOrCtrl+Shift+T", checked: ctx.teamOpen, run: run.team },
+          ...(run.forks ? [{ id: "forks", label: "Your Forks", checked: ctx.forksOpen, keywords: "fork sync upstream original github", run: run.forks }] : []),
           "-",
           { id: "view-options", label: "View Options…", keys: "CmdOrCtrl+Shift+O", icon: <ViewIcon />, keywords: "theme accent graph columns rows appearance look", run: run.viewOptions },
           { id: "day-separators", label: "Day Separators", checked: daySeparators, run: () => setDaySeparators(!daySeparators) },

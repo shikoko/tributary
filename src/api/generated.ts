@@ -639,6 +639,9 @@ export type Commands = {
   github_sign_in_with_browser: { args: Record<string, never>; returns: GitHubAccount };
   github_sign_out: { args: Record<string, never>; returns: void };
   github_repositories: { args: Record<string, never>; returns: Array<AccountRepo> };
+  github_forks: { args: Record<string, never>; returns: Forks };
+  github_fork_status: { args: { fork: Fork }; returns: ForkStatus };
+  github_sync_fork: { args: { fork: Fork }; returns: ForkSync };
   gitlab_status: { args: { host: string }; returns: GitLabStatus };
   gitlab_sign_in: { args: { host: string; token: string }; returns: GitLabAccount };
   gitlab_sign_in_with_browser: { args: { host: string }; returns: GitLabAccount };
@@ -1112,6 +1115,98 @@ export type FolderChoice = {
  * The site a pull (or merge) request is on.
  */
 export type Forge = "github" | "gitlab";
+
+/**
+ * One of your forks on GitHub.
+ */
+export type Fork = {
+  owner: string;
+  name: string;
+  /**
+   * The branch that's synced: the fork's default branch.
+   */
+  branch: string;
+  private: boolean;
+  /**
+   * Its page on GitHub.
+   */
+  url: string;
+  /**
+   * When something was last pushed to it, a sync included (ISO 8601).
+   */
+  pushed: string | null;
+  /**
+   * The repository it's a fork of.
+   */
+  parent: ForkParent;
+};
+
+/**
+ * One of the original's commits that a fork doesn't have.
+ */
+export type ForkCommit = {
+  id: string;
+  /**
+   * Its message's first line.
+   */
+  summary: string;
+  author: string;
+  email: string;
+  /**
+   * When it was written (ISO 8601).
+   */
+  date: string;
+};
+
+/**
+ * The repository a fork was forked from.
+ */
+export type ForkParent = {
+  owner: string;
+  name: string;
+  /**
+   * Its default branch, which the fork's branch is compared with.
+   */
+  branch: string;
+  url: string;
+};
+
+/**
+ * How a fork's branch compares with its original's.
+ */
+export type ForkStatus = {
+  /**
+   * The original's commits that the fork doesn't have yet.
+   */
+  new: number;
+  /**
+   * The fork's own commits, which the original doesn't have.
+   */
+  own: number;
+  /**
+   * The newest of the new commits, the newest first (at most 20).
+   */
+  commits: Array<ForkCommit>;
+};
+
+/**
+ * What syncing a fork did, and GitHub's own words about it.
+ */
+export type ForkSync = { outcome: SyncOutcome; message: string };
+
+/**
+ * Your forks, when you're signed in.
+ */
+export type Forks = {
+  /**
+   * Whether git keeps a token for GitHub: without one, there's nobody to list forks of.
+   */
+  signedIn: boolean;
+  /**
+   * By name.
+   */
+  forks: Array<Fork>;
+};
 
 /**
  * A commit found, with enough to list it before it's loaded in the history.
@@ -3150,6 +3245,16 @@ export type Summary = {
    */
   crashReports: Array<string>;
 };
+
+/**
+ * What syncing a fork did.
+ */
+export type SyncOutcome =
+  | "fastForward"
+  | "merged"
+  | "upToDate"
+  | "conflict"
+  | "refused";
 
 /**
  * Who committed where lately: people, the branches they work on, and how far those are from the main branch.

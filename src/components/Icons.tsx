@@ -521,6 +521,16 @@ export const TeamIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A repository forked: two branches from one, as GitHub draws a fork. */
+export const ForkIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="4.5" cy="3.5" r="1.5" />
+    <circle cx="11.5" cy="3.5" r="1.5" />
+    <circle cx="8" cy="12.5" r="1.5" />
+    <path d="M4.5 5v1.25c0 1.1.9 2 2 2h3c1.1 0 2-.9 2-2V5M8 8.25V11" />
+  </Icon>
+);
+
 export const ColumnsIcon = (p: IconProps) => (
   <Icon {...p}>
     <rect x="2" y="3" width="12" height="10" rx="1.5" />
@@ -536,53 +546,81 @@ export const RewriteIcon = (p: IconProps) => (
 );
 
 
-/** The logo's five branches: where each starts, and its colour (the graph's first five). */
-export const LOGO_LANES: [number, string][] = [
-  [200, "#1fb5ff"],
-  [356, "#ff4f9a"],
-  [512, "#ffad1f"],
-  [668, "#2fd38a"],
-  [824, "#8f6bff"],
+/** The logo's main line, without its tile: from above the merge to below the older commit. */
+export const LOGO_MAIN = "M380 190V890";
+/** On its tile, the main line runs from edge to edge. */
+const LOGO_MAIN_TILE = "M380 1060V-40";
+/** The logo's branch: up from `from`, then one smooth bend into the merge. */
+export const logoBranch = (from = 890) => `M700 ${from}V700C700 520 380 520 380 330`;
+/** The width of the logo's lines. */
+export const LOGO_WIDTH = 96;
+/** The commits, as [x, y, radius, hole]: the merge, and an older one on the main line. */
+export const LOGO_COMMITS: [number, number, number, number][] = [
+  [380, 330, 104, 40],
+  [380, 760, 76, 30],
 ];
-/** A branch of the logo, from above its top edge down to the commit they merge into. */
-export const logoLane = (x: number) => `M${x} 20V320C${x} 520 512 510 512 690`;
-/** Outer branches first, the middle one last, so they overlap evenly where they meet. */
-export const LOGO_LANE_ORDER = [0, 4, 1, 3, 2];
-/** The river flowing on from the commit. */
-export const LOGO_RIVER = "M450 690L418 1060H606L574 690Z";
+/** The mark alone, in the middle of a square. */
+export const LOGO_VIEWBOX = "102 130 820 820";
 
 /** The app icon's tile: a rounded square with continuous (Apple-style) corners. */
 const LOGO_TILE = "M924 512C924 922 922 924 512 924C102 924 100 922 100 512C100 102 102 100 512 100C922 100 924 102 924 512Z";
 
 /**
- * Tributary's logo, drawn like the app icon (tools/icons/draw.py): five branches in the
- * graph's colours flow in from above and merge into one commit, and one river flows on, in
- * the theme's colours (dark on light, white on dark). With `tile`, it's the whole app icon;
- * without, just the mark.
+ * What the logo's drawing refers to, by `id`: `${id}-branch`, the branch's colours (the
+ * graph's pink where it starts, violet where it joins), and `${id}-holes`, a mask that cuts
+ * the commits' holes right through, so they show whatever is behind them.
+ */
+export function LogoDefs({ id, from = 890 }: { id: string; from?: number }) {
+  return (
+    <defs>
+      <linearGradient id={`${id}-branch`} gradientUnits="userSpaceOnUse" x1="0" y1={from} x2="0" y2="330">
+        <stop offset="0" stopColor="#ff4f9a" />
+        <stop offset="1" stopColor="#8f6bff" />
+      </linearGradient>
+      <mask id={`${id}-holes`} maskUnits="userSpaceOnUse" x="-100" y="-100" width="1224" height="1224">
+        <rect x="-100" y="-100" width="1224" height="1224" fill="#fff" />
+        {LOGO_COMMITS.map(([x, y, , hole]) => (
+          <circle key={y} cx={x} cy={y} r={hole} fill="#000" />
+        ))}
+      </mask>
+    </defs>
+  );
+}
+
+/** The logo's commits, in the theme's ink. */
+export const LogoCommits = ({ merge }: { merge?: string }) =>
+  LOGO_COMMITS.map(([x, y, r], i) => (
+    <circle key={y} className={i === 0 ? merge : undefined} cx={x} cy={y} r={r} style={{ fill: "var(--logo-ink)" }} />
+  ));
+
+/**
+ * Tributary's logo, drawn like the app icon (tools/icons/draw.py): a branch in the graph's
+ * colours bends in to join the main line at a commit, as a merged branch does in the history.
+ * The main line and the commits are in the theme's colours (dark on light, white on dark).
+ * With `tile`, it's the whole app icon; without, just the mark.
  */
 export function Logo({ size = 32, tile = false }: { size?: number; tile?: boolean }) {
   const id = useId().replace(/:/g, "");
   const mark = (
-    <>
-      <path d={LOGO_RIVER} style={{ fill: "var(--logo-ink)" }} />
-      <g fill="none" strokeLinecap="round">
-        {LOGO_LANE_ORDER.map((i) => (
-          <path key={i} d={logoLane(LOGO_LANES[i][0])} stroke={LOGO_LANES[i][1]} strokeWidth={86} />
-        ))}
+    <g mask={`url(#${id}-holes)`}>
+      <g fill="none" strokeWidth={LOGO_WIDTH} strokeLinecap="round">
+        <path d={logoBranch(tile ? 1060 : 890)} stroke={`url(#${id}-branch)`} />
+        <path d={tile ? LOGO_MAIN_TILE : LOGO_MAIN} style={{ stroke: "var(--logo-ink)" }} />
       </g>
-      <circle cx="512" cy="690" r="92" style={{ fill: "var(--logo-ink)" }} />
-      <circle cx="512" cy="690" r="36" style={{ fill: "var(--logo-dot)" }} />
-    </>
+      <LogoCommits />
+    </g>
   );
   if (!tile) {
     return (
-      <svg width={size} height={size} viewBox="150 150 724 724" aria-hidden="true">
+      <svg width={size} height={size} viewBox={LOGO_VIEWBOX} aria-hidden="true">
+        <LogoDefs id={id} />
         {mark}
       </svg>
     );
   }
   return (
     <svg width={size} height={size} viewBox="100 100 824 824" aria-hidden="true" className="logo-tile">
+      <LogoDefs id={id} from={924} />
       <defs>
         <linearGradient id={`${id}-bg`} x1="0" y1="0" x2="0.35" y2="1">
           <stop offset="0" style={{ stopColor: "var(--logo-tile-top)" }} />
