@@ -215,9 +215,13 @@
 
 /* Buttons in messages and panels */
 
+/* Its words trimmed to their capitals, in the middle of a height they can be centred in. */
 .toast-button {
+  display: inline-flex;
+  align-items: center;
+  height: 25px;
   margin-left: var(--space-6);
-  padding: var(--space-4) var(--space-10);
+  padding: 0 var(--space-10);
   border: 1px solid rgb(var(--success-rgb) / 0.4);
   border-radius: var(--radius-md);
   background: transparent;

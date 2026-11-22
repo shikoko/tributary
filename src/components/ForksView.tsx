@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { forkStatus, gitHubForks, syncFork, type Fork, type Forks, type ForkStatus, type ForkSync } from "../api";
-import { barWidth, forkKey, outcomeText, parentKey, shortCount, synced, type ForkSyncEvery } from "../lib/forks";
+import { barWidth, forkKey, onForkSyncNews, outcomeText, parentKey, shortCount, synced, type ForkSyncEvery } from "../lib/forks";
 import { relativeTime } from "../lib/format";
 import { Avatar } from "./Avatar";
 import { CheckIcon, ChevronRightIcon, CloseIcon, ForkIcon, RefreshIcon, WarningIcon } from "./Icons";
@@ -113,6 +113,23 @@ export function ForksView({ auto, setAuto, every, onSignIn, openUrl, onClose }: 
         if (alive.current) setSyncs((all) => ({ ...all, [key]: { running: false, sync: null, error: String(error) } }));
       }
     },
+    [compare],
+  );
+
+  // The automatic sync, while the screen is open: its forks show as if their Sync was pressed.
+  useEffect(
+    () =>
+      onForkSyncNews((news) => {
+        if (!alive.current) return;
+        const key = forkKey(news.fork);
+        if (news.kind === "compared") setCompared((all) => ({ ...all, [key]: { status: news.status, error: null } }));
+        else if (news.kind === "syncing") setSyncs((all) => ({ ...all, [key]: { running: true } }));
+        else {
+          const done = () => alive.current && setSyncs((all) => ({ ...all, [key]: { running: false, sync: news.sync, error: news.error } }));
+          if (news.sync && synced(news.sync.outcome)) void compare(news.fork).then(done);
+          else done();
+        }
+      }),
     [compare],
   );
 

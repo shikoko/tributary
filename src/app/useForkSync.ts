@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { forkStatus, gitHubForks, syncFork } from "../api";
 import type { ToastMessage } from "../components/Toast";
-import { describeForkRun, forkKey, syncDue, type ForkRun, type ForkRunResult, type ForkSyncEvery } from "../lib/forks";
+import { describeForkRun, forkKey, syncDue, tellForkSyncNews, type ForkRun, type ForkRunResult, type ForkSyncEvery } from "../lib/forks";
 import { notifySystem } from "../lib/notify";
 import { FIRST_AUTO_FETCH_DELAY } from "./constants";
 
@@ -26,7 +26,8 @@ interface Options {
  * Your forks with Auto on, synced by themselves while Tributary is open: a minute after it
  * starts, then every hour or day, as Settings says. Each one behind its original is synced
  * on GitHub, as its Sync fork button does; then it says what happened, when anything did. A
- * fork whose own changes clash with its original's is left as it is.
+ * fork whose own changes clash with its original's is left as it is. An open Forks screen
+ * hears about each fork as it goes, and shows it as if its Sync had been pressed.
  */
 export function useForkSync(options: Options) {
   const latest = useRef(options);
@@ -41,15 +42,21 @@ export function useForkSync(options: Options) {
       const wanted = new Set(latest.current.auto);
       const { forks } = await gitHubForks();
       for (const fork of forks.filter((each) => wanted.has(forkKey(each)))) {
+        let syncing = false;
         try {
           const status = await forkStatus(fork);
+          tellForkSyncNews({ kind: "compared", fork, status });
           if (status.new === 0) {
             results.push({ name: fork.name, outcome: "upToDate", message: "" });
             continue;
           }
+          syncing = true;
+          tellForkSyncNews({ kind: "syncing", fork });
           const sync = await syncFork(fork);
+          tellForkSyncNews({ kind: "done", fork, sync, error: null });
           results.push({ name: fork.name, outcome: sync.outcome, message: sync.message });
         } catch (error) {
+          if (syncing) tellForkSyncNews({ kind: "done", fork, sync: null, error: String(error) });
           results.push({ name: fork.name, outcome: "failed", message: String(error) });
         }
       }

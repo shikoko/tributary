@@ -1,7 +1,7 @@
 // Your forks on GitHub: their names, which to sync by themselves and when, and what to say
 // about how syncing went. The Forks screen (components/ForksView) and the automatic sync
 // (app/useForkSync) share these.
-import type { Fork, ForkSync, SyncOutcome } from "../api";
+import type { Fork, ForkStatus, ForkSync, SyncOutcome } from "../api";
 
 /** How often the forks with Auto on are synced, while Tributary is open. */
 export type ForkSyncEvery = "hour" | "day" | "off";
@@ -72,6 +72,27 @@ export function describeForkRun(run: ForkRun): string | null {
     );
   for (const result of failed) parts.push(`${result.name} couldn't sync: ${result.message.replace(/\.$/, "")}.`);
   return parts.length > 0 ? parts.join(" ") : null;
+}
+
+/** What the automatic sync is doing to a fork: compared it, syncing it, or done (how it went). */
+export type ForkSyncNews =
+  | { kind: "compared"; fork: Fork; status: ForkStatus }
+  | { kind: "syncing"; fork: Fork }
+  | { kind: "done"; fork: Fork; sync: ForkSync | null; error: string | null };
+
+const listeners = new Set<(news: ForkSyncNews) => void>();
+
+/** Hear what the automatic sync does (the Forks screen, while it's open); returns how to stop. */
+export function onForkSyncNews(listener: (news: ForkSyncNews) => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Tell whoever is listening what the automatic sync is doing. */
+export function tellForkSyncNews(news: ForkSyncNews) {
+  for (const listener of listeners) listener(news);
 }
 
 /** A bar's width for `count` commits, where `most` gets `full` pixels: never under 6 when there are any. */

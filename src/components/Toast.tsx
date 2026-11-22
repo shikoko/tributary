@@ -39,7 +39,7 @@ export function Toast({ toast, onDone }: { toast: ToastMessage; onDone: () => vo
             toast.action!.onClick();
           }}
         >
-          {toast.action.label}
+          <span className="button-label">{toast.action.label}</span>
         </button>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Fork } from "../api";
-import { barWidth, describeForkRun, forkKey, listNames, outcomeText, parentKey, shortCount, syncDue } from "./forks";
+import { barWidth, describeForkRun, forkKey, listNames, onForkSyncNews, outcomeText, parentKey, shortCount, syncDue, tellForkSyncNews, type ForkSyncNews } from "./forks";
 
 const FORK: Fork = {
   owner: "rosa-bell",
@@ -66,6 +66,16 @@ describe("forks", () => {
     expect(barWidth(1, 41, 70)).toBe(6);
     expect(barWidth(0, 41, 70)).toBe(0);
     expect(barWidth(500, 41, 70)).toBe(70);
+  });
+
+  it("tells what the automatic sync does to whoever listens, until they stop", () => {
+    const heard: ForkSyncNews[] = [];
+    const stop = onForkSyncNews((news) => heard.push(news));
+    tellForkSyncNews({ kind: "syncing", fork: FORK });
+    tellForkSyncNews({ kind: "done", fork: FORK, sync: { outcome: "fastForward", message: "" }, error: null });
+    stop();
+    tellForkSyncNews({ kind: "syncing", fork: FORK });
+    expect(heard.map((news) => news.kind)).toEqual(["syncing", "done"]);
   });
 
   it("shortens counts that wouldn't fit beside a bar", () => {

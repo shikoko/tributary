@@ -65,11 +65,17 @@ export default async function ({ page, folder, locks, preview, step, accessible,
 
   await step("lists your forks on GitHub once Settings shows them, syncs them, and keeps one in sync by itself", async () => {
     const { demoForks } = await import("../../demo.mjs");
+    // The four made-up forks, and one more behind its original, for Auto to sync.
+    const maps = structuredClone(demoForks()[1]);
+    Object.assign(maps.fork, { name: "inn-maps", url: "https://github.com/maya-chen/inn-maps" });
+    Object.assign(maps.fork.parent, { name: "inn-maps", url: "https://github.com/typeforge/inn-maps" });
+    maps.status = { new: 2, own: 0, commits: maps.status.commits.slice(0, 2) };
     const before = await page.evaluate((forks) => {
       const was = window.__PREVIEW__.github;
       window.__PREVIEW__.github = { account: { login: "maya-chen", name: "Maya Chen" }, forks };
+      localStorage.removeItem("tributary.forks.run");
       return was ?? null;
-    }, demoForks());
+    }, [...demoForks(), maps]);
     try {
       expect((await page.getByRole("button", { name: "Your forks" }).count()) === 0, "the Forks button showed before Settings showed your forks");
       await page.keyboard.press("Control+Comma");
@@ -84,8 +90,18 @@ export default async function ({ page, folder, locks, preview, step, accessible,
       await page.locator(".details-frame").waitFor({ state: "detached", timeout: 5000 });
       const fonts = view.getByRole("listitem", { name: "maya-chen/pixel-fonts" });
       await fonts.getByRole("img", { name: "0 of its own, 7 new" }).waitFor({ timeout: 10_000 });
-      await view.locator(".forks-summary", { hasText: "4 forks of yours on GitHub · 3 behind their originals" }).waitFor({ timeout: 5000 });
+      await view.locator(".forks-summary", { hasText: "5 forks of yours on GitHub · 4 behind their originals" }).waitFor({ timeout: 5000 });
       await accessible("your forks");
+      // Auto turned on, the fork syncs by itself a few seconds later, and its row shows it
+      // as if its Sync had been pressed. Auto is remembered by the fork's name.
+      const maps = view.getByRole("listitem", { name: "maya-chen/inn-maps" });
+      await view.getByRole("switch", { name: "Sync maya-chen/inn-maps by itself" }).click();
+      const auto = await page.evaluate(() => JSON.parse(localStorage.getItem("tributary.forks.auto")));
+      expect(JSON.stringify(auto) === JSON.stringify(["maya-chen/inn-maps"]), `auto ${JSON.stringify(auto)}`);
+      await maps.locator(".forks-state.good", { hasText: "Synced" }).waitFor({ timeout: 15_000 });
+      await maps.getByRole("img", { name: "0 of its own, 0 new" }).waitFor({ timeout: 5000 });
+      await view.locator(".forks-summary", { hasText: "5 forks of yours on GitHub · 3 behind their originals" }).waitFor({ timeout: 5000 });
+      await view.getByRole("switch", { name: "Sync maya-chen/inn-maps by itself" }).click();
       // Opened, it lists the original's new commits.
       await fonts.locator(".forks-name").click();
       await fonts.getByText("Kerning for the small sizes").waitFor({ timeout: 5000 });
@@ -117,20 +133,15 @@ export default async function ({ page, folder, locks, preview, step, accessible,
       const lantern = view.getByRole("listitem", { name: "maya-chen/lantern-ui" });
       const tavern = view.getByRole("listitem", { name: "maya-chen/tavern-assets" });
       await tavern.locator(".forks-state.good", { hasText: "Synced" }).waitFor({ timeout: 5000 });
-      await view.locator(".forks-summary", { hasText: "4 forks of yours on GitHub · 1 behind its original" }).waitFor({ timeout: 5000 });
+      await view.locator(".forks-summary", { hasText: "5 forks of yours on GitHub · 1 behind its original" }).waitFor({ timeout: 5000 });
       await lantern.getByRole("button", { name: "Clashes: what to do about maya-chen/lantern-ui" }).click();
       await lantern.getByText(/GitHub couldn't sync it by itself/).waitFor({ timeout: 5000 });
       await accessible("your forks, after syncing three");
       const synced = await page.evaluate(() => window.__PREVIEW__.syncedForks);
       expect(
-        JSON.stringify(synced) === JSON.stringify(["maya-chen/pixel-fonts", "maya-chen/lantern-ui", "maya-chen/tavern-assets"]),
+        JSON.stringify(synced) === JSON.stringify(["maya-chen/inn-maps", "maya-chen/pixel-fonts", "maya-chen/lantern-ui", "maya-chen/tavern-assets"]),
         `synced ${JSON.stringify(synced)}`,
       );
-      // Auto is remembered by the fork's name.
-      await view.getByRole("switch", { name: "Sync maya-chen/tavern-assets by itself" }).click();
-      const auto = await page.evaluate(() => JSON.parse(localStorage.getItem("tributary.forks.auto")));
-      expect(JSON.stringify(auto) === JSON.stringify(["maya-chen/tavern-assets"]), `auto ${JSON.stringify(auto)}`);
-      await view.getByRole("switch", { name: "Sync maya-chen/tavern-assets by itself" }).click();
       await page.keyboard.press("Escape");
       await view.waitFor({ state: "detached", timeout: 5000 });
       await page.locator(".sidebar-frame").waitFor({ timeout: 5000 });
@@ -143,7 +154,8 @@ export default async function ({ page, folder, locks, preview, step, accessible,
       await page.keyboard.press("Escape");
       await page.evaluate((was) => (window.__PREVIEW__.github = was ?? undefined), before);
     }
-    expect((await page.getByRole("button", { name: "Your forks" }).count()) === 0, "the Forks button stayed after Settings hid your forks");
+    // The toolbar's: the message after Auto synced one has a Your forks button too.
+    expect((await page.locator(".toolbar").getByRole("button", { name: "Your forks", exact: true }).count()) === 0, "the Forks button stayed after Settings hid your forks");
   });
 
   await step("offers to release your locks after pushing", async () => {
