@@ -72,6 +72,23 @@ describe("graphColours, each branch its own colour", () => {
     expect(graphColours(newer, scheme()).rows[0].node).toBe(before);
   });
 
+  it("gives a stash the colour of the branch it was made on, though a branch starts in its column next", () => {
+    // As the notebook demo has it: a stash on origin/main's commit, and feature/themes in the
+    // stash's column straight after.
+    const rows = [
+      commit("main", 0, [[2, 0, 0]], { parents: ["origin"], refs: [["branch", "main"]] }),
+      commit("stash", 1, [[0, 0, 0], [2, 1, 1]], { parents: ["origin"], kind: "stash", refs: [["stash", "stash@{0}"]] }),
+      commit("origin", 0, [[1, 0, 0], [1, 1, 0], [2, 0, 0]], { parents: ["m1"], refs: [["remote", "origin/main"]] }),
+      commit("themes", 1, [[0, 0, 0], [2, 1, 1]], { parents: ["t1"], refs: [["branch", "feature/themes"]] }),
+      commit("m1", 0, [[1, 0, 0], [0, 1, 1], [2, 0, 0]], { parents: ["m0"] }),
+      commit("t1", 1, [[0, 0, 0], [1, 1, 1], [2, 1, 1]], { parents: ["m0"] }),
+      commit("m0", 0, [[1, 0, 0], [1, 1, 0]]),
+    ];
+    const { rows: colours } = graphColours(rows, scheme());
+    expect(colours[1].node).toBe(MAIN);
+    expect(colours[3].node).not.toBe(MAIN);
+  });
+
   it("gives uncommitted changes the colour of the branch they're on", () => {
     const changes = [commit("worktree", 0, [[2, 0, 0]], { kind: "worktree" }), ...feature.slice(1).map((each, index) => (index === 0 ? commit("m3", 0, [[1, 0, 0], [2, 0, 0]], { parents: ["m2"], refs: [["branch", "main"]] }) : each))];
     expect(graphColours(changes, scheme()).rows[0].node).toBe(MAIN);
