@@ -51,6 +51,9 @@ struct RawJobs {
 
 #[derive(Deserialize)]
 struct RawJob {
+    /// Its check run's id too, whose annotations say why it stopped.
+    #[serde(default)]
+    id: u64,
     name: String,
     status: String,
     conclusion: Option<String>,
@@ -272,6 +275,82 @@ fn job(raw: RawJob) -> Job {
         url: raw.html_url,
         started_at: raw.started_at.filter(|_| !queued),
         finished_at: raw.completed_at,
+        why: None,
+    }
+}
+
+/// Why a job stopped, from what GitHub says on it: it ran out of time (it can't have, a run
+/// with no job failed; a failure), or GitHub had no machine free to run it (still cancelled).
+pub(crate) fn stopped(messages: &[String]) -> Option<(CheckState, String)> {
+    for message in messages {
+        if let Some(at) = message.find("exceeded the maximum execution time of ") {
+            let rest = &message[at + "exceeded the maximum execution time of ".len()..];
+            let minutes: String = rest.chars().take_while(char::is_ascii_digit).collect();
+            let said = if minutes.is_empty() {
+                "Ran out of time".to_string()
+            } else {
+                format!("Ran out of time after {minutes} minutes")
+            };
+            return Some((CheckState::Failure, said));
+        }
+        if message.contains("was not acquired by Runner") || message.contains("No runner") {
+            return Some((
+                CheckState::Cancelled,
+                "GitHub had no machine free to run it".into(),
+            ));
+        }
+    }
+    None
+}
+
+#[derive(Deserialize)]
+struct Annotation {
+    message: String,
+}
+
+/// What GitHub says on a job (its check run's annotations).
+async fn annotations(
+    client: &reqwest::Client,
+    full_name: &str,
+    token: Option<&str>,
+    id: u64,
+) -> Vec<String> {
+    let url =
+        format!("https://api.github.com/repos/{full_name}/check-runs/{id}/annotations?per_page=20");
+    match conditional::send(
+        &conditional::key(&url, token),
+        api_request(client, url, token),
+    )
+    .await
+    {
+        Ok(answer) if answer.status.is_success() => {
+            serde_json::from_str::<Vec<Annotation>>(&answer.body)
+                .map(|all| all.into_iter().map(|each| each.message).collect())
+                .unwrap_or_default()
+        }
+        _ => Vec::new(),
+    }
+}
+
+/// A finished run's state as its jobs went. GitHub calls a run failed when a job of it was
+/// stopped without anyone cancelling it; here, as for a commit (ci.rs), it failed only when a
+/// job failed, and a stopped one is cancelled, saying why.
+fn as_its_jobs(state: Option<CheckState>, jobs: &[Job]) -> Option<CheckState> {
+    if state != Some(CheckState::Failure)
+        || jobs.is_empty()
+        || jobs
+            .iter()
+            .any(|job| job.state == Some(CheckState::Failure))
+    {
+        return state;
+    }
+    if jobs
+        .iter()
+        .any(|job| job.state == Some(CheckState::Cancelled))
+    {
+        Some(CheckState::Cancelled)
+    } else {
+        state
     }
 }
 
@@ -404,7 +483,7 @@ pub(crate) async fn commit_runs(
             "https://api.github.com/repos/{full_name}/actions/runs/{}/jobs?per_page=100",
             run.id
         );
-        let jobs: Vec<Job> = match conditional::send(
+        let raw_jobs: Vec<RawJob> = match conditional::send(
             &conditional::key(&url, token),
             api_request(client, url, token),
         )
@@ -412,19 +491,39 @@ pub(crate) async fn commit_runs(
         {
             Ok(answer) if answer.status.is_success() => {
                 serde_json::from_str::<RawJobs>(&answer.body)
-                    .map(|jobs| jobs.jobs.into_iter().map(job).collect())
+                    .map(|jobs| jobs.jobs)
                     .unwrap_or_default()
             }
             _ => Vec::new(),
         };
+        let ids: Vec<u64> = raw_jobs.iter().map(|raw| raw.id).collect();
+        let mut jobs: Vec<Job> = raw_jobs.into_iter().map(job).collect();
         let file = match &run.path {
             Some(path) => workflow_jobs(client, full_name, token, sha, path).await,
             None => Vec::new(),
         };
-        let (state, _) = job_state(
+        let (mut state, _) = job_state(
             run.status.as_deref().unwrap_or("completed"),
             run.conclusion.as_deref(),
         );
+        // Failed, with no job failed: some were stopped. What GitHub says on each says why.
+        if state == Some(CheckState::Failure)
+            && !jobs
+                .iter()
+                .any(|job| job.state == Some(CheckState::Failure))
+        {
+            for (job, id) in jobs.iter_mut().zip(&ids) {
+                if job.state != Some(CheckState::Cancelled) || *id == 0 {
+                    continue;
+                }
+                if let Some((was, why)) = stopped(&annotations(client, full_name, token, *id).await)
+                {
+                    job.state = Some(was);
+                    job.why = Some(why);
+                }
+            }
+            state = as_its_jobs(state, &jobs);
+        }
         let finished = state != Some(CheckState::Pending);
         let (name, trigger) = name_and_trigger(
             run.name.as_deref(),
@@ -504,7 +603,67 @@ jobs:
             steps_done: 0,
             steps: 0,
             step: None,
+            why: None,
         }
+    }
+
+    #[test]
+    fn says_why_a_job_stopped() {
+        let said = |message: &str| stopped(&[message.to_string()]);
+        assert_eq!(
+            said("The job was not acquired by Runner of type hosted even after multiple attempts"),
+            Some((
+                CheckState::Cancelled,
+                "GitHub had no machine free to run it".into()
+            ))
+        );
+        assert_eq!(
+            said(
+                "The job running on runner GitHub Actions 12 has exceeded the maximum execution time of 15 minutes."
+            ),
+            Some((
+                CheckState::Failure,
+                "Ran out of time after 15 minutes".into()
+            ))
+        );
+        assert_eq!(
+            said("Due to capacity constraints, jobs may experience longer queue times."),
+            None
+        );
+        assert_eq!(stopped(&[]), None);
+    }
+
+    #[test]
+    fn calls_a_run_failed_only_when_a_job_failed() {
+        let with = |states: &[Option<CheckState>]| {
+            states
+                .iter()
+                .map(|state| Job {
+                    state: *state,
+                    ..job("x")
+                })
+                .collect::<Vec<_>>()
+        };
+        let failure = Some(CheckState::Failure);
+        let cancelled = Some(CheckState::Cancelled);
+        let success = Some(CheckState::Success);
+        // Passed, one stopped, one skipped: cancelled, not failed.
+        assert_eq!(
+            as_its_jobs(failure, &with(&[success, cancelled, None])),
+            cancelled
+        );
+        // A job failed (or ran out of time): failed.
+        assert_eq!(
+            as_its_jobs(failure, &with(&[success, failure, cancelled])),
+            failure
+        );
+        // Nothing to go by, or GitHub's own word isn't failed: as GitHub says.
+        assert_eq!(as_its_jobs(failure, &[]), failure);
+        assert_eq!(as_its_jobs(success, &with(&[success])), success);
+        assert_eq!(
+            as_its_jobs(cancelled, &with(&[success, cancelled])),
+            cancelled
+        );
     }
 
     #[test]

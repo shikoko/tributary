@@ -1449,6 +1449,11 @@ export type Job = {
    * The step it's on while it runs.
    */
   step: string | null;
+  /**
+   * Why it stopped when it was cancelled without anyone cancelling it: it ran out of time,
+   * or no machine was free to run it.
+   */
+  why: string | null;
 };
 
 /**

@@ -1037,7 +1037,7 @@ export const STUDIO_PULL_REQUEST_DETAILS = {
  */
 export function studioCommitRuns() {
   const actions = "https://github.com/example/feast/actions/runs";
-  const job = (name, id, times, state = "success", steps = {}) => ({ name, state, url: `${actions}/41/job/${id}`, ...times, stepsDone: 0, steps: 0, step: null, ...steps });
+  const job = (name, id, times, state = "success", steps = {}) => ({ name, state, url: `${actions}/41/job/${id}`, ...times, stepsDone: 0, steps: 0, step: null, why: null, ...steps });
   const build = {
     name: "Build",
     trigger: "on push to main",
@@ -1074,8 +1074,29 @@ export function studioCommitRuns() {
       { key: "report", name: "Report", needs: ["sizes", "audio"], matrix: false, jobs: [{ ...job("Report", 8, ran(288, 280), null), url: `${actions}/42/job/8` }] },
     ],
   };
+  // Its smoke tests: one ran, and one was stopped with no machine free to run it, which
+  // GitHub calls a failure; here it's cancelled, saying why.
+  const smoke = {
+    name: "Smoke tests",
+    trigger: "on push to main",
+    url: `${actions}/43`,
+    state: "cancelled",
+    ...ran(410, 300),
+    groups: [
+      {
+        key: "smoke",
+        name: "Smoke",
+        needs: [],
+        matrix: true,
+        jobs: [
+          { ...job("Smoke (Windows)", 9, ran(410, 330)), url: `${actions}/43/job/9` },
+          { ...job("Smoke (macOS)", 10, ran(410, 300), "cancelled", { why: "GitHub had no machine free to run it" }), url: `${actions}/43/job/10` },
+        ],
+      },
+    ],
+  };
   return {
-    runs: [build, assets],
+    runs: [build, assets, smoke],
     others: [{ name: "Playtest sign-off", state: "success", url: "https://playtest.example.com/feast/sign-off", detail: "Approved by the design team", startedAt: null, finishedAt: null, workflow: null, trigger: null }],
     canRerun: true,
     signedIn: true,
