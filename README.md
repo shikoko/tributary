@@ -129,6 +129,7 @@ One line each here; the [feature guide](docs/features.md) has the details.
 - Diffs coloured by syntax, in one column or side by side.
 - Stage, unstage or discard whole files, hunks or single lines.
 - Changed files as a list or as a tree of their folders, with a whole folder staged at once.
+- The Commit button says which branch you commit to, and can commit to a new branch, named from the summary.
 - The branch's Jira or Linear issue in the summary, message templates and co-authors.
 - Fix up or split earlier commits; signed commits with GPG or SSH.
 - Warnings before committing file names that break on Windows or macOS, and missing Unity `.meta` files.
