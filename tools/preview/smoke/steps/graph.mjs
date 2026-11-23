@@ -159,4 +159,27 @@ export default async function ({ demos, page, preview, step, accessible, expect,
     await page.keyboard.press("Escape");
     await panel.waitFor({ state: "detached", timeout: 5000 });
   });
+
+  await step("shows a branch's whole name in the commit's details, as wide as the panel", async () => {
+    const name = "feature/themes-high-contrast-for-the-night-shift";
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" }).trim();
+    git("branch", name, "feature/themes");
+    try {
+      // Read again: the new branch shows beside feature/themes's label, as +1.
+      await page.keyboard.press("F5");
+      const commit = row("High-contrast theme");
+      await commit.locator(".ref-pill.more", { hasText: "+1" }).waitFor({ timeout: 15_000 });
+      await commit.click();
+      const details = page.locator(".details-refs .ref-pill", { hasText: "high-contrast-for-the-night-shift" });
+      await details.waitFor({ timeout: 5000 });
+      // Wider than a label in the history may be (200px), and whole.
+      const shown = await details.locator(".ref-name").innerText();
+      expect(shown === name, `the details panel shows "${shown}"`);
+      expect((await details.boundingBox()).width > 200, "the label is no wider than in the history");
+    } finally {
+      git("branch", "-D", name);
+      await page.keyboard.press("F5");
+    }
+    await row("High-contrast theme").locator(".ref-pill.more").waitFor({ state: "detached", timeout: 15_000 });
+  });
 }
