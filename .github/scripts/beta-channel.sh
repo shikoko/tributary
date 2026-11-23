@@ -4,25 +4,66 @@
 #
 #   .github/scripts/beta-channel.sh <latest.json>
 #
-# The channel is the release tagged "beta": not a version of its own, but where the copies of
-# Tributary that get betas read latest.json. A new beta points it at itself, and a new release
-# at itself (a release is newer than its betas), so it always offers the newest of either.
-# It's made the first time. Needs GH_TOKEN, GITHUB_REPOSITORY and GITHUB_SHA.
+# The channel is beta/latest.json on the branch "updates": not a version of its own, but where
+# the copies of Tributary that get betas read about the newest version
+# (https://raw.githubusercontent.com/<repo>/updates/beta/latest.json, src-tauri/src/updates.rs).
+# A new beta points it at itself, and a new release at itself (a release is newer than its
+# betas), so it always offers the newest of either. The branch holds nothing else, and is made
+# the first time. It's a file on a branch, not a release's, because it changes: a published
+# release's files can't once releases are immutable. Every update it offers is still checked
+# against Tributary's update key before it's installed.
+#
+# Copies of 0.17.0 and earlier read the release tagged "beta" instead: it's kept pointing at
+# the same version for as long as GitHub lets it change, so they update to a beta that reads
+# the branch. Needs GH_TOKEN and GITHUB_REPOSITORY.
 set -euo pipefail
 
 manifest=$1
-read_version() { node -e 'console.log(JSON.parse(require("fs").readFileSync(0, "utf8")).version)'; }
+branch=updates
+file=beta/latest.json
+# A latest.json's version, or nothing (and a failure) for anything else, like GitHub's answer
+# that there's no such file.
+read_version() {
+  node -e 'const { version } = JSON.parse(require("fs").readFileSync(0, "utf8")); if (typeof version !== "string") process.exit(1); console.log(version)'
+}
 version=$(read_version <"$manifest")
 
-if ! gh release view beta --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-  gh release create beta --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" --title "Beta channel" \
-    --notes "Not a version of its own: its latest.json tells the copies of Tributary that get beta versions (About Tributary → Get beta versions) about the newest version, beta or not. The betas themselves are the pre-releases named like v0.3.0-beta.4."
+# What the channel offers now: nothing before the branch is made (gh prints GitHub's answer,
+# "Not Found", even then, so only a file it got is read).
+current=
+if offered=$(gh api "repos/$GITHUB_REPOSITORY/contents/$file?ref=$branch" -H "Accept: application/vnd.github.raw" 2>/dev/null); then
+  current=$(read_version <<<"$offered" 2>/dev/null || true)
+fi
+if ! node .github/scripts/newer.mjs "$version" "$current"; then
+  echo "The beta channel offers $current, which is newer than $version: it's left as it is."
+  exit 0
 fi
 
-current=$(gh release download beta --repo "$GITHUB_REPOSITORY" --pattern latest.json --output - 2>/dev/null | read_version 2>/dev/null || true)
-if node .github/scripts/newer.mjs "$version" "$current"; then
-  gh release upload beta "$manifest" --repo "$GITHUB_REPOSITORY" --clobber
-  echo "The beta channel offers $version now${current:+ (it offered $current)}."
+content=$(base64 <"$manifest" | tr -d '\n')
+message="Beta channel: $version"
+if gh api "repos/$GITHUB_REPOSITORY/branches/$branch" >/dev/null 2>&1; then
+  sha=$(gh api "repos/$GITHUB_REPOSITORY/contents/$file?ref=$branch" --jq .sha 2>/dev/null || true)
+  jq -n --arg message "$message" --arg content "$content" --arg branch "$branch" --arg sha "$sha" \
+    '{message: $message, content: $content, branch: $branch} + (if $sha == "" then {} else {sha: $sha} end)' |
+    gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$file" --input - >/dev/null
 else
-  echo "The beta channel offers $current, which is newer than $version: it's left as it is."
+  # The branch's first commit, with none before it: it only ever holds the channel.
+  blob=$(jq -n --arg content "$content" '{content: $content, encoding: "base64"}' |
+    gh api -X POST "repos/$GITHUB_REPOSITORY/git/blobs" --input - --jq .sha)
+  tree=$(jq -n --arg path "$file" --arg sha "$blob" '{tree: [{path: $path, mode: "100644", type: "blob", sha: $sha}]}' |
+    gh api -X POST "repos/$GITHUB_REPOSITORY/git/trees" --input - --jq .sha)
+  commit=$(jq -n --arg message "$message" --arg tree "$tree" '{message: $message, tree: $tree, parents: []}' |
+    gh api -X POST "repos/$GITHUB_REPOSITORY/git/commits" --input - --jq .sha)
+  jq -n --arg ref "refs/heads/$branch" --arg sha "$commit" '{ref: $ref, sha: $sha}' |
+    gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" --input - >/dev/null
+fi
+echo "The beta channel offers $version now${current:+ (it offered $current)}."
+
+# The channel as copies of 0.17.0 and earlier read it, while it can still change.
+if gh release view beta --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+  if gh release upload beta "$manifest" --repo "$GITHUB_REPOSITORY" --clobber; then
+    echo "The release tagged beta offers $version too, for copies of 0.17.0 and earlier."
+  else
+    echo "::warning::The release tagged beta couldn't be pointed at $version (is it immutable now?): copies of 0.17.0 and earlier that get betas aren't offered it."
+  fi
 fi

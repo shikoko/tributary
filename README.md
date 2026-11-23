@@ -208,6 +208,12 @@ The installers aren't code-signed yet, so the first launch needs one extra step:
 
 It's only needed once: the updates Tributary installs itself open straight away.
 
+To check that a file you downloaded is the one GitHub built from this repository (from 0.17.1 on), with the [GitHub CLI](https://cli.github.com):
+
+```
+gh attestation verify Tributary_0.17.1_x64-setup.exe -R shikoko/tributary
+```
+
 On Linux, only the AppImage updates itself: a copy built from source (see below) isn't offered updates.
 
 ## Build from source
