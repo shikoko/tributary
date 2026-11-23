@@ -9,11 +9,14 @@
 //! restarts Tributary for it (once no git command is running, so none is cut off), or
 //! else when they quit.
 //!
-//! People who get beta versions read the beta channel's `latest.json` instead: the release
-//! tagged `beta`, which the build of each merge into develop points at its new beta, and the
-//! release of a new version points at that version, so it always offers the newest of
-//! either. Before there's a beta channel, the stable one is read instead. Turning betas off
-//! never goes back: an update is only ever newer than the version running.
+//! People who get beta versions read the beta channel's `latest.json` instead: a file on the
+//! repository's `updates` branch, which the build of each merge into develop points at its
+//! new beta, and the release of a new version points at that version, so it always offers the
+//! newest of either (`.github/scripts/beta-channel.sh`). It's a file on a branch because it
+//! changes, which a published release's files can't once releases are immutable; what it
+//! offers is checked against the same key. Before there's a beta channel, the stable one is
+//! read instead. Turning betas off never goes back: an update is only ever newer than the
+//! version running.
 
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -26,8 +29,9 @@ use ts_rs::TS;
 
 use crate::error::{Error, Result};
 
-/// The beta channel's list of the newest version, beta or not.
-const BETA: &str = "https://github.com/shikoko/tributary/releases/download/beta/latest.json";
+/// The beta channel's list of the newest version, beta or not. (Until 0.17.0, it was the
+/// release tagged `beta`'s.)
+const BETA: &str = "https://raw.githubusercontent.com/shikoko/tributary/updates/beta/latest.json";
 /// The newest release's (as in tauri.conf.json).
 const STABLE: &str = "https://github.com/shikoko/tributary/releases/latest/download/latest.json";
 
