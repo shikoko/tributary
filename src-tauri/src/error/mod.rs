@@ -62,7 +62,12 @@ impl Error {
             Error::Known { kind, .. } => Some(kind.clone()),
             Error::Cancelled => Some(ErrorKind::Cancelled),
             Error::Git(message) | Error::Message(message) => classify(message),
-            Error::NotARepository { .. } | Error::GitNotFound => None,
+            // A folder that's there but isn't a repository can be made one; a folder that
+            // isn't there (a recent repository since deleted) says only what git said.
+            Error::NotARepository { path, .. } => std::path::Path::new(path)
+                .is_dir()
+                .then(|| ErrorKind::NotARepository { path: path.clone() }),
+            Error::GitNotFound => None,
         }
     }
 }
@@ -146,5 +151,17 @@ mod tests {
             serde_json::to_value(Error::from("Nope.")).unwrap(),
             serde_json::json!({ "message": "Nope.", "kind": null })
         );
+    }
+
+    #[test]
+    fn offers_to_make_a_folder_a_repository_only_when_its_there() {
+        let folder = std::env::temp_dir();
+        let there = Error::not_a_repository(&folder, "no .git");
+        assert_eq!(
+            serde_json::to_value(&there).unwrap()["kind"],
+            serde_json::json!({ "kind": "notARepository", "path": folder.display().to_string() })
+        );
+        let gone = Error::not_a_repository(&folder.join("tributary-no-such-folder"), "no .git");
+        assert_eq!(gone.kind(), None);
     }
 }

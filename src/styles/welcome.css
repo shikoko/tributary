@@ -421,3 +421,11 @@
 .git-needed-banner .primary-small-button {
   flex: none;
 }
+
+/* A folder that isn't a repository yet (opened from Explorer): what it is, and a button to make it one. */
+.welcome-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}

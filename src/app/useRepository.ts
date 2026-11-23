@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { errorKind, initRepository, openRepository, PAGE_SIZE, type Action, type ErrorKind, type RepoSnapshot } from "../api";
+import { errorKind, initRepository, openRepository, PAGE_SIZE, startupFolders, type Action, type ErrorKind, type RepoSnapshot } from "../api";
 import { loadPlace, type Place } from "../lib/place";
 import { loadRecent, noteBranch, rememberRepo } from "../lib/recent";
 import { readVisibility } from "../lib/repoPrefs";
@@ -159,6 +159,17 @@ export function useRepository({ setTabs, setActiveTab, firstParentOnly, events }
     [whilePicking, load],
   );
 
+  /** Make the folder at `path` a repository (it isn't one yet), and open it. */
+  const createIn = useCallback(
+    (path: string) =>
+      whilePicking(async () => {
+        const message = await initRepository(path);
+        await load(path, "open");
+        latest.current.events.notify(message);
+      }),
+    [whilePicking, load],
+  );
+
   /** Close the repository, for the start screen. */
   const close = useCallback(() => {
     loadCount.current++;
@@ -171,16 +182,28 @@ export function useRepository({ setTabs, setActiveTab, firstParentOnly, events }
     setWindowTitle("Tributary");
   }, []);
 
-  // Reopen your tabs (or the last repository) on launch.
+  // On launch, the folders Tributary was started with (Explorer's Open in Tributary), each in
+  // its tab; or else your tabs again (or the last repository).
   useEffect(() => {
-    if (!readSetting("reopenLast", true)) return;
-    const active = readSetting<string | null>("tabs.active", null);
-    const tabs = readSetting<Tab[]>("tabs.list", []);
-    const path = active ?? tabs[0]?.path ?? loadRecent()[0]?.path;
-    if (path) load(path, "open");
+    let live = true;
+    startupFolders().then(async (folders) => {
+      if (!live) return;
+      if (folders.length > 0) {
+        for (const folder of folders) await load(folder, "open");
+        return;
+      }
+      if (!readSetting("reopenLast", true)) return;
+      const active = readSetting<string | null>("tabs.active", null);
+      const tabs = readSetting<Tab[]>("tabs.list", []);
+      const path = active ?? tabs[0]?.path ?? loadRecent()[0]?.path;
+      if (path) load(path, "open");
+    });
+    return () => {
+      live = false;
+    };
   }, [load]);
 
-  return { snapshot, busy, error, setError, recent, setRecent, load, refresh, pick, create, close, whilePicking, blockFocusRefresh, lastLoad };
+  return { snapshot, busy, error, setError, recent, setRecent, load, refresh, pick, create, createIn, close, whilePicking, blockFocusRefresh, lastLoad };
 }
 
 export type Repository = ReturnType<typeof useRepository>;

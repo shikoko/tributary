@@ -1,10 +1,12 @@
-// The smoke test: Tabs: a second repository, what each remembers, what arrived since, spelling, moving, reopening and sizing them.
+// The smoke test: Tabs: a second repository, what each remembers, what arrived since, spelling, moving, reopening and sizing them, and folders handed over from outside.
 import { execFileSync } from "node:child_process";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { studioFakes } from "../session.mjs";
 import { moving } from "../../../e2e/centred.mjs";
 import { decodePng } from "../../../e2e/png.mjs";
 
-export default async function ({ page, demos, step, restoreSize, accessible, expect, row, openNotebook }) {
+export default async function ({ page, demos, folder, step, restoreSize, accessible, expect, row, openNotebook, dismissToast }) {
   await openNotebook();
 
   await step("opens a second repository in a new tab", async () => {
@@ -249,5 +251,35 @@ export default async function ({ page, demos, step, restoreSize, accessible, exp
     await until(false, "a name is still cut short at full width again");
     await tabs.filter({ hasText: "studio" }).dispatchEvent("mousedown", { button: 0 });
     await row("Add a tavern chair").waitFor({ timeout: 10_000 });
+  });
+
+  await step("opens a folder it's handed from outside, and offers to make a plain folder a repository", async () => {
+    // Explorer's Open in Tributary while it runs: the copy started with the folder hands it
+    // to this window, as an event (open_folder.rs).
+    const handOver = (path) => page.evaluate((path) => window.__PREVIEW__.emit("open-folder", path), path);
+    const sketches = join(folder, "sketches");
+    mkdirSync(sketches);
+    await handOver(sketches);
+    const banner = page.locator(".error-banner", { hasText: "sketches isn't a git repository yet" });
+    await banner.waitFor({ timeout: 10_000 });
+    await banner.getByRole("button", { name: "Create a repository here" }).click();
+    await page.locator(".tabs > .tab.active[data-path]", { hasText: /^sketches$/ }).waitFor({ timeout: 10_000 });
+    expect((await banner.count()) === 0, "the error stayed once the folder was a repository");
+    await dismissToast();
+    // On the start screen, the same.
+    const drafts = join(folder, "drafts");
+    mkdirSync(drafts);
+    await page.getByRole("button", { name: "New tab" }).click();
+    await handOver(drafts);
+    const said = page.locator(".welcome-error", { hasText: "drafts isn't a git repository yet" });
+    await said.waitFor({ timeout: 10_000 });
+    await accessible("the start screen, with a folder that isn't a repository");
+    await said.getByRole("button", { name: "Create a repository here" }).click();
+    await page.locator(".tabs > .tab.active[data-path]", { hasText: /^drafts$/ }).waitFor({ timeout: 10_000 });
+    await dismissToast();
+    // A repository that's open already comes to the front in its tab.
+    await handOver(demos.notebook);
+    await row("Export notes as Markdown").waitFor({ timeout: 10_000 });
+    expect((await page.locator(".tabs > .tab[data-path]", { hasText: /^notebook$/ }).count()) === 1, "notebook opened in a second tab");
   });
 }

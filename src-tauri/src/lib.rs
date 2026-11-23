@@ -27,6 +27,7 @@ pub mod host;
 pub mod issues;
 pub mod links;
 pub mod locks;
+pub mod open_folder;
 pub mod problems;
 pub mod repo;
 pub mod requests;
@@ -49,7 +50,15 @@ pub fn run() {
     std::thread::spawn(|| {
         let _ = host::search_path();
     });
-    let builder = tauri::Builder::default();
+    // A folder it was started with (Explorer's Open in Tributary), for the window to open.
+    open_folder::note_start();
+    // One Tributary at a time: started again while running (with a folder from Explorer, say),
+    // the new copy hands its folders to the running one and quits. It's the first plugin, so
+    // the new copy does nothing else first.
+    let builder =
+        tauri::Builder::default().plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            open_folder::another_start(app, args);
+        }));
     // On macOS, WebKit's web content process can stop (out of memory, or a crash in WebKit),
     // which empties the window. Like Tauri does by default, it's loaded again, and also noted
     // in the problems log, said once it's back, and left alone if it keeps happening.

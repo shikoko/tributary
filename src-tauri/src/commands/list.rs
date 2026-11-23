@@ -249,6 +249,7 @@ commands! {
         stop_update_restart() -> ();
         report_problem(what: String) -> Option<String>;
         take_recovery_note() -> Option<String>;
+        startup_folders() -> Vec<String>;
         action_info(action: Action) -> actions::ActionInfo;
         cancel_action(path: Option<String>) -> bool;
         activity_log() -> Vec<git::LogEntry>;

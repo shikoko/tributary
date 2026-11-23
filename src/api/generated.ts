@@ -657,6 +657,7 @@ export type Commands = {
   stop_update_restart: { args: Record<string, never>; returns: void };
   report_problem: { args: { what: string }; returns: string | null };
   take_recovery_note: { args: Record<string, never>; returns: string | null };
+  startup_folders: { args: Record<string, never>; returns: Array<string> };
   action_info: { args: { action: Action }; returns: ActionInfo };
   cancel_action: { args: { path?: string | null }; returns: boolean };
   activity_log: { args: Record<string, never>; returns: Array<LogEntry> };
@@ -954,6 +955,7 @@ export type Engine = "unreal" | "unity";
  */
 export type ErrorKind =
   | { kind: "cancelled" }
+  | { kind: "notARepository"; path: string }
   | { kind: "rewritten" }
   | { kind: "notEnoughSpace" }
   | { kind: "hookFailed"; hook: string; stopped: Stopped; output: string }

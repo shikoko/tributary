@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { unseenCommits, upstreamChoices, type Action, type CommitRow, type UnseenCommits, type UpstreamChoices } from "../api";
+import { initRepository, unseenCommits, upstreamChoices, type Action, type CommitRow, type UnseenCommits, type UpstreamChoices } from "../api";
 import { ErrorBanner, type ErrorChoice } from "../components/ErrorBanner";
 import { byWhom, explainError, gitHeadline, type ErrorFix } from "../lib/explainError";
 import { relativeTime, shortId } from "../lib/format";
@@ -20,7 +20,7 @@ interface Props {
  * it. A force push that stopped for someone else's commits lists them.
  */
 export function RepoErrorBanner({ error, head, running, onDismiss }: Props) {
-  const { snapshot, act, openDialog, openTab: openWorktree, goTo } = useOpenRepository();
+  const { snapshot, act, openDialog, openTab: openWorktree, goTo, notify } = useOpenRepository();
   const branch = snapshot.headBranch ?? "HEAD";
   const upstream = snapshot.upstream?.name ?? null;
   // A safe force push stopped for commits someone else pushed: the push fetched them, to
@@ -150,6 +150,22 @@ export function RepoErrorBanner({ error, head, running, onDismiss }: Props) {
         };
       case "moveToLfs":
         return { label: "Move into Git LFS…", says: "See which files are too big, and move them into Git LFS.", run: () => openDialog({ kind: "repoSize" }) };
+      case "createRepository": {
+        // A folder opened from outside (Explorer, say) that isn't a repository yet.
+        const path = error.kind?.kind === "notARepository" ? error.kind.path : null;
+        if (!path) return null;
+        return {
+          label: "Create a repository here",
+          says: "Make the folder a git repository, and open it in its tab.",
+          run: () =>
+            initRepository(path)
+              .then((message) => {
+                openWorktree(path);
+                notify(message);
+              })
+              .catch((failed) => notify(String(failed))),
+        };
+      }
     }
   };
   const stashChoice = (retry: Action): ErrorChoice => ({
