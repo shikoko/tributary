@@ -1,6 +1,7 @@
-import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useContext, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { CommitRow } from "../../api";
 import type { CanvasColors } from "../../lib/appearance";
+import { GraphColoursContext } from "../../app/useGraphColours";
 import { marksNear, scrollMarks, useScrollMarkers } from "./canvases";
 
 /** Where the strip beside the scrollbar is on screen. */
@@ -39,9 +40,10 @@ interface Input {
  */
 export function useMarkStrip(canvas: RefObject<HTMLCanvasElement | null>, input: Input) {
   const { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId, marked, leftOffId, colors, tipIds } = input;
+  const graphColours = useContext(GraphColoursContext);
   const marks = useMemo(
-    () => scrollMarks({ commits, slotOf, indexById, rowHeight, contentHeight, height: viewport.height, matchIds, headId, selectedIds: marked, leftOffId, colors }),
-    [commits, slotOf, indexById, rowHeight, contentHeight, viewport.height, matchIds, headId, marked, leftOffId, colors],
+    () => scrollMarks({ commits, slotOf, indexById, rowHeight, contentHeight, height: viewport.height, matchIds, headId, selectedIds: marked, leftOffId, colors, graphColours }),
+    [commits, slotOf, indexById, rowHeight, contentHeight, viewport.height, matchIds, headId, marked, leftOffId, colors, graphColours],
   );
   const [markAt, setMarkAt] = useState<{ y: number; strip: Strip } | null>(null);
   const near = useMemo(() => (markAt ? marksNear(marks, markAt.y) : []), [marks, markAt]);

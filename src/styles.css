@@ -24,6 +24,7 @@
 @import "./styles/rebase-and-dialogs.css";
 @import "./styles/branches-and-locks.css";
 @import "./styles/settings.css";
+@import "./styles/branch-colours.css";
 @import "./styles/notices.css";
 @import "./styles/chips.css";
 @import "./styles/diff.css";

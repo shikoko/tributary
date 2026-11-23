@@ -2,6 +2,7 @@ import { useLayoutEffect, type RefObject } from "react";
 import type { CommitRow } from "../../api";
 import { laneColor } from "../../lib/colors";
 import type { CanvasColors, CurveStyle } from "../../lib/appearance";
+import type { GraphColours } from "../../lib/branchColours";
 import type { Slot } from "../../lib/days";
 import type { Lane } from "../../lib/lanes";
 import { paintGraph } from "../graphPainter";
@@ -35,6 +36,8 @@ interface GraphInput {
   selectedId: string | null;
   focusIds: Set<string> | null;
   colors: CanvasColors;
+  /** Each commit's colours and its lines'. */
+  graphColours: GraphColours;
   curves: CurveStyle;
   laneWidth: number;
   /** Commits are authors' pictures (ListRow): the painter leaves them out. */
@@ -45,7 +48,7 @@ interface GraphInput {
 
 /** Draw the graph for the rendered rows. */
 export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, input: GraphInput) {
-  const { commits, slots, first, last, width, rowHeight, headId, selectedId, focusIds, colors, curves, laneWidth, avatars, litLanes } = input;
+  const { commits, slots, first, last, width, rowHeight, headId, selectedId, focusIds, colors, graphColours, curves, laneWidth, avatars, litLanes } = input;
   useLayoutEffect(() => {
     if (!canvas.current) return;
     const ctx = prepare(canvas.current, width, Math.max(0, last - first) * rowHeight);
@@ -61,12 +64,13 @@ export function useGraphCanvas(canvas: RefObject<HTMLCanvasElement | null>, inpu
       selectedBackground: colors.selectedBackground,
       ring: colors.ring,
       lanes: colors.lanes,
+      colours: graphColours,
       curves,
       avatars,
       pictureSize: nodeAvatarSize(rowHeight === DENSE_ROW_HEIGHT),
       litLanes,
     });
-  }, [canvas, commits, slots, first, last, width, headId, selectedId, rowHeight, focusIds, colors, curves, laneWidth, avatars, litLanes]);
+  }, [canvas, commits, slots, first, last, width, headId, selectedId, rowHeight, focusIds, colors, graphColours, curves, laneWidth, avatars, litLanes]);
 }
 
 /** A mark next to the scrollbar. */
@@ -95,18 +99,20 @@ interface MarkInput {
   /** Where you left off when you were last here: the commit main was on. */
   leftOffId?: string | null;
   colors: CanvasColors;
+  /** Each commit's colours: a branch's tip is marked in its colour. */
+  graphColours?: GraphColours;
 }
 
 /** The marks next to the scrollbar, in the order they're drawn (later ones on top). */
 export function scrollMarks(input: MarkInput): ScrollMark[] {
-  const { commits, slotOf, indexById, rowHeight, contentHeight, height, matchIds, headId, selectedIds, leftOffId, colors } = input;
+  const { commits, slotOf, indexById, rowHeight, contentHeight, height, matchIds, headId, selectedIds, leftOffId, colors, graphColours } = input;
   const total = Math.max(contentHeight, height);
   const marks: ScrollMark[] = [];
   const add = (kind: ScrollMark["kind"], index: number | undefined, color: string) => {
     if (index !== undefined) marks.push({ kind, index, color, y: ((slotOf[index] + 0.5) * rowHeight * height) / total });
   };
   commits.forEach((commit, index) => {
-    if (commit.refs.some((ref) => ref.kind === "branch")) add("branch", index, laneColor(commit.graph.column, colors.lanes));
+    if (commit.refs.some((ref) => ref.kind === "branch")) add("branch", index, graphColours?.byId.get(commit.id)?.node ?? laneColor(commit.graph.column, colors.lanes));
   });
   matchIds?.forEach((id) => add("match", indexById.get(id), colors.match));
   if (leftOffId) add("leftOff", indexById.get(leftOffId), colors.accent);

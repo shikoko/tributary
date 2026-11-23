@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { CommitRow } from "../../api";
 import { useThemeColors } from "../../app/useAppearance";
+import { GraphColoursContext } from "../../app/useGraphColours";
 import { laneColor } from "../../lib/colors";
 import { compactTime, plural } from "../../lib/format";
 import { Avatar } from "../Avatar";
@@ -74,6 +75,7 @@ export function MarkGlow({ color, rect, strip }: { color: string; rect: { x: num
  */
 export function MarkHover({ near, strip, commits, headBranch }: Props) {
   const colors = useThemeColors();
+  const graphColours = useContext(GraphColoursContext);
   const card = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
   const [top, setTop] = useState(0);
@@ -98,7 +100,7 @@ export function MarkHover({ near, strip, commits, headBranch }: Props) {
               ? ["Where you left off"]
               : ["Matches the search"];
     const color = kinds.has("branch")
-      ? laneColor(commit.graph.column, colors.lanes)
+      ? (graphColours.byId.get(commit.id)?.node ?? laneColor(commit.graph.column, colors.lanes))
       : kinds.has("head")
         ? colors.accent
         : kinds.has("selected")

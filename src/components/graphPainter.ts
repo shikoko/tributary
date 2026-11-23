@@ -1,5 +1,6 @@
 import type { CommitRow, GraphLine } from "../api";
 import { luminance, parseHex, type CurveStyle } from "../lib/appearance";
+import type { GraphColours } from "../lib/branchColours";
 import { laneColor } from "../lib/colors";
 import type { Slot } from "../lib/days";
 import type { Lane } from "../lib/lanes";
@@ -21,8 +22,10 @@ export interface PaintOptions extends GraphMetrics {
   selectedBackground: string;
   /** The ring around the selected commit. */
   ring: string;
-  /** The lane colours. */
+  /** The lane colours, for commits without colours of their own. */
   lanes: string[];
+  /** Each commit's colours and its lines' (branchColours.ts), worked out for these commits. */
+  colours?: GraphColours;
   /**
    * How lines turn from one lane to another: "round" with a quarter circle; "smooth" with a
    * corner whose curvature eases in and out (like Apple's rounded corners); "tight" with a
@@ -139,6 +142,9 @@ export function paintGraph(
     }
   };
   const lit = options.litLanes ?? [];
+  // The colours worked out for these commits (none when they're for other ones).
+  const noted = options.colours && options.colours.rows.length === commits.length ? options.colours.rows : null;
+  const rowColours = (index: number) => noted?.[index];
   /** Part of lit lane `lane`: from its own commits in its own column, and all from its oldest
       commit (down to where it was branched from). */
   const inLane = (lane: Lane, kind: number, from: number, to: number, child: number | number[]) => {
@@ -171,9 +177,12 @@ export function paintGraph(
     const commit = typeof row === "number" ? commits[row] : commits[row.before];
     if (!commit) continue;
     const lines = typeof row === "number" ? commit.graph.lines : passingLines(commit);
+    const own = rowColours(typeof row === "number" ? row : row.before);
+    // A divider's lines are the ones coming down into the commit under it.
+    const lineColours = typeof row === "number" ? own?.lines : own?.lines.filter((_, index) => commit.graph.lines[index][0] !== 2);
 
-    for (const [kind, from, to, child, dashed] of lines) {
-      const color = laneColor(kind === 2 ? to : from, options.lanes);
+    for (const [index, [kind, from, to, child, dashed]] of lines.entries()) {
+      const color = lineColours?.[index] ?? laneColor(kind === 2 ? to : from, options.lanes);
       // Outside the highlighted history, or the lit lanes: faded.
       const alpha = (focus && !inFocus(child)) || (lit.length > 0 && !inAnyLane(kind, from, to, child)) ? FADED : 1;
       const key = `${color} ${alpha} ${dashed ? 1 : 0}`;
@@ -204,7 +213,7 @@ export function paintGraph(
     const faded = (focus !== null && !focus.has(commit.id)) || (lit.length > 0 && !litCommit(commit.id));
     const cx = x(commit.graph.column);
     const cy = (slot - first) * rowHeight + rowHeight / 2;
-    const color = laneColor(commit.graph.column, options.lanes);
+    const color = rowColours(row)?.node ?? laneColor(commit.graph.column, options.lanes);
     const selected = commit.id === options.selectedId;
     const background = selected ? options.selectedBackground : options.background;
 
@@ -274,7 +283,7 @@ export function paintGraph(
    * lighter tint of it on a dark background, and a halo under each of its authors' pictures.
    */
   function laneLook(lane: Lane) {
-    const color = laneColor(lane.column, options.lanes);
+    const color = options.colours?.byId.get(lane.last)?.node ?? laneColor(lane.column, options.lanes);
     const background = parseHex(options.background);
     const light = background !== null && luminance(background) > 0.5;
     // A lighter tint would wash out on a light background: there the lane keeps its colour.
