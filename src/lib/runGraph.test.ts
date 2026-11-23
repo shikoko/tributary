@@ -9,6 +9,7 @@ const job = (name: string, over: Partial<Job> = {}): Job => ({
   startedAt: "2026-11-14T10:00:00Z",
   finishedAt: "2026-11-14T10:01:00Z",
   stepsDone: 0,
+  why: null,
   steps: 0,
   step: null,
   ...over,

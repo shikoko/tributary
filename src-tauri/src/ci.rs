@@ -117,6 +117,9 @@ pub struct Job {
     pub steps: u32,
     /// The step it's on while it runs.
     pub step: Option<String>,
+    /// Why it stopped when it was cancelled without anyone cancelling it: it ran out of time,
+    /// or no machine was free to run it.
+    pub why: Option<String>,
 }
 
 /// The CI state of each of `ids` (full commit ids) that has one.
@@ -344,6 +347,7 @@ pub(crate) fn pipeline(url: Option<String>, jobs: Vec<Check>) -> Run {
                 steps_done: 0,
                 steps: 0,
                 step: None,
+                why: None,
             });
         }
     }
