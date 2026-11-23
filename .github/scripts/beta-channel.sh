@@ -21,16 +21,25 @@ set -euo pipefail
 manifest=$1
 branch=updates
 file=beta/latest.json
-read_version() { node -e 'console.log(JSON.parse(require("fs").readFileSync(0, "utf8")).version)'; }
+# A latest.json's version, or nothing (and a failure) for anything else, like GitHub's answer
+# that there's no such file.
+read_version() {
+  node -e 'const { version } = JSON.parse(require("fs").readFileSync(0, "utf8")); if (typeof version !== "string") process.exit(1); console.log(version)'
+}
 version=$(read_version <"$manifest")
 
-current=$(gh api "repos/$GITHUB_REPOSITORY/contents/$file?ref=$branch" -H "Accept: application/vnd.github.raw" 2>/dev/null | read_version 2>/dev/null || true)
+# What the channel offers now: nothing before the branch is made (gh prints GitHub's answer,
+# "Not Found", even then, so only a file it got is read).
+current=
+if offered=$(gh api "repos/$GITHUB_REPOSITORY/contents/$file?ref=$branch" -H "Accept: application/vnd.github.raw" 2>/dev/null); then
+  current=$(read_version <<<"$offered" 2>/dev/null || true)
+fi
 if ! node .github/scripts/newer.mjs "$version" "$current"; then
   echo "The beta channel offers $current, which is newer than $version: it's left as it is."
   exit 0
 fi
 
-content=$(base64 -w0 <"$manifest")
+content=$(base64 <"$manifest" | tr -d '\n')
 message="Beta channel: $version"
 if gh api "repos/$GITHUB_REPOSITORY/branches/$branch" >/dev/null 2>&1; then
   sha=$(gh api "repos/$GITHUB_REPOSITORY/contents/$file?ref=$branch" --jq .sha 2>/dev/null || true)
