@@ -25,6 +25,9 @@ export interface MenuItem {
 interface Props {
   x: number;
   y: number;
+  /** For a button near the window's bottom: when the menu doesn't fit below y, it opens
+   *  upwards from here (its bottom edge here), instead of being pushed up over the button. */
+  above?: number;
   items: MenuItem[];
   onClose: () => void;
   /** For a menu bar's menu: ← and → open the menu next to it. */
@@ -39,7 +42,7 @@ const HOVER_MS = 140;
  * system menu: ↑ ↓ Home End move, a letter jumps to the next item starting with it,
  * Enter picks, → opens a submenu and ← closes it, Esc and Tab close.
  */
-export function ContextMenu({ x, y, items, onClose, onSideways }: Props) {
+export function ContextMenu({ x, y, above, items, onClose, onSideways }: Props) {
   const backdrop = useRef<HTMLDivElement>(null);
   // Esc closes it wherever the focus is. A menu opened with the mouse doesn't always keep
   // the focus it takes (WebKit can give it back to what was clicked), and then its own
@@ -64,7 +67,7 @@ export function ContextMenu({ x, y, items, onClose, onSideways }: Props) {
         onClose();
       }}
     >
-      <MenuPanel x={x} y={y} items={items} onClose={onClose} onSideways={onSideways} focusFirst={usingKeyboard()} />
+      <MenuPanel x={x} y={y} above={above} items={items} onClose={onClose} onSideways={onSideways} focusFirst={usingKeyboard()} />
     </div>
   );
 }
@@ -74,6 +77,8 @@ interface PanelProps {
   y: number;
   /** Where it goes instead when it doesn't fit on the right (a submenu: its parent's left edge). */
   flipX?: number;
+  /** Where its bottom edge goes instead when it doesn't fit below y (see ContextMenu). */
+  above?: number;
   items: MenuItem[];
   /** Closes the whole menu. */
   onClose: () => void;
@@ -83,7 +88,7 @@ interface PanelProps {
   focusFirst: boolean;
 }
 
-function MenuPanel({ x, y, flipX, items, onClose, onSideways, onBack, focusFirst }: PanelProps) {
+function MenuPanel({ x, y, flipX, above, items, onClose, onSideways, onBack, focusFirst }: PanelProps) {
   const menu = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ left: number; top: number; listHeight?: number }>({ left: x, top: y });
@@ -101,7 +106,14 @@ function MenuPanel({ x, y, flipX, items, onClose, onSideways, onBack, focusFirst
     // One taller than the window scrolls its list: from where it opens when that's near the top,
     // like a menu bar's, or else from the window's top, down to its bottom.
     const tall = whole > window.innerHeight - 8;
-    const top = tall ? (y < window.innerHeight / 3 ? y : 4) : Math.max(4, Math.min(y, window.innerHeight - whole - 4));
+    const upwards = !tall && above !== undefined && y + whole > window.innerHeight - 4;
+    const top = tall
+      ? y < window.innerHeight / 3
+        ? y
+        : 4
+      : upwards
+        ? Math.max(4, above - whole)
+        : Math.max(4, Math.min(y, window.innerHeight - whole - 4));
     setPosition({
       left: Math.max(4, fitsRight || flipX === undefined ? Math.min(x, window.innerWidth - width - 4) : flipX - width),
       top,
@@ -111,7 +123,7 @@ function MenuPanel({ x, y, flipX, items, onClose, onSideways, onBack, focusFirst
     const first = list.current?.querySelector<HTMLButtonElement>(".menu-item:not(:disabled)");
     if (focusFirst && first) first.focus();
     else if (!onBack) element.focus();
-  }, [x, y, flipX, items, focusFirst, onBack]);
+  }, [x, y, flipX, above, items, focusFirst, onBack]);
 
   const buttons = () => [...(list.current?.querySelectorAll<HTMLButtonElement>(":scope > div > .menu-item:not(:disabled)") ?? [])];
   const openSubmenu = (index: number, button: HTMLElement, keyboard: boolean) => {

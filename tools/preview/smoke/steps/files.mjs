@@ -166,7 +166,7 @@ export default async function ({ page, folder, locks, preview, step, accessible,
     await page.locator(".file", { hasText: "Barber.uasset" }).hover();
     await page.getByRole("button", { name: "Stage Content/Characters/Barber.uasset" }).click();
     await page.getByPlaceholder("Commit summary").fill("Tweak the barber's apron");
-    await page.locator(".commit-box .primary-small-button").click();
+    await page.locator(".commit-box .commit-button").click();
     await page.locator(".commit-row", { hasText: "Tweak the barber's apron" }).waitFor({ timeout: 10_000 });
     await dismissToast();
     await page.locator(".tool-button", { hasText: "Push" }).first().click();

@@ -94,7 +94,7 @@ async function issueBranch() {
   const page = await open(folder, { storage: { [`tributary.issueTracker:${folder}`]: { kind: "jira", site: "studio.atlassian.net", keys: ["FEAST"] } } });
   await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
   await page.getByRole("button", { name: "Stage all", exact: true }).click();
-  await page.locator(".commit-box .primary-small-button", { hasText: "Commit 1 file" }).waitFor();
+  await page.locator(".commit-box .commit-button", { hasText: "Commit 1 file" }).waitFor();
   await page.getByLabel("Commit summary").fill("Add the opening hours");
   await page.getByLabel("Commit description").fill("Why:\nGuests kept asking.\n\nHow to test:\nOpen the tavern level and read the sign.");
   return page;

@@ -269,7 +269,7 @@ try {
     await app.waitFor(".file-warning.large", { text: "Git LFS" });
     await app.click("button", "Stage all");
     await app.type('input[aria-label="Commit summary"]', "Write down the opening hours");
-    await app.click(".commit-box .primary-small-button");
+    await app.click(".commit-box .commit-button");
     await app.click(".commit-warning button", "Commit anyway");
     await app.waitFor(".commit-row", { text: "Write down the opening hours" });
     await app.click(".status-bar button", "Activity");

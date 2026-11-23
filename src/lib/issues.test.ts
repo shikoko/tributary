@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Tracker, WebRemote } from "../api";
-import { branchNameFor, effectiveTracker, issueKeys, issueUrl, branchIssueKey, fromTemplate, withIssueKey } from "./issues";
+import { branchNameFor, branchNameFromSummary, effectiveTracker, issueKeys, issueUrl, branchIssueKey, fromTemplate, withIssueKey } from "./issues";
 
 const jira: Tracker = { kind: "jira", site: "studio.atlassian.net/", keys: ["FEAST"] };
 const linear: Tracker = { kind: "linear", site: "studio", keys: [] };
@@ -24,6 +24,12 @@ describe("issues", () => {
   it("names a branch after an issue", () => {
     expect(branchNameFor({ key: "FEAST-12", title: "Barber's apron: make it leather!" })).toBe("FEAST-12-barber-s-apron-make-it-leather");
     expect(branchNameFor({ key: "#7", title: "Crème brûlée recipe" })).toBe("7-creme-brulee-recipe");
+  });
+
+  it("names a branch from a commit's summary", () => {
+    expect(branchNameFromSummary("Welcome tour for new notebooks")).toBe("welcome-tour-for-new-notebooks");
+    expect(branchNameFromSummary("FEAST-12: Barber's apron, made of leather — at last!")).toBe("feast-12-barber-s-apron-made-of-leather");
+    expect(branchNameFromSummary("   ")).toBe("");
     expect(branchNameFor({ key: "ENG-1", title: "!!!" })).toBe("ENG-1");
   });
 

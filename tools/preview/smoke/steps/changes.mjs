@@ -173,4 +173,35 @@ export default async function ({ page, demos, folder, step, accessible, expect, 
     expect(git("diff", "--cached", "--name-only") === staged, "undo didn't stage the changes again");
     await dismissToast();
   });
+
+  await step("commits to a new branch from the Commit button's menu, as main is protected", async () => {
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" }).trim();
+    const main = git("rev-parse", "main");
+    await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+    const button = page.locator(".commit-box .commit-button");
+    // The button says where the commit goes, and main being protected suggests a new branch.
+    await button.locator(".commit-branch", { hasText: "main" }).waitFor({ timeout: 10_000 });
+    await page.locator(".commit-protected", { hasText: "main is protected" }).waitFor({ timeout: 5000 });
+    await page.getByPlaceholder("Commit summary").fill("Welcome tour for new notebooks");
+    await page.getByRole("button", { name: "Where to commit" }).click();
+    await page.locator(".menu-item", { hasText: "Commit to a new branch…" }).click();
+    // Named from the summary, and the button follows the name.
+    const name = page.getByRole("textbox", { name: "New branch's name" });
+    expect((await name.inputValue()) === "welcome-tour-for-new-notebooks", `named ${await name.inputValue()}`);
+    await button.locator(".commit-branch", { hasText: "welcome-tour-for-new-notebooks" }).waitFor({ timeout: 5000 });
+    expect((await page.locator(".commit-protected").count()) === 0, "the protected note stayed with a new branch chosen");
+    // A name too long for the button loses its folders first.
+    await name.fill("feature/onboarding/welcome-tour-for-new-notebooks");
+    await button.locator(".commit-branch-folder", { hasText: "…/" }).waitFor({ timeout: 5000 });
+    expect((await button.getAttribute("title")).includes("feature/onboarding/welcome-tour-for-new-notebooks"), "the whole name isn't in the tooltip");
+    await name.fill("welcome-tour");
+    await accessible("committing to a new branch");
+    await button.click();
+    await row("Welcome tour for new notebooks").waitFor({ timeout: 15_000 });
+    expect(git("branch", "--show-current") === "welcome-tour", `on ${git("branch", "--show-current")}`);
+    expect(git("log", "-1", "--format=%s") === "Welcome tour for new notebooks", "the commit isn't on the new branch");
+    expect(git("rev-parse", "main") === main, "main moved");
+    await button.locator(".commit-branch", { hasText: "welcome-tour" }).waitFor({ timeout: 5000 });
+    await dismissToast();
+  });
 }

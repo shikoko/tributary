@@ -24,15 +24,99 @@
   min-height: 56px;
 }
 
+/* Amend, then the Commit button on a row of its own, as wide as the panel: it says which
+   branch the commit goes to, and the long names of some branches need the room. */
 .commit-row-controls {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--space-8);
 }
 
 .commit-row-controls .checkbox {
+  align-self: flex-start;
   font-size: var(--type-sm);
+}
+
+/* Commit, and beside it the menu of where to commit, a pixel apart. */
+.commit-split {
+  display: flex;
+  gap: 1px;
+}
+
+.commit-split > .primary-small-button:first-child {
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.commit-split > .commit-more {
+  flex: none;
+  padding: 0 var(--space-8);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.commit-branch {
+  font-family: var(--mono);
+}
+
+/* The folders a shortened name leaves out ("…/welcome-tour"). */
+.commit-branch-folder {
+  opacity: 0.6;
+}
+
+/* Committing to a new branch: its name, from the summary. */
+.commit-new-branch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-10) var(--space-12);
+  border: 1px solid rgb(var(--accent-rgb) / 0.35);
+  border-radius: var(--radius-md);
+  background: rgb(var(--accent-rgb) / 0.06);
+}
+
+.commit-new-branch-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+  font-weight: 600;
+}
+
+.commit-new-branch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.commit-new-branch-row .text-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+}
+
+.commit-new-branch-hint {
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  line-height: 1.45;
+}
+
+/* On a protected branch: a new one is a click away. */
+.commit-protected {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  color: var(--warning-soft-text);
+  font-size: var(--type-sm);
+}
+
+.commit-protected svg {
+  flex: none;
 }
 
 .details-scroll.worktree .files:first-child {

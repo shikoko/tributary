@@ -60,9 +60,9 @@ export function issueUrl(key: string, tracker: Tracker, remote: WebRemote | unde
   }
 }
 
-/** A branch name for working on an issue: "FEAST-12-barber-s-apron", or "12-barber-s-apron". */
-export function branchNameFor(issue: { key: string; title: string }): string {
-  const slug = issue.title
+/** Words as part of a branch name: "Barber's apron" is "barber-s-apron", at most 40 characters. */
+function nameSlug(text: string): string {
+  return text
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
@@ -70,9 +70,17 @@ export function branchNameFor(issue: { key: string; title: string }): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 40)
     .replace(/-+$/, "");
+}
+
+/** A branch name for working on an issue: "FEAST-12-barber-s-apron", or "12-barber-s-apron". */
+export function branchNameFor(issue: { key: string; title: string }): string {
+  const slug = nameSlug(issue.title);
   const key = issue.key.replace(/^#/, "");
   return slug ? `${key}-${slug}` : key;
 }
+
+/** A name for a new branch to commit to, from the commit's summary: "welcome-tour-for-new-notebooks". */
+export const branchNameFromSummary = (summary: string) => nameSlug(summary);
 
 /** Message parts with Jira's or Linear's issue keys (FEAST-12) in their text linked. */
 export function linkIssueKeys(parts: MessagePart[], tracker: Tracker | null, remote: WebRemote | undefined): MessagePart[] {
