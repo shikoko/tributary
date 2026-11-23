@@ -95,6 +95,13 @@ jobs:
     # "test-build", which has no secrets, so they're unsigned (they install by hand, but not
     # as updates).
     environment: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && 'release' || 'test-build' }}
+    # To attest where the installers came from (below): a token to sign with, and where the
+    # attestations are kept.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     strategy:
       fail-fast: false
       matrix:
@@ -273,6 +280,16 @@ jobs:
           fi
           ls -l "$bundle"
 
+      # Where each file came from: a signed statement (an attestation) that this workflow
+      # built it, from this commit, which anyone can check against the file they downloaded:
+      #   gh attestation verify Tributary_0.17.0_x64-setup.exe -R shikoko/tributary
+      # For betas and releases, which are published.
+      - name: Attest where the installers came from
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ matrix.bundles }}
+
       - uses: actions/upload-artifact@v7
         with:
           name: tributary-${{ matrix.target }}
@@ -376,6 +393,8 @@ jobs:
   # Builds of develop: a beta. It's published as a pre-release (which GitHub's "latest"
   # skips, so only the copies that get betas are offered it), with what was merged since
   # the beta before, and the beta channel points at it. The newest few betas are kept.
+  # Like a release, it's made as a draft with all its files, then published: a published
+  # release's files can't change once releases are immutable.
   beta:
     if: github.ref == 'refs/heads/develop'
     needs: [version, build]
@@ -407,11 +426,17 @@ jobs:
             echo "::error::The installers aren't signed for updates (is develop allowed to use the release environment?), so they can't be a beta."
             exit 1
           fi
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq "[.[] | select(.tag_name == \"$TAG\") | {id, draft}]")
+          if [ "$(jq '[.[] | select(.draft | not)] | length' <<<"$existing")" != 0 ]; then
             echo "::notice::$TAG is out already: this build was run again."
             echo "AGAIN=true" >> "$GITHUB_ENV"
             exit 0
           fi
+          # A draft left by an earlier try is replaced (drafts aren't public and have no tag yet).
+          for id in $(jq -r '.[].id' <<<"$existing"); do
+            echo "Replacing the earlier draft of $TAG"
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
+          done
           # What's in it: what was merged since the beta before (or the last release).
           previous=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
             --jq '[.[] | select((.draft | not) and (.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(-beta\\.[0-9]+)?$")))] | sort_by(.created_at) | last | .tag_name // empty')
@@ -421,9 +446,11 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --prerelease \
+            --draft \
             --title "Tributary $TAG" \
             --notes "A beta of what's coming, built from develop. Tributary offers it to people who get beta versions (About Tributary → Get beta versions). It may have rough edges: [tell us](https://github.com/$GITHUB_REPOSITORY/issues/new/choose) if something's wrong." \
             --generate-notes "${since[@]}"
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
 
       - name: Point the beta channel at it
         if: env.AGAIN != 'true'
