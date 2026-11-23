@@ -237,6 +237,12 @@
   max-width: none;
 }
 
+/* As wide as the panel lets them (in the history they stop at 200px): a branch's whole name,
+   shortened only when even that isn't enough. */
+.details-refs .ref-pill {
+  max-width: 100%;
+}
+
 .people {
   display: flex;
   flex-direction: column;
