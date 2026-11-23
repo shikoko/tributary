@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { moved } from "../lib/order";
+import { mainColour } from "../lib/branchColours";
 import {
   ACCENTS,
   CHECK_DEFAULTS,
@@ -23,9 +24,10 @@ import {
   type Theme,
   type ThemeChoice,
 } from "../lib/appearance";
+import { BlockHeading, BranchWays, ColourSwatch, KindsTable } from "./BranchColourRows";
 import { turn } from "./graphPainter";
 import { CheckIcon, PlusIcon } from "./Icons";
-import type { SettingRow } from "./SettingsDialog";
+import { NameList, type SettingRow } from "./SettingsDialog";
 import { Button } from "./ui/Button";
 
 const THEMES: { value: ThemeChoice; label: string }[] = [
@@ -458,35 +460,78 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
       content: <AccentPicker value={appearance.accent} onChange={(value) => change({ accent: value })} />,
     },
     {
-      kind: "custom",
-      label: "Graph colours",
-      hint: "The branches' lines and labels in the commit list.",
+      kind: "block",
+      label: "Branch colours",
       content: (
-        <LanePicker
-          value={appearance.lanes}
-          custom={appearance.customLanes}
-          theme={theme}
-          onChange={(value) =>
-            change(
-              value === "custom" && appearance.customLanes.length < 2
-                ? // Start your own from the colours you're looking at.
-                  { lanes: "custom", customLanes: [...lanePalette(appearance, theme)] }
-                : { lanes: value },
-            )
-          }
-        />
+        <>
+          <BlockHeading label="Branch colours" hint="The pictures show your colours as you change them." />
+          <BranchWays appearance={appearance} theme={theme} onChange={(branchColours) => change({ branchColours })} />
+        </>
       ),
     },
-    ...(appearance.lanes === "custom"
+    ...(appearance.branchColours === "own"
       ? [
           {
             kind: "custom" as const,
-            label: "Your graph colours",
-            hint: "Click a colour to change it, or drag it to another place. The branches take them in turn, in light and dark themes alike.",
-            content: <LaneEditor colors={appearance.customLanes} onChange={(colors) => change({ customLanes: colors })} />,
+            label: "Main branch",
+            hint: "Its colour, which no other branch takes, and its names.",
+            content: (
+              <div className="branch-main">
+                <NameList names={appearance.mainNames} onChange={(mainNames) => change({ mainNames })} placeholder="Add a name" />
+                <ColourSwatch colour={mainColour(appearance, theme)} label="Main's colour" onChange={(mainColour) => change({ mainColour })} />
+              </div>
+            ),
           },
+          {
+            kind: "custom" as const,
+            label: "Other branches",
+            hint: "Each takes one of these, not the one of a branch beside it. A colour too close to main's is left to main.",
+            content: (
+              <LanePicker
+                value={appearance.lanes}
+                custom={appearance.customLanes}
+                theme={theme}
+                onChange={(value) =>
+                  change(
+                    value === "custom" && appearance.customLanes.length < 2
+                      ? // Start your own from the colours you're looking at.
+                        { lanes: "custom", customLanes: [...lanePalette(appearance, theme)] }
+                      : { lanes: value },
+                  )
+                }
+              />
+            ),
+          },
+          ...(appearance.lanes === "custom"
+            ? [
+                {
+                  kind: "custom" as const,
+                  label: "Your graph colours",
+                  hint: "Click a colour to change it, or drag it to another place. The branches take them in turn, in light and dark themes alike.",
+                  content: <LaneEditor colors={appearance.customLanes} onChange={(colors) => change({ customLanes: colors })} />,
+                },
+              ]
+            : []),
         ]
-      : []),
+      : [
+          {
+            kind: "block" as const,
+            label: "Kinds of branches",
+            content: (
+              <>
+                <BlockHeading label="Kinds of branches" hint="A branch takes the colour of the first kind its name fits. * stands for anything." />
+                <KindsTable appearance={appearance} theme={theme} change={change} />
+              </>
+            ),
+          },
+          {
+            kind: "toggle" as const,
+            label: "Shades",
+            hint: "Branches of one kind side by side in lighter and darker shades of its colour, to tell them apart.",
+            value: appearance.shades,
+            set: (shades: boolean) => change({ shades }),
+          },
+        ]),
     {
       kind: "select",
       label: "Commits on the graph",
@@ -538,7 +583,17 @@ export function appearanceRows(stored: Partial<Appearance>, set: (value: Partial
       ),
     },
   ];
-  const graph = new Set(["Graph colours", "Your graph colours", "Commits on the graph", "Checks on dots", "Graph line bends"]);
+  const graph = new Set([
+    "Branch colours",
+    "Main branch",
+    "Other branches",
+    "Your graph colours",
+    "Kinds of branches",
+    "Shades",
+    "Commits on the graph",
+    "Checks on dots",
+    "Graph line bends",
+  ]);
   return {
     look: rows.filter((row) => !graph.has(row.label) && row.label !== "Start over"),
     graph: rows.filter((row) => graph.has(row.label)),

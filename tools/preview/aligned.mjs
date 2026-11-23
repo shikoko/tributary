@@ -30,9 +30,10 @@ export const CONTROLS = [
 /**
  * Controls whose words line up with something else instead, or have no box to be in the
  * middle of: the blame gutter's commit summaries sit on the line of code beside them, and a
- * link button is words alone.
+ * link button, or the section a Settings section is in (its heading's first words), is words
+ * alone.
  */
-export const EXCEPT = [".blame-gutter", ".link-button"].join(", ");
+export const EXCEPT = [".blame-gutter", ".link-button", ".settings-panel-parent"].join(", ");
 
 /** The display scales it checks at: as on Windows (100% to 150%) and on a Mac's screen (200%). */
 export const SCALES = [1, 1.25, 1.5, 2];

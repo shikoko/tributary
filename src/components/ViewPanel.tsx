@@ -165,17 +165,31 @@ export function ViewPanel(props: Props) {
           <Segmented label="Lines bend" value={look.curves} options={CURVE_STYLES.slice(0, 3).map((value) => ({ value, label: BENDS[value] }))} onChange={(curves) => change({ curves })} />
         </div>
         <div className="view-row">
-          <span>Colours</span>
-          <div className="view-palettes" role="group" aria-label="Lane colours">
-            {palettes.map((name) => (
-              <button key={name} className={`view-palette${look.lanes === name ? " on" : ""}`} aria-pressed={look.lanes === name} title={name} onClick={() => change({ lanes: name })}>
-                {LANE_PALETTES[name][props.theme].slice(0, 5).map((color) => (
-                  <span key={color} style={{ background: color }} />
-                ))}
-              </button>
-            ))}
-          </div>
+          <span>Branches</span>
+          <Segmented
+            label="Branch colours"
+            value={look.branchColours}
+            options={[
+              { value: "own", label: "Own colours" },
+              { value: "kinds", label: "By kind" },
+            ]}
+            onChange={(branchColours) => change({ branchColours })}
+          />
         </div>
+        {look.branchColours === "own" && (
+          <div className="view-row">
+            <span>Colours</span>
+            <div className="view-palettes" role="group" aria-label="Lane colours">
+              {palettes.map((name) => (
+                <button key={name} className={`view-palette${look.lanes === name ? " on" : ""}`} aria-pressed={look.lanes === name} title={name} onClick={() => change({ lanes: name })}>
+                  {LANE_PALETTES[name][props.theme].slice(0, 5).map((color) => (
+                    <span key={color} style={{ background: color }} />
+                  ))}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
       <section>
         <h3>Commit list</h3>

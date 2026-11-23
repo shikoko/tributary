@@ -68,6 +68,8 @@ import type { ActivityLog } from "./useWindowEvents";
 import { ThemeContext } from "./useAppearance";
 import { useGoToCommit } from "./useGoToCommit";
 import { useSinceLastHere } from "./useSinceLastHere";
+import { GraphColoursContext, useGraphColours } from "./useGraphColours";
+import type { GraphColours } from "../lib/branchColours";
 import { ViewPanel } from "../components/ViewPanel";
 
 const REMOTE_ACTIONS: Record<RemoteAction, Action> = {
@@ -153,6 +155,8 @@ export function RepositoryView(props: Props) {
   const canChange = !snapshot.bare && running === null;
   const run = (action: Action) => act(action);
   // Guided tours: Getting started for someone new, others offered as you reach their features.
+  // Each commit's colours and its lines', for the graph, the labels and the details.
+  const graphColours = useGraphColours(snapshot.commits);
   const people = useMemo(() => new Set(snapshot.commits.slice(0, 200).map((commit) => commit.authorEmail)).size, [snapshot.commits]);
   const tours = useTours({
     preferences,
@@ -532,7 +536,7 @@ export function RepositoryView(props: Props) {
   };
 
   return (
-    <Contexts repository={repository} issueTracker={issueTracker} checkWhy={setWhy}>
+    <Contexts repository={repository} issueTracker={issueTracker} checkWhy={setWhy} graphColours={graphColours}>
       {!preferences.simpleMode && (
         <Toolbar
           historyLeft={historyLeft}
@@ -822,11 +826,25 @@ export function RepositoryView(props: Props) {
 }
 
 /** What the views inside a repository's ask for: the repository itself, its issue tracker, and showing why a check failed. */
-function Contexts({ repository, issueTracker, checkWhy, children }: { repository: OpenRepository; issueTracker: ComponentProps<typeof IssueTrackerContext.Provider>["value"]; checkWhy: (check: WhyCheck) => void; children: ReactNode }) {
+function Contexts({
+  repository,
+  issueTracker,
+  checkWhy,
+  graphColours,
+  children,
+}: {
+  repository: OpenRepository;
+  issueTracker: ComponentProps<typeof IssueTrackerContext.Provider>["value"];
+  checkWhy: (check: WhyCheck) => void;
+  graphColours: GraphColours;
+  children: ReactNode;
+}) {
   return (
     <OpenRepositoryContext.Provider value={repository}>
       <IssueTrackerContext.Provider value={issueTracker}>
-        <CheckWhyContext.Provider value={checkWhy}>{children}</CheckWhyContext.Provider>
+        <CheckWhyContext.Provider value={checkWhy}>
+          <GraphColoursContext.Provider value={graphColours}>{children}</GraphColoursContext.Provider>
+        </CheckWhyContext.Provider>
       </IssueTrackerContext.Provider>
     </OpenRepositoryContext.Provider>
   );

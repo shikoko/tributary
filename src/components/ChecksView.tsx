@@ -371,6 +371,7 @@ function JobRow({ name, job, run, now, openUrl }: { name: string; job: Job; run:
         <span className="run-job-name">{name}</span>
         <span className="run-job-time">{time ?? (state === "skipped" ? "skipped" : state === "queued" ? "queued" : "")}</span>
       </span>
+      {job.why && <span className="run-job-detail">{job.why}</span>}
       {state === "running" && <Steps job={job} />}
     </button>
   );
@@ -406,7 +407,8 @@ function JobCard({
         <span className="run-job-name">{name}</span>
         <span className="run-job-time">{said}</span>
       </span>
-      {detail && <span className="run-job-detail">{detail}</span>}
+      {/* What it says, or why it stopped when no one cancelled it. */}
+      {(detail ?? job?.why) && <span className="run-job-detail">{detail ?? job?.why}</span>}
       {job && state === "running" && <Steps job={job} />}
     </button>
   );

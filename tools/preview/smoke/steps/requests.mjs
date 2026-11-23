@@ -210,6 +210,10 @@ export default async function ({ browserName, page, demos, folder, preview, brow
     await build.locator(".run-graph-more.left").waitFor({ timeout: 5000 });
     expect(await graph.evaluate((element) => element.scrollLeft > 0), "the arrow didn't scroll the graph");
     await view.locator(".checks-count.failure", { hasText: "1 failed" }).waitFor({ timeout: 5000 });
+    // A run GitHub calls failed with no job failed, only one stopped: cancelled, saying why.
+    const smoke = view.locator(".run-card", { hasText: "Smoke tests" });
+    expect(await smoke.evaluate((card) => card.classList.contains("cancelled")), "a run with no job failed shows as failed");
+    await smoke.locator(".run-job.cancelled .run-job-detail", { hasText: "GitHub had no machine free to run it" }).waitFor({ timeout: 5000 });
     await accessible("a commit's checks as graphs");
     // A failed job says why, with its page a click away; a job that passed opens its page.
     await view.locator(".run-card-job", { hasText: "Audio loudness" }).click();

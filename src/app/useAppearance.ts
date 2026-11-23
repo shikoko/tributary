@@ -16,6 +16,7 @@ import {
   type Theme,
 } from "../lib/appearance";
 import { setAppIcon } from "../api";
+import { branchScheme, type BranchScheme } from "../lib/branchColours";
 import { readSetting } from "../lib/settings";
 
 export const APPEARANCE_KEY = "appearance";
@@ -29,6 +30,8 @@ export interface ThemeInfo {
   curves: CurveStyle;
   nodes: GraphNodes;
   ciDots: CiDots;
+  /** How the graph colours its branches. */
+  branches: BranchScheme;
 }
 
 const FALLBACK: ThemeInfo = {
@@ -36,6 +39,7 @@ const FALLBACK: ThemeInfo = {
   curves: "mixed",
   nodes: "authors",
   ciDots: "ringed",
+  branches: branchScheme(DEFAULT_APPEARANCE, "dark"),
   colors: {
     background: "#14161b",
     selectedBackground: "#252b38",
@@ -93,7 +97,7 @@ export function useAppearance(value: Partial<Appearance> | undefined): ThemeInfo
   useLayoutEffect(() => {
     applyAppearance(appearance, theme);
     const colors = readCanvasColors(lanePalette(appearance, theme));
-    setInfo({ theme, colors, curves: appearance.curves, nodes: appearance.nodes, ciDots: appearance.ciDots });
+    setInfo({ theme, colors, curves: appearance.curves, nodes: appearance.nodes, ciDots: appearance.ciDots, branches: branchScheme(appearance, theme) });
     applyToWindow(appearance.theme, colors.background);
   }, [appearance, theme]);
   // The app's icon follows the theme too (the light one when it's light, the dark one when dark).
