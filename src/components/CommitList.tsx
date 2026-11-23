@@ -6,6 +6,7 @@ import { onLabelDrop } from "../lib/drag";
 import type { RefPill } from "../lib/refs";
 import type { SelectHow } from "../lib/selection";
 import { ThemeContext } from "../app/useAppearance";
+import { GraphColoursContext } from "../app/useGraphColours";
 import { lanesOf, laneTips, type LaneLabel } from "../lib/lanes";
 import { useGraphCanvas } from "./commitList/canvases";
 import { DENSE_ROW_HEIGHT, FOOTER_HEIGHT, GRAPH_PADDING, laneWidthFor, ROW_HEIGHT, useColumnLayout, type ColumnOptions, type ColumnWidths } from "./commitList/layout";
@@ -187,7 +188,8 @@ export function CommitList(props: Props) {
   const laneLabel = props.laneLabel;
   const tipIds = useMemo(() => (laneLabel ? laneTips(commits, laneLabel) : []), [laneLabel, commits]);
   const litLanes = useMemo(() => lanesOf(commits, indexById, tipIds), [commits, indexById, tipIds]);
-  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: brightIds, colors, curves, laneWidth, avatars, litLanes });
+  const graphColours = useContext(GraphColoursContext);
+  useGraphCanvas(canvas, { commits, slots, first, last, width: graphWidth, rowHeight, headId: headCommit, selectedId, focusIds: brightIds, colors, graphColours, curves, laneWidth, avatars, litLanes });
   const marked = useMemo(() => selectedIds ?? new Set(selectedId ? [selectedId] : []), [selectedIds, selectedId]);
   // The marks beside the scrollbar, and the card for those the pointer is on.
   const { markAt, setMarkAt, near, tipMarks, tipStrip, body } = useMarkStrip(markerCanvas, { commits, slotOf, indexById, rowHeight, contentHeight, viewport, matchIds, headId: headCommit, marked, leftOffId: props.leftOffId, colors, tipIds });

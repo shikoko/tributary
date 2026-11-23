@@ -92,6 +92,31 @@ export default async function ({ demos, page, preview, step, accessible, expect,
     await page.locator(".commit-list.lane-lit").waitFor({ state: "detached", timeout: 5000 });
   });
 
+  await step("colours the branches by their kind when asked in Settings, and each its own again", async () => {
+    const pill = page.locator(".commit-row .ref-pill.branch", { hasText: /themes|export/ }).first();
+    // A branch that isn't checked out: a tint of its colour.
+    const colour = () => pill.evaluate((element) => element.style.backgroundColor);
+    const way = async (name) => {
+      await page.keyboard.press("Control+Comma");
+      await page.getByRole("tab", { name: "Graph" }).click();
+      await page.getByRole("radio", { name: name }).click();
+      return page.locator(".settings-window");
+    };
+    const own = await colour();
+    const settings = await way(/By kind of branch/);
+    await settings.getByText("Kinds of branches").waitFor({ timeout: 5000 });
+    expect((await settings.locator(".kinds-row").count()) === 5, "not main, the three kinds and everything else");
+    await accessible("Settings → Graph, by kind of branch");
+    await page.keyboard.press("Escape");
+    await settings.waitFor({ state: "detached", timeout: 5000 });
+    // feature/themes and feature/export are features: the dark theme's blue for them.
+    expect((await colour()).startsWith("rgba(31, 181, 255"), `a feature's label is ${await colour()}`);
+    await way(/Each its own colour/);
+    await page.getByText("Main branch").waitFor({ timeout: 5000 });
+    await page.keyboard.press("Escape");
+    expect((await colour()) === own, `the label is ${await colour()}, not ${own} again`);
+  });
+
   await step("outlines a commit you jump to for a moment, not one you click in the list", async () => {
     await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
     await page.waitForTimeout(300);

@@ -38,6 +38,39 @@ export const CHECK_DEFAULTS: Record<Theme, Record<CheckState, string>> = {
   light: { pending: "#d68000", success: "#189e52", failure: "#d63040" },
 };
 
+/** How the branches are coloured: each its own colour, or the colour of its kind of branch. */
+export type BranchColouring = "own" | "kinds";
+/** The kinds of branch Tributary starts with, whose colours follow the theme until you pick your own. */
+export type KindPreset = "features" | "fixes" | "releases";
+
+/**
+ * A kind of branch: the names it takes ("feature/*" is any name starting "feature/"; any
+ * case), and its colour.
+ */
+export interface BranchKind {
+  name: string;
+  patterns: string[];
+  /** `#rrggbb` in light and dark themes alike, or null for the theme's (BRANCH_COLOURS). */
+  colour: string | null;
+  preset?: KindPreset;
+}
+
+/** The theme's colours for the main branch, the kinds Tributary starts with, and everything else. */
+export const BRANCH_COLOURS: Record<Theme, Record<"main" | KindPreset | "other", string>> = {
+  dark: { main: "#ffad1f", features: "#1fb5ff", fixes: "#ff5a5f", releases: "#8ce04a", other: "#a77bff" },
+  light: { main: "#cf8300", features: "#0a8bd1", fixes: "#d6333a", releases: "#4b931b", other: "#7a4fe3" },
+};
+
+export const DEFAULT_KINDS: BranchKind[] = [
+  { name: "Features", patterns: ["feature/*", "feat/*"], colour: null, preset: "features" },
+  { name: "Fixes", patterns: ["fix/*", "bugfix/*", "hotfix/*"], colour: null, preset: "fixes" },
+  { name: "Releases", patterns: ["release/*"], colour: null, preset: "releases" },
+];
+
+export const DEFAULT_MAIN_NAMES = ["main", "master"];
+export const MAX_KINDS = 12;
+const MAX_NAMES = 20;
+
 export interface Appearance {
   theme: ThemeChoice;
   /** `#rrggbb`. */
@@ -54,6 +87,16 @@ export interface Appearance {
    * too close to a branch's: the theme's for any state without one.
    */
   checkColors: Partial<Record<CheckState, string>>;
+  branchColours: BranchColouring;
+  /** The main branch's names: its line has a colour no other branch takes. */
+  mainNames: string[];
+  /** `#rrggbb`, or null for the theme's. */
+  mainColour: string | null;
+  kinds: BranchKind[];
+  /** Branches of no kind: `#rrggbb`, or null for the theme's. */
+  otherColour: string | null;
+  /** Branches of one kind side by side in shades of its colour, to tell them apart. */
+  shades: boolean;
 }
 
 export const DEFAULT_ACCENT = "#1fb5ff";
@@ -68,6 +111,12 @@ export const DEFAULT_APPEARANCE: Appearance = {
   nodes: "authors",
   ciDots: "ringed",
   checkColors: {},
+  branchColours: "own",
+  mainNames: DEFAULT_MAIN_NAMES,
+  mainColour: null,
+  kinds: DEFAULT_KINDS,
+  otherColour: null,
+  shades: true,
 };
 
 /** Your own lane colours: from two to this many. */
@@ -116,7 +165,7 @@ export const LANE_PALETTE_LABELS: Record<LanePaletteName, string> = {
   safe: "Colour-blind safe",
 };
 
-type Rgb = [number, number, number];
+export type Rgb = [number, number, number];
 
 /** `#rgb` or `#rrggbb`, or null when it isn't one. */
 export function parseHex(hex: string): Rgb | null {
@@ -132,7 +181,7 @@ export function toHex([r, g, b]: Rgb): string {
 }
 
 /** `a`, moved `amount` (0–1) of the way to `b`. */
-function mix(a: Rgb, b: Rgb, amount: number): Rgb {
+export function mix(a: Rgb, b: Rgb, amount: number): Rgb {
   return [0, 1, 2].map((i) => a[i] + (b[i] - a[i]) * amount) as Rgb;
 }
 
@@ -177,10 +226,10 @@ function readable(color: Rgb, background: Rgb, toward: Rgb, min = 4.5): Rgb {
   return result;
 }
 
-const WHITE: Rgb = [255, 255, 255];
+export const WHITE: Rgb = [255, 255, 255];
 /** White on a button's fill, at least: 4.5 to 1 once it brightens by 8% when pointed at. */
 export const FILL_CONTRAST = 5.2;
-const BLACK: Rgb = [0, 0, 0];
+export const BLACK: Rgb = [0, 0, 0];
 const DARK_TEXT: Rgb = [228, 231, 238];
 const LIGHT_TEXT: Rgb = [27, 31, 38];
 /** The themes' panel backgrounds (--bg-panel; --bg is close enough). */
@@ -249,7 +298,47 @@ export function normalizeAppearance(value: Partial<Appearance> | null | undefine
     const rgb = typeof given === "string" ? parseHex(given) : null;
     if (rgb) checkColors[state] = toHex(rgb);
   }
-  return { theme, accent, lanes, customLanes, diffColors, curves, nodes, ciDots, checkColors };
+  const branchColours = value?.branchColours === "kinds" ? "kinds" : "own";
+  const mainNames = Array.isArray(value?.mainNames) ? names(value.mainNames) : DEFAULT_MAIN_NAMES;
+  const kinds = Array.isArray(value?.kinds)
+    ? value.kinds
+        .filter((kind): kind is BranchKind => typeof kind === "object" && kind !== null)
+        .slice(0, MAX_KINDS)
+        .map((kind) => ({
+          name: typeof kind.name === "string" ? kind.name.slice(0, 40) : "",
+          patterns: Array.isArray(kind.patterns) ? names(kind.patterns) : [],
+          colour: hexOrNull(kind.colour),
+          ...(kind.preset === "features" || kind.preset === "fixes" || kind.preset === "releases" ? { preset: kind.preset } : {}),
+        }))
+    : DEFAULT_KINDS;
+  return {
+    theme,
+    accent,
+    lanes,
+    customLanes,
+    diffColors,
+    curves,
+    nodes,
+    ciDots,
+    checkColors,
+    branchColours,
+    mainNames,
+    mainColour: hexOrNull(value?.mainColour),
+    kinds,
+    otherColour: hexOrNull(value?.otherColour),
+    shades: value?.shades !== false,
+  };
+}
+
+/** Branch names (or patterns) as typed: trimmed, each once, and not too many. */
+function names(value: unknown[]): string[] {
+  const all = value.filter((name): name is string => typeof name === "string").map((name) => name.trim()).filter(Boolean);
+  return [...new Set(all)].slice(0, MAX_NAMES);
+}
+
+function hexOrNull(value: unknown): string | null {
+  const rgb = typeof value === "string" ? parseHex(value) : null;
+  return rgb ? toHex(rgb) : null;
 }
 
 /** The lane colours in use: a built-in palette for the theme, or your own. */

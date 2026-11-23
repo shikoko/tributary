@@ -11,6 +11,7 @@ const BISECT_TITLES: Record<BisectMark, string> = {
 import type { CommitRow } from "../../api";
 import type { ChangeCounts as Counts } from "../../lib/changes";
 import type { CiDots } from "../../lib/appearance";
+import { GraphColoursContext } from "../../app/useGraphColours";
 import { laneColor } from "../../lib/colors";
 import { pressCommit } from "../../lib/drag";
 import { pillLane, type LaneLabel } from "../../lib/lanes";
@@ -84,7 +85,8 @@ export const ListRow = memo(function ListRow(props: RowProps) {
   const ci = useContext(CiStatesContext).get(commit.id);
   const on = () => handlers.current!;
   const onSelect = (id: string, how?: SelectHow) => on().onSelect(id, how);
-  const color = laneColor(commit.graph.column, lanes);
+  // Its branch's colour, or its lane's when it hasn't one (graphColours).
+  const color = useContext(GraphColoursContext).byId.get(commit.id)?.node ?? laneColor(commit.graph.column, lanes);
   // A dot on the graph (not an author's picture) can show its checks itself.
   const onDot = !authorNode && ciDots !== "beside";
   // A line from the label to the commit's node in the graph (which can be narrower than its lane).

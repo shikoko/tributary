@@ -1,0 +1,149 @@
+/* Settings → Appearance → Graph: how the branches are coloured (BranchColourRows.tsx). */
+
+.branch-heading {
+  padding: var(--space-10) 0;
+}
+
+/* The two ways, each a picture of a history coloured that way. */
+.branch-ways {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-12);
+}
+
+.branch-way {
+  align-items: stretch;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-14);
+  text-align: left;
+}
+
+.branch-way-words {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.branch-way-title {
+  color: var(--text);
+  font-size: var(--type-base);
+}
+
+.branch-sample {
+  flex: none;
+}
+
+.branch-sample-label {
+  font-family: var(--mono);
+  font-size: var(--type-xs);
+}
+
+.branch-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+/* A colour to click and change: the colour picker over it, unseen. */
+.colour-swatch {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 0 0 1px rgb(var(--overlay-rgb) / 0.15);
+  cursor: pointer;
+}
+
+.colour-swatch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.colour-swatch:focus-within {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The kinds of branches, one to a line. */
+.kinds-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.kinds-row {
+  display: grid;
+  grid-template-columns: 26px 150px 1fr 20px;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 48px;
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--border);
+}
+
+.kinds-row .name-list {
+  justify-content: flex-start;
+}
+
+.kinds-name-input {
+  width: 100%;
+  height: 26px;
+  padding: 0 var(--space-8);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--type-base);
+}
+
+.kinds-name-input:hover {
+  border-color: var(--border-strong);
+}
+
+.kinds-name-input:focus {
+  border-color: var(--accent);
+}
+
+.kinds-fixed {
+  padding: 0 var(--space-8);
+  color: var(--text);
+}
+
+.kinds-else {
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+}
+
+.kinds-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+}
+
+.kinds-remove:hover {
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+
+.kinds-add {
+  display: flex;
+  padding: var(--space-8) var(--space-12);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--bg-panel);
+}

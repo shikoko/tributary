@@ -1,7 +1,24 @@
 import { describe, expect, it } from "vitest";
 // @ts-expect-error type error without @types/node package
 import { readFileSync } from "node:fs";
-import { accentRoles, ACCENTS, CHECK_DEFAULTS, checkRoles, contrast, DEFAULT_APPEARANCE, FILL_CONTRAST, effectiveTheme, LANE_PALETTES, lanePalette, normalizeAppearance, parseHex, textOn } from "./appearance";
+import {
+  accentRoles,
+  ACCENTS,
+  BRANCH_COLOURS,
+  CHECK_DEFAULTS,
+  checkRoles,
+  contrast,
+  DEFAULT_APPEARANCE,
+  DEFAULT_KINDS,
+  FILL_CONTRAST,
+  effectiveTheme,
+  LANE_PALETTES,
+  lanePalette,
+  MAX_KINDS,
+  normalizeAppearance,
+  parseHex,
+  textOn,
+} from "./appearance";
 
 const rgb = (hex: string) => parseHex(hex)!;
 
@@ -121,6 +138,35 @@ describe("appearance", () => {
     // One colour isn't a palette: back to the vivid one.
     expect(normalizeAppearance({ lanes: "custom", customLanes: ["#ff0000"] }).lanes).toBe("vivid");
     expect(lanePalette(DEFAULT_APPEARANCE, "dark")).toEqual(LANE_PALETTES.vivid.dark);
+  });
+
+  it("colours each branch its own way until asked to colour them by kind, with the kinds Tributary starts with", () => {
+    const start = normalizeAppearance({});
+    expect(start.branchColours).toBe("own");
+    expect(start.mainNames).toEqual(["main", "master"]);
+    expect(start.kinds).toEqual(DEFAULT_KINDS);
+    expect(start.shades).toBe(true);
+    expect(normalizeAppearance({ branchColours: "kinds" }).branchColours).toBe("kinds");
+  });
+
+  it("keeps your kinds of branches and their colours, tidied", () => {
+    const yours = normalizeAppearance({
+      mainNames: [" develop ", "main", "main", ""],
+      mainColour: "#FFF",
+      kinds: [{ name: "Chores", patterns: ["chore/*", 4 as unknown as string], colour: "nope" }, null as unknown as never],
+      otherColour: "#123456",
+      shades: false,
+    });
+    expect(yours.mainNames).toEqual(["develop", "main"]);
+    expect(yours.mainColour).toBe("#ffffff");
+    expect(yours.kinds).toEqual([{ name: "Chores", patterns: ["chore/*"], colour: null }]);
+    expect(yours.otherColour).toBe("#123456");
+    expect(yours.shades).toBe(false);
+    expect(normalizeAppearance({ kinds: Array.from({ length: 20 }, () => ({ name: "k", patterns: [], colour: null })) }).kinds).toHaveLength(MAX_KINDS);
+  });
+
+  it("has branch colours for both themes that stand out from the list", () => {
+    for (const color of Object.values(BRANCH_COLOURS.light)) expect(contrast(rgb(color), rgb("#ffffff"))).toBeGreaterThanOrEqual(2.2);
   });
 
   it("bends lines smoothly next door and round further out, unless asked otherwise", () => {

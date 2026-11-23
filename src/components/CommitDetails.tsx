@@ -1,7 +1,6 @@
 import { useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { commitDetails, type CommitDetails, type CommitRow, type CommitSignature, type FileChange, type Lock, type Person, type WebRemote } from "../api";
-import { useThemeColors } from "../app/useAppearance";
-import { laneColor } from "../lib/colors";
+import { useCommitColour } from "../app/useGraphColours";
 import { dateInZone, fullDate, shortId, utcOffset } from "../lib/format";
 import { copyText } from "../lib/clipboard";
 import { coAuthors } from "../lib/weblinks";
@@ -67,8 +66,8 @@ export interface DetailsAction {
 type Loaded = { id: string; details?: CommitDetails; error?: string };
 
 export function CommitDetailsPanel(props: Props) {
-  const colors = useThemeColors();
   const { repoPath, commit, cache, hasCommit, onSelect, onClose, actions, remote, resolveCommit } = props;
+  const commitColour = useCommitColour(commit);
   const { onFileMenu, isHighlighted, lockOf, onOpenFile, isShown } = props;
   const [loaded, setLoaded] = useState<Loaded>({ id: commit.id, details: cache.get(commit.id) });
 
@@ -172,7 +171,7 @@ export function CommitDetailsPanel(props: Props) {
           <section className="details-message">
             {commit.refs.length > 0 && (
               <div className="details-refs">
-                <RefPills refs={commit.refs} color={laneColor(commit.graph.column, colors.lanes)} />
+                <RefPills refs={commit.refs} color={commitColour} />
               </div>
             )}
             <h2 className="details-summary">
