@@ -195,9 +195,11 @@ export function graphColours(commits: CommitRow[], scheme: BranchScheme): GraphC
     if (!own || own.main !== onMain || own.leads) {
       own = start(onMain, row);
       own.leads = commit.kind !== "commit";
+      // Uncommitted changes coming down into this commit are on its line; a line that ended
+      // just above in this column isn't its colour.
       const before = incoming ?? lastIn.get(column);
-      if (before?.leads) before.into = own;
-      else if (before && row - before.last <= FOLLOWS) link(before, own);
+      if (incoming?.leads) incoming.into ??= own;
+      else if (before && !before.leads && row - before.last <= FOLLOWS) link(before, own);
     }
     own.oldest = commit.id;
     own.last = row;
@@ -221,7 +223,7 @@ export function graphColours(commits: CommitRow[], scheme: BranchScheme): GraphC
         // Into this commit from above: its own line, or a branch's that ends here.
         const line = (from === column ? incoming : above.get(from)) ?? own;
         line.last = row;
-        if (line.leads && line !== own) line.into = own;
+        if (line.leads && line !== own) line.into ??= own;
         colours[index] = line;
       } else if (kind === 2) {
         let line = index === first ? own : below.get(to);
