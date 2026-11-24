@@ -12,20 +12,43 @@
 //                                                 (the third pull request since 1.2.3), which
 //                                                 comes before 1.3.0 and after 1.3.0-beta.2
 //
-// The last release is the newest tag like v1.2.3 (a release's tag appears when it's
-// published). Before the first release, the version is the one in package.json.
-// Needs the whole history and its tags (actions/checkout with fetch-depth: 0), and
-// GH_TOKEN to read the pull requests' labels.
+// The last release is the newest tag like v1.2.3. Before the first release, the version is
+// the one in package.json.
+//
+// A release's tag only appears when it's published, at the end of the release build on main,
+// about 40 minutes after its pull request (develop into main) is merged. A pull request merged
+// into develop in that time isn't in the release, so its beta comes after it. Counted from the
+// release before, it would be a beta of the release that's being published (1.3.0-beta.4 after
+// 1.3.0 was merged), which is older than that release, so no copy of Tributary on it would be
+// offered the beta. So for a beta, a release that's been merged into main but not tagged yet is
+// the last release: main's tip, when it's the merge of a pull request from develop with no tag
+// like v1.2.3 on it, and the beta's commit isn't in it (develop as it was merged into main is
+// still a beta of that release). Its version is the one the release build works out for it
+// (this script on main, without --beta), so a beta of what was merged after it gets the same
+// number before the tag appears as after. The release build itself counts from the tag before:
+// main's tip is what it's building.
+//
+// Needs the whole history, the tags and main (actions/checkout with fetch-depth: 0, which
+// fetches every branch: main is origin/main), and GH_TOKEN to read the pull requests' labels.
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 
 const RELEASE = /^v(\d+)\.(\d+)\.(\d+)$/;
 const KINDS = ["fix", "feature", "breaking"];
+const MAIN = "refs/remotes/origin/main";
 
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
+const gitSucceeds = (...args) => {
+  try {
+    execFileSync("git", args, { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /** The newest release tag, or undefined before the first release. */
-function lastRelease() {
+function lastTag() {
   const numbers = (tag) => tag.match(RELEASE).slice(1).map(Number);
   return git("tag", "--list", "v*")
     .split("\n")
@@ -36,9 +59,22 @@ function lastRelease() {
     })[0];
 }
 
-/** The pull requests merged into develop since `since` (a tag), from their merge commits. */
-function mergedSince(since) {
-  const subjects = git("log", "--merges", "--format=%s", since ? `${since}..HEAD` : "HEAD").split("\n");
+/** main's tip, if it's a release that's been merged but not published yet (above). */
+function beingPublished() {
+  if (!gitSucceeds("rev-parse", "--verify", "--quiet", `${MAIN}^{commit}`)) {
+    throw new Error(
+      "main isn't fetched (origin/main), so there's no knowing whether a release is being published: check out with fetch-depth: 0",
+    );
+  }
+  if (git("tag", "--points-at", MAIN).split("\n").some((tag) => RELEASE.test(tag))) return undefined;
+  if (!/^Merge pull request #\d+ from [^/\s]+\/develop$/.test(git("log", "-1", "--format=%s", MAIN))) return undefined;
+  if (gitSucceeds("merge-base", "--is-ancestor", "HEAD", MAIN)) return undefined;
+  return git("rev-parse", MAIN);
+}
+
+/** The pull requests merged into develop after `since` (a commit), up to `until`, from their merge commits. */
+function mergedSince(since, until) {
+  const subjects = git("log", "--merges", "--format=%s", since ? `${since}..${until}` : until).split("\n");
   const numbers = [];
   for (const subject of subjects) {
     const found = subject.match(/^Merge pull request #(\d+) from [^/\s]+\/(\S+)/);
@@ -62,29 +98,42 @@ async function kind(number) {
   return KINDS.findLast((name) => labels.includes(name)) ?? "fix";
 }
 
+/**
+ * The version of a release made from `until`, with the pull requests merged since the last
+ * release (`last`: its version and its commit, or undefined before the first) and their kinds.
+ */
+async function releaseOf(until, last) {
+  const merged = mergedSince(last?.commit, until);
+  // Before the first release, the labels don't change anything.
+  if (!last) {
+    const { version } = JSON.parse(readFileSync("package.json", "utf8"));
+    return { version, merged, kinds: merged.map(() => "") };
+  }
+  const kinds = await Promise.all(merged.map(kind));
+  const [major, minor, patch] = last.version.split(".").map(Number);
+  const biggest = Math.max(0, ...kinds.map((name) => KINDS.indexOf(name)));
+  const version = [`${major}.${minor}.${patch + 1}`, `${major}.${minor + 1}.0`, `${major + 1}.0.0`][biggest];
+  return { version, merged, kinds };
+}
+
 // --dev is what builds of develop were called before they were betas.
 const beta = process.argv.includes("--beta") || process.argv.includes("--dev");
-const last = lastRelease();
-const merged = mergedSince(last);
-// Before the first release, the labels don't change anything.
-const kinds = last ? await Promise.all(merged.map(kind)) : merged.map(() => "");
-
-let version;
-if (!last) {
-  version = JSON.parse(readFileSync("package.json", "utf8")).version;
-} else {
-  const [major, minor, patch] = last.match(RELEASE).slice(1).map(Number);
-  const biggest = Math.max(0, ...kinds.map((name) => KINDS.indexOf(name)));
-  version = [`${major}.${minor}.${patch + 1}`, `${major}.${minor + 1}.0`, `${major + 1}.0.0`][biggest];
+const tag = lastTag();
+let last = tag && { version: tag.slice(1), commit: tag, name: tag };
+const publishing = beta ? beingPublished() : undefined;
+if (publishing) {
+  const { version } = await releaseOf(publishing, last);
+  last = { version, commit: publishing, name: `v${version}, merged into main and not published yet` };
 }
-if (beta) version += `-beta.${merged.length}`;
+const { version: release, merged, kinds } = await releaseOf("HEAD", last);
+const version = beta ? `${release}-beta.${merged.length}` : release;
 
 // What it was worked out from, on the run's page.
 if (process.env.GITHUB_STEP_SUMMARY) {
   const lines = merged.map((number, index) => `- #${number}${kinds[index] ? `: ${kinds[index]}` : ""}`);
   appendFileSync(
     process.env.GITHUB_STEP_SUMMARY,
-    `### Version ${version}\n\n${last ? `Since ${last}` : "Before the first release (the version in package.json)"}: ${
+    `### Version ${version}\n\n${last ? `Since ${last.name}` : "Before the first release (the version in package.json)"}: ${
       merged.length ? `\n\n${lines.join("\n")}\n` : "no pull requests.\n"
     }\n`,
   );
