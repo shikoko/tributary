@@ -115,6 +115,23 @@ fn installer_args(pass_on: &[String]) -> Vec<String> {
         .collect()
 }
 
+/// The installer's arguments for an update: what came for it, and the folder of the Tributary
+/// being updated, unless a folder came. Without one, the installer would look for its folder
+/// under the publisher's name in the registry (`Software\<publisher>\Tributary`), which isn't
+/// there when the publisher's name changes (it was `github` until 0.19), and install into the
+/// default folder instead of where Tributary is.
+fn update_args(pass_on: &[String], installed: Option<&Installed>) -> Vec<String> {
+    let mut args = pass_on.to_vec();
+    if let Some(install) = installed
+        && !args
+            .iter()
+            .any(|arg| arg.to_ascii_uppercase().starts_with("/D="))
+    {
+        args.push(format!("/D={}", install.folder));
+    }
+    installer_args(&args)
+}
+
 /// A Tributary that's installed, and for whom.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -322,9 +339,13 @@ async fn update(app: AppHandle, launch: State<'_, Launch>) -> Result<(), String>
         None => record::note("updating, without its window"),
     }
     let result = tauri::async_runtime::spawn_blocking(move || {
-        let everyone = target(&platform::installs(), launch.installed.as_deref())
-            .is_some_and(|install| install.everyone);
-        platform::run_installer(everyone, &installer_args(&launch.pass_on), true)
+        let install = target(&platform::installs(), launch.installed.as_deref());
+        let everyone = install.as_ref().is_some_and(|install| install.everyone);
+        platform::run_installer(
+            everyone,
+            &update_args(&launch.pass_on, install.as_ref()),
+            true,
+        )
     })
     .await
     .map_err(|e| e.to_string())
@@ -379,9 +400,13 @@ fn add_shortcut(folder: String) -> Result<(), String> {
 
 /// Install or update without a window; the installer's exit code.
 fn without_window(launch: &Launch) -> i32 {
+    let install = if launch.update {
+        target(&platform::installs(), launch.installed.as_deref())
+    } else {
+        None
+    };
     let everyone = if launch.update {
-        let everyone = target(&platform::installs(), launch.installed.as_deref())
-            .is_some_and(|install| install.everyone);
+        let everyone = install.as_ref().is_some_and(|install| install.everyone);
         // An update installed as Tributary quits doesn't ask for an administrator: it waits
         // for Restart to update instead.
         if everyone && !launch.restart {
@@ -393,7 +418,12 @@ fn without_window(launch: &Launch) -> i32 {
     };
     // Updates for everyone ask for an administrator; IT tools (`/S /ALLUSERS`) run as one.
     let elevate = launch.update && everyone;
-    match platform::run_installer(everyone, &installer_args(&launch.pass_on), elevate) {
+    let args = if launch.update {
+        update_args(&launch.pass_on, install.as_ref())
+    } else {
+        installer_args(&launch.pass_on)
+    };
+    match platform::run_installer(everyone, &args, elevate) {
         Ok(()) => {
             record::note("installed, without a window");
             0
@@ -990,7 +1020,9 @@ mod platform {
 
 #[cfg(test)]
 mod tests {
-    use super::{Display, Installed, Launch, installer_args, middle_of_display, parse, target};
+    use super::{
+        Display, Installed, Launch, installer_args, middle_of_display, parse, target, update_args,
+    };
 
     fn args(line: &str) -> Vec<String> {
         line.split(' ').map(String::from).collect()
@@ -1004,6 +1036,27 @@ mod tests {
         assert_eq!(launch.installed.as_deref(), Some("C:\\Apps\\Tributary"));
         assert_eq!(launch.pass_on, args("/UPDATE /R /ARGS"));
         assert_eq!(installer_args(&launch.pass_on), args("/S /UPDATE /R /ARGS"));
+    }
+
+    #[test]
+    fn updates_tributary_in_its_own_folder() {
+        let install = Installed {
+            folder: "D:\\My Tools\\Tributary".into(),
+            version: None,
+            everyone: false,
+        };
+        let launch = parse(args("/P /UPDATE /R /INSTALLED=D:\\My"));
+        // The folder it's in goes to the installer, last, whatever the registry says.
+        assert_eq!(
+            update_args(&launch.pass_on, Some(&install)),
+            ["/S", "/UPDATE", "/R", "/D=D:\\My Tools\\Tributary"].map(String::from)
+        );
+        // A folder that came for it wins, and with nothing installed, nothing's added.
+        assert_eq!(
+            update_args(&args("/UPDATE /D=E:\\Tributary"), Some(&install)),
+            args("/S /UPDATE /D=E:\\Tributary")
+        );
+        assert_eq!(update_args(&args("/UPDATE"), None), args("/S /UPDATE"));
     }
 
     #[test]

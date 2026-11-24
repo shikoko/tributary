@@ -34,6 +34,12 @@
   !insertmacro TributaryExplorerMenu "Software\Classes\Directory\shell\Tributary"
   !insertmacro TributaryExplorerMenu "Software\Classes\Directory\Background\shell\Tributary"
 
+  ; Until 0.19 the installer named its publisher `github` (from Tributary's identifier), and
+  ; kept the install folder under Software\github\Tributary. It's Software\Bogdan Roatis\Tributary
+  ; now, so the old key goes. Only Tributary's own key: Software\github may hold other programs'.
+  DeleteRegKey SHCTX "Software\github\Tributary"
+  DeleteRegKey HKCU "Software\github\Tributary"
+
   ; Tell Windows that programs' icons may have changed (SHCNE_ASSOCCHANGED, SHCNF_FLUSH), so
   ; that a new icon shows without waiting for Windows to notice.
   System::Call "shell32::SHChangeNotify(i 0x08000000, i 0x1000, p 0, p 0)"
