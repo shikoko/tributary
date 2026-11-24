@@ -32,6 +32,11 @@
   flex: none;
 }
 
+/* The same list for tags to push (PushTagsDialog): ticking adds, so in the accent. */
+.push-tags-list .prune-row input {
+  accent-color: var(--accent);
+}
+
 .prune-main {
   display: flex;
   flex: 1;
@@ -57,11 +62,9 @@
   color: var(--text-secondary);
 }
 
+/* A small chip (chips.css), squarer: a fact about the branch, not a state. */
 .prune-tag {
-  padding: 1px var(--space-6);
   border-radius: var(--radius-sm);
-  font-size: var(--type-xs);
-  white-space: nowrap;
 }
 
 .prune-tag.gone {

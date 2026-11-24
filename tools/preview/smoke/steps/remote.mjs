@@ -1,10 +1,56 @@
-// The smoke test: Syncing and force pushing, a remote branch renamed, and settings in a repository.
+// The smoke test: Pushing tags, syncing and force pushing, a remote branch renamed, and settings in a repository.
 import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-export default async function ({ page, demos, folder, step, expect, dismissToast, row, openNotebook }) {
+export default async function ({ page, demos, folder, step, expect, accessible, dismissToast, row, openNotebook }) {
   await openNotebook();
+
+  await step("pushes the tags origin doesn't have, with those on commits it has ticked", async () => {
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" });
+    const remoteTags = () =>
+      git("ls-remote", "--tags", "--refs", "origin")
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => line.split("refs/tags/")[1])
+        .sort();
+    // origin has none of the demo's tags. A release tag on a commit origin has (as v0.1.0 and
+    // v0.2.0 are), and one on main's last commit, which origin hasn't got.
+    git("tag", "v0.3.0", "origin/main");
+    git("tag", "try-webdav", "main");
+    const dialog = page.locator(".dialog", { hasText: "Push tags to origin" });
+    const tagRow = (name) => dialog.locator(".prune-row", { has: page.locator(".ref-name", { hasText: new RegExp(`^${name}$`) }) });
+    const open = async () => {
+      await page.getByRole("button", { name: "More push options" }).click();
+      await page.locator(".menu-item", { hasText: "Push tags…" }).click();
+      await dialog.waitFor({ timeout: 10_000 });
+    };
+    try {
+      await open();
+      await tagRow("v0.3.0").waitFor({ timeout: 10_000 });
+      expect(await tagRow("v0.3.0").locator("input").isChecked(), "a tag on a commit origin has isn't ticked");
+      expect(await tagRow("v0.1.0").locator("input").isChecked(), "v0.1.0, on a commit origin has, isn't ticked");
+      expect(!(await tagRow("try-webdav").locator("input").isChecked()), "a tag on a commit only here is ticked");
+      await tagRow("try-webdav").locator(".prune-tag", { hasText: "commit not on origin yet" }).waitFor({ timeout: 2000 });
+      await tagRow("v0.3.0").locator(".prune-tag", { hasText: "on origin/main" }).waitFor({ timeout: 2000 });
+      await accessible("Push tags");
+      await dialog.getByRole("button", { name: "Push 3 tags", exact: true }).click();
+      await page.locator(".toast", { hasText: "Pushed 3 tags to origin" }).waitFor({ timeout: 15_000 });
+      expect(remoteTags().join(", ") === "v0.1.0, v0.2.0, v0.3.0", `origin has ${remoteTags().join(", ")}`);
+      await dismissToast();
+      // Only the one left behind is offered now.
+      await open();
+      await tagRow("try-webdav").waitFor({ timeout: 10_000 });
+      expect((await dialog.locator(".prune-row").count()) === 1, "tags origin has are offered again");
+      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await dialog.waitFor({ state: "detached", timeout: 5000 });
+    } finally {
+      // As it was, for the steps after.
+      for (const tag of remoteTags()) git("push", "-q", "origin", `:refs/tags/${tag}`);
+      git("tag", "-d", "v0.3.0", "try-webdav");
+    }
+  });
 
   await step("syncs a branch with commits on both sides, force pushes it when it was rewritten, and pushes past a hook that fails", async () => {
     const was = (await page.locator('.tabs > .tab[aria-selected="true"]').textContent()).trim();

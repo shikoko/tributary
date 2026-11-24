@@ -190,6 +190,12 @@ pub async fn upstream_choices(path: String, branch: String) -> Result<actions::U
     blocking(move || actions::upstream_choices(&PathBuf::from(path), &branch)).await
 }
 
+/// The tags here that a remote (the default remote when none is given) doesn't have yet.
+#[tauri::command]
+pub async fn tags_to_push(path: String, remote: Option<String>) -> Result<actions::TagsToPush> {
+    blocking(move || actions::tags_to_push(&PathBuf::from(path), remote)).await
+}
+
 /// What someone else pushed to a remote branch since it was at `since`, that HEAD doesn't have.
 #[tauri::command]
 pub async fn unseen_commits(

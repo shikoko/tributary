@@ -2,7 +2,7 @@ import type { Action, CommitRow, RepoSnapshot, Submodule, Worktree } from "../ap
 import type { DetailsAction } from "../components/CommitDetails";
 import type { ColumnOptions } from "../components/CommitList";
 import type { MenuItem } from "../components/ContextMenu";
-import { BroomIcon, ColumnsIcon, CopyIcon, DownloadIcon, FolderIcon, PlusIcon, PushIcon, ResetIcon, SyncIcon, StashIcon, SubmoduleIcon, TrashIcon } from "../components/Icons";
+import { BroomIcon, ColumnsIcon, CopyIcon, DownloadIcon, FolderIcon, PlusIcon, PushIcon, ResetIcon, SyncIcon, StashIcon, SubmoduleIcon, TagIcon, TrashIcon } from "../components/Icons";
 import { copyText } from "../lib/clipboard";
 import { isMac } from "../lib/platform";
 import { stashIndexOf } from "../lib/refs";
@@ -13,6 +13,7 @@ export function pushMenuItems(push: () => void, sync: () => void, openDialog: (d
   return [
     { label: "Push", icon: <PushIcon />, onSelect: push },
     { label: "Sync: pull, then push", icon: <SyncIcon />, onSelect: sync },
+    { label: "Push tags…", detail: "Choose which tags to send", icon: <TagIcon />, onSelect: () => openDialog({ kind: "pushTags" }) },
     { label: "Force push…", icon: <PushIcon />, danger: true, separated: true, onSelect: () => openDialog({ kind: "forcePush" }) },
   ];
 }

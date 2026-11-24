@@ -7,6 +7,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DeleteBranchDialog, DeleteRemoteBranchDialog } from "../components/DeleteBranchDialogs";
 import { ForcePushDialog } from "../components/ForcePushDialog";
 import { ChooseUpstreamDialog } from "../components/ChooseUpstreamDialog";
+import { PushTagsDialog } from "../components/PushTagsDialog";
 import { InteractiveRebaseDialog } from "../components/InteractiveRebaseDialog";
 import { PruneLfsDialog } from "../components/LfsCleanup";
 import { NewBranchDialog } from "../components/NewBranchDialog";
@@ -261,6 +262,20 @@ function Prune(_: Shown<"prune">) {
       onDelete={(branches) => {
         closeDialog();
         act({ kind: "deleteBranches", branches });
+      }}
+    />
+  );
+}
+
+function PushTags(_: Shown<"pushTags">) {
+  const { act, closeDialog, snapshot } = useOpenRepository();
+  return (
+    <PushTagsDialog
+      repoPath={snapshot.path}
+      onCancel={() => closeDialog()}
+      onPush={(names, remote) => {
+        closeDialog();
+        act({ kind: "pushTags", names, remote });
       }}
     />
   );
@@ -592,6 +607,7 @@ const DIALOGS: { [K in Kind]: (props: Shown<K>) => React.ReactNode } = {
   deleteRemoteBranch: DeleteRemoteBranch,
   deleteTag: DeleteTag,
   deleteRemoteTag: DeleteRemoteTag,
+  pushTags: PushTags,
   forceUnlock: ForceUnlock,
   applyPatch: ApplyPatch,
   recover: Recover,
