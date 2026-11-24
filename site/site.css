@@ -836,6 +836,28 @@ main { position: relative; }
 .foot-brand { display: inline-flex; align-items: center; gap: 10px; margin-right: auto; }
 .foot-brand svg { width: 20px; height: 20px; }
 
+/* ---------- A page of text: the code signing policy ---------- */
+.doc { max-width: calc(760px + 2 * var(--gutter)); margin: 0 auto; padding: 132px var(--gutter) 104px; }
+.doc h1 { font-size: 56px; line-height: 1.04; letter-spacing: -.038em; margin: 20px 0 14px; text-wrap: balance; }
+.doc h2 { font-size: 28px; line-height: 1.2; letter-spacing: -.02em; font-weight: 650; margin: 56px 0 14px; }
+.doc p, .doc li, .doc dd { color: var(--text-2); text-wrap: pretty; }
+.doc strong { color: var(--text); font-weight: 600; }
+.doc a { color: var(--t1); text-underline-offset: 3px; }
+.doc ul, .doc ol { padding-left: 24px; }
+.doc li + li { margin-top: 8px; }
+.doc li::marker { color: var(--muted); }
+.doc code { font-size: .86em; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; }
+.doc pre { margin: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; overflow-x: auto; font-size: 14px; line-height: 1.6; }
+.doc pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+.doc .doc-lede { font-size: 20px; margin: 0 0 36px; }
+/* SignPath's credit, as their terms ask for it: on its own, where it's seen first. */
+.doc .credit { margin: 0 0 16px; padding: 18px 22px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-weight: 600; }
+.doc .note { margin: 0; padding: 14px 18px; border-radius: 0 12px 12px 0; border-left: 3px solid var(--l3); background: color-mix(in srgb, var(--l3) 8%, transparent); }
+.doc .roles { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px 28px; margin: 0 0 16px; padding: 18px 22px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); }
+.doc .roles dt { color: var(--text); font-weight: 600; }
+.doc .roles dd { margin: 0; }
+.foot a[aria-current] { color: var(--text); }
+
 /* ---------- Entrances ---------- */
 .js .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s var(--ease), transform .9s var(--ease); transition-delay: var(--d, 0s); }
 .js .reveal.in { opacity: 1; transform: none; }
@@ -924,6 +946,12 @@ main { position: relative; }
   .sm-switch { padding-right: 10px; }
   .sm-switch span:last-child { font-size: 12.5px; }
   .sm-files .fp { display: none; }
+  .doc { padding-top: 100px; }
+  .doc h1 { font-size: 40px; }
+  .doc .doc-lede { font-size: 18px; }
+  .doc h2 { font-size: 24px; margin-top: 44px; }
+  .doc .roles { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .doc .roles dd + dt { margin-top: 10px; }
   .download { padding-top: 130px; }
   .download h2 { font-size: 42px; }
   .lfs-files li, .lock-list li { padding: 9px 6px; }
