@@ -22,6 +22,9 @@ pub enum Stopped {
 pub enum ErrorKind {
     /// The person stopped it.
     Cancelled,
+    /// The folder isn't a git repository, nor in one (opened from Explorer, say): it can be
+    /// made one.
+    NotARepository { path: String },
     /// A sync stopped before pulling: the branch was amended or rebased after it was pushed,
     /// so pulling would bring back the old versions of its commits. It needs a force push.
     Rewritten,

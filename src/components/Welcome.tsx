@@ -20,6 +20,8 @@ interface Props {
   /** The path being opened, while it loads. */
   opening: string | null;
   error: string | null;
+  /** What can be done about the error, when something can: a button beside it. */
+  errorChoice?: { label: string; run: () => void } | null;
   onPick: () => void;
   onClone: () => void;
   onCreate: () => void;
@@ -34,7 +36,7 @@ interface Props {
 }
 
 /** Shown when no repository is open: open, clone or create one, or pick a recent one. */
-export function Welcome({ recent, summaries, opening, error, onPick, onClone, onCreate, onOpen, onForget, onPin, accounts, onSignIn, git }: Props) {
+export function Welcome({ recent, summaries, opening, error, errorChoice, onPick, onClone, onCreate, onOpen, onForget, onPin, accounts, onSignIn, git }: Props) {
   const [filter, setFilter] = useState("");
   const needle = filter.trim().toLowerCase();
   const shown = recent.filter(
@@ -143,7 +145,16 @@ export function Welcome({ recent, summaries, opening, error, onPick, onClone, on
         {git.install?.old && <GitOldNote install={git} />}
         <p className="welcome-hint">You can also drop a folder onto this window.</p>
 
-        {error && <div className="error-banner">{error}</div>}
+        {error && (
+          <div className="error-banner welcome-error" role="alert">
+            <span>{error}</span>
+            {errorChoice && (
+              <Button kind="secondary" size="small" onClick={errorChoice.run}>
+                <span className="button-label">{errorChoice.label}</span>
+              </Button>
+            )}
+          </div>
+        )}
 
         {recent.length > 0 && (
           <section className="recent">

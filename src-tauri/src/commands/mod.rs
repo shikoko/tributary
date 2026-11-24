@@ -1056,6 +1056,13 @@ pub fn report_problem(what: String) -> Option<String> {
     crate::problems::log_file().map(|file| file.display().to_string())
 }
 
+/// The folders Tributary was started with (Explorer's Open in Tributary), once: the window
+/// opens them as it starts. Those of a later start come as `open_folder::EVENT`.
+#[tauri::command]
+pub fn startup_folders() -> Vec<String> {
+    crate::open_folder::take()
+}
+
 /// Why the window was loaded again (its web content process stopped), once, if it was.
 #[tauri::command]
 pub fn take_recovery_note() -> Option<String> {

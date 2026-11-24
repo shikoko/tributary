@@ -60,7 +60,7 @@ import { useRepositorySettings } from "./app/useRepositorySettings";
 import { useSearch } from "./app/useSearch";
 import { useSelection } from "./app/useSelection";
 import { useTabs } from "./app/useTabs";
-import { useActivityLog, useFolderDrop, useRepositoryWatch, useWindowFocus } from "./app/useWindowEvents";
+import { useActivityLog, useFolderDrop, useOpenFolder, useRepositoryWatch, useWindowFocus } from "./app/useWindowEvents";
 import { useWorktrees } from "./app/useWorktrees";
 import { useZoom } from "./app/window";
 import { DEFAULT_COLUMNS } from "./components/CommitList";
@@ -294,6 +294,12 @@ export default function App() {
     if (latest.current.dialog) return;
     if (isPatchFile(path) && latest.current.snapshot && !latest.current.snapshot.bare) setDialog({ kind: "applyPatch", file: path });
     else repo.load(path, "open");
+  });
+  // A folder from Explorer's Open in Tributary, while it's running: it opens in its tab, over
+  // any window that was open (it was asked for).
+  useOpenFolder((path) => {
+    setDialog(null);
+    repo.load(path, "open");
   });
   useWindowFocus(() => {
     if (!latest.current.snapshot || !idle() || repo.blockFocusRefresh.current) return;
