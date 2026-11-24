@@ -38,6 +38,12 @@ pub enum FileStatus {
     Conflicted,
 }
 
+/// A new folder (one git tracks nothing in yet) with more new files than this is listed as
+/// the folder alone ("Renders/"), as `git status` lists every new folder: build output that
+/// should have been ignored, say, would otherwise bury the list, and take long to list. A
+/// smaller one lists each file, to see, stage or discard on its own.
+pub const NEW_FOLDER_FILES_LISTED: usize = 1000;
+
 /// Staged and unstaged changes, like `git status`. `None` for a clean working
 /// tree, a bare repository, or when the status can't be read.
 pub(super) fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> {
@@ -48,6 +54,8 @@ pub(super) fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> 
     let mut iter = repo
         .status(gix::progress::Discard)
         .ok()?
+        // A new folder is one entry ("Art/Sketches/"), quick to find whatever is in it; the
+        // files in it are listed after, unless there are too many (`list_new_folders`).
         .untracked_files(gix::status::UntrackedFiles::Collapsed)
         // Submodules are compared below, by commit only.
         .index_worktree_submodules(None)
@@ -55,6 +63,8 @@ pub(super) fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> 
         .ok()?;
 
     let mut status = WorktreeStatus::default();
+    // Repositories inside this one, listed whole ("vendor/tool/") as git does.
+    let mut repositories = std::collections::HashSet::new();
     let lossy = |path: &gix::bstr::BStr| path.to_str_lossy().into_owned();
     for item in iter.by_ref().flatten() {
         match item {
@@ -111,9 +121,12 @@ pub(super) fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> 
                     _ => None,
                 };
                 if let gix::status::index_worktree::Item::DirectoryContents { entry, .. } = &item {
-                    // A whole untracked folder, shown collapsed like `git status` does.
+                    // A whole new folder, or a repository inside this one.
                     if entry.disk_kind.is_some_and(|kind| kind.is_dir()) {
                         path.push('/');
+                    }
+                    if entry.disk_kind == Some(gix::dir::entry::Kind::Repository) {
+                        repositories.insert(path.clone());
                     }
                 }
                 // Conflicts can be reported once per side of the merge; list each file once.
@@ -130,6 +143,8 @@ pub(super) fn worktree_status(repo: &gix::Repository) -> Option<WorktreeStatus> 
             }
         }
     }
+
+    list_new_folders(repo, &mut status.unstaged, &repositories);
 
     // Files that are unchanged but have new timestamps had to be read to tell.
     if iter
@@ -205,6 +220,93 @@ fn moved_submodules(repo: &gix::Repository, index: &gix::index::State) -> Vec<St
             (head != entry.id).then_some(path)
         })
         .collect()
+}
+
+/// Each new folder in `changes` ("Art/Sketches/") replaced by the new files in it, unless it
+/// has more than [`NEW_FOLDER_FILES_LISTED`]. `repositories` stay whole.
+fn list_new_folders(
+    repo: &gix::Repository,
+    changes: &mut Vec<FileChange>,
+    repositories: &std::collections::HashSet<String>,
+) {
+    let is_new_folder = |change: &FileChange| {
+        change.status == FileStatus::Untracked
+            && change.path.ends_with('/')
+            && !repositories.contains(&change.path)
+    };
+    if !changes.iter().any(is_new_folder) {
+        return;
+    }
+    let Ok(index) = repo.index_or_empty() else {
+        return;
+    };
+    let mut listed = Vec::with_capacity(changes.len());
+    for change in changes.drain(..) {
+        match is_new_folder(&change)
+            .then(|| files_in_new_folder(repo, &index, &change.path))
+            .flatten()
+        {
+            Some(files) => listed.extend(files.into_iter().map(|path| FileChange {
+                path,
+                old_path: None,
+                status: FileStatus::Untracked,
+            })),
+            None => listed.push(change),
+        }
+    }
+    *changes = listed;
+}
+
+/// The new files in the new folder `folder` ("Art/Sketches/"), each with its path from the
+/// top, and any repository in it whole ("Art/Sketches/tool/"), as git lists them. `None` if
+/// there are more than [`NEW_FOLDER_FILES_LISTED`]: the walk stops there, so a huge folder
+/// costs little.
+fn files_in_new_folder(
+    repo: &gix::Repository,
+    index: &gix::index::State,
+    folder: &str,
+) -> Option<Vec<String>> {
+    use std::ops::ControlFlow;
+
+    #[derive(Default)]
+    struct Files {
+        paths: Vec<String>,
+        too_many: bool,
+    }
+    impl gix::dir::walk::Delegate for Files {
+        fn emit(
+            &mut self,
+            entry: gix::dir::EntryRef<'_>,
+            _collapsed_directory_status: Option<gix::dir::entry::Status>,
+        ) -> gix::dir::walk::Action {
+            if entry.status != gix::dir::entry::Status::Untracked {
+                return ControlFlow::Continue(());
+            }
+            let mut path = entry.rela_path.to_str_lossy().into_owned();
+            if entry.disk_kind.is_some_and(|kind| kind.is_dir()) {
+                path.push('/');
+            }
+            self.paths.push(path);
+            if self.paths.len() > NEW_FOLDER_FILES_LISTED {
+                self.too_many = true;
+                return ControlFlow::Break(());
+            }
+            ControlFlow::Continue(())
+        }
+    }
+
+    let options = repo
+        .dirwalk_options()
+        .ok()?
+        .emit_untracked(gix::dir::walk::EmissionMode::Matching);
+    // Literally that folder: its name may hold `*` or `[`, which a pattern would read as wildcards.
+    let pattern = format!(":(literal){}", folder.trim_end_matches('/'));
+    let mut files = Files::default();
+    let interrupt = std::sync::atomic::AtomicBool::new(false);
+    repo.dirwalk(index, [pattern.as_str()], &interrupt, options, &mut files)
+        .ok()?;
+    // An empty folder, or one gix couldn't read: leave it as git listed it.
+    (!files.too_many && !files.paths.is_empty()).then_some(files.paths)
 }
 
 /// Files whose timestamps changed but whose content didn't (after a tool touched them, or

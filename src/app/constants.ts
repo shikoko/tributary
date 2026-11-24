@@ -34,7 +34,7 @@ export const ACTIVITY_SIZE = 300;
 /**
  * For Discard all, or discarding chosen files or folders, its progress bar's label: how many
  * of the uncommitted files go, as `worktree` lists them ("Discarding 12,345 files"). A new
- * folder is listed as itself, however many files are in it, so it's counted as a folder
+ * folder of more than 1,000 files is listed as itself, so it's counted as a folder
  * ("Discarding 4 files and 1 new folder"). git says nothing while it stashes them away, so
  * the bar shows it's working, not how far it is. `null` for any other action, or when it
  * isn't known which files go.

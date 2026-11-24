@@ -5,7 +5,7 @@ mod common;
 use common::{TempRepo, files, head, options, remote_turn, run, with_identity};
 use tributary_lib::actions::Action;
 use tributary_lib::error::Error;
-use tributary_lib::repo::{FileStatus, LoadOptions, RefKind, RowKind};
+use tributary_lib::repo::{FileStatus, LoadOptions, NEW_FOLDER_FILES_LISTED, RefKind, RowKind};
 use tributary_lib::{actions, repo};
 
 #[test]
@@ -204,6 +204,48 @@ fn shows_uncommitted_changes_and_stashes() {
 
     let details = repo::details(repo.path(), &stash.id).unwrap();
     assert_eq!(files(&details.files), vec![("a.txt", FileStatus::Modified)]);
+}
+
+#[test]
+fn lists_the_files_in_new_folders_and_folds_big_ones() {
+    let mut repo = TempRepo::new("new-folders");
+    std::fs::create_dir_all(repo.path().join("Art")).unwrap();
+    repo.commit("Art/kept.txt", "Initial commit");
+    let write = |path: &str| {
+        let path = repo.path().join(path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, "new").unwrap();
+    };
+    // A new folder in a tracked one, with a folder of its own: each file is listed.
+    write("Art/Sketches/a.png");
+    write("Art/Sketches/b.png");
+    write("Art/Sketches/old/c.png");
+    // A new file beside tracked ones.
+    write("Art/new.txt");
+    // A new folder with too many files to list: the folder alone.
+    for n in 0..=NEW_FOLDER_FILES_LISTED {
+        write(&format!("Renders/frame{n:04}.png"));
+    }
+    // A repository inside this one: listed whole, as git does.
+    std::fs::create_dir_all(repo.path().join("vendor/tool")).unwrap();
+    repo.git(&["-C", "vendor/tool", "init", "--quiet"]);
+    write("vendor/tool/main.c");
+
+    let snapshot = repo::load(repo.path(), 100, true).unwrap();
+    let status = snapshot.worktree.as_ref().unwrap();
+    let mut listed = files(&status.unstaged);
+    listed.sort_by_key(|(path, _)| *path);
+    assert_eq!(
+        listed,
+        vec![
+            ("Art/Sketches/a.png", FileStatus::Untracked),
+            ("Art/Sketches/b.png", FileStatus::Untracked),
+            ("Art/Sketches/old/c.png", FileStatus::Untracked),
+            ("Art/new.txt", FileStatus::Untracked),
+            ("Renders/", FileStatus::Untracked),
+            ("vendor/tool/", FileStatus::Untracked),
+        ]
+    );
 }
 
 #[test]
