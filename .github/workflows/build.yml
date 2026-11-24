@@ -41,7 +41,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # The whole history and its tags: the last release, and what's been merged since.
+          # The whole history, every branch and the tags: the last release, and what's been
+          # merged since. main is there as origin/main, for a release that's still being
+          # published (below).
           fetch-depth: 0
 
       # A merge into develop of only words and pictures (Markdown, docs/, the issue forms,
@@ -70,6 +72,10 @@ jobs:
             echo "build=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # A beta counts from the last release, or from a release that's been merged into main
+      # and is still being built: its tag only appears when it's published, about 40 minutes
+      # later, and what's merged into develop in that time comes after it (next-version.mjs
+      # says how).
       - name: Next version
         id: version
         env:
