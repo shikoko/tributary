@@ -12,6 +12,7 @@
 .request-review,
 .recent-chip,
 .team-branch-chip,
+.prune-tag,
 .request-state,
 .request-ref,
 .name-chip,
@@ -29,7 +30,8 @@
 .mentioned-issue-status,
 .request-review,
 .recent-chip,
-.team-branch-chip {
+.team-branch-chip,
+.prune-tag {
   height: 20px;
   padding: 0 var(--space-8);
   font-size: var(--type-xs);

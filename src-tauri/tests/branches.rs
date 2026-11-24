@@ -735,6 +735,78 @@ fn creates_pushes_deletes_and_restores_tags() {
     );
 }
 
+#[test]
+fn lists_the_tags_a_remote_lacks_and_pushes_the_chosen_ones() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("tags-to-push-remote.git");
+    let mut repo = TempRepo::new("tags-to-push");
+    with_identity(&repo);
+    repo.git(&["remote", "add", "origin", remote.url()]);
+    repo.commit("a.txt", "First");
+    repo.git(&["tag", "v1"]);
+    let released = repo.commit("b.txt", "Release two");
+    repo.git(&["tag", "-a", "v2", "-m", "Version two"]);
+    repo.git(&["push", "--quiet", "origin", "main"]);
+    // v1 is on origin already; v3 is on a commit origin hasn't got.
+    repo.git(&["push", "--quiet", "origin", "v1"]);
+    repo.git(&["checkout", "--quiet", "-b", "idea"]);
+    let idea = repo.commit("c.txt", "Try an idea");
+    repo.git(&["tag", "v3"]);
+    // origin has an "old" tag that's on another commit here.
+    repo.git(&["push", "--quiet", "origin", "v1:refs/tags/old"]);
+    repo.git(&["tag", "old", &released]);
+
+    let found = actions::tags_to_push(repo.path(), None).unwrap();
+    assert_eq!(found.remote, "origin");
+    let listed: Vec<(&str, &str, Option<&str>)> = found
+        .tags
+        .iter()
+        .map(|tag| (tag.name.as_str(), tag.id.as_str(), tag.on_remote.as_deref()))
+        .collect();
+    assert_eq!(
+        listed,
+        vec![
+            ("v3", idea.as_str(), None),
+            ("v2", released.as_str(), Some("origin/main")),
+        ],
+        "newest first; v1 isn't offered, as origin has it"
+    );
+    assert_eq!(
+        found.tags[1].summary, "Release two",
+        "the commit's, not the tag's"
+    );
+    assert_eq!(found.different, vec!["old".to_string()]);
+
+    assert_eq!(
+        run(
+            &repo,
+            Action::PushTags {
+                names: vec!["v2".into(), "v3".into()],
+                remote: "origin".into(),
+            },
+        )
+        .unwrap(),
+        "Pushed tags v2 and v3 to origin"
+    );
+    assert_eq!(remote.git(&["tag", "--list"]), "old\nv1\nv2\nv3");
+    assert!(
+        actions::tags_to_push(repo.path(), None)
+            .unwrap()
+            .tags
+            .is_empty()
+    );
+    assert!(
+        run(
+            &repo,
+            Action::PushTags {
+                names: vec!["nope".into()],
+                remote: "origin".into(),
+            },
+        )
+        .is_err()
+    );
+}
+
 fn restore(repo: &TempRepo, reference: &str) -> Result<String, String> {
     run(
         repo,
