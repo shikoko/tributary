@@ -51,6 +51,8 @@ export async function startSession({ browser, browserName, userAgent, axeSource,
     localStorage.setItem("tributary.whatsNew.seen", JSON.stringify("999.0.0"));
     // No tour offers in the way (Help → Tours is tested on its own).
     localStorage.setItem("tributary.tours.off", "true");
+    // Nor the offer to write commit messages with AI (its own smoke step shows it).
+    localStorage.setItem("tributary.ai.offered", "true");
   }, demos.notebook);
   const shots = screenshots ? join(screenshots, name) : null;
   if (shots) mkdirSync(shots, { recursive: true });

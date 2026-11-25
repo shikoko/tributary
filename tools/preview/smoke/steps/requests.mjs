@@ -50,6 +50,8 @@ export default async function ({ browserName, page, demos, folder, preview, brow
           localStorage.setItem("tributary.fetch.auto", "false");
           localStorage.setItem("tributary.whatsNew.seen", JSON.stringify("999.0.0"));
           localStorage.setItem("tributary.tours.off", "true");
+          // Nor the offer to write commit messages with AI (its own smoke step shows it).
+          localStorage.setItem("tributary.ai.offered", "true");
         }, [demos.studio, STUDIO_PULL_REQUESTS]);
         await scaled.goto(preview.url);
         await scaled.getByText("Open repository").first().click();

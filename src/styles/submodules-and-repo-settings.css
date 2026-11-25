@@ -351,3 +351,21 @@ select:disabled {
   cursor: default;
   opacity: 0.55;
 }
+
+/* Settings → AI: the key, and beside it Save; what went wrong under both. */
+.ai-key-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.ai-key-form .settings-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-key-form .review-error {
+  flex-basis: 100%;
+  margin: 0;
+}

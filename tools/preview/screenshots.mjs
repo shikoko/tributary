@@ -59,6 +59,8 @@ async function open(repo, { theme = "dark", preview: fakes = {}, storage = {} } 
       // Not someone new: no welcome tour, no What's new.
       localStorage.setItem("tributary.whatsNew.seen", JSON.stringify("999.0.0"));
       localStorage.setItem("tributary.tours.off", "true");
+      // Nor the offer to write commit messages with AI (its own smoke step shows it).
+      localStorage.setItem("tributary.ai.offered", "true");
       localStorage.setItem("tributary.appearance", JSON.stringify({ theme }));
       for (const [key, value] of Object.entries(storage)) localStorage.setItem(key, JSON.stringify(value));
     },

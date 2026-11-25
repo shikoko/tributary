@@ -78,6 +78,8 @@ async function whatsNew() {
           localStorage.setItem("tributary.fetch.auto", "false");
           localStorage.setItem("tributary.whatsNew.seen", JSON.stringify(before ?? "0.0.0"));
           localStorage.setItem("tributary.tours.off", "true");
+          // Nor the offer to write commit messages with AI (its own smoke step shows it).
+          localStorage.setItem("tributary.ai.offered", "true");
           localStorage.setItem("tributary.appearance", JSON.stringify({ theme }));
         },
         [theme, before],

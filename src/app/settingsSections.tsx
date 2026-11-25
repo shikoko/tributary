@@ -1,6 +1,6 @@
 import type { ColumnOptions } from "../components/CommitList";
 import { appearanceRows } from "../components/AppearanceRows";
-import { BranchIcon, ClockIcon, ColumnsIcon, ContrastIcon, DiffIcon, FetchIcon, ForkIcon, GearIcon, HistoryIcon, KeyIcon, LockIcon, SidebarIcon, TransferIcon, UserIcon } from "../components/Icons";
+import { AiIcon, BranchIcon, ClockIcon, ColumnsIcon, ContrastIcon, DiffIcon, FetchIcon, ForkIcon, GearIcon, HistoryIcon, KeyIcon, LockIcon, SidebarIcon, TransferIcon, UserIcon } from "../components/Icons";
 import { describeForkRun, type ForkSyncEvery } from "../lib/forks";
 import { SshKeys } from "../components/SshKeys";
 import { SIDEBAR_SECTIONS } from "../components/sidebar/WorkLists";
@@ -12,6 +12,7 @@ import type { Theme } from "../lib/appearance";
 import { FETCH_MINUTES, HISTORY_MINUTES, SCHEDULE_TIMES, ZOOM_LEVELS } from "./constants";
 import type { NewCommitNotices, Preferences, ReleaseLocks, SubmoduleUpdates } from "./usePreferences";
 import { Button } from "../components/ui/Button";
+import { AI_SECTION } from "../lib/ai";
 
 /** The Settings section with the diff and merge tools, to open it at. */
 export const DIFF_SECTION = "Diff and merge";
@@ -31,6 +32,8 @@ interface Options {
   };
   /** Which diff and merge tools git opens. */
   diffTools: SettingRow[];
+  /** Writing commit messages with AI. */
+  ai: SettingRow[];
   /** The editor and terminal "Open in …" uses. */
   apps: SettingRow[];
   /** Exporting the settings, and importing them back. */
@@ -40,7 +43,7 @@ interface Options {
 }
 
 /** Everything in the Settings window: the app's own settings (each repository has its own window). */
-export function settingsSections({ preferences, onFetchLatestNow, accounts, diffTools, apps, transfer, theme }: Options): SettingsSection[] {
+export function settingsSections({ preferences, onFetchLatestNow, accounts, diffTools, ai, apps, transfer, theme }: Options): SettingsSection[] {
   const { reopenTabs, setReopenTabs, autoFetch, setAutoFetch, fetchMinutes, setFetchMinutes } = preferences;
   const { newCommitNotices, setNewCommitNotices, requestNotices, setRequestNotices, largeFileMB, setLargeFileMB, autoLock, setAutoLock, dense, setDense } = preferences;
   const { releaseLocks, setReleaseLocks, submoduleUpdates, setSubmoduleUpdates } = preferences;
@@ -436,6 +439,11 @@ export function settingsSections({ preferences, onFetchLatestNow, accounts, diff
       title: DIFF_SECTION,
       icon: <DiffIcon size={15} />,
       rows: diffTools,
+    },
+    {
+      title: AI_SECTION,
+      icon: <AiIcon size={15} />,
+      rows: ai,
     },
 
     {

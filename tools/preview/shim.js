@@ -327,6 +327,16 @@
     tracker_status: (args) => (preview.issues ? { signedIn: Boolean(preview.issues.user), user: preview.issues.user ?? null } : server("tracker_status", args)),
     tracker_sign_in: (args) => (preview.issues ? ((preview.issues.user = "Maya Chen"), { signedIn: true, user: "Maya Chen" }) : server("tracker_sign_in", args)),
     tracker_sign_out: (args) => (preview.issues ? ((preview.issues.user = null), null) : server("tracker_sign_out", args)),
+    // Writing commit messages with AI: steered by ai ({ key, models, written, delay }) when it's
+    // set, for pictures; else the app's own backend (the smoke test runs a stand-in model server).
+    ai_key: (args) => (preview.ai ? { kept: Boolean(preview.ai.key), ends: preview.ai.key ? preview.ai.key.slice(-4) : null } : server("ai_key", args)),
+    ai_save_key: (args) => (preview.ai ? ((preview.ai.key = args.key), { kept: true, ends: args.key.slice(-4) }) : server("ai_save_key", args)),
+    ai_forget_key: (args) => (preview.ai ? ((preview.ai.key = null), null) : server("ai_forget_key", args)),
+    ai_models: (args) => (preview.ai?.models ? structuredClone(preview.ai.models) : server("ai_models", args)),
+    write_commit_message: (args) =>
+      preview.ai?.written
+        ? new Promise((resolve) => setTimeout(() => resolve(structuredClone(preview.ai.written)), preview.ai.delay ?? 600))
+        : server("write_commit_message", args),
     pull_requests: (args) => (faking() ? structuredClone(preview.pullRequests) : server("pull_requests", args)),
     recent_requests: (args) => (preview.recentRequests !== undefined ? structuredClone(preview.recentRequests) : server("recent_requests", args)),
     pull_request_details: (args) => (faking() ? fakeDetails(args) : server("pull_request_details", args)),
