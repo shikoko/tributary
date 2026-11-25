@@ -208,7 +208,7 @@ The installers aren't code-signed yet, so the first launch needs one extra step:
 
 It's only needed once: the updates Tributary installs itself open straight away.
 
-How the Windows downloads will be signed, and who approves it, is in the [code signing policy](https://shikoko.github.io/tributary/code-signing.html).
+Windows code signing is being set up: free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org). How the Windows downloads will be signed, and who approves it, is in the [code signing policy](https://shikoko.github.io/tributary/code-signing.html).
 
 To check that a file you downloaded is the one GitHub built from this repository (from 0.17.1 on), with the [GitHub CLI](https://cli.github.com):
 
