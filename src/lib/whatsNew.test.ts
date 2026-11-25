@@ -87,6 +87,16 @@ describe("what's new", () => {
     }
   });
 
+  // What's New shows Markdown, not HTML: a tag like <kbd>Ctrl</kbd> would show as it's written.
+  it("has no HTML in the notes' items, which What's New would show as written", () => {
+    for (const notes of RELEASES) {
+      for (const item of notes.sections.flatMap((section) => section.items)) {
+        const tag = `${item.title} ${item.text}`.match(/<\/?[a-z][a-z0-9]*\b[^>]*>/i);
+        expect(tag?.[0], `${notes.version}: "${item.title}" has ${tag?.[0]}: write it as plain text (Ctrl+Alt+1)`).toBeUndefined();
+      }
+    }
+  });
+
   it("compares versions by their numbers", () => {
     expect(compareVersions("0.10.0", "0.9.3")).toBe(1);
     expect(compareVersions("1.2", "1.2.0")).toBe(0);
