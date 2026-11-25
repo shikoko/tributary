@@ -68,11 +68,25 @@ export default async function ({ page, demos, folder, locks, step, accessible, e
         }
         throw new Error(`no bisect prompt. The bar: ${await said(bar)}. An error: ${await said(failed)}. git bisect log: ${log}. git status: ${git("status", "--short") || "clean"}`);
       }
-      // Everything after the good commit is bad: the first one after it is the culprit.
-      for (let tries = 0; tries < 5 && !(await bar.filter({ hasText: "Found it" }).count()); tries++) {
-        await bar.getByRole("button", { name: "Bad", exact: true }).click();
-        await page.waitForTimeout(300);
-        await page.locator(".progress-strip").waitFor({ state: "detached", timeout: 10_000 }).catch(() => {});
+      // Everything after the good commit is bad: the first one after it is the culprit. Each
+      // answer waits for the bar to be ready for it, or to have found the culprit: once found,
+      // the bar has no Bad button (clicking it then, just as git finished, waited in vain).
+      const found = bar.filter({ hasText: "Found it" });
+      const ready = bar.getByRole("button", { name: "Bad", exact: true }).and(page.locator(":enabled"));
+      for (let tries = 0; tries < 8; tries++) {
+        await found.or(ready).first().waitFor({ timeout: 15_000 });
+        if (await found.count()) break;
+        const testing = await bar.locator(".mono").first().innerText();
+        await ready.click();
+        // Until git has taken the answer: the next commit to test, or the culprit.
+        await page.waitForFunction(
+          (before) => {
+            const now = document.querySelector(".bisect-bar");
+            return !!now && (now.textContent.includes("Found it") || (now.querySelector(".mono")?.textContent ?? before) !== before);
+          },
+          testing,
+          { timeout: 15_000 },
+        );
       }
       await bar.filter({ hasText: "Found it" }).filter({ hasText: "Use the editor kit's faster rendering" }).waitFor({ timeout: 10_000 });
       await page.locator(".bisect-tag.found").first().waitFor({ timeout: 5000 });
