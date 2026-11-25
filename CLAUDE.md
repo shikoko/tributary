@@ -11,6 +11,13 @@
 - **Rebase before merging:** before merging a pull request into `develop`, rebase its branch onto the latest `develop` and push it (`--force-with-lease`), so the branch starts from the tip of `develop` and the graph shows a short loop that joins straight back in. If its checks had passed and the rebase had no conflicts, merge it straight away, without waiting for them to run again: each merge into `develop` is checked again as merged. A pull request from `develop` into `main` isn't rebased.
 - **Releases go through the checklist:** the pull request from `develop` into `main` has the release checklist (`.github/release-checklist.md`) as its description. Ready to release lists the boxes left unticked as reminders; they don't block the merge. Tick only what you've checked yourself, with a line under the item saying how. Tick the items on real computers (Windows and macOS) only when the maintainer says they've done them, and say so under them.
 
+## Issues
+
+- **Every open issue has one status label**, kept up to date: `status: triage` (new, not looked at yet), `status: planned` (agreed on, not started), `status: in progress` (being worked on), `status: waiting` (on the person who opened it, or an outside service), `status: in next release` (done on develop, not released yet). The **Issue status** workflow (`.github/workflows/issue-status.yml`) puts triage on new issues, in progress when a pull request that fixes one is opened, in next release when it merges into develop, and takes that off when the release is published. Set planned and waiting, and put right anything else, by hand.
+- **A pull request that fixes an issue says so:** "Fixes #123" in its description, so the issue closes when it merges and its status follows.
+- **Its labels and assignee:** what kind it is (`bug` or `enhancement`) and where (`windows`, `linux`, …), assigned to the maintainer.
+- **Comments on an issue are for the person who opened it:** short and plain, about what changes for them, not how it was done, and never saying who or what wrote them.
+
 ## Writing commit messages and pull request descriptions
 
 Commits go out under the maintainer's name and are public, so they get quoted out of context. Write them as an experienced engineer would.
