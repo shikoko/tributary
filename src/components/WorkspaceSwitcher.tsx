@@ -307,7 +307,7 @@ function Overview({ workspaces, tabs, openPath, news, anchor, colorOf, lanes, on
   const swatches = (value: number, onPick: (color: number) => void, label: string) => (
     <div className="workspace-swatches" role="radiogroup" aria-label={label}>
       {Array.from({ length: Math.min(WORKSPACE_COLORS, lanes.length) }, (_, index) => (
-        <button key={index} role="radio" aria-checked={value === index} aria-label={`Colour ${index + 1}`} className={value === index ? "on" : undefined} style={{ background: lanes[index] }} onClick={() => onPick(index)}>
+        <button key={index} type="button" role="radio" aria-checked={value === index} aria-label={`Colour ${index + 1}`} className={value === index ? "on" : undefined} style={{ background: lanes[index] }} onClick={() => onPick(index)}>
           {value === index && <CheckIcon size={10} />}
         </button>
       ))}

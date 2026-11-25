@@ -38,6 +38,12 @@ export default async function ({ page, step, accessible, expect, row, toast, dis
     await openOverview();
     await panel.getByRole("button", { name: "New workspace…" }).click();
     await panel.getByPlaceholder("Like Game, or Website").fill("Art");
+    // Picking colours, with a name typed, only picks them: it doesn't make the workspace.
+    for (const colour of ["Colour 3", "Colour 5"]) {
+      await panel.getByRole("radio", { name: colour, exact: true }).click();
+      expect(await panel.getByRole("radio", { name: colour, exact: true }).isChecked(), `${colour} isn't picked`);
+    }
+    expect(await panel.getByRole("button", { name: "Create and switch" }).isVisible(), "picking a colour made the workspace");
     await accessible("a new workspace");
     await panel.getByRole("button", { name: "Create and switch" }).click();
     // Empty: the start screen, and the switcher to go back.
