@@ -15,6 +15,14 @@ on:
   pull_request_target:
     types: [opened, reopened, ready_for_review, closed]
     branches: [develop]
+  # The Build workflow publishes each release with its own token, and GitHub starts no
+  # workflow for what that token does, so a release from there is never seen as published:
+  # instead, each build of main that finishes is checked for the release it published.
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
+    branches: [main]
+  # A release published by hand.
   release:
     types: [published]
 
@@ -40,6 +48,8 @@ jobs:
           PULL: ${{ github.event.pull_request.number }}
           MERGED: ${{ github.event.pull_request.merged }}
           PRERELEASE: ${{ github.event.release.prerelease }}
+          BUILD_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
           repo="$GITHUB_REPOSITORY"
@@ -68,6 +78,14 @@ jobs:
                 }
               }' --jq ".data.repository.pullRequest.closingIssuesReferences.nodes[] | select(.repository.nameWithOwner == \"$repo\") | .number"
           }
+          # Takes in next release off every issue that has it: a release has shipped them.
+          released() {
+            local shipped="status: in next release" number
+            for number in $(gh api --paginate "repos/$repo/issues?state=all&per_page=100&labels=$(jq -rn --arg l "$shipped" '$l | @uri')" --jq '.[] | select(.pull_request | not) | .number'); do
+              gh api -X DELETE "repos/$repo/issues/$number/labels/$(jq -rn --arg l "$shipped" '$l | @uri')" --silent
+              echo "#$number: released"
+            done
+          }
           case "$EVENT/$ACTION" in
             issues/opened)
               if [ -z "$(statuses "$ISSUE")" ]; then set_status "$ISSUE" "status: triage"; fi
@@ -85,11 +103,12 @@ jobs:
               for number in $(fixes "$PULL"); do set_status "$number" "status: in progress"; done
               ;;
             release/published)
-              if [ "$PRERELEASE" = true ]; then exit 0; fi
-              shipped="status: in next release"
-              for number in $(gh api --paginate "repos/$repo/issues?state=all&per_page=100&labels=$(jq -rn --arg l "$shipped" '$l | @uri')" --jq '.[] | select(.pull_request | not) | .number'); do
-                gh api -X DELETE "repos/$repo/issues/$number/labels/$(jq -rn --arg l "$shipped" '$l | @uri')" --silent
-                echo "#$number: released"
-              done
+              if [ "$PRERELEASE" != true ]; then released; fi
+              ;;
+            workflow_run/completed)
+              # Only a build that published a release: the latest release is of the commit it
+              # built. One that failed, or published nothing, leaves the labels as they are.
+              latest=$(gh api "repos/$repo/releases/latest" --jq .target_commitish 2>/dev/null || true)
+              if [ "$BUILD_CONCLUSION" = success ] && [ "$latest" = "$BUILD_SHA" ]; then released; fi
               ;;
           esac
