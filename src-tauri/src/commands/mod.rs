@@ -884,6 +884,41 @@ pub async fn tracker_sign_out(tracker: crate::issues::Tracker) -> Result<()> {
     blocking(move || crate::issues::tracker_sign_out(&tracker)).await
 }
 
+/// Whether a key is kept for the AI that writes commit messages.
+#[tauri::command]
+pub async fn ai_key(setup: crate::ai::AiSetup) -> Result<crate::ai::AiKey> {
+    blocking(move || crate::ai::key(&setup)).await
+}
+
+/// Check an AI provider's key, then hand it to git's credential helper.
+#[tauri::command]
+pub async fn ai_save_key(setup: crate::ai::AiSetup, key: String) -> Result<crate::ai::AiKey> {
+    crate::ai::save_key(&setup, &key).await
+}
+
+/// Forget an AI provider's key.
+#[tauri::command]
+pub async fn ai_forget_key(setup: crate::ai::AiSetup) -> Result<()> {
+    blocking(move || crate::ai::forget_key(&setup)).await
+}
+
+/// An AI provider's models, from the provider.
+#[tauri::command]
+pub async fn ai_models(setup: crate::ai::AiSetup) -> Result<crate::ai::AiModels> {
+    crate::ai::models(&setup).await
+}
+
+/// Write a commit message for the staged changes with AI.
+#[tauri::command]
+pub async fn write_commit_message(
+    path: String,
+    setup: crate::ai::AiSetup,
+    style: crate::ai::MessageStyle,
+    draft: String,
+) -> Result<crate::ai::WrittenMessage> {
+    crate::ai::write_commit_message(&PathBuf::from(path), &setup, style, &draft).await
+}
+
 /// Merge a request on its site.
 #[tauri::command]
 pub async fn merge_request(

@@ -207,6 +207,66 @@ export type ActorName = {
 };
 
 /**
+ * Whether a key is kept for the provider.
+ */
+export type AiKey = {
+  kept: boolean;
+  /**
+   * Its last four characters, to tell which key it is.
+   */
+  ends: string | null;
+};
+
+/**
+ * One of the provider's models.
+ */
+export type AiModel = {
+  id: string;
+  /**
+   * Its name, like "Claude Haiku 4.5"; the id when the provider gives none.
+   */
+  name: string;
+};
+
+/**
+ * The provider's models, and the one used when none is chosen.
+ */
+export type AiModels = {
+  models: Array<AiModel>;
+  /**
+   * The newest of the provider's quick, cheap ones (enough for a commit message), or its
+   * newest.
+   */
+  picked: string | null;
+};
+
+/**
+ * Who writes the messages.
+ */
+export type AiProvider =
+  | "anthropic"
+  | "openai"
+  | "gemini"
+  | "local";
+
+/**
+ * Which AI writes the messages, as chosen in Settings.
+ */
+export type AiSetup = {
+  provider: AiProvider;
+  /**
+   * The model's id as the provider lists it; empty for the one Tributary picks
+   * ([`AiModels::picked`]).
+   */
+  model: string;
+  /**
+   * For a model on this computer: its server's address, like `http://localhost:11434/v1`
+   * (empty for that one, Ollama's).
+   */
+  address: string;
+};
+
+/**
  * Someone whose commits matched, by name or email.
  */
 export type AuthorMatch = {
@@ -697,6 +757,14 @@ export type Commands = {
     returns: TrackerStatus;
   };
   tracker_sign_out: { args: { tracker: Tracker }; returns: void };
+  ai_key: { args: { setup: AiSetup }; returns: AiKey };
+  ai_save_key: { args: { setup: AiSetup; key: string }; returns: AiKey };
+  ai_forget_key: { args: { setup: AiSetup }; returns: void };
+  ai_models: { args: { setup: AiSetup }; returns: AiModels };
+  write_commit_message: {
+    args: { path: string; setup: AiSetup; style: MessageStyle; draft: string };
+    returns: WrittenMessage;
+  };
   merge_request: {
     args: { path: string; number: number; options: MergeRequestOptions };
     returns: string;
@@ -1048,7 +1116,8 @@ export type ErrorKind =
   | { kind: "notFullyMerged" }
   | { kind: "checkedOutElsewhere"; path: string }
   | { kind: "worktreeChanged" }
-  | { kind: "conflicts" };
+  | { kind: "conflicts" }
+  | { kind: "aiSetup" };
 
 /**
  * How an error reaches the frontend: its message, and its kind when that's known.
@@ -1890,6 +1959,14 @@ export type Mergeable =
   | "behind"
   | "blocked"
   | "checking";
+
+/**
+ * How a message is written.
+ */
+export type MessageStyle =
+  | "repository"
+  | "conventional"
+  | "summary";
 
 export type MetaKind = "missing" | "orphan" | "leftBehind";
 
@@ -3769,4 +3846,29 @@ export type WorktreeStatus = {
    * Changes in the working tree, compared to the index, and untracked files.
    */
   unstaged: Array<FileChange>;
+};
+
+/**
+ * A message the AI wrote.
+ */
+export type WrittenMessage = {
+  summary: string;
+  description: string;
+  /**
+   * The provider, for "Written by Claude": "Claude", "OpenAI", "Gemini", or the model's
+   * name for one on this computer.
+   */
+  by: string;
+  /**
+   * How many staged files' changes were sent.
+   */
+  files: number;
+  /**
+   * Staged files whose contents weren't sent (only their names): in Git LFS, or not text.
+   */
+  leftOut: Array<string>;
+  /**
+   * Some changes were cut short, to keep what's sent small.
+   */
+  shortened: boolean;
 };

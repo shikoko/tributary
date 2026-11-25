@@ -81,6 +81,9 @@ pub enum ErrorKind {
     WorktreeChanged,
     /// It stopped at conflicts, for the person to resolve (a patch applied with conflicts).
     Conflicts,
+    /// Writing a commit message with AI needs something from Settings → AI: a key, one the
+    /// provider accepts, a model it has, or the address of a server that's running.
+    AiSetup,
 }
 
 /// What a failure's message says, read the way the frontend used to: the first kind that

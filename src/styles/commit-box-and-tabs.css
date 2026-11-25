@@ -119,6 +119,138 @@
   flex: none;
 }
 
+/* Writing the message with AI: a sparkle at the end of the summary field, with the menu of
+   how it writes beside it, and under the message, who wrote it (Try again, Undo). */
+.summary-field.with-ai .text-input {
+  padding-right: 92px; /* room for the count and the sparkle's two buttons */
+}
+
+.summary-field.with-ai .summary-count {
+  right: 60px;
+}
+
+.ai-write {
+  position: absolute;
+  top: 50%;
+  right: var(--space-6);
+  display: inline-flex;
+  align-items: stretch;
+  height: 24px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  transform: translateY(-50%);
+}
+
+.ai-write > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-6);
+  border: none;
+  background: transparent;
+}
+
+.ai-write-go {
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  color: var(--accent-text);
+}
+
+.ai-write-more {
+  border-left: 1px solid var(--border) !important;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--text-muted);
+}
+
+.ai-write > button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.ai-write > button:disabled {
+  opacity: 0.4;
+}
+
+/* Busy, not off: the spinner shows in full. */
+.ai-write-go[aria-busy="true"] {
+  opacity: 1 !important;
+}
+
+.ai-write .spinning {
+  animation: spin 1.2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-write .spinning {
+    animation: none;
+  }
+}
+
+.ai-mark {
+  flex: none;
+  color: var(--accent-text);
+}
+
+.ai-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-6);
+  margin-top: calc(var(--space-2) * -1);
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+}
+
+.ai-note .link-button {
+  font-size: var(--type-xs);
+}
+
+.ai-note.failed {
+  color: var(--danger-text);
+}
+
+.ai-note-text {
+  min-width: 0;
+}
+
+.ai-note-dot {
+  color: var(--text-faint);
+}
+
+/* The first time something's staged: an offer to set it up. */
+.ai-offer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-12);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+}
+
+.ai-offer-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  color: var(--text);
+  font-size: var(--type-sm);
+  font-weight: 600;
+}
+
+.ai-offer-text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  line-height: 1.45;
+}
+
+/* Set up and Not now well apart, so neither is pressed for the other. */
+.ai-offer-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin-top: var(--space-6);
+}
+
 .details-scroll.worktree .files:first-child {
   margin-top: 0;
   padding-top: var(--space-8);

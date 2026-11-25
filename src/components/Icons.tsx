@@ -503,6 +503,14 @@ export const SparkleIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** Two sparkles: written with AI. */
+export const AiIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6.5 2.5c.4 2.3 1.2 3.1 3.5 3.5-2.3.4-3.1 1.2-3.5 3.5C6.1 7.2 5.3 6.4 3 6c2.3-.4 3.1-1.2 3.5-3.5z" fill="currentColor" strokeWidth={1} />
+    <path d="M11.5 9.5c.25 1.3.7 1.75 2 2-1.3.25-1.75.7-2 2-.25-1.3-.7-1.75-2-2 1.3-.25 1.75-.7 2-2z" fill="currentColor" strokeWidth={1} />
+  </Icon>
+);
+
 /** An "i" in a circle: information, a guide. */
 export const InfoIcon = (p: IconProps) => (
   <Icon {...p}>
