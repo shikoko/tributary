@@ -60,7 +60,9 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
   for (const remote of remotes) {
     if (editing?.name === remote.name) {
       const { draft } = editing;
-      const set = (change: Partial<Editing["draft"]>) => setEditing({ ...editing, draft: { ...draft, ...change } });
+      // From the draft as it is now, not as this render saw it: two changes before the next
+      // render (typing quickly, or a field filled by the system) would otherwise undo the first.
+      const set = (change: Partial<Editing["draft"]>) => setEditing((current) => current && { ...current, draft: { ...current.draft, ...change } });
       rows.push({
         kind: "custom",
         label: `Edit ${remote.name}`,
@@ -153,7 +155,10 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
         <input
           className="text-input settings-input"
           value={adding.name}
-          onChange={(event) => setAdding({ ...adding, name: event.target.value })}
+          onChange={(event) => {
+            const name = event.target.value;
+            setAdding((current) => ({ ...current, name }));
+          }}
           placeholder={remotes.some((remote) => remote.name === "origin") ? "upstream" : "origin"}
           spellCheck={false}
           aria-label="New remote's name"
@@ -161,7 +166,10 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
         <input
           className="text-input settings-input"
           value={adding.url}
-          onChange={(event) => setAdding({ ...adding, url: event.target.value })}
+          onChange={(event) => {
+            const url = event.target.value;
+            setAdding((current) => ({ ...current, url }));
+          }}
           placeholder="https://github.com/team/app.git"
           spellCheck={false}
           aria-label="New remote's address"
