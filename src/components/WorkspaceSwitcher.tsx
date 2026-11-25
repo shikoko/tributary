@@ -6,7 +6,9 @@ import type { RunAll, WorkspacesHandle } from "../app/useWorkspaces";
 import { compactTime, plural } from "../lib/format";
 import { requestNumber } from "../lib/pullRequests";
 import { tabsOf, WORKSPACE_COLORS, type Workspace } from "../lib/workspaces";
+import { hang, hangsFrom, JOINT_GAP, snap, type Box } from "../lib/joint";
 import { BranchIcon, CheckIcon, ChevronDownIcon, PencilIcon, PlusIcon, SearchIcon, SpinnerIcon, TrashIcon, WorkspacesIcon } from "./Icons";
+import { cornerOf, Joint, jointCorners, useJoinedButton } from "./Joint";
 import type { Tab } from "./TabBar";
 import { Button } from "./ui/Button";
 import { Chip } from "./ui/Chip";
@@ -149,6 +151,8 @@ function Overview({ workspaces, tabs, openPath, news, anchor, colorOf, lanes, on
   const { state, running, ran } = workspaces;
   const panel = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<CSSProperties>({ visibility: "hidden" });
+  /** Its button, which it hangs from, joined to it. */
+  const [button, setButton] = useState<{ box: Box; radius: number } | null>(null);
   const [query, setQuery] = useState("");
   /** Making a workspace, or changing them, in the panel itself. */
   const [mode, setMode] = useState<"list" | "new" | "edit">("list");
@@ -162,16 +166,17 @@ function Overview({ workspaces, tabs, openPath, news, anchor, colorOf, lanes, on
     true,
   );
 
-  // Under its button, inside the window, no taller than the room under it; placed again
-  // when the window is resized.
+  // Hanging from its button, joined to it, inside the window, no taller than the room under
+  // it; placed again when the window is resized.
   useLayoutEffect(() => {
     const placeIt = () => {
       if (!anchor.current) return;
       const width = Math.min(760, window.innerWidth - 16);
-      const box = anchor.current.getBoundingClientRect();
-      const left = Math.max(8, Math.min(box.left - 4, window.innerWidth - width - 8));
-      const top = box.bottom + 6;
+      const box = snap(anchor.current.getBoundingClientRect());
+      const left = hang(box, width, window.innerWidth, "left", 8);
+      const top = box.bottom + JOINT_GAP;
       setPlace({ left, top, width, maxHeight: window.innerHeight - top - 8 });
+      setButton({ box, radius: cornerOf(anchor.current) });
     };
     placeIt();
     window.addEventListener("resize", placeIt);
@@ -315,118 +320,123 @@ function Overview({ workspaces, tabs, openPath, news, anchor, colorOf, lanes, on
     : [];
   const offer = workspaces.groupOffer;
 
+  const at = { left: Number(place.left ?? 0), top: Number(place.top ?? 0), width: Number(place.width ?? 0) };
+  useJoinedButton(anchor, "panel", button !== null && hangsFrom(button.box, at.top));
   return (
-    <div ref={panel} className="workspace-panel" style={place} role="dialog" aria-label={state.list.length === 1 ? "Your repositories" : "Workspaces"}>
-      {mode === "list" && (
-        <>
-          <div className="workspace-head">
-            <h2>{state.list.length === 1 ? "Your repositories" : "Workspaces"}</h2>
-            <label className="workspace-search">
-              <SearchIcon size={13} />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a repository…" aria-label="Find a repository" />
-            </label>
-          </div>
-          {needle ? (
-            found.length > 0 ? (
-              <ul className="workspace-rows">{found.map(({ tab, workspace }) => repoRow(tab, workspace))}</ul>
+    <>
+      <div ref={panel} className="workspace-panel" style={{ ...place, ...jointCorners(button?.box ?? null, at) }} role="dialog" aria-label={state.list.length === 1 ? "Your repositories" : "Workspaces"}>
+        {mode === "list" && (
+          <>
+            <div className="workspace-head">
+              <h2>{state.list.length === 1 ? "Your repositories" : "Workspaces"}</h2>
+              <label className="workspace-search">
+                <SearchIcon size={13} />
+                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a repository…" aria-label="Find a repository" />
+              </label>
+            </div>
+            {needle ? (
+              found.length > 0 ? (
+                <ul className="workspace-rows">{found.map(({ tab, workspace }) => repoRow(tab, workspace))}</ul>
+              ) : (
+                <p className="workspace-empty">No open repository is called that.</p>
+              )
             ) : (
-              <p className="workspace-empty">No open repository is called that.</p>
-            )
-          ) : (
-            everyone.map(section)
-          )}
-          {!needle && offer && (
-            <div className="workspace-offer">
-              <span>
-                Make a workspace for each folder:{" "}
-                {offer.groups.map((group) => `${group.name} (${group.tabs.length})`).join(", ")}
-                {offer.rest.length > 0 && `, and keep ${plural(offer.rest.length, "other")} here`}.
-              </span>
-              <Button kind="secondary" size="small" onClick={workspaces.group}>
-                Make them
+              everyone.map(section)
+            )}
+            {!needle && offer && (
+              <div className="workspace-offer">
+                <span>
+                  Make a workspace for each folder:{" "}
+                  {offer.groups.map((group) => `${group.name} (${group.tabs.length})`).join(", ")}
+                  {offer.rest.length > 0 && `, and keep ${plural(offer.rest.length, "other")} here`}.
+                </span>
+                <Button kind="secondary" size="small" onClick={workspaces.group}>
+                  Make them
+                </Button>
+              </div>
+            )}
+            <footer className="workspace-foot">
+              <Button
+                kind="link"
+                onClick={() => {
+                  setName("");
+                  setColor(workspaces.freeColor());
+                  setMode("new");
+                }}
+              >
+                <PlusIcon size={13} />
+                <span className="button-label">New workspace…</span>
+              </Button>
+              <Button kind="link" onClick={() => setMode("edit")}>
+                <PencilIcon size={13} />
+                <span className="button-label">{state.list.length === 1 ? "Rename…" : "Edit workspaces…"}</span>
+              </Button>
+              {state.list.length > 1 && <span className="workspace-hint">Repositories you open join {workspaces.current.name}</span>}
+            </footer>
+          </>
+        )}
+        {mode === "new" && (
+          <form
+            className="workspace-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!name.trim()) return;
+              go(() => workspaces.create(name, color));
+            }}
+          >
+            <h2>New workspace</h2>
+            <p className="hint">A set of tabs of its own: it opens empty, for the repositories you open in it. The tabs open now stay in {workspaces.current.name}.</p>
+            <label className="workspace-field">
+              <span>Name</span>
+              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Like Game, or Website" autoFocus />
+            </label>
+            {swatches(color, setColor, "Its colour")}
+            <div className="workspace-form-buttons">
+              <Button kind="secondary" type="button" onClick={() => setMode("list")}>
+                Cancel
+              </Button>
+              <Button kind="primary" type="submit" disabled={!name.trim()}>
+                Create and switch
               </Button>
             </div>
-          )}
-          <footer className="workspace-foot">
-            <Button
-              kind="link"
-              onClick={() => {
-                setName("");
-                setColor(workspaces.freeColor());
-                setMode("new");
-              }}
-            >
-              <PlusIcon size={13} />
-              <span className="button-label">New workspace…</span>
-            </Button>
-            <Button kind="link" onClick={() => setMode("edit")}>
-              <PencilIcon size={13} />
-              <span className="button-label">{state.list.length === 1 ? "Rename…" : "Edit workspaces…"}</span>
-            </Button>
-            {state.list.length > 1 && <span className="workspace-hint">Repositories you open join {workspaces.current.name}</span>}
-          </footer>
-        </>
-      )}
-      {mode === "new" && (
-        <form
-          className="workspace-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!name.trim()) return;
-            go(() => workspaces.create(name, color));
-          }}
-        >
-          <h2>New workspace</h2>
-          <p className="hint">A set of tabs of its own: it opens empty, for the repositories you open in it. The tabs open now stay in {workspaces.current.name}.</p>
-          <label className="workspace-field">
-            <span>Name</span>
-            <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Like Game, or Website" autoFocus />
-          </label>
-          {swatches(color, setColor, "Its colour")}
-          <div className="workspace-form-buttons">
-            <Button kind="secondary" type="button" onClick={() => setMode("list")}>
-              Cancel
-            </Button>
-            <Button kind="primary" type="submit" disabled={!name.trim()}>
-              Create and switch
-            </Button>
+          </form>
+        )}
+        {mode === "edit" && (
+          <div className="workspace-form">
+            <h2>{state.list.length === 1 ? "Rename" : "Edit workspaces"}</h2>
+            <ul className="workspace-edit">
+              {state.list.map((workspace) => (
+                <li key={workspace.id}>
+                  <input
+                    defaultValue={workspace.name}
+                    aria-label={`${workspace.name}'s name`}
+                    onBlur={(event) => workspaces.edit(workspace.id, { name: event.target.value })}
+                    onKeyDown={(event) => event.key === "Enter" && workspaces.edit(workspace.id, { name: event.currentTarget.value })}
+                  />
+                  {swatches(workspace.color, (pick) => workspaces.edit(workspace.id, { color: pick }), `${workspace.name}'s colour`)}
+                  {state.list.length > 1 && (
+                    <Button
+                      kind="icon"
+                      disabled={workspace.id === state.current}
+                      onClick={() => workspaces.remove(workspace.id)}
+                      title={workspace.id === state.current ? "The open workspace can't be removed: switch to another first" : `Remove ${workspace.name}: its tabs join ${workspaces.current.name}`}
+                      aria-label={`Remove ${workspace.name}`}
+                    >
+                      <TrashIcon size={14} />
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="workspace-form-buttons">
+              <Button kind="primary" onClick={() => setMode("list")}>
+                Done
+              </Button>
+            </div>
           </div>
-        </form>
-      )}
-      {mode === "edit" && (
-        <div className="workspace-form">
-          <h2>{state.list.length === 1 ? "Rename" : "Edit workspaces"}</h2>
-          <ul className="workspace-edit">
-            {state.list.map((workspace) => (
-              <li key={workspace.id}>
-                <input
-                  defaultValue={workspace.name}
-                  aria-label={`${workspace.name}'s name`}
-                  onBlur={(event) => workspaces.edit(workspace.id, { name: event.target.value })}
-                  onKeyDown={(event) => event.key === "Enter" && workspaces.edit(workspace.id, { name: event.currentTarget.value })}
-                />
-                {swatches(workspace.color, (pick) => workspaces.edit(workspace.id, { color: pick }), `${workspace.name}'s colour`)}
-                {state.list.length > 1 && (
-                  <Button
-                    kind="icon"
-                    disabled={workspace.id === state.current}
-                    onClick={() => workspaces.remove(workspace.id)}
-                    title={workspace.id === state.current ? "The open workspace can't be removed: switch to another first" : `Remove ${workspace.name}: its tabs join ${workspaces.current.name}`}
-                    aria-label={`Remove ${workspace.name}`}
-                  >
-                    <TrashIcon size={14} />
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-          <div className="workspace-form-buttons">
-            <Button kind="primary" onClick={() => setMode("list")}>
-              Done
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+      {button && <Joint button={button.box} radius={button.radius} panel={at} fill="panel" />}
+    </>
   );
 }
