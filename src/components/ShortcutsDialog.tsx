@@ -48,6 +48,7 @@ const GROUPS: Group[] = [
       { keys: [shifted("R")], what: "Reopen the tab closed last, in its place" },
       { keys: [[MOD, "1"], [MOD, "9"]], join: "…", what: "Switch to a tab (the first to the ninth)" },
       { keys: [[CTRL, SHIFT, "PgUp"], [CTRL, SHIFT, "PgDn"]], what: "Move the tab left or right" },
+      { keys: [[MOD, ALT, "1"], [MOD, ALT, "9"]], join: "…", what: "Switch to a workspace (the first to the ninth)" },
     ],
   },
   {

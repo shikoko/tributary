@@ -27,6 +27,8 @@ interface Props {
   onNew: () => void;
   /** The File, View, … menus, on systems without a menu bar of their own. */
   menuBar?: ReactNode;
+  /** Workspaces (WorkspaceSwitcher), before the tabs. */
+  switcher?: ReactNode;
   /** Shown at the right, like "Update available". */
   extra?: ReactNode;
   /** Tabs whose background fetch found new commits: what arrived, by path. */
@@ -135,7 +137,7 @@ function useClippedNames(row: RefObject<HTMLDivElement | null>, tabs: Tab[], sta
  * title bar: the empty space drags the window, and on Windows the minimize, maximize and
  * close buttons are at its right.
  */
-export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onMove, onCloseStart, onNew, menuBar, extra, news, onContextMenu, busy }: Props) {
+export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onMove, onCloseStart, onNew, menuBar, switcher, extra, news, onContextMenu, busy }: Props) {
   const row = useRef<HTMLDivElement>(null);
   useTabMotion(row, tabs, startTab);
   useClippedNames(row, tabs, startTab);
@@ -150,6 +152,7 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onMove, 
         <Logo size={20} />
       </span>
       {menuBar}
+      {switcher}
       <div ref={row} className="tabs" role="tablist">
         {tabs.map((tab, index) => (
           <div

@@ -1,11 +1,13 @@
 //! Where a repository stands, at a glance, for the recent repositories on the start
-//! screen: its branch, how far it is from the branch it tracks, and uncommitted changes.
+//! screen and the workspaces' overview: its branch, how far it is from the branch it
+//! tracks, uncommitted changes, and when it was last fetched.
 
 use std::path::Path;
 
 use serde::Serialize;
 use ts_rs::TS;
 
+use super::refs::last_fetched;
 use crate::git::Git;
 
 /// Where a recent repository stands, for the start screen.
@@ -25,6 +27,8 @@ pub struct RepoSummary {
     /// Files with changes not committed yet (new files included), and with conflicts.
     pub changes: u32,
     pub conflicts: u32,
+    /// When it was last fetched from (seconds since the Unix epoch), if it ever was.
+    pub last_fetched: Option<i64>,
 }
 
 /// The summary of the repository at `path` (`found` false when it isn't there any more).
@@ -62,6 +66,9 @@ pub fn summary(path: &Path) -> RepoSummary {
                 summary.ahead = ahead;
                 summary.behind = behind;
             }
+            summary.last_fetched = gix::discover(path)
+                .ok()
+                .and_then(|repo| last_fetched(&repo));
             summary
         }
         Err(_) => RepoSummary::default(),
@@ -124,6 +131,7 @@ u UU N... 100644 100644 100644 100644 a b c conflict.ts
                 behind: 5,
                 changes: 4,
                 conflicts: 1,
+                last_fetched: None,
             }
         );
         let detached = read_status("# branch.oid abc\n# branch.head (detached)\n");

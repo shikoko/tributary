@@ -538,6 +538,16 @@ export const ColumnsIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** Four squares: workspaces, every repository at a glance. */
+export const WorkspacesIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
+    <rect x="9" y="2.5" width="4.5" height="4.5" rx="1" />
+    <rect x="2.5" y="9" width="4.5" height="4.5" rx="1" />
+    <rect x="9" y="9" width="4.5" height="4.5" rx="1" />
+  </Icon>
+);
+
 export const RewriteIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M2.5 4h7M2.5 8h5M2.5 12h7" />
