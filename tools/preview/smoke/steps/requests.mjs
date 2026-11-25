@@ -8,6 +8,22 @@ export default async function ({ browserName, page, demos, folder, preview, brow
   await openNotebook();
   await openStudio();
 
+  // A failed check's Why? on its name's baseline (check-why.css): its words are smaller than
+  // the name's, so centred on it they were half a pixel to a pixel above it.
+  const onNamesLine = async (row, where) => {
+    const [name, why] = await row.evaluate((element) =>
+      [element.querySelector(".request-check-name, .commit-check-name"), element.querySelector(".check-why-chip .chip-text")].map((holder) => {
+        const probe = document.createElement("span");
+        probe.style.cssText = "display: inline-block; width: 0; height: 0; vertical-align: baseline";
+        (holder.querySelector("span") ?? holder).append(probe);
+        const y = probe.getBoundingClientRect().top;
+        probe.remove();
+        return y;
+      }),
+    );
+    expect(Math.abs(name - why) < 0.01, `${where}: Why? sits ${(name - why).toFixed(2)}px above its check's name's line`);
+  };
+
   await step("shows pull requests on their branches", async () => {
     await page.locator(".pr-badge").first().waitFor({ timeout: 10_000 });
     // On the commit list's labels, the icon for the checks alone (a cross for #14's failed
@@ -170,6 +186,7 @@ export default async function ({ browserName, page, demos, folder, preview, brow
     // one marked, and the end of its log, scrolled to its end, the errors marked.
     const row = page.locator(".details .commit-check.failure .commit-check-row");
     await row.locator(".check-why-chip", { hasText: "Why?" }).waitFor({ timeout: 5000 });
+    await onNamesLine(row, "a commit's checks");
     await row.click();
     const why = page.locator(".dialog.check-why");
     await why.getByRole("heading", { name: "Audio loudness failed" }).waitFor({ timeout: 5000 });
@@ -254,6 +271,7 @@ export default async function ({ browserName, page, demos, folder, preview, brow
     const view = page.locator(".request-view");
     await view.locator(".request-merge", { hasText: "changes were asked for" }).waitFor({ timeout: 10_000 });
     await view.locator(".request-check.failure", { hasText: "Audio loudness" }).waitFor({ timeout: 5000 });
+    await onNamesLine(view.locator(".request-check.failure", { hasText: "Audio loudness" }), "the pull request's checks");
     await view.locator(".request-status-said", { hasText: "diego-ramos asked for changes" }).waitFor({ timeout: 5000 });
     // How they went is said beside the river: what failed first, then the rest of the counts.
     await view.locator(".tributaries-title", { hasText: /^Audio loudness failed$/ }).waitFor({ timeout: 5000 });
