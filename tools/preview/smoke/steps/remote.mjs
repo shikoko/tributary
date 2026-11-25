@@ -123,7 +123,7 @@ export default async function ({ page, demos, folder, step, expect, accessible, 
       expect((await move.innerText()).includes("share/ideas"), `the move doesn't name share/ideas: ${(await move.innerText()).replace(/\s+/g, " ")}`);
       expect(git("remote", "get-url", "origin") === was, "origin moved before the question was answered");
       await accessible("Move a remote");
-      expect(await move.getByRole("radio", { name: /Copy it to the new address/ }).isChecked(), "copying isn't what's offered first");
+      expect(await move.getByRole("radio", { name: /Copy (it|them) to the new address/ }).isChecked(), "copying isn't what's offered first");
       await move.getByRole("button", { name: /^Move and copy/ }).click();
       await page.locator(".toast", { hasText: /Moved origin to .*, and copied \d+ branches there/ }).waitFor({ timeout: 20_000 });
       await move.waitFor({ state: "detached", timeout: 5000 });
@@ -149,7 +149,10 @@ export default async function ({ page, demos, folder, step, expect, accessible, 
       // As it was, for the steps after.
       for (let tries = 0; tries < 3 && (await page.locator(".dialog").count()) > 0; tries++) await page.keyboard.press("Escape");
       git("remote", "set-url", "origin", was);
-      for (const line of git("for-each-ref", "--format=%(refname)", "refs/remotes/origin/", "refs/tributary/gone/").split("\n").filter(Boolean)) {
+      // Where origin's branches come from, as remembered: back at its own address, so the next
+      // fetch doesn't take it for a move.
+      git("config", "tributary.origin.fetchedfrom", was);
+      for (const line of git("for-each-ref", "--format=%(refname)", "refs/remotes/origin/", "refs/tributary/gone/", "refs/tributary/moved/").split("\n").filter(Boolean)) {
         if (line !== "refs/remotes/origin/HEAD") git("update-ref", "-d", line);
       }
       for (const line of remembered) {

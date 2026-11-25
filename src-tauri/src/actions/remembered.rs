@@ -23,6 +23,11 @@ use crate::git::{Git, Progress, without_credentials};
 /// anywhere else here: `refs/tributary/gone/<remote>/<branch>`, until it's kept as a branch
 /// or forgotten.
 pub(super) const SET_ASIDE: &str = "refs/tributary/gone/";
+/// Where a remembered branch is set aside when its remote was pointed at a new address (outside
+/// Tributary) that doesn't have it, whether or not its work is anywhere else here:
+/// `refs/tributary/moved/<remote>/<branch>`. A branch's name matters as much as its commits
+/// when a repository moves: `main` holds nothing `develop` doesn't, but it's still `main`.
+pub(super) const MOVED: &str = "refs/tributary/moved/";
 
 /// The branches `remote` (a remote's name, or an address) has now, asked of it: each one's
 /// name and commit.
@@ -150,19 +155,27 @@ fn main_branch(git: &Git, remote: &str, theirs: &HashMap<String, String>) -> Opt
 /// merged, rebased or squashed into the remote's main branch), under [`SET_ASIDE`], for the
 /// person to keep or forget. A remote that can't be asked keeps all of its. How many were set
 /// aside.
-pub(super) fn tidy_gone(git: &Git, remotes: &[String]) -> usize {
-    let mut set_aside = 0;
+pub(super) fn tidy_gone(git: &Git, remotes: &[String]) -> SetAside {
+    let mut set_aside = SetAside::default();
     for remote in remotes {
         let (Ok(theirs), Ok(ours)) = (heads_at(git, remote), remembered(git, remote)) else {
             continue;
         };
+        // Pointed at a new address since the last fetch, outside Tributary, or at one that
+        // has none of the branches it remembers (an empty one, for a copied repository): the
+        // branches it remembers are the old address's, and every one the new address lacks
+        // is kept, even with no commits of its own, as the repository is moving.
+        let moved = address_moved(git, remote)
+            || (!ours.is_empty() && ours.iter().all(|(name, _)| !theirs.contains_key(name)));
+        let tracked: HashSet<String> = tracking(git, remote)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(_, target)| target)
+            .collect();
         let gone: Vec<&(String, String)> = ours
             .iter()
             .filter(|(name, _)| !theirs.contains_key(name))
             .collect();
-        if gone.is_empty() {
-            continue;
-        }
         let leaving: Vec<String> = gone
             .iter()
             .map(|(name, _)| format!("{remote}/{name}"))
@@ -170,19 +183,72 @@ pub(super) fn tidy_gone(git: &Git, remotes: &[String]) -> usize {
         let main = main_branch(git, remote, &theirs);
         for (name, id) in gone {
             let reference = format!("refs/remotes/{remote}/{name}");
-            let unique = only_in(git, id, &leaving).unwrap_or(1);
-            let keep = unique > 0 && !main.as_deref().is_some_and(|main| landed(git, main, id));
-            if keep {
-                let aside = format!("{SET_ASIDE}{remote}/{name}");
+            // A branch here pushes to it: that one keeps it, and Push branches offers it.
+            let aside = if moved && !tracked.contains(name) {
+                Some(format!("{MOVED}{remote}/{name}"))
+            } else {
+                let unique = only_in(git, id, &leaving).unwrap_or(1);
+                (unique > 0 && !main.as_deref().is_some_and(|main| landed(git, main, id)))
+                    .then(|| format!("{SET_ASIDE}{remote}/{name}"))
+            };
+            if let Some(aside) = aside {
                 if git.run(&["update-ref", &aside, id]).is_err() {
                     continue;
                 }
-                set_aside += 1;
+                if moved {
+                    set_aside.moved += 1;
+                } else {
+                    set_aside.work += 1;
+                }
             }
             let _ = git.run(&["update-ref", "-d", &reference, id]);
         }
+        remember_address(git, remote);
     }
     set_aside
+}
+
+/// What a fetch set aside (see [`tidy_gone`]).
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(super) struct SetAside {
+    /// Branches the remote no longer has, with work found nowhere else here.
+    pub work: usize,
+    /// Branches a remote's new address doesn't have.
+    pub moved: usize,
+}
+
+/// Where a remote's address is remembered from its last fetch, to tell when it's been pointed
+/// somewhere new: `tributary.<remote>.fetchedfrom` in the repository's config.
+fn address_key(remote: &str) -> String {
+    format!("tributary.{remote}.fetchedfrom")
+}
+
+/// `remote`'s address now, without a password or token in it.
+fn address_of(git: &Git, remote: &str) -> Option<String> {
+    git.run(&["remote", "get-url", "--", remote])
+        .ok()
+        .map(|url| without_credentials(url.trim()))
+}
+
+/// Whether `remote` was pointed at a new address since its last fetch. Not known (before its
+/// first fetch since this was remembered) is taken as no.
+fn address_moved(git: &Git, remote: &str) -> bool {
+    let Ok(before) = git.run(&["config", "--local", "--get", &address_key(remote)]) else {
+        return false;
+    };
+    address_of(git, remote).is_some_and(|now| now != before.trim())
+}
+
+/// Remember `remote`'s address as the one its branches came from.
+pub(super) fn remember_address(git: &Git, remote: &str) {
+    let key = address_key(remote);
+    let Some(now) = address_of(git, remote) else {
+        return;
+    };
+    let before = git.run(&["config", "--local", "--get", &key]).ok();
+    if before.as_deref().map(str::trim) != Some(now.as_str()) {
+        let _ = git.run(&["config", "--local", &key, &now]);
+    }
 }
 
 /// A remembered branch whose work isn't anywhere else here.
@@ -194,11 +260,14 @@ pub struct RememberedBranch {
     pub name: String,
     /// Where it's kept: `refs/remotes/origin/feature/export`, or set aside.
     pub reference: String,
-    /// Its commits found nowhere else here.
+    /// Its commits found nowhere else here: none when they're all on other branches too.
     pub commits: u32,
     /// Its last commit's summary, and when that was committed (seconds).
     pub summary: String,
     pub time: i64,
+    /// Set aside because its remote was pointed at a new address that doesn't have it, rather
+    /// than because the remote deleted it.
+    pub moved: bool,
 }
 
 /// Its last commit's summary and time.
@@ -221,20 +290,23 @@ pub fn set_aside_branches(path: &Path) -> Result<Vec<RememberedBranch>, Error> {
         "for-each-ref",
         "--format=%(refname)%00%(objectname)",
         SET_ASIDE,
+        MOVED,
     ])?;
     let mut found = Vec::new();
     for line in listing.lines() {
         let Some((reference, id)) = line.split_once('\0') else {
             continue;
         };
+        let moved = reference.starts_with(MOVED);
         let Some((remote, name)) = reference
             .strip_prefix(SET_ASIDE)
+            .or_else(|| reference.strip_prefix(MOVED))
             .and_then(|rest| rest.split_once('/'))
         else {
             continue;
         };
         let commits = only_in(&git, id, &[])?;
-        if commits == 0 {
+        if commits == 0 && !moved {
             // Its work is on a branch here now: nothing to keep.
             let _ = git.run(&["update-ref", "-d", reference, id]);
             continue;
@@ -247,6 +319,7 @@ pub fn set_aside_branches(path: &Path) -> Result<Vec<RememberedBranch>, Error> {
             commits,
             summary,
             time,
+            moved,
         });
     }
     found.sort_by(|a, b| b.time.cmp(&a.time).then_with(|| a.name.cmp(&b.name)));
@@ -293,6 +366,7 @@ fn named(names: &[String]) -> String {
 fn kept_reference(git: &Git, reference: &str) -> Result<(String, String, String)> {
     let rest = reference
         .strip_prefix(SET_ASIDE)
+        .or_else(|| reference.strip_prefix(MOVED))
         .or_else(|| reference.strip_prefix("refs/remotes/"))
         .ok_or_else(|| format!("{reference} isn't a remembered branch."))?;
     let (remote, name) = rest
@@ -321,7 +395,7 @@ pub(super) fn keep_remembered(git: &Git, references: Vec<String>) -> Result<Stri
         let (_, name, id) = kept_reference(git, reference)?;
         let local = free_name(git, &name);
         git.run(&["branch", "--no-track", "--", &local, &id])?;
-        if reference.starts_with(SET_ASIDE) {
+        if reference.starts_with(SET_ASIDE) || reference.starts_with(MOVED) {
             let _ = git.run(&["update-ref", "-d", reference, &id]);
         }
         made.push(local);
@@ -378,17 +452,19 @@ pub struct MoveCheck {
     /// Why it didn't answer.
     #[ts(optional = nullable)]
     pub problem: Option<String>,
-    /// Remembered branches the new address doesn't have, with work found nowhere else here:
-    /// the next fetch would lose them. Newest first.
-    pub at_risk: Vec<RememberedBranch>,
+    /// Remembered branches the new address doesn't have, with no branch here pushing to them:
+    /// the next fetch would forget them. Each says how many of its commits are found nowhere
+    /// else here (none for a `main` whose commits are all on `develop`, which is still worth
+    /// copying). Newest first.
+    pub missing: Vec<RememberedBranch>,
     /// Branches here that push to this remote, which the new address doesn't have: copying
     /// the remembered ones copies these too.
     pub local: Vec<String>,
 }
 
 /// Before pointing `remote` at `url`: what the new address has, and which remembered branches
-/// it doesn't, whose work would be lost at the next fetch. When there are none, the address
-/// can simply change.
+/// it doesn't, which the next fetch would forget. When it has them all, the address can
+/// simply change.
 pub fn move_check(path: &Path, remote: String, url: String) -> Result<MoveCheck, Error> {
     let repo = gix::discover(path).map_err(|e| Error::not_a_repository(path, e))?;
     let git = Git::find(repo.workdir().unwrap_or(repo.git_dir()).to_owned())?;
@@ -407,29 +483,33 @@ pub fn move_check(path: &Path, remote: String, url: String) -> Result<MoveCheck,
             .is_some_and(|theirs| theirs.contains_key(name))
     };
     let ours = remembered(&git, &remote)?;
+    let tracked = tracking(&git, &remote)?;
+    let targets: HashSet<&str> = tracked.iter().map(|(_, target)| target.as_str()).collect();
     let leaving: Vec<String> = ours
         .iter()
         .filter(|(name, _)| !has(name))
         .map(|(name, _)| format!("{remote}/{name}"))
         .collect();
-    let mut at_risk = Vec::new();
+    let mut missing = Vec::new();
     for (name, id) in ours.iter().filter(|(name, _)| !has(name)) {
-        let commits = only_in(&git, id, &leaving)?;
-        if commits == 0 {
+        // A branch here pushes to it: that one is copied, in `local`.
+        if targets.contains(name.as_str()) {
             continue;
         }
+        let commits = only_in(&git, id, &leaving)?;
         let (summary, time) = last_commit(&git, id);
-        at_risk.push(RememberedBranch {
+        missing.push(RememberedBranch {
             remote: remote.clone(),
             name: name.clone(),
             reference: format!("refs/remotes/{remote}/{name}"),
             commits,
             summary,
             time,
+            moved: false,
         });
     }
-    at_risk.sort_by(|a, b| b.time.cmp(&a.time).then_with(|| a.name.cmp(&b.name)));
-    let local = tracking(&git, &remote)?
+    missing.sort_by(|a, b| b.time.cmp(&a.time).then_with(|| a.name.cmp(&b.name)));
+    let local = tracked
         .into_iter()
         .filter(|(_, target)| !has(target))
         .map(|(local, _)| local)
@@ -438,7 +518,7 @@ pub fn move_check(path: &Path, remote: String, url: String) -> Result<MoveCheck,
         address: without_credentials(&url),
         reached: theirs.is_some(),
         problem,
-        at_risk,
+        missing,
         local,
     })
 }
@@ -507,6 +587,8 @@ pub(super) fn move_remote(
 ) -> Result<String> {
     let remote = known_remote(repo, &remote)?;
     let moved = super::remote_settings::set_remote_url(git, remote.clone(), url, false)?;
+    // Asked about here: the next fetch needn't ask again.
+    remember_address(git, &remote);
     let address = git
         .run(&["remote", "get-url", "--", &remote])
         .map(|url| without_credentials(url.trim()))

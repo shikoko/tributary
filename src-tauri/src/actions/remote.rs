@@ -53,14 +53,22 @@ pub(super) fn fetch(
 }
 
 /// What a fetch adds to its message when it set branches aside: they're asked about next.
-fn set_aside_words(count: usize) -> String {
-    match count {
+fn set_aside_words(set_aside: super::remembered::SetAside) -> String {
+    let moved = match set_aside.moved {
+        0 => String::new(),
+        1 => ". The remote's new address doesn't have a branch the old one had".into(),
+        count => {
+            format!(". The remote's new address doesn't have {count} branches the old one had")
+        }
+    };
+    let work = match set_aside.work {
         0 => String::new(),
         1 => ". A branch the remote no longer has holds work found nowhere else here".into(),
-        _ => {
+        count => {
             format!(". {count} branches the remote no longer has hold work found nowhere else here")
         }
-    }
+    };
+    format!("{moved}{work}")
 }
 
 /// Where a pull (or merge) request's own commits are kept once fetched:

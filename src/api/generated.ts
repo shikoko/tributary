@@ -2000,10 +2000,12 @@ export type MoveCheck = {
    */
   problem?: string | null;
   /**
-   * Remembered branches the new address doesn't have, with work found nowhere else here:
-   * the next fetch would lose them. Newest first.
+   * Remembered branches the new address doesn't have, with no branch here pushing to them:
+   * the next fetch would forget them. Each says how many of its commits are found nowhere
+   * else here (none for a `main` whose commits are all on `develop`, which is still worth
+   * copying). Newest first.
    */
-  atRisk: Array<RememberedBranch>;
+  missing: Array<RememberedBranch>;
   /**
    * Branches here that push to this remote, which the new address doesn't have: copying
    * the remembered ones copies these too.
@@ -2512,7 +2514,7 @@ export type RememberedBranch = {
    */
   reference: string;
   /**
-   * Its commits found nowhere else here.
+   * Its commits found nowhere else here: none when they're all on other branches too.
    */
   commits: number;
   /**
@@ -2520,6 +2522,11 @@ export type RememberedBranch = {
    */
   summary: string;
   time: number;
+  /**
+   * Set aside because its remote was pointed at a new address that doesn't have it, rather
+   * than because the remote deleted it.
+   */
+  moved: boolean;
 };
 
 /**

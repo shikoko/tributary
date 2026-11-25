@@ -151,7 +151,7 @@ fn moving_a_remote_to_an_empty_one_copies_the_branches_it_remembers() {
     let check = actions::move_check(copy.path(), "origin".into(), new.url().into()).unwrap();
     assert!(check.reached);
     let at_risk: Vec<&str> = check
-        .at_risk
+        .missing
         .iter()
         .map(|branch| branch.name.as_str())
         .collect();
@@ -160,7 +160,7 @@ fn moving_a_remote_to_an_empty_one_copies_the_branches_it_remembers() {
     assert_eq!(
         at_risk,
         vec!["feature-a", "feature-b"],
-        "main is here, so it's not at risk"
+        "main is pushed from the branch here, so it's not among them"
     );
     assert_eq!(check.local, vec!["main".to_string()]);
 
@@ -266,4 +266,137 @@ fn push_branches_asks_the_remote_and_offers_the_branches_only_remembered() {
     );
     let found = actions::branches_to_push(copy.path(), None).unwrap();
     assert!(found.branches.is_empty(), "{:?}", found.branches);
+}
+
+/// A repository whose main is only remembered from `old`, with all its commits on develop,
+/// the branch here: as a repository moved by hand often is. With an empty `new` to move to.
+fn develop_here(name: &str) -> (TempRepo, TempRepo, TempRepo) {
+    let old = TempRepo::bare(&format!("{name}-old.git"));
+    let new = TempRepo::bare(&format!("{name}-new.git"));
+    let mut seed = TempRepo::new(&format!("{name}-seed"));
+    with_identity(&seed);
+    seed.git(&["remote", "add", "origin", old.url()]);
+    seed.commit("a.txt", "First");
+    seed.git(&["push", "--quiet", "-u", "origin", "main"]);
+    seed.git(&["checkout", "--quiet", "-b", "develop"]);
+    seed.commit("b.txt", "Develop work");
+    seed.git(&["push", "--quiet", "-u", "origin", "develop"]);
+    let copy = TempRepo::clone_of(&format!("{name}-copy"), &old);
+    with_identity(&copy);
+    copy.git(&["checkout", "--quiet", "develop"]);
+    copy.git(&["branch", "--quiet", "-D", "main"]);
+    (copy, old, new)
+}
+
+#[test]
+fn moving_a_remote_copies_a_branch_with_no_commits_of_its_own_too() {
+    let _turn = remote_turn();
+    let (copy, _old, new) = develop_here("move-main");
+
+    let check = actions::move_check(copy.path(), "origin".into(), new.url().into()).unwrap();
+    let missing: Vec<(&str, u32)> = check
+        .missing
+        .iter()
+        .map(|branch| (branch.name.as_str(), branch.commits))
+        .collect();
+    assert_eq!(
+        missing,
+        vec![("main", 0)],
+        "main has nothing develop doesn't, but it's asked about"
+    );
+    assert_eq!(check.local, vec!["develop".to_string()]);
+
+    let message = run(
+        &copy,
+        Action::MoveRemote {
+            name: "origin".into(),
+            url: new.url().into(),
+            then: RememberedChoice::Copy,
+            branches: vec!["main".into()],
+            local: check.local.clone(),
+        },
+    )
+    .unwrap();
+    assert!(
+        message.ends_with(", and copied 2 branches there"),
+        "{message}"
+    );
+    assert_eq!(
+        new.git(&["for-each-ref", "--format=%(refname)"]),
+        "refs/heads/develop\nrefs/heads/main"
+    );
+    // Moved here, so the next fetch has nothing to ask.
+    run(&copy, Action::Fetch { background: false }).unwrap();
+    assert!(actions::set_aside_branches(copy.path()).unwrap().is_empty());
+}
+
+#[test]
+fn a_fetch_after_the_address_changed_elsewhere_keeps_every_branch_the_new_one_lacks() {
+    let _turn = remote_turn();
+    let (copy, old, new) = develop_here("moved-elsewhere");
+    // A fetch from the old address: it's remembered as where the branches came from.
+    run(&copy, Action::Fetch { background: false }).unwrap();
+    // develop pushed to the new address, outside Tributary, after pointing origin there.
+    copy.git(&["remote", "set-url", "origin", new.url()]);
+    copy.git(&["push", "--quiet", "origin", "develop"]);
+
+    let message = run(&copy, Action::Fetch { background: false }).unwrap();
+    assert!(
+        message.ends_with("The remote's new address doesn't have a branch the old one had"),
+        "{message}"
+    );
+    let kept = actions::set_aside_branches(copy.path()).unwrap();
+    let kept: Vec<(&str, u32, bool)> = kept
+        .iter()
+        .map(|branch| (branch.name.as_str(), branch.commits, branch.moved))
+        .collect();
+    assert_eq!(
+        kept,
+        vec![("main", 0, true)],
+        "kept with no commits of its own"
+    );
+    assert_eq!(
+        run(
+            &copy,
+            Action::KeepRemembered {
+                references: vec!["refs/tributary/moved/origin/main".into()],
+            },
+        )
+        .unwrap(),
+        "Kept a branch here, as main"
+    );
+    assert_eq!(
+        copy.git(&["rev-parse", "main"]),
+        old.git(&["rev-parse", "main"])
+    );
+    assert!(actions::set_aside_branches(copy.path()).unwrap().is_empty());
+
+    // Pointed at the same address, a branch deleted there with nothing of its own is
+    // forgotten, as before.
+    copy.git(&["push", "--quiet", "origin", "main", "main:topic"]);
+    run(&copy, Action::Fetch { background: false }).unwrap();
+    copy.git(&["push", "--quiet", "origin", "--delete", "topic"]);
+    run(&copy, Action::Fetch { background: false }).unwrap();
+    assert!(actions::set_aside_branches(copy.path()).unwrap().is_empty());
+    assert_eq!(
+        refs(&copy, "refs/remotes/origin/"),
+        vec!["HEAD", "develop", "main"]
+    );
+}
+
+#[test]
+fn a_fetch_from_an_empty_new_address_keeps_every_branch() {
+    let _turn = remote_turn();
+    // Copied with its .git folder and pointed at a new, empty repository before Tributary
+    // ever fetched it: no address is remembered, but the new one has none of the branches.
+    let (copy, _old, new) = develop_here("moved-empty");
+    copy.git(&["remote", "set-url", "origin", new.url()]);
+    run(&copy, Action::Fetch { background: false }).unwrap();
+    let kept: Vec<String> = actions::set_aside_branches(copy.path())
+        .unwrap()
+        .into_iter()
+        .map(|branch| branch.name)
+        .collect();
+    // develop is the branch here, which Push branches offers; main is kept aside.
+    assert_eq!(kept, vec!["main".to_string()]);
 }
