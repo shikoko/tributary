@@ -1,5 +1,5 @@
 import type { MenuItem } from "../components/ContextMenu";
-import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, CopyIcon, FolderIcon, GearIcon, HistoryIcon } from "../components/Icons";
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, CopyIcon, FolderIcon, GearIcon, HistoryIcon, WorkspacesIcon } from "../components/Icons";
 import { copyText } from "../lib/clipboard";
 import { shortcutLabel } from "./appCommand";
 import { isMac } from "../lib/platform";
@@ -19,6 +19,8 @@ interface Options {
   moveRight: () => void;
   /** The tab closed last, open again; `null` when none was closed lately. */
   reopen: (() => void) | null;
+  /** The other workspaces, to move the tab into. */
+  workspaces: { name: string; onSelect: () => void }[];
 }
 
 /** The keys that move the open repository's tab, as each system writes them. */
@@ -27,7 +29,7 @@ export const MOVE_TAB_KEYS = isMac ? ["⌃⇧PgUp", "⌃⇧PgDn"] : ["Ctrl+Shift
 export const REOPEN_TAB_KEYS = "CmdOrCtrl+Shift+R";
 
 /** Right-click on a repository's tab. */
-export function tabMenuItems({ path, count, index, settings, reveal, close, closeOthers, moveLeft, moveRight, reopen }: Options): MenuItem[] {
+export function tabMenuItems({ path, count, index, settings, reveal, close, closeOthers, moveLeft, moveRight, reopen, workspaces }: Options): MenuItem[] {
   return [
     { label: "Repository Settings…", icon: <GearIcon />, onSelect: settings },
     { label: isMac ? "Show in Finder" : "Show in Explorer", icon: <FolderIcon />, separated: true, onSelect: reveal },
@@ -35,6 +37,9 @@ export function tabMenuItems({ path, count, index, settings, reveal, close, clos
     // Or drag the tab there.
     { label: "Move Tab Left", icon: <ChevronLeftIcon />, separated: true, disabled: index <= 0, shortcut: MOVE_TAB_KEYS[0], onSelect: moveLeft },
     { label: "Move Tab Right", icon: <ChevronRightIcon />, disabled: index < 0 || index >= count - 1, shortcut: MOVE_TAB_KEYS[1], onSelect: moveRight },
+    ...(workspaces.length > 0
+      ? [{ label: "Move to Workspace", icon: <WorkspacesIcon />, onSelect: () => {}, submenu: workspaces.map((each) => ({ label: each.name, onSelect: each.onSelect })) }]
+      : []),
     { label: "Close tab", icon: <CloseIcon />, separated: true, onSelect: close },
     { label: "Close other tabs", icon: <CloseIcon />, disabled: count < 2, onSelect: closeOthers },
     { label: "Reopen closed tab", icon: <HistoryIcon />, disabled: !reopen, shortcut: shortcutLabel(REOPEN_TAB_KEYS), onSelect: () => reopen?.() },

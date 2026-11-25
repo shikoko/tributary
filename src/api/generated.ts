@@ -2510,6 +2510,10 @@ export type RepoSummary = {
    */
   changes: number;
   conflicts: number;
+  /**
+   * When it was last fetched from (seconds since the Unix epoch), if it ever was.
+   */
+  lastFetched: number | null;
 };
 
 /**
