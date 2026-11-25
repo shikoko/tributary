@@ -4,11 +4,14 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  align-self: center;
+  /* On a whole pixel: its height is odd, and centred in the 36px bar it would start half a
+     pixel down, its border and what's in it drawn between two rows of pixels. */
+  align-self: flex-start;
   gap: var(--space-6);
   flex: none;
   /* Odd, for words at --type-sm: see --cap-pixels. */
   height: 25px;
+  margin-top: var(--space-6);
   margin-right: var(--space-6);
   padding: 0 var(--space-8);
   border: 1px solid var(--border-strong);
@@ -20,8 +23,11 @@
   white-space: nowrap;
 }
 
+/* Even, for its 14px icon: 4px either side of it inside the border, and 6px above and below
+   the button in the bar. */
 .workspace-switch.single {
-  width: 25px;
+  width: 24px;
+  height: 24px;
   justify-content: center;
   padding: 0;
   color: var(--text-muted);
@@ -34,6 +40,12 @@
 
 .workspace-switch svg:last-of-type:not(:first-child) {
   color: var(--text-muted);
+}
+
+/* Odd in the switcher, as the room inside it is: on whole pixels, not half. */
+.workspace-switch .workspace-swatch {
+  width: 11px;
+  height: 11px;
 }
 
 .workspace-swatch {

@@ -17,6 +17,13 @@ export default async function ({ page, step, accessible, expect, row, toast, dis
   await step("shows every open repository at a glance, with its branch and how it stands", async () => {
     // With one workspace, it's just an icon in the tab bar.
     expect((await switcher.getAttribute("aria-label")) === "Your repositories", `the switcher says ${await switcher.getAttribute("aria-label")}`);
+    // On whole pixels, its icon in the middle of it: the same room on every side.
+    const room = await switcher.evaluate((button) => {
+      const outer = button.getBoundingClientRect();
+      const icon = button.querySelector("svg").getBoundingClientRect();
+      return [outer.top, icon.top - outer.top, outer.bottom - icon.bottom, icon.left - outer.left, outer.right - icon.right];
+    });
+    expect(room.every(Number.isInteger) && room.slice(1).every((side) => side === room[1]), `the switcher's top, and the room around its icon: ${room.join(", ")}`);
     await openOverview();
     const rows = panel.locator(".workspace-row");
     await rows.filter({ hasText: "studio" }).locator(".workspace-row-branch", { hasText: "main" }).waitFor({ timeout: 10_000 });
