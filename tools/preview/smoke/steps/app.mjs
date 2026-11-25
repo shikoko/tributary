@@ -72,6 +72,47 @@ export default async function ({ page, demos, folder, preview, step, restoreSize
     expect(first && second && first !== second && nextMenu !== second, `focus went ${first} → ${second} → ${nextMenu}`);
   });
 
+  await step("opens menus and panels joined to what opened them: the menu bar, a tab, the workspaces and a toolbar button", async () => {
+    // Each hangs from its button, an edge lined up with the button's, the outline round the
+    // button running down into it (Joint.tsx), and the button in the panel's colour; and
+    // none of that once it's closed.
+    const joined = async (button, open, panel, align, what) => {
+      await open();
+      await page.locator(panel).waitFor({ timeout: 5000 });
+      const wrong = await button.evaluate(
+        (element, [selector, align]) => {
+          const panel = document.querySelector(selector).getBoundingClientRect();
+          const joint = document.querySelector(".joint")?.getBoundingClientRect();
+          const b = element.getBoundingClientRect();
+          const box = { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom) };
+          const off = (a, b) => Math.abs(a - b) > 0.5;
+          const problems = [];
+          if (off(panel[align], box[align])) problems.push(`its ${align} edge is at ${panel[align]}, the button's at ${box[align]}`);
+          if (off(panel.top, box.bottom + 6)) problems.push(`its top is at ${panel.top}, the button's bottom at ${box.bottom}`);
+          if (!joint) problems.push("there's no outline joining them");
+          else if (off(joint.left, box.left) || off(joint.right, box.right) || off(joint.top, box.top) || off(joint.bottom, panel.top + 1))
+            problems.push(`the outline is at ${joint.left}–${joint.right}, ${joint.top}–${joint.bottom}`);
+          if (element.dataset.joined === undefined) problems.push("the button isn't in the panel's colour");
+          return problems.join("; ");
+        },
+        [panel, align],
+      );
+      expect(!wrong, `${what}: ${wrong}`);
+      await page.mouse.click(5, page.viewportSize().height - 5);
+      await page.locator(panel).waitFor({ state: "detached", timeout: 5000 });
+      const left = [await page.locator(".joint, .joint-flare").count(), await button.getAttribute("data-joined")];
+      expect(left[0] === 0 && left[1] === null, `${what}, closed: ${left[0]} outlines left, the button's colour ${left[1]}`);
+    };
+    const file = page.locator(".menu-bar-item", { hasText: "File" });
+    if (await file.count()) await joined(file, () => file.dispatchEvent("mousedown", { button: 0 }), ".context-menu", "left", "the File menu");
+    const tab = page.locator(".tab[data-path]").first();
+    await joined(tab, () => tab.click({ button: "right" }), ".context-menu", "left", "a tab's menu");
+    const switcher = page.locator(".workspace-switch");
+    await joined(switcher, () => switcher.click(), ".workspace-panel", "left", "the workspaces");
+    const push = page.getByRole("button", { name: "More push options" });
+    if (await push.isEnabled()) await joined(push, () => push.click(), ".context-menu", "right", "Push's menu");
+  });
+
   await step("fits the smallest window: the sidebar as a strip, every window a command opens, Settings, About, the View panel and a long menu", async () => {
     // 900 by 560, the smallest the window can be (tauri.conf.json), with the sidebar and the
     // details open: no window inside it runs past its edges out of reach, and no words sit on
@@ -317,9 +358,13 @@ export default async function ({ page, demos, folder, preview, step, restoreSize
     await page.getByRole("button", { name: "Manage remotes" }).click();
     const dialog = page.locator(".dialog", { hasText: "Settings for notebook" });
     await dialog.getByRole("tab", { name: "Remotes", selected: true }).waitFor({ timeout: 10_000 });
+    const address = "https://maya:ghp_example@github.com/example/notebook.git";
     await dialog.getByLabel("New remote's name").fill("upstream");
-    await dialog.getByLabel("New remote's address").fill("https://maya:ghp_example@github.com/example/notebook.git");
-    await dialog.getByRole("button", { name: "Add remote" }).click();
+    await dialog.getByLabel("New remote's address").fill(address);
+    // Both as typed (a change undoing the one before left Add remote disabled, in WebKit).
+    const typed = [await dialog.getByLabel("New remote's name").inputValue(), await dialog.getByLabel("New remote's address").inputValue()];
+    expect(typed[0] === "upstream" && typed[1] === address, `the new remote's fields say ${JSON.stringify(typed)}`);
+    await dialog.getByRole("button", { name: "Add remote" }).click({ timeout: 10_000 });
     await page.locator(".toast", { hasText: "Added the remote upstream" }).waitFor({ timeout: 10_000 });
     // The token isn't shown.
     await dialog.getByText("https://github.com/example/notebook.git · (with a saved password or token)").waitFor({ timeout: 5000 });

@@ -1,0 +1,63 @@
+/* A menu or panel joined to the button that opened it (Joint.tsx): the button opens out into
+   it, as a tab does into the page under it. Last of the stylesheets: the open button's look
+   is over its own, hovered or not. */
+
+.joint,
+.joint-flare {
+  --joint-fill: var(--bg-panel);
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+}
+
+/* They fade in together, the panel not moving into place as a menu otherwise does: it would
+   come apart from the outline on its way. */
+.joint,
+.joint-flare,
+.context-menu.joined {
+  animation: backdrop-in 0.12s ease-out;
+}
+
+.joint.raised,
+.joint-flare.raised {
+  --joint-fill: var(--bg-raised);
+}
+
+/* The outline round the button and its foot, down to the panel's edge. Over the button it's
+   see-through: the button itself is in the panel's colour (below), with what's on it. */
+.joint {
+  border: 1px solid var(--border-strong);
+  border-bottom: none;
+  border-radius: var(--joint-radius) var(--joint-radius) 0 0;
+  background: linear-gradient(transparent var(--joint-button), var(--joint-fill) 0) border-box;
+}
+
+/* Where the foot meets the panel's edge beside the button: the outline curves out into the
+   edge's line (a quarter circle as tall as the foot, JOINT_GAP), filled with the panel's
+   colour under it. */
+.joint-flare {
+  width: 6px;
+  height: 6px;
+}
+
+.joint-flare.left {
+  background: radial-gradient(circle at 0 0, transparent 4.6px, var(--border-strong) 5.1px 5.9px, var(--joint-fill) 6.4px);
+}
+
+.joint-flare.right {
+  background: radial-gradient(circle at 100% 0, transparent 4.6px, var(--border-strong) 5.1px 5.9px, var(--joint-fill) 6.4px);
+}
+
+/* The open button, in the colour of the panel it opened: its own border gives way to the
+   outline drawn round it. */
+:root [data-joined] {
+  border-color: transparent;
+  background: var(--bg-raised);
+  color: var(--text);
+  --tab-bg: var(--bg-raised);
+}
+
+:root [data-joined="panel"] {
+  background: var(--bg-panel);
+  --tab-bg: var(--bg-panel);
+}

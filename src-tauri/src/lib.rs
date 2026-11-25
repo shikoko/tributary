@@ -7,6 +7,7 @@
 
 pub mod accounts;
 pub mod actions;
+pub mod ai;
 mod app_icon;
 pub mod apps;
 pub mod avatars;

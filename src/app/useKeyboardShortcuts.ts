@@ -11,6 +11,8 @@ export interface ShortcutHandlers {
   reopenTab: () => void;
   /** ⌘1…⌘9: the nth tab (0-based). */
   showTab: (index: number) => void;
+  /** Ctrl+Alt+1… (⌘⌥1… on a Mac): a workspace by its place. */
+  showWorkspace: (index: number) => void;
   /** Ctrl+Tab and Ctrl+Shift+Tab. */
   cycleTab: (backwards: boolean) => void;
   /** Ctrl+Shift+Page Up and Page Down: the open repository's tab one place left or right. */
@@ -54,6 +56,9 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
       else if (mod && key === "o" && !event.shiftKey) run(on.open);
       else if (mod && key === "t" && !event.shiftKey) run(on.newTab);
       else if (mod && key === "w") run(on.closeTab);
+      // By the key's place (Option+1 types "¡" on a Mac), and not AltGr, which is Ctrl+Alt on
+      // Windows and types characters ("{" on a German keyboard), nor while typing.
+      else if (mod && event.altKey && !event.getModifierState?.("AltGraph") && !typing && /^Digit[1-9]$/.test(event.code)) run(() => on.showWorkspace(Number(event.code.slice(5)) - 1));
       else if (mod && /^[1-9]$/.test(key)) run(() => on.showTab(Number(key) - 1));
       else if (event.ctrlKey && event.key === "Tab") run(() => on.cycleTab(event.shiftKey));
       else if (event.ctrlKey && event.shiftKey && (event.key === "PageUp" || event.key === "PageDown")) run(() => on.moveTab(event.key === "PageUp" ? -1 : 1));

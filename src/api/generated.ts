@@ -96,6 +96,7 @@ export type Action =
   | { kind: "restoreTag"; name: string; id: string }
   | { kind: "pushTag"; name: string; remote?: string | null }
   | { kind: "pushTags"; names: Array<string>; remote: string }
+  | { kind: "pushBranches"; names: Array<string>; remote: string; remembered: Array<string> }
   | { kind: "deleteRemoteTag"; name: string; remote: string }
   | { kind: "resolveConflicts"; paths: Array<string>; keep: Side }
   | { kind: "recreateConflicts"; paths: Array<string> }
@@ -134,6 +135,16 @@ export type Action =
   | { kind: "renameRemote"; from: string; to: string }
   | { kind: "removeRemote"; name: string }
   | { kind: "setRemoteUrl"; name: string; url: string; push: boolean }
+  | {
+    kind: "moveRemote";
+    name: string;
+    url: string;
+    then: RememberedChoice;
+    branches: Array<string>;
+    local: Array<string>;
+  }
+  | { kind: "keepRemembered"; references: Array<string> }
+  | { kind: "forgetRemembered"; references: Array<string> }
   | { kind: "setSparseFolders"; folders: Array<string> }
   | { kind: "savePatch"; ids: Array<string>; file: string }
   | { kind: "applyPatch"; file: string; asCommits: boolean }
@@ -193,6 +204,66 @@ export type ActorName = {
    * The level it's in, like "Maps/Tavern".
    */
   level: string | null;
+};
+
+/**
+ * Whether a key is kept for the provider.
+ */
+export type AiKey = {
+  kept: boolean;
+  /**
+   * Its last four characters, to tell which key it is.
+   */
+  ends: string | null;
+};
+
+/**
+ * One of the provider's models.
+ */
+export type AiModel = {
+  id: string;
+  /**
+   * Its name, like "Claude Haiku 4.5"; the id when the provider gives none.
+   */
+  name: string;
+};
+
+/**
+ * The provider's models, and the one used when none is chosen.
+ */
+export type AiModels = {
+  models: Array<AiModel>;
+  /**
+   * The newest of the provider's quick, cheap ones (enough for a commit message), or its
+   * newest.
+   */
+  picked: string | null;
+};
+
+/**
+ * Who writes the messages.
+ */
+export type AiProvider =
+  | "anthropic"
+  | "openai"
+  | "gemini"
+  | "local";
+
+/**
+ * Which AI writes the messages, as chosen in Settings.
+ */
+export type AiSetup = {
+  provider: AiProvider;
+  /**
+   * The model's id as the provider lists it; empty for the one Tributary picks
+   * ([`AiModels::picked`]).
+   */
+  model: string;
+  /**
+   * For a model on this computer: its server's address, like `http://localhost:11434/v1`
+   * (empty for that one, Ollama's).
+   */
+  address: string;
 };
 
 /**
@@ -374,6 +445,29 @@ export type BranchPerson = { name: string; email: string; commits: number };
 export type BranchTip = { name: string; id: string; remote?: string | null; merge?: string | null };
 
 /**
+ * A branch with commits the remote doesn't have (see [`branches_to_push`]).
+ */
+export type BranchToPush = {
+  name: string;
+  reason: PushReason;
+  /**
+   * Its branch on the remote, like `origin/feature/export`, when it's there: the commits
+   * are added to it.
+   */
+  onRemote: string | null;
+  /**
+   * Commits it has that the remote doesn't: ahead of its branch there, or, not there,
+   * on none of the remote's branches.
+   */
+  ahead: number;
+  /**
+   * Its last commit's summary, and when that was committed (seconds).
+   */
+  summary: string;
+  time: number;
+};
+
+/**
  * Where a branch pointed, and how it got there.
  */
 export type BranchVersion = {
@@ -391,6 +485,37 @@ export type BranchVersion = {
    * What moved it, as git says: "fetch: forced-update", "rebase (finish): …".
    */
   how: string;
+};
+
+/**
+ * The branches here with something to push to a remote (see [`branches_to_push`]).
+ */
+export type BranchesToPush = {
+  remote: string;
+  /**
+   * Its address, without a password or token in it.
+   */
+  address: string;
+  /**
+   * The remote was asked just now what it has. When it couldn't be (`problem` says why),
+   * what it had at the last fetch stands in.
+   */
+  checked: boolean;
+  problem?: string | null;
+  /**
+   * It has none of the branches remembered from its last fetch: it's new, or emptied, as
+   * when a repository is moved to a new one. Those remembered branches are all offered.
+   */
+  fresh: boolean;
+  /**
+   * Newest last commit first.
+   */
+  branches: Array<BranchToPush>;
+  /**
+   * Branches behind their branch on the remote (whether or not they're ahead too): a push
+   * would be refused until they're pulled, so they aren't offered.
+   */
+  behind: Array<string>;
 };
 
 /**
@@ -490,6 +615,9 @@ export type Commands = {
   lost_commits: { args: { path: string; reference: string }; returns: LostCommits };
   upstream_choices: { args: { path: string; branch: string }; returns: UpstreamChoices };
   tags_to_push: { args: { path: string; remote?: string | null }; returns: TagsToPush };
+  branches_to_push: { args: { path: string; remote?: string | null }; returns: BranchesToPush };
+  set_aside_branches: { args: { path: string }; returns: Array<RememberedBranch> };
+  move_check: { args: { path: string; remote: string; url: string }; returns: MoveCheck };
   unseen_commits: {
     args: { path: string; reference: string; since?: string | null };
     returns: UnseenCommits;
@@ -629,6 +757,14 @@ export type Commands = {
     returns: TrackerStatus;
   };
   tracker_sign_out: { args: { tracker: Tracker }; returns: void };
+  ai_key: { args: { setup: AiSetup }; returns: AiKey };
+  ai_save_key: { args: { setup: AiSetup; key: string }; returns: AiKey };
+  ai_forget_key: { args: { setup: AiSetup }; returns: void };
+  ai_models: { args: { setup: AiSetup }; returns: AiModels };
+  write_commit_message: {
+    args: { path: string; setup: AiSetup; style: MessageStyle; draft: string };
+    returns: WrittenMessage;
+  };
   merge_request: {
     args: { path: string; number: number; options: MergeRequestOptions };
     returns: string;
@@ -980,7 +1116,8 @@ export type ErrorKind =
   | { kind: "notFullyMerged" }
   | { kind: "checkedOutElsewhere"; path: string }
   | { kind: "worktreeChanged" }
-  | { kind: "conflicts" };
+  | { kind: "conflicts" }
+  | { kind: "aiSetup" };
 
 /**
  * How an error reaches the frontend: its message, and its kind when that's known.
@@ -1823,6 +1960,14 @@ export type Mergeable =
   | "blocked"
   | "checking";
 
+/**
+ * How a message is written.
+ */
+export type MessageStyle =
+  | "repository"
+  | "conventional"
+  | "summary";
+
 export type MetaKind = "missing" | "orphan" | "leftBehind";
 
 /**
@@ -1834,6 +1979,38 @@ export type MetaProblem = {
    */
   path: string;
   problem: MetaKind;
+};
+
+/**
+ * What moving a remote to a new address would do to its remembered branches (see
+ * [`move_check`]).
+ */
+export type MoveCheck = {
+  /**
+   * The new address, without a password or token in it.
+   */
+  address: string;
+  /**
+   * Whether the new address answered: what it has is known. When it didn't, it's taken
+   * to have none of the remembered branches.
+   */
+  reached: boolean;
+  /**
+   * Why it didn't answer.
+   */
+  problem?: string | null;
+  /**
+   * Remembered branches the new address doesn't have, with no branch here pushing to them:
+   * the next fetch would forget them. Each says how many of its commits are found nowhere
+   * else here (none for a `main` whose commits are all on `develop`, which is still worth
+   * copying). Newest first.
+   */
+  missing: Array<RememberedBranch>;
+  /**
+   * Branches here that push to this remote, which the new address doesn't have: copying
+   * the remembered ones copies these too.
+   */
+  local: Array<string>;
 };
 
 /**
@@ -2174,6 +2351,15 @@ export type PullRequest = {
   forge: Forge;
 };
 
+/**
+ * Why a branch is offered (see [`branches_to_push`]).
+ */
+export type PushReason =
+  | "ahead"
+  | "missing"
+  | "new"
+  | "remembered";
+
 export type RangeDiff = {
   /**
    * The branch both versions are compared against, if one was found.
@@ -2313,6 +2499,43 @@ export type ReleaseNotes = {
    */
   commits: number;
 };
+
+/**
+ * A remembered branch whose work isn't anywhere else here.
+ */
+export type RememberedBranch = {
+  /**
+   * Its remote's, and its name there: `origin`, `feature/export`.
+   */
+  remote: string;
+  name: string;
+  /**
+   * Where it's kept: `refs/remotes/origin/feature/export`, or set aside.
+   */
+  reference: string;
+  /**
+   * Its commits found nowhere else here: none when they're all on other branches too.
+   */
+  commits: number;
+  /**
+   * Its last commit's summary, and when that was committed (seconds).
+   */
+  summary: string;
+  time: number;
+  /**
+   * Set aside because its remote was pointed at a new address that doesn't have it, rather
+   * than because the remote deleted it.
+   */
+  moved: boolean;
+};
+
+/**
+ * What to do with a remote's remembered branches its new address doesn't have.
+ */
+export type RememberedChoice =
+  | "copy"
+  | "keep"
+  | "forget";
 
 export type RemoteBranchChoice = {
   /**
@@ -2510,6 +2733,10 @@ export type RepoSummary = {
    */
   changes: number;
   conflicts: number;
+  /**
+   * When it was last fetched from (seconds since the Unix epoch), if it ever was.
+   */
+  lastFetched: number | null;
 };
 
 /**
@@ -3626,4 +3853,29 @@ export type WorktreeStatus = {
    * Changes in the working tree, compared to the index, and untracked files.
    */
   unstaged: Array<FileChange>;
+};
+
+/**
+ * A message the AI wrote.
+ */
+export type WrittenMessage = {
+  summary: string;
+  description: string;
+  /**
+   * The provider, for "Written by Claude": "Claude", "OpenAI", "Gemini", or the model's
+   * name for one on this computer.
+   */
+  by: string;
+  /**
+   * How many staged files' changes were sent.
+   */
+  files: number;
+  /**
+   * Staged files whose contents weren't sent (only their names): in Git LFS, or not text.
+   */
+  leftOut: Array<string>;
+  /**
+   * Some changes were cut short, to keep what's sent small.
+   */
+  shortened: boolean;
 };

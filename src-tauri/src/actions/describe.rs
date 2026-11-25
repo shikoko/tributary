@@ -115,8 +115,13 @@ impl Action {
                 Some(Running::Fetch)
             }
             Action::Pull => Some(Running::Pull),
-            Action::Push { .. } | Action::Shelve { .. } | Action::PushTags { .. } => {
-                Some(Running::Push)
+            Action::Push { .. }
+            | Action::Shelve { .. }
+            | Action::PushTags { .. }
+            | Action::PushBranches { .. } => Some(Running::Push),
+            // Copying its branches to the new address is a push; the rest is quick.
+            Action::MoveRemote { then, .. } => {
+                (*then == super::RememberedChoice::Copy).then_some(Running::Push)
             }
             Action::Sync => Some(Running::Sync),
             Action::OpenShelf { .. }
@@ -202,6 +207,8 @@ impl Action {
             | Action::RenameRemote { .. }
             | Action::RemoveRemote { .. }
             | Action::SetRemoteUrl { .. }
+            | Action::KeepRemembered { .. }
+            | Action::ForgetRemembered { .. }
             | Action::SetSparseFolders { .. }
             | Action::SavePatch { .. }
             | Action::ApplyPatch { .. }

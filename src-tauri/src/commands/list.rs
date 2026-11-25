@@ -146,6 +146,9 @@ commands! {
         lost_commits(path: String, reference: String) -> actions::LostCommits;
         upstream_choices(path: String, branch: String) -> actions::UpstreamChoices;
         tags_to_push(path: String, remote: Option<String>) -> actions::TagsToPush;
+        branches_to_push(path: String, remote: Option<String>) -> actions::BranchesToPush;
+        set_aside_branches(path: String) -> Vec<actions::RememberedBranch>;
+        move_check(path: String, remote: String, url: String) -> actions::MoveCheck;
         unseen_commits(path: String, reference: String, since: Option<String>) -> actions::UnseenCommits;
         lfs_locks(path: String) -> locks::Locks;
         file_history(path: String, file: String) -> actions::FileHistory;
@@ -220,6 +223,11 @@ commands! {
         tracker_status(path: String, tracker: crate::issues::Tracker) -> crate::issues::TrackerStatus;
         tracker_sign_in(tracker: crate::issues::Tracker, user: String, token: String) -> crate::issues::TrackerStatus;
         tracker_sign_out(tracker: crate::issues::Tracker) -> ();
+        ai_key(setup: crate::ai::AiSetup) -> crate::ai::AiKey;
+        ai_save_key(setup: crate::ai::AiSetup, key: String) -> crate::ai::AiKey;
+        ai_forget_key(setup: crate::ai::AiSetup) -> ();
+        ai_models(setup: crate::ai::AiSetup) -> crate::ai::AiModels;
+        write_commit_message(path: String, setup: crate::ai::AiSetup, style: crate::ai::MessageStyle, draft: String) -> crate::ai::WrittenMessage;
         merge_request(path: String, number: u64, options: crate::reviews::MergeRequestOptions) -> String;
         git_install() -> git::install::GitInstall;
         look_for_git() -> git::install::GitInstall;

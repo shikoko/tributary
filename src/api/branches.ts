@@ -4,10 +4,16 @@ import type {
   Backup,
   BackupEvent,
   BranchTip,
+  BranchToPush,
+  BranchesToPush,
   CommitBrief,
   LostCommits,
+  MoveCheck,
   PruneCandidate,
   PruneInfo,
+  PushReason,
+  RememberedBranch,
+  RememberedChoice,
   RemoteBranchChoice,
   TagToPush,
   TagsToPush,
@@ -15,7 +21,27 @@ import type {
   UnseenCommits,
   UpstreamChoices,
 } from "./generated";
-export type { Backup, BackupEvent, BranchTip, CommitBrief, LostCommits, PruneCandidate, PruneInfo, RemoteBranchChoice, TagToPush, TagsToPush, UnseenCommit, UnseenCommits, UpstreamChoices };
+export type {
+  Backup,
+  BackupEvent,
+  BranchTip,
+  BranchToPush,
+  BranchesToPush,
+  CommitBrief,
+  LostCommits,
+  MoveCheck,
+  PruneCandidate,
+  PruneInfo,
+  PushReason,
+  RememberedBranch,
+  RememberedChoice,
+  RemoteBranchChoice,
+  TagToPush,
+  TagsToPush,
+  UnseenCommit,
+  UnseenCommits,
+  UpstreamChoices,
+};
 
 /** Backups from the last 30 days, newest first. */
 export function branchBackups(path: string): Promise<Backup[]> {
@@ -51,4 +77,19 @@ export function upstreamChoices(path: string, branch: string): Promise<UpstreamC
 /** The tags here that `remote` (the default remote when `null`) doesn't have yet: asked over the network. */
 export function tagsToPush(path: string, remote: string | null = null): Promise<TagsToPush> {
   return invoke("tags_to_push", { path, remote });
+}
+
+/** The branches with commits the remote (the default one when none is given) doesn't have, asked of it (or, unreachable, as of the last fetch). */
+export function branchesToPush(path: string, remote: string | null = null): Promise<BranchesToPush> {
+  return invoke("branches_to_push", { path, remote });
+}
+
+/** Branches a fetch set aside: the remote no longer has them, and their work is nowhere else here. */
+export function setAsideBranches(path: string): Promise<RememberedBranch[]> {
+  return invoke("set_aside_branches", { path });
+}
+
+/** Before a remote moves to `url`: which of its remembered branches the new address doesn't have, with work found nowhere else. */
+export function moveCheck(path: string, remote: string, url: string): Promise<MoveCheck> {
+  return invoke("move_check", { path, remote, url });
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { forgetAvatars, openInApp, takeRecoveryNote, WORKTREE_ID, type Action, type PullRequest } from "./api";
+import { forgetAvatars, openInApp, setAsideBranches, takeRecoveryNote, WORKTREE_ID, type Action, type PullRequest } from "./api";
 import { useOpenApps } from "./lib/apps";
 import { useLfsLocks } from "./lib/locks";
 import { isPatchFile } from "./lib/patches";
@@ -12,8 +12,9 @@ import { CiStatesContext, useCiStates } from "./lib/ciStates";
 import { useUpdates } from "./lib/updates";
 import type { OpenDialog } from "./menus";
 import { ProfilePictures } from "./components/Avatar";
-import { DownloadIcon } from "./components/Icons";
+import { DownloadIcon, WorkspacesIcon } from "./components/Icons";
 import { TabBar } from "./components/TabBar";
+import { WorkspaceSwitcher, workspaceKeys } from "./components/WorkspaceSwitcher";
 import { LinkPreview } from "./components/LinkPreview";
 import type { ToastMessage } from "./components/Toast";
 import { shortcutLabel } from "./app/appCommand";
@@ -60,6 +61,7 @@ import { useRepositorySettings } from "./app/useRepositorySettings";
 import { useSearch } from "./app/useSearch";
 import { useSelection } from "./app/useSelection";
 import { useTabs } from "./app/useTabs";
+import { useWorkspaces } from "./app/useWorkspaces";
 import { useActivityLog, useFolderDrop, useOpenFolder, useRepositoryWatch, useWindowFocus } from "./app/useWindowEvents";
 import { useWorktrees } from "./app/useWorktrees";
 import { useZoom } from "./app/window";
@@ -155,6 +157,20 @@ export default function App() {
   const selection = useSelection(snapshot?.commits);
   const location = usePlace(snapshot, selection.selectedId);
   const tabbing = useTabs({ tabs, setTabs, snapshot, load: repo.load, close: repo.close, rememberPlace: location.rememberPlace });
+  // Named sets of tabs, one open at a time (src/lib/workspaces.ts). Its Fetch all and Pull
+  // all act in the open repository the usual way, with `act` (set once it's made, below).
+  const actRef = useRef<(action: Action) => Promise<unknown>>(async () => false);
+  const workspaces = useWorkspaces({
+    tabs,
+    setTabs,
+    openPath: repoPath,
+    load: repo.load,
+    close: repo.close,
+    rememberPlace: location.rememberPlace,
+    act: (action) => actRef.current(action),
+    notify: setToast,
+  });
+  const [workspacesOpen, setWorkspacesOpen] = useState(false);
   // A tab's "Repository Settings…": once that tab's repository is open.
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
   useEffect(() => {
@@ -163,10 +179,10 @@ export default function App() {
       setDialog({ kind: "repoSettings" });
     }
   }, [settingsFor, snapshot?.path]);
-  const tabMenu = (path: string, x: number, y: number) =>
-    menu.show(
-      x,
-      y,
+  // Under the tab, joined to it, as the menus of the other things in the tab bar are.
+  const tabMenu = (path: string, element: HTMLElement) =>
+    menu.under(
+      element,
       tabMenuItems({
         path,
         count: tabs.length,
@@ -181,7 +197,12 @@ export default function App() {
         moveLeft: () => tabbing.nudgeTab(path, -1),
         moveRight: () => tabbing.nudgeTab(path, 1),
         reopen: tabbing.canReopen ? tabbing.reopenTab : null,
+        workspaces: workspaces.state.list
+          .filter((each) => each.id !== workspaces.state.current)
+          .map((each) => ({ name: each.name, onSelect: () => workspaces.moveTabTo(path, each.id) })),
       }),
+      240,
+      "left",
     );
   const search = useSearch(snapshot?.commits, selection.select, selection.selectedIndex, snapshot?.path ?? null);
   const highlight = useHighlight({
@@ -255,9 +276,20 @@ export default function App() {
       if (remote) prs.refresh(true);
       if (action.kind === "push" && outcome?.pushedFiles) lockRelease.pushedFiles(outcome.pushedFiles);
       submodules.ran(action);
+      // A fetch you asked for set aside branches the remote no longer has, with work found
+      // nowhere else here: asked about now (a background fetch's wait for one you ask for).
+      if (outcome && snapshot && ((action.kind === "fetch" && !action.background) || action.kind === "fetchLatest")) {
+        const path = snapshot.path;
+        setAsideBranches(path)
+          .then((found) => {
+            if (found.length > 0) setDialog((open) => open ?? { kind: "keepRemembered" });
+          })
+          .catch(() => {});
+      }
     },
   });
   const { act, running } = actions;
+  actRef.current = act;
   // The repository on screen's, or another's.
   useTaskbarProgress(actions.progress ?? [...actions.runs.values()].find((run) => run.progress?.visible)?.progress ?? null);
   const lockRelease = useLockRelease({ snapshot, locks: lfs.locks ? lfs.byPath : null, mode: preferences.releaseLocks, act });
@@ -313,9 +345,11 @@ export default function App() {
     if (!latest.current.snapshot || !idle() || repo.blockFocusRefresh.current) return;
     latest.current.refresh();
   });
-  useLocalHistory({ tabs, minutes: preferences.historyMinutes, maxMB: preferences.historyMaxMB, days: preferences.historyDays });
+  // Every workspace's repositories, not just the open one's: their history, the scheduled
+  // fetch and background fetches go on while you're in another.
+  useLocalHistory({ tabs: workspaces.all, minutes: preferences.historyMinutes, maxMB: preferences.historyMaxMB, days: preferences.historyDays });
   const fetchLatestNow = useScheduledFetch({
-    tabs,
+    tabs: workspaces.all,
     days: preferences.scheduleDays,
     time: preferences.scheduleTime,
     last: preferences.scheduleLast,
@@ -349,7 +383,7 @@ export default function App() {
   const tabNews = useBackgroundFetch({
     nudge: prLeftOpen,
     snapshot,
-    tabs,
+    tabs: workspaces.all,
     enabled: preferences.autoFetch,
     minutes: preferences.fetchMinutes,
     notices: preferences.newCommitNotices,
@@ -361,7 +395,8 @@ export default function App() {
     notify: setToast,
     pull: () => act({ kind: "pull" }),
     show: (id) => selection.select(id),
-    switchTab: tabbing.switchTab,
+    // In its workspace, switching to it if that's another.
+    switchTab: workspaces.openRepository,
   });
   // The "only this branch" setting changed: reload.
   const firstParentLoaded = snapshot?.firstParent;
@@ -440,6 +475,7 @@ export default function App() {
     closeTab: tabbing.closeCurrent,
     reopenTab: tabbing.reopenTab,
     showTab: (index) => tabs[index] && tabbing.switchTab(tabs[index].path),
+    showWorkspace: (index) => workspaces.state.list[index] && workspaces.switchWorkspace(workspaces.state.list[index].id),
     cycleTab: tabbing.cycle,
     moveTab: (step) => snapshot && tabbing.nudgeTab(snapshot.path, step),
     refresh: repo.refresh,
@@ -457,8 +493,16 @@ export default function App() {
   });
 
   /** The command palette: everything, with a repository open; otherwise opening one. */
+  const workspaceCommands = [
+    { id: "workspaces", label: "Workspaces…", keywords: "repositories overview group projects fetch all pull all", icon: <WorkspacesIcon />, run: () => setWorkspacesOpen(true) },
+    ...workspaces.state.list.flatMap((each, index) => {
+      if (each.id === workspaces.state.current) return [];
+      const keys = workspaceKeys(index);
+      return [{ id: `workspace:${each.id}`, label: `Switch to ${each.name}`, group: "Workspace", shortcut: keys && shortcutLabel(keys), run: () => workspaces.switchWorkspace(each.id) }];
+    }),
+  ];
   const commands = () =>
-    (snapshot
+    [...(snapshot
       ? paletteCommands({
           menus,
           snapshot,
@@ -482,9 +526,12 @@ export default function App() {
           icon: c.icon,
           shortcut: c.keys && shortcutLabel(c.keys),
           run: c.run,
-        })));
+        }))),
+    ...workspaceCommands,
+  ];
 
-  const showTabBar = Boolean(snapshot) || tabs.length > 0 || menuBar.element !== undefined;
+  // With more than one workspace, an empty one still shows the switcher to leave it.
+  const showTabBar = Boolean(snapshot) || tabs.length > 0 || workspaces.state.list.length > 1 || menuBar.element !== undefined;
   useViewFade(snapshot ? `repository:${snapshot.path}` : "start");
   // Where git is: without it, almost nothing works, so it's said up front.
   const git = useGitInstall(repo.refresh);
@@ -508,6 +555,7 @@ export default function App() {
               onNew={tabbing.newTab}
               onContextMenu={tabMenu}
               menuBar={menuBar.element}
+              switcher={<WorkspaceSwitcher workspaces={workspaces} tabs={tabs} openPath={repoPath} news={tabNews} open={workspacesOpen} setOpen={setWorkspacesOpen} />}
               extra={
                 // Once it's downloaded (or the download failed, to try again).
                 updates.available &&

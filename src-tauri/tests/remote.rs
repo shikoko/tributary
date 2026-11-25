@@ -1046,6 +1046,13 @@ fn counts_a_merged_branch_once() {
     // The start screen counts the same way.
     let summary = tributary_lib::repo::summary(alice.path());
     assert_eq!((summary.ahead, summary.behind), (0, 1));
+    // Fetched just now: the workspaces' overview says when.
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let fetched = summary.last_fetched.expect("it was fetched");
+    assert!((now - fetched).abs() < 120, "fetched {fetched}, now {now}");
 }
 
 #[test]

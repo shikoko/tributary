@@ -27,12 +27,14 @@ interface Props {
   onNew: () => void;
   /** The File, View, … menus, on systems without a menu bar of their own. */
   menuBar?: ReactNode;
+  /** Workspaces (WorkspaceSwitcher), before the tabs. */
+  switcher?: ReactNode;
   /** Shown at the right, like "Update available". */
   extra?: ReactNode;
   /** Tabs whose background fetch found new commits: what arrived, by path. */
   news?: Record<string, string>;
-  /** Right-click on a repository's tab (or the menu key on it). */
-  onContextMenu?: (path: string, x: number, y: number) => void;
+  /** Right-click on a repository's tab (or the menu key on it): its menu opens under it. */
+  onContextMenu?: (path: string, tab: HTMLElement) => void;
   /** Pulls, fetches, pushes and checkouts running, by repository: a ring on each one's tab, when it isn't the one shown. */
   busy?: Record<string, { label: string; percent: number | null }>;
 }
@@ -135,7 +137,7 @@ function useClippedNames(row: RefObject<HTMLDivElement | null>, tabs: Tab[], sta
  * title bar: the empty space drags the window, and on Windows the minimize, maximize and
  * close buttons are at its right.
  */
-export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onMove, onCloseStart, onNew, menuBar, extra, news, onContextMenu, busy }: Props) {
+export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onMove, onCloseStart, onNew, menuBar, switcher, extra, news, onContextMenu, busy }: Props) {
   const row = useRef<HTMLDivElement>(null);
   useTabMotion(row, tabs, startTab);
   useClippedNames(row, tabs, startTab);
@@ -150,6 +152,7 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onMove, 
         <Logo size={20} />
       </span>
       {menuBar}
+      {switcher}
       <div ref={row} className="tabs" role="tablist">
         {tabs.map((tab, index) => (
           <div
@@ -187,10 +190,7 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onMove, 
               onContextMenu &&
               ((event) => {
                 event.preventDefault();
-                // From the keyboard there's no pointer: open under the tab.
-                const rect = event.currentTarget.getBoundingClientRect();
-                const keyboard = event.clientX === 0 && event.clientY === 0;
-                onContextMenu(tab.path, keyboard ? rect.left : event.clientX, keyboard ? rect.bottom : event.clientY);
+                onContextMenu(tab.path, event.currentTarget);
               })
             }
           >

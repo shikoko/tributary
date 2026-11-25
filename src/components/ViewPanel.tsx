@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { ACCENTS, CI_DOTS, CURVE_STYLES, DEFAULT_APPEARANCE, LANE_PALETTES, type Appearance, type CiDots, type CurveStyle, type LanePaletteName, type Theme, type ThemeChoice } from "../lib/appearance";
 import type { ColumnOptions } from "./CommitList";
+import { hang, hangsFrom, JOINT_GAP, snap, type Box } from "../lib/joint";
 import { CheckIcon, GearIcon } from "./Icons";
+import { cornerOf, Joint, jointCorners, useJoinedButton } from "./Joint";
 import { Switch } from "./ui/Switch";
 
 interface Props {
@@ -60,11 +62,13 @@ export function ViewPanel(props: Props) {
   const look = { ...DEFAULT_APPEARANCE, ...appearance };
   const change = (value: Partial<Appearance>) => setAppearance({ ...appearance, ...value });
   const panel = useRef<HTMLDivElement>(null);
-  const [place, setPlace] = useState<CSSProperties>({ visibility: "hidden" });
-  // Under the button, inside the window: from a button in the window's right half, its right edge
-  // on the button's; from one in the left half, its left edge on the button's. No taller than the
-  // room under the button (in a small window it scrolls), and placed again when the window is
-  // resized.
+  const [place, setPlace] = useState<{ left: number; top: number; width: number; maxHeight: number } | null>(null);
+  /** Its button, which it hangs from, joined to it. */
+  const [button, setButton] = useState<{ box: Box; radius: number } | null>(null);
+  // Hanging from the button, joined to it, inside the window: from a button in the window's
+  // right half, its right edge on the button's; from one in the left half, its left edge on the
+  // button's. No taller than the room under the button (in a small window it scrolls), and
+  // placed again when the window is resized.
   const { onClose, anchor } = props;
   useLayoutEffect(() => {
     // Without its button (the commit list isn't showing), there's nothing to open under.
@@ -72,11 +76,11 @@ export function ViewPanel(props: Props) {
     const placeIt = () => {
       if (!anchor.current) return;
       const width = panel.current?.offsetWidth ?? 340;
-      const button = anchor.current.getBoundingClientRect();
-      const wanted = button.left + button.width / 2 > window.innerWidth / 2 ? button.right - width : button.left;
-      const left = Math.max(8, Math.min(wanted, window.innerWidth - width - 8));
-      const top = button.bottom + 6;
-      setPlace({ left, top, maxHeight: window.innerHeight - top - 8 });
+      const box = snap(anchor.current.getBoundingClientRect());
+      const left = hang(box, width, window.innerWidth, box.left + box.right > window.innerWidth ? "right" : "left", 8);
+      const top = box.bottom + JOINT_GAP;
+      setPlace({ left, top, width, maxHeight: window.innerHeight - top - 8 });
+      setButton({ box, radius: cornerOf(anchor.current) });
     };
     placeIt();
     window.addEventListener("resize", placeIt);
@@ -117,122 +121,128 @@ export function ViewPanel(props: Props) {
       </button>
     );
   };
+  const at = place ?? { left: 0, top: 0, width: 0 };
+  useJoinedButton(anchor, "panel", button !== null && hangsFrom(button.box, at.top));
+  const style: CSSProperties = place ? { left: place.left, top: place.top, maxHeight: place.maxHeight, ...jointCorners(button?.box ?? null, at) } : { visibility: "hidden" };
   return (
-    <div ref={panel} className="view-panel" style={place} role="dialog" aria-label="View">
-      <section>
-        <h3>Look</h3>
-        <div className="view-row">
-          <span>Theme</span>
-          <Segmented label="Theme" value={look.theme} options={THEMES} onChange={(theme) => change({ theme })} />
-        </div>
-        <div className="view-row">
-          <span>Accent</span>
-          <div className="view-accents" role="group" aria-label="Accent colour">
-            {ACCENTS.slice(0, 8).map((accent) => (
-              <button
-                key={accent.color}
-                className={`view-accent${look.accent === accent.color ? " on" : ""}`}
-                aria-pressed={look.accent === accent.color}
-                aria-label={accent.name}
-                title={accent.name}
-                style={{ background: `linear-gradient(135deg, ${accent.color}, ${accent.end})` }}
-                onClick={() => change({ accent: accent.color })}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-      <section>
-        <h3>Graph</h3>
-        <div className="view-row">
-          <span>Commits as</span>
-          <Segmented
-            label="Commits as"
-            value={look.nodes}
-            options={[
-              { value: "authors", label: "Pictures" },
-              { value: "dots", label: "Dots" },
-            ]}
-            onChange={(nodes) => change({ nodes })}
-          />
-        </div>
-        <div className="view-row">
-          <span>Checks</span>
-          <Segmented label="Checks on dots" value={look.ciDots} options={CI_DOTS.map((value) => ({ value, label: CI_DOT_NAMES[value] }))} onChange={(ciDots) => change({ ciDots })} />
-        </div>
-        <div className="view-row">
-          <span>Lines bend</span>
-          <Segmented label="Lines bend" value={look.curves} options={CURVE_STYLES.slice(0, 3).map((value) => ({ value, label: BENDS[value] }))} onChange={(curves) => change({ curves })} />
-        </div>
-        <div className="view-row">
-          <span>Branches</span>
-          <Segmented
-            label="Branch colours"
-            value={look.branchColours}
-            options={[
-              { value: "own", label: "Own colours" },
-              { value: "kinds", label: "By kind" },
-            ]}
-            onChange={(branchColours) => change({ branchColours })}
-          />
-        </div>
-        {look.branchColours === "own" && (
+    <>
+      <div ref={panel} className="view-panel" style={style} role="dialog" aria-label="View">
+        <section>
+          <h3>Look</h3>
           <div className="view-row">
-            <span>Colours</span>
-            <div className="view-palettes" role="group" aria-label="Lane colours">
-              {palettes.map((name) => (
-                <button key={name} className={`view-palette${look.lanes === name ? " on" : ""}`} aria-pressed={look.lanes === name} title={name} onClick={() => change({ lanes: name })}>
-                  {LANE_PALETTES[name][props.theme].slice(0, 5).map((color) => (
-                    <span key={color} style={{ background: color }} />
-                  ))}
-                </button>
+            <span>Theme</span>
+            <Segmented label="Theme" value={look.theme} options={THEMES} onChange={(theme) => change({ theme })} />
+          </div>
+          <div className="view-row">
+            <span>Accent</span>
+            <div className="view-accents" role="group" aria-label="Accent colour">
+              {ACCENTS.slice(0, 8).map((accent) => (
+                <button
+                  key={accent.color}
+                  className={`view-accent${look.accent === accent.color ? " on" : ""}`}
+                  aria-pressed={look.accent === accent.color}
+                  aria-label={accent.name}
+                  title={accent.name}
+                  style={{ background: `linear-gradient(135deg, ${accent.color}, ${accent.end})` }}
+                  onClick={() => change({ accent: accent.color })}
+                />
               ))}
             </div>
           </div>
-        )}
-      </section>
-      <section>
-        <h3>Commit list</h3>
-        <div className="view-row">
-          <span>Columns</span>
-          <div className="view-chips">
-            {column("author", "Author")}
-            {column("date", "Date")}
-            {column("sha", "SHA")}
-            {column("checks", "CI")}
+        </section>
+        <section>
+          <h3>Graph</h3>
+          <div className="view-row">
+            <span>Commits as</span>
+            <Segmented
+              label="Commits as"
+              value={look.nodes}
+              options={[
+                { value: "authors", label: "Pictures" },
+                { value: "dots", label: "Dots" },
+              ]}
+              onChange={(nodes) => change({ nodes })}
+            />
           </div>
-        </div>
-        <div className="view-row">
-          <span>Rows</span>
-          <Segmented
-            label="Rows"
-            value={props.dense ? "compact" : "roomy"}
-            options={[
-              { value: "roomy", label: "Roomy" },
-              { value: "compact", label: "Compact" },
-            ]}
-            onChange={(rows) => props.setDense(rows === "compact")}
-          />
-        </div>
-        <label className="view-row view-switch">
-          <span>Day separators</span>
-          <Switch label="Day separators" on={props.daySeparators} onChange={props.setDaySeparators} />
-        </label>
-        <label className="view-row view-switch">
-          <span>Branches sidebar</span>
-          <Switch label="Branches sidebar" on={props.sidebarOpen} onChange={props.setSidebarOpen} />
-        </label>
-      </section>
-      <button
-        className="view-more"
-        onClick={() => {
-          props.onClose();
-          props.onSettings();
-        }}
-      >
-        <GearIcon size={13} />
-        <span className="button-label">More in Settings</span>
-      </button>
-    </div>
+          <div className="view-row">
+            <span>Checks</span>
+            <Segmented label="Checks on dots" value={look.ciDots} options={CI_DOTS.map((value) => ({ value, label: CI_DOT_NAMES[value] }))} onChange={(ciDots) => change({ ciDots })} />
+          </div>
+          <div className="view-row">
+            <span>Lines bend</span>
+            <Segmented label="Lines bend" value={look.curves} options={CURVE_STYLES.slice(0, 3).map((value) => ({ value, label: BENDS[value] }))} onChange={(curves) => change({ curves })} />
+          </div>
+          <div className="view-row">
+            <span>Branches</span>
+            <Segmented
+              label="Branch colours"
+              value={look.branchColours}
+              options={[
+                { value: "own", label: "Own colours" },
+                { value: "kinds", label: "By kind" },
+              ]}
+              onChange={(branchColours) => change({ branchColours })}
+            />
+          </div>
+          {look.branchColours === "own" && (
+            <div className="view-row">
+              <span>Colours</span>
+              <div className="view-palettes" role="group" aria-label="Lane colours">
+                {palettes.map((name) => (
+                  <button key={name} className={`view-palette${look.lanes === name ? " on" : ""}`} aria-pressed={look.lanes === name} title={name} onClick={() => change({ lanes: name })}>
+                    {LANE_PALETTES[name][props.theme].slice(0, 5).map((color) => (
+                      <span key={color} style={{ background: color }} />
+                    ))}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+        <section>
+          <h3>Commit list</h3>
+          <div className="view-row">
+            <span>Columns</span>
+            <div className="view-chips">
+              {column("author", "Author")}
+              {column("date", "Date")}
+              {column("sha", "SHA")}
+              {column("checks", "CI")}
+            </div>
+          </div>
+          <div className="view-row">
+            <span>Rows</span>
+            <Segmented
+              label="Rows"
+              value={props.dense ? "compact" : "roomy"}
+              options={[
+                { value: "roomy", label: "Roomy" },
+                { value: "compact", label: "Compact" },
+              ]}
+              onChange={(rows) => props.setDense(rows === "compact")}
+            />
+          </div>
+          <label className="view-row view-switch">
+            <span>Day separators</span>
+            <Switch label="Day separators" on={props.daySeparators} onChange={props.setDaySeparators} />
+          </label>
+          <label className="view-row view-switch">
+            <span>Branches sidebar</span>
+            <Switch label="Branches sidebar" on={props.sidebarOpen} onChange={props.setSidebarOpen} />
+          </label>
+        </section>
+        <button
+          className="view-more"
+          onClick={() => {
+            props.onClose();
+            props.onSettings();
+          }}
+        >
+          <GearIcon size={13} />
+          <span className="button-label">More in Settings</span>
+        </button>
+      </div>
+      {button && place && <Joint button={button.box} radius={button.radius} panel={at} fill="panel" />}
+    </>
   );
 }

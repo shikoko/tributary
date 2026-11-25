@@ -1,0 +1,95 @@
+name: Issue status
+
+# Keeps each issue's status label (status: triage, planned, in progress, waiting, in next
+# release) following its work, so where an issue stands is always clear:
+#   - a new issue: triage, unless it was opened with a status already;
+#   - a pull request into develop that fixes it ("Fixes #123", or linked to it) is opened:
+#     in progress, and back to planned if that pull request is closed without merging;
+#   - that pull request merges (and the issue closes): in next release;
+#   - a release (not a beta) is published: in next release comes off the issues it shipped.
+# Planned and waiting are otherwise set by hand. Only GitHub's API is used, never a pull
+# request's code, so pull requests from forks are handled safely (pull_request_target).
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, closed]
+    branches: [develop]
+  release:
+    types: [published]
+
+permissions:
+  issues: write
+  pull-requests: read
+
+# One change at a time, so two events don't each take the other's label off.
+concurrency:
+  group: issue-status
+  cancel-in-progress: false
+
+jobs:
+  status:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Set the status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          ISSUE: ${{ github.event.issue.number }}
+          PULL: ${{ github.event.pull_request.number }}
+          MERGED: ${{ github.event.pull_request.merged }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          # The status labels issue $1 has.
+          statuses() {
+            gh api "repos/$repo/issues/$1" --jq '.labels[].name | select(startswith("status: "))'
+          }
+          # Puts status label $2 on issue $1, in place of any other.
+          set_status() {
+            local number=$1 label=$2 old
+            for old in $(statuses "$number" | jq -Rr '@uri'); do
+              [ "$old" = "$(jq -rn --arg l "$label" '$l | @uri')" ] && continue
+              gh api -X DELETE "repos/$repo/issues/$number/labels/$old" --silent
+            done
+            gh api -X POST "repos/$repo/issues/$number/labels" -f "labels[]=$label" --silent
+            echo "#$number: $label"
+          }
+          # The issues pull request $1 fixes, in this repository.
+          fixes() {
+            gh api graphql -F owner="${repo%/*}" -F name="${repo#*/}" -F number="$1" -f query='
+              query($owner: String!, $name: String!, $number: Int!) {
+                repository(owner: $owner, name: $name) {
+                  pullRequest(number: $number) {
+                    closingIssuesReferences(first: 50) { nodes { number repository { nameWithOwner } } }
+                  }
+                }
+              }' --jq ".data.repository.pullRequest.closingIssuesReferences.nodes[] | select(.repository.nameWithOwner == \"$repo\") | .number"
+          }
+          case "$EVENT/$ACTION" in
+            issues/opened)
+              if [ -z "$(statuses "$ISSUE")" ]; then set_status "$ISSUE" "status: triage"; fi
+              ;;
+            pull_request_target/closed)
+              for number in $(fixes "$PULL"); do
+                if [ "$MERGED" = true ]; then
+                  set_status "$number" "status: in next release"
+                elif [ "$(statuses "$number")" = "status: in progress" ]; then
+                  set_status "$number" "status: planned"
+                fi
+              done
+              ;;
+            pull_request_target/*)
+              for number in $(fixes "$PULL"); do set_status "$number" "status: in progress"; done
+              ;;
+            release/published)
+              if [ "$PRERELEASE" = true ]; then exit 0; fi
+              shipped="status: in next release"
+              for number in $(gh api --paginate "repos/$repo/issues?state=all&per_page=100&labels=$(jq -rn --arg l "$shipped" '$l | @uri')" --jq '.[] | select(.pull_request | not) | .number'); do
+                gh api -X DELETE "repos/$repo/issues/$number/labels/$(jq -rn --arg l "$shipped" '$l | @uri')" --silent
+                echo "#$number: released"
+              done
+              ;;
+          esac

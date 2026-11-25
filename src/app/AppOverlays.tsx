@@ -24,6 +24,7 @@ import { AboutDialog } from "../components/AboutDialog";
 import { useAppRows } from "../components/AppRows";
 import { settingsTransferRows } from "../components/SettingsTransferRow";
 import { useDiffToolRows } from "../components/DiffToolRows";
+import { useAiRows } from "../components/AiSettingsRows";
 import { settingsSections } from "./settingsSections";
 import { GITLAB_COM, type Accounts } from "./useAccounts";
 import type { ContextMenuState } from "./useMenus";
@@ -67,6 +68,7 @@ export function AppOverlays(props: Props) {
   const { github, gitlab } = accounts;
   const appRows = useAppRows();
   const diffTools = useDiffToolRows({ open: open.settings, repoPath: props.repoPath, notify: (text) => notify({ text }) });
+  const aiRows = useAiRows(Boolean(open.settings));
   const [version, setVersion] = useState<string | null>(null);
   useEffect(() => {
     getVersion()
@@ -131,6 +133,7 @@ export function AppOverlays(props: Props) {
           initial={props.settingsSection}
           sections={settingsSections({
             diffTools,
+            ai: aiRows,
             apps: appRows,
             transfer: settingsTransferRows((text) => notify({ text })),
             theme,
@@ -213,7 +216,7 @@ export function AppOverlays(props: Props) {
       {open.licences && <LicencesDialog onClose={() => hide("licences")} />}
       {open.update && updates.available && <UpdateDialog updates={updates} onClose={() => hide("update")} />}
       {menu.menu && (
-        <ContextMenu x={menu.menu.x} y={menu.menu.y} items={menu.menu.items} onSideways={menu.menu.onSideways} onClose={menu.close} />
+        <ContextMenu x={menu.menu.x} y={menu.menu.y} anchor={menu.menu.anchor} items={menu.menu.items} onSideways={menu.menu.onSideways} onClose={menu.close} />
       )}
       {props.dropping && (
         <div className="drop-overlay">

@@ -22,6 +22,8 @@ describe("moving settings", () => {
       memory({
         "tributary.zoom": "1.1",
         "tributary.tabs.list": "[]",
+        // Workspaces are sets of this computer's folders.
+        "tributary.tabs.workspaces": '{"current":"first","list":[]}',
         "tributary.place./Users/maya/feast": "{}",
         "tributary.recentRepositories": "[]",
         "tributary.commitDrafts": '{"/Users/maya/feast":{"summary":"Fix the menu","description":"","amend":false}}',

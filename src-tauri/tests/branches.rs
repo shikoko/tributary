@@ -807,6 +807,101 @@ fn lists_the_tags_a_remote_lacks_and_pushes_the_chosen_ones() {
     );
 }
 
+#[test]
+fn lists_the_branches_a_remote_lacks_and_pushes_the_chosen_ones() {
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("branches-to-push-remote.git");
+    let mut repo = TempRepo::new("branches-to-push");
+    with_identity(&repo);
+    repo.git(&["remote", "add", "origin", remote.url()]);
+    repo.commit("a.txt", "First");
+    repo.git(&["push", "--quiet", "-u", "origin", "main"]);
+    // feature: on origin, then two commits ahead of it.
+    repo.git(&["checkout", "--quiet", "-b", "feature"]);
+    repo.git(&["push", "--quiet", "-u", "origin", "feature"]);
+    repo.commit("b.txt", "Feature one");
+    repo.commit("c.txt", "Feature two");
+    // done: on origin as it is here, so nothing to push.
+    repo.git(&["branch", "done", "origin/feature"]);
+    repo.git(&["push", "--quiet", "-u", "origin", "done"]);
+    // idea: never pushed, with a commit of its own.
+    repo.git(&["checkout", "--quiet", "-b", "idea", "main"]);
+    repo.commit("d.txt", "Try an idea");
+    // main: a teammate's commit on origin, and one here: behind and ahead, so refused.
+    repo.git(&["checkout", "--quiet", "-b", "teammate", "main"]);
+    repo.commit("e.txt", "Teammate's");
+    repo.git(&["push", "--quiet", "origin", "teammate:main"]);
+    repo.git(&["checkout", "--quiet", "main"]);
+    repo.git(&["branch", "--quiet", "-D", "teammate"]);
+    repo.git(&["fetch", "--quiet", "origin"]);
+    repo.commit("f.txt", "Mine");
+
+    let found = actions::branches_to_push(repo.path(), None).unwrap();
+    assert_eq!(found.remote, "origin");
+    let mut listed: Vec<(&str, Option<&str>, u32, &str)> = found
+        .branches
+        .iter()
+        .map(|branch| {
+            (
+                branch.name.as_str(),
+                branch.on_remote.as_deref(),
+                branch.ahead,
+                branch.summary.as_str(),
+            )
+        })
+        .collect();
+    listed.sort();
+    assert_eq!(
+        listed,
+        vec![
+            ("feature", Some("origin/feature"), 2, "Feature two"),
+            ("idea", None, 1, "Try an idea"),
+        ],
+        "done isn't offered, having nothing to push"
+    );
+    assert_eq!(found.behind, vec!["main".to_string()]);
+
+    assert_eq!(
+        run(
+            &repo,
+            Action::PushBranches {
+                names: vec!["feature".into(), "idea".into()],
+                remote: "origin".into(),
+                remembered: vec![],
+            },
+        )
+        .unwrap(),
+        "Pushed branches feature and idea to origin"
+    );
+    assert_eq!(
+        remote.git(&["for-each-ref", "--format=%(refname:strip=2)", "refs/heads"]),
+        "done\nfeature\nidea\nmain"
+    );
+    assert_eq!(
+        repo.git(&["rev-parse", "feature"]),
+        remote.git(&["rev-parse", "feature"])
+    );
+    // A branch pushed for the first time tracks the one it made.
+    assert_eq!(
+        repo.git(&["rev-parse", "--abbrev-ref", "idea@{upstream}"]),
+        "origin/idea"
+    );
+    let after = actions::branches_to_push(repo.path(), None).unwrap();
+    assert!(after.branches.is_empty());
+    assert_eq!(after.behind, vec!["main".to_string()]);
+    assert!(
+        run(
+            &repo,
+            Action::PushBranches {
+                names: vec!["nope".into()],
+                remote: "origin".into(),
+                remembered: vec![],
+            },
+        )
+        .is_err()
+    );
+}
+
 fn restore(repo: &TempRepo, reference: &str) -> Result<String, String> {
     run(
         repo,

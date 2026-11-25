@@ -7,6 +7,8 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DeleteBranchDialog, DeleteRemoteBranchDialog } from "../components/DeleteBranchDialogs";
 import { ForcePushDialog } from "../components/ForcePushDialog";
 import { ChooseUpstreamDialog } from "../components/ChooseUpstreamDialog";
+import { PushBranchesDialog } from "../components/PushBranchesDialog";
+import { KeepRememberedDialog } from "../components/KeepRememberedDialog";
 import { PushTagsDialog } from "../components/PushTagsDialog";
 import { InteractiveRebaseDialog } from "../components/InteractiveRebaseDialog";
 import { PruneLfsDialog } from "../components/LfsCleanup";
@@ -276,6 +278,38 @@ function PushTags(_: Shown<"pushTags">) {
       onPush={(names, remote) => {
         closeDialog();
         act({ kind: "pushTags", names, remote });
+      }}
+    />
+  );
+}
+
+function PushBranches(_: Shown<"pushBranches">) {
+  const { act, closeDialog, snapshot } = useOpenRepository();
+  return (
+    <PushBranchesDialog
+      repoPath={snapshot.path}
+      onCancel={() => closeDialog()}
+      onPush={(names, remote, remembered) => {
+        closeDialog();
+        act({ kind: "pushBranches", names, remote, remembered });
+      }}
+    />
+  );
+}
+
+function KeepRemembered(_: Shown<"keepRemembered">) {
+  const { act, closeDialog, snapshot } = useOpenRepository();
+  return (
+    <KeepRememberedDialog
+      repoPath={snapshot.path}
+      onCancel={() => closeDialog()}
+      onKeep={(references) => {
+        closeDialog();
+        act({ kind: "keepRemembered", references });
+      }}
+      onForget={(references) => {
+        closeDialog();
+        act({ kind: "forgetRemembered", references });
       }}
     />
   );
@@ -608,6 +642,8 @@ const DIALOGS: { [K in Kind]: (props: Shown<K>) => React.ReactNode } = {
   deleteTag: DeleteTag,
   deleteRemoteTag: DeleteRemoteTag,
   pushTags: PushTags,
+  pushBranches: PushBranches,
+  keepRemembered: KeepRemembered,
   forceUnlock: ForceUnlock,
   applyPatch: ApplyPatch,
   recover: Recover,

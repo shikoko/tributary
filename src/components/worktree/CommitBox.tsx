@@ -9,6 +9,7 @@ import { modKey } from "../../lib/platform";
 import { ContextMenu } from "../ContextMenu";
 import { BranchIcon, ChevronDownIcon, WarningIcon } from "../Icons";
 import { Button } from "../ui/Button";
+import { useAiMessage } from "./AiMessage";
 
 export interface CommitDraft {
   summary: string;
@@ -60,7 +61,9 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
 
   // Where the commit goes: the branch you're on, or (with a name) a new branch made from here.
   const branch = snapshot.headBranch;
-  const protectedHead = useContext(OpenRepositoryContext)?.protectedHead ?? null;
+  const repository = useContext(OpenRepositoryContext);
+  const protectedHead = repository?.protectedHead ?? null;
+  const ai = useAiMessage({ path: snapshot.path, draft, onDraft, stagedCount, openSettings: (section) => repository?.openSettings(section) });
   const [newBranch, setNewBranch] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; above: number } | null>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -190,7 +193,8 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
   return (
     <div className="commit-box" data-tour="commit-box">
       {messageTools}
-      <div className="summary-field">
+      {ai.offer}
+      <div className={`summary-field${ai.button ? " with-ai" : ""}`}>
         {issueKey && !draft.amend && !draft.summary.toUpperCase().includes(issueKey) && (
           <button
             type="button"
@@ -207,7 +211,7 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
           value={draft.summary}
           onChange={(event) => onDraft({ ...draft, summary: event.target.value })}
           onKeyDown={onKeyDown}
-          placeholder="Commit summary"
+          placeholder={ai.writing ? "Writing the message…" : "Commit summary"}
           aria-label="Commit summary"
           spellCheck
         />
@@ -219,6 +223,7 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
             {draft.summary.length}
           </span>
         )}
+        {ai.button}
       </div>
       <textarea
         className="text-input"
@@ -230,6 +235,7 @@ export function CommitBox({ snapshot, draft, onDraft, stagedCount, largeStaged, 
         rows={3}
         spellCheck
       />
+      {ai.note}
       {confirmLarge && (
         <div className="commit-warning" role="alert">
           <span>

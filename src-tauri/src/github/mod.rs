@@ -26,14 +26,20 @@ pub(crate) const HOST: &str = "github.com";
 
 /// An HTTP client for GitHub's API.
 pub(crate) fn client() -> Result<reqwest::Client> {
+    client_waiting(Duration::from_secs(20), true)
+}
+
+/// An HTTP client that waits up to `timeout` for an answer, through the computer's proxy
+/// when `proxied` (a server on this computer is reached without it).
+pub(crate) fn client_waiting(timeout: Duration, proxied: bool) -> Result<reqwest::Client> {
     if rustls::crypto::CryptoProvider::get_default().is_none() {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
-    reqwest::Client::builder()
+    let builder = reqwest::Client::builder()
         .user_agent("Tributary")
-        .timeout(Duration::from_secs(20))
-        .build()
-        .map_err(|e| Error::Message(e.to_string()))
+        .timeout(timeout);
+    let builder = if proxied { builder } else { builder.no_proxy() };
+    builder.build().map_err(|e| Error::Message(e.to_string()))
 }
 
 /// A request to GitHub's API, with the token when there is one.

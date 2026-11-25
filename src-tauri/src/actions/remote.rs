@@ -31,17 +31,44 @@ pub(super) fn fetch(
     if remotes.is_empty() {
         return Err("This repository has no remotes to fetch from.".into());
     }
-    if background {
+    // Not --prune: a remote branch the remote no longer has is forgotten afterwards, unless
+    // its work is nowhere else here (see remembered::tidy_gone).
+    let set_aside = if background {
         // Nobody asked for this fetch, so never pop up a sign-in window for it.
         let git = git.in_background();
         git.run_with_env(
-            &["fetch", "--all", "--prune", "--quiet"],
+            &["fetch", "--all", "--no-prune", "--quiet"],
             &crate::git::QUIET,
         )?;
+        super::remembered::tidy_gone(&git, &remotes)
     } else {
-        git.run_progress(&["fetch", "--all", "--prune", "--progress"], on_progress)?;
-    }
-    Ok(format!("Fetched from {}", in_words(&remotes)))
+        git.run_progress(&["fetch", "--all", "--no-prune", "--progress"], on_progress)?;
+        super::remembered::tidy_gone(git, &remotes)
+    };
+    Ok(format!(
+        "Fetched from {}{}",
+        in_words(&remotes),
+        set_aside_words(set_aside)
+    ))
+}
+
+/// What a fetch adds to its message when it set branches aside: they're asked about next.
+fn set_aside_words(set_aside: super::remembered::SetAside) -> String {
+    let moved = match set_aside.moved {
+        0 => String::new(),
+        1 => ". The remote's new address doesn't have a branch the old one had".into(),
+        count => {
+            format!(". The remote's new address doesn't have {count} branches the old one had")
+        }
+    };
+    let work = match set_aside.work {
+        0 => String::new(),
+        1 => ". A branch the remote no longer has holds work found nowhere else here".into(),
+        count => {
+            format!(". {count} branches the remote no longer has hold work found nowhere else here")
+        }
+    };
+    format!("{moved}{work}")
 }
 
 /// Where a pull (or merge) request's own commits are kept once fetched:
@@ -215,7 +242,14 @@ pub(super) fn fetch_latest(
     on_progress: &dyn Fn(Progress),
 ) -> Result<String> {
     let branch = current_branch(repo)?;
-    git.run_progress(&["fetch", "--all", "--prune", "--progress"], on_progress)?;
+    let remotes: Vec<String> = repo
+        .remote_names()
+        .iter()
+        .map(|name| name.to_string())
+        .collect();
+    // As a fetch does: see fetch.
+    git.run_progress(&["fetch", "--all", "--no-prune", "--progress"], on_progress)?;
+    super::remembered::tidy_gone(git, &remotes);
     if git
         .run(&["rev-parse", "--verify", "--quiet", "@{upstream}"])
         .is_err()

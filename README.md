@@ -131,6 +131,7 @@ One line each here; the [feature guide](docs/features.md) has the details.
 - Changed files as a list or as a tree of their folders, with a whole folder staged at once.
 - The Commit button says which branch you commit to, and can commit to a new branch, named from the summary.
 - The branch's Jira or Linear issue in the summary, message templates and co-authors.
+- Commit messages written with AI from your staged changes, only when you ask: Claude, OpenAI or Gemini with your own key, or a model on your own computer.
 - Fix up or split earlier commits; signed commits with GPG or SSH.
 - Warnings before committing file names that break on Windows or macOS, and missing Unity `.meta` files.
 
@@ -141,6 +142,7 @@ One line each here; the [feature guide](docs/features.md) has the details.
 - Interactive rebase, cherry-pick, revert and hard reset.
 - Stacked branches, and what changed when a branch was force-pushed.
 - Tags with release notes; patches; pruning branches that are merged or gone.
+- Push the branches or tags a remote is missing, chosen from a list; moving a repository to a new address copies every branch across.
 
 → [More about branches](docs/features.md#branches-merging-and-rewriting-history)
 
@@ -177,11 +179,13 @@ One line each here; the [feature guide](docs/features.md) has the details.
 ### Safety nets
 - Undo for almost everything, and a list of your actions with Undo on each.
 - Backups of branches before they're deleted or rewritten, protected branches, and recovering lost commits.
+- A fetch keeps a branch the remote no longer has when its work isn't anywhere else here, and asks what to do with it.
 
 → [More about safety nets](docs/features.md#safety-nets)
 
 ### Comfortable every day
 - Tabs you can drag into any order, worktrees and submodules; a start screen with every recent repository's state.
+- Workspaces for sets of tabs, with every open repository's branch and state at a glance.
 - A command palette and keyboard shortcuts for everything.
 - A View panel over the commits for the theme, the graph's look, and the list's columns and rows, each seen straight away.
 - Dark and light themes, your own accent and graph colours, and colour-blind safe palettes.
@@ -208,7 +212,7 @@ The installers aren't code-signed yet, so the first launch needs one extra step:
 
 It's only needed once: the updates Tributary installs itself open straight away.
 
-How the Windows downloads will be signed, and who approves it, is in the [code signing policy](https://shikoko.github.io/tributary/code-signing.html).
+Windows code signing is being set up: free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org). How the Windows downloads will be signed, and who approves it, is in the [code signing policy](https://shikoko.github.io/tributary/code-signing.html).
 
 To check that a file you downloaded is the one GitHub built from this repository (from 0.17.1 on), with the [GitHub CLI](https://cli.github.com):
 
