@@ -317,9 +317,13 @@ export default async function ({ page, demos, folder, preview, step, restoreSize
     await page.getByRole("button", { name: "Manage remotes" }).click();
     const dialog = page.locator(".dialog", { hasText: "Settings for notebook" });
     await dialog.getByRole("tab", { name: "Remotes", selected: true }).waitFor({ timeout: 10_000 });
+    const address = "https://maya:ghp_example@github.com/example/notebook.git";
     await dialog.getByLabel("New remote's name").fill("upstream");
-    await dialog.getByLabel("New remote's address").fill("https://maya:ghp_example@github.com/example/notebook.git");
-    await dialog.getByRole("button", { name: "Add remote" }).click();
+    await dialog.getByLabel("New remote's address").fill(address);
+    // Both as typed (a change undoing the one before left Add remote disabled, in WebKit).
+    const typed = [await dialog.getByLabel("New remote's name").inputValue(), await dialog.getByLabel("New remote's address").inputValue()];
+    expect(typed[0] === "upstream" && typed[1] === address, `the new remote's fields say ${JSON.stringify(typed)}`);
+    await dialog.getByRole("button", { name: "Add remote" }).click({ timeout: 10_000 });
     await page.locator(".toast", { hasText: "Added the remote upstream" }).waitFor({ timeout: 10_000 });
     // The token isn't shown.
     await dialog.getByText("https://github.com/example/notebook.git · (with a saved password or token)").waitFor({ timeout: 5000 });
