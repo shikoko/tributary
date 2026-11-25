@@ -62,7 +62,7 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
       setBusy(true);
       const check = await moveCheck(path, remote.name, url).catch(() => null);
       setBusy(false);
-      if (check && check.atRisk.length > 0) {
+      if (check && check.missing.length > 0) {
         setMoving({ remote, url, check, rest });
         return;
       }
@@ -74,7 +74,7 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
   const move = async (then: RememberedChoice) => {
     if (!moving) return;
     const { remote, url, check, rest } = moving;
-    const moved: Action = { kind: "moveRemote", name: remote.name, url, then, branches: check.atRisk.map((branch) => branch.name), local: check.local };
+    const moved: Action = { kind: "moveRemote", name: remote.name, url, then, branches: check.missing.map((branch) => branch.name), local: check.local };
     const ok = await apply([moved, ...rest]);
     setMoving(null);
     if (ok) setEditing(null);

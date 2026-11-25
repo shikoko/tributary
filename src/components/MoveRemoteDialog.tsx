@@ -20,15 +20,23 @@ const listed = (names: string[]) => (names.length < 2 ? names.join("") : `${name
 /** The names, or, many, the first few and how many more. */
 const some = (names: string[]) => (names.length <= 4 ? listed(names) : `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`);
 
+/** The branches here that go too, and the tags: "main, feature/export and the tags". */
+const withTags = (names: string[]) =>
+  listed([...(names.length <= 4 ? names : [...names.slice(0, 3), `${names.length - 3} more branches`]), "the tags"]);
+
 /**
  * A remote's address is changing, and the new address doesn't have some of the branches
- * remembered from the old one, whose work isn't anywhere else here: the next fetch would
- * forget them. Copy them to the new address (the repository moves over whole), keep them as
- * branches here, or let them go.
+ * remembered from the old one, with no branch here: the next fetch would forget them, even
+ * those whose commits are all on other branches (a main inside develop is still main). Copy
+ * them to the new address (the repository moves over whole), keep them as branches here, or
+ * let them go.
  */
 export function MoveRemoteDialog({ remote, from, check, busy, onCancel, onMove }: Props) {
-  const names = check.atRisk.map((branch) => branch.name);
+  const names = check.missing.map((branch) => branch.name);
   const one = names.length === 1;
+  // Those with work found nowhere else here: letting them go loses it.
+  const own = check.missing.filter((branch) => branch.commits > 0).map((branch) => branch.name);
+  const lost = own.length === 0 ? null : own.length === names.length ? (one ? "Its work isn't anywhere else." : "Their work isn't anywhere else.") : `The work on ${some(own)} isn't anywhere else.`;
   const [then, setThen] = useState<RememberedChoice>(check.reached ? "copy" : "keep");
   const copied = names.length + check.local.length;
   const go: Record<RememberedChoice, string> = {
@@ -54,7 +62,7 @@ export function MoveRemoteDialog({ remote, from, check, busy, onCancel, onMove }
           <Button kind="secondary" onClick={onCancel} disabled={busy}>
             Cancel
           </Button>
-          <Button kind={then === "forget" ? "danger" : "primary"} onClick={() => onMove(then)} disabled={busy}>
+          <Button kind={then === "forget" && lost ? "danger" : "primary"} onClick={() => onMove(then)} disabled={busy}>
             {go[then]}
           </Button>
         </>
@@ -74,19 +82,24 @@ export function MoveRemoteDialog({ remote, from, check, busy, onCancel, onMove }
       <p>
         {check.reached ? "The new address doesn't have " : "That's "}
         <strong>{some(names)}</strong>
-        {`. ${names.length === 1 ? "It's" : "They're"} only remembered from the old one, with no branch here, so the next fetch would forget ${names.length === 1 ? "it" : "them"}.`}
+        {`. ${one ? "It's" : "They're"} only remembered from the old one, with no branch here, so the next fetch would forget ${one ? "it" : "them"}`}
+        {own.length === 0
+          ? `: ${one ? "its" : "their"} commits are on other branches here too, but not ${one ? "the branch itself" : "the branches themselves"}.`
+          : own.length < names.length
+            ? `. ${some(own)} ${own.length === 1 ? "has" : "have"} work found nowhere else here.`
+            : "."}
       </p>
       <div className="merge-methods" role="radiogroup" aria-label={`What to do with the branches ${remote} remembers`}>
         {choice(
           "copy",
           one ? "Copy it to the new address" : "Copy them to the new address",
-          `Pushes ${one ? "it" : "them"}${check.local.length > 0 ? `, with ${some(check.local)}` : ""} and the tags, to ${check.address}: the repository moves over whole.`,
+          `Pushes ${one ? "it" : "them"}, with ${withTags(check.local)}, to ${check.address}: the repository moves over whole.`,
         )}
         {choice("keep", one ? "Keep it here as a branch" : "Keep them here as branches", `Makes ${some(names)} ${one ? "a branch" : "branches"} here, to push when you choose.`)}
         {choice(
           "forget",
           one ? "Let it go" : "Let them go",
-          `Nothing is copied: ${one ? "it's" : "they're"} forgotten now, kept in Restore for 30 days. ${one ? "Its" : "Their"} work isn't anywhere else.`,
+          `Nothing is copied: ${one ? "it's" : "they're"} forgotten now, kept in Restore for 30 days. ${lost ?? (one ? "Its commits stay on your other branches." : "Their commits stay on your other branches.")}`,
         )}
       </div>
       <p className="hint">When the new address has them already (the same repository, at a new link), this isn't asked.</p>
