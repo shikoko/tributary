@@ -96,6 +96,7 @@ export type Action =
   | { kind: "restoreTag"; name: string; id: string }
   | { kind: "pushTag"; name: string; remote?: string | null }
   | { kind: "pushTags"; names: Array<string>; remote: string }
+  | { kind: "pushBranches"; names: Array<string>; remote: string }
   | { kind: "deleteRemoteTag"; name: string; remote: string }
   | { kind: "resolveConflicts"; paths: Array<string>; keep: Side }
   | { kind: "recreateConflicts"; paths: Array<string> }
@@ -374,6 +375,28 @@ export type BranchPerson = { name: string; email: string; commits: number };
 export type BranchTip = { name: string; id: string; remote?: string | null; merge?: string | null };
 
 /**
+ * A branch with commits the remote doesn't have (see [`branches_to_push`]).
+ */
+export type BranchToPush = {
+  name: string;
+  /**
+   * Its branch on the remote, like `origin/feature/export`, when it has one there: the
+   * commits are added to it. `None` when it was never pushed: pushing makes it.
+   */
+  onRemote: string | null;
+  /**
+   * Commits it has that the remote doesn't (as of the last fetch): ahead of its branch
+   * there, or, never pushed, on none of the remote's branches.
+   */
+  ahead: number;
+  /**
+   * Its last commit's summary, and when that was committed (seconds).
+   */
+  summary: string;
+  time: number;
+};
+
+/**
  * Where a branch pointed, and how it got there.
  */
 export type BranchVersion = {
@@ -391,6 +414,22 @@ export type BranchVersion = {
    * What moved it, as git says: "fetch: forced-update", "rebase (finish): …".
    */
   how: string;
+};
+
+/**
+ * The branches here with something to push to a remote (see [`branches_to_push`]).
+ */
+export type BranchesToPush = {
+  remote: string;
+  /**
+   * Newest last commit first.
+   */
+  branches: Array<BranchToPush>;
+  /**
+   * Branches behind their branch on the remote (whether or not they're ahead too): a push
+   * would be refused until they're pulled, so they aren't offered.
+   */
+  behind: Array<string>;
 };
 
 /**
@@ -490,6 +529,7 @@ export type Commands = {
   lost_commits: { args: { path: string; reference: string }; returns: LostCommits };
   upstream_choices: { args: { path: string; branch: string }; returns: UpstreamChoices };
   tags_to_push: { args: { path: string; remote?: string | null }; returns: TagsToPush };
+  branches_to_push: { args: { path: string; remote?: string | null }; returns: BranchesToPush };
   unseen_commits: {
     args: { path: string; reference: string; since?: string | null };
     returns: UnseenCommits;

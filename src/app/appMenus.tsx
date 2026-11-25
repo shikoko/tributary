@@ -203,6 +203,7 @@ export function appMenus(ctx: MenuBarContext): AppMenuDefinition[] {
           { id: "push", label: "Push", icon: <PushIcon />, enabled: hasRemotes && canChange && Boolean(snapshot.headBranch), run: () => run.act({ kind: "push", force: false }) },
           { id: "sync", label: "Sync (Pull, Then Push)", icon: <SyncIcon />, keywords: "pull push both diverged", enabled: hasRemotes && canChange && Boolean(snapshot.upstream), run: () => run.act({ kind: "sync" }) },
           { id: "push-tags", label: "Push Tags…", icon: <TagIcon />, keywords: "tags release", enabled: hasRemotes && canChange, run: () => run.dialog({ kind: "pushTags" }) },
+          { id: "push-branches", label: "Push Branches…", icon: <BranchIcon />, keywords: "all branches several publish", enabled: hasRemotes && canChange, run: () => run.dialog({ kind: "pushBranches" }) },
           { id: "force-push", label: "Force Push…", icon: <PushIcon />, danger: true, enabled: hasRemotes && canChange && Boolean(snapshot.headBranch), run: () => run.dialog({ kind: "forcePush" }) },
           "-",
           { id: "commit", label: "Commit…", icon: <PlusIcon />, enabled: Boolean(snapshot.worktree) && canChange, run: () => run.select(WORKTREE_ID) },

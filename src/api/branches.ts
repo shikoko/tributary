@@ -4,6 +4,8 @@ import type {
   Backup,
   BackupEvent,
   BranchTip,
+  BranchToPush,
+  BranchesToPush,
   CommitBrief,
   LostCommits,
   PruneCandidate,
@@ -15,7 +17,7 @@ import type {
   UnseenCommits,
   UpstreamChoices,
 } from "./generated";
-export type { Backup, BackupEvent, BranchTip, CommitBrief, LostCommits, PruneCandidate, PruneInfo, RemoteBranchChoice, TagToPush, TagsToPush, UnseenCommit, UnseenCommits, UpstreamChoices };
+export type { Backup, BackupEvent, BranchTip, BranchToPush, BranchesToPush, CommitBrief, LostCommits, PruneCandidate, PruneInfo, RemoteBranchChoice, TagToPush, TagsToPush, UnseenCommit, UnseenCommits, UpstreamChoices };
 
 /** Backups from the last 30 days, newest first. */
 export function branchBackups(path: string): Promise<Backup[]> {
@@ -51,4 +53,9 @@ export function upstreamChoices(path: string, branch: string): Promise<UpstreamC
 /** The tags here that `remote` (the default remote when `null`) doesn't have yet: asked over the network. */
 export function tagsToPush(path: string, remote: string | null = null): Promise<TagsToPush> {
   return invoke("tags_to_push", { path, remote });
+}
+
+/** The branches with commits the remote (the default one when none is given) doesn't have, as of the last fetch. */
+export function branchesToPush(path: string, remote: string | null = null): Promise<BranchesToPush> {
+  return invoke("branches_to_push", { path, remote });
 }

@@ -32,8 +32,9 @@
   flex: none;
 }
 
-/* The same list for tags to push (PushTagsDialog): ticking adds, so in the accent. */
-.push-tags-list .prune-row input {
+/* The same list for tags and branches to push (PushTagsDialog, PushBranchesDialog): ticking
+   adds, so in the accent. */
+:is(.push-tags-list, .push-branches-list) .prune-row input {
   accent-color: var(--accent);
 }
 

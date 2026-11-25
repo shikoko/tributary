@@ -196,6 +196,15 @@ pub async fn tags_to_push(path: String, remote: Option<String>) -> Result<action
     blocking(move || actions::tags_to_push(&PathBuf::from(path), remote)).await
 }
 
+/// The branches with commits a remote doesn't have, to choose which to push.
+#[tauri::command]
+pub async fn branches_to_push(
+    path: String,
+    remote: Option<String>,
+) -> Result<actions::BranchesToPush> {
+    blocking(move || actions::branches_to_push(&PathBuf::from(path), remote)).await
+}
+
 /// What someone else pushed to a remote branch since it was at `since`, that HEAD doesn't have.
 #[tauri::command]
 pub async fn unseen_commits(
