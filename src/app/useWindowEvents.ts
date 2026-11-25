@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { activityLog, onActivity, onRepoChanged, stopWatching, watchRepository, type LogEntry } from "../api";
+import { activityLog, onActivity, onOpenFolder, onRepoChanged, stopWatching, watchRepository, type LogEntry } from "../api";
 import { ACTIVITY_SIZE } from "./constants";
 
 /** Call `listen` once, and its unlisten when the component goes away (even if that's before it resolved). */
@@ -59,6 +59,13 @@ export function useFolderDrop(onDrop: (path: string) => void) {
     }),
   );
   return dropping;
+}
+
+/** `onOpen` with each folder Tributary is asked to open while it's running (Explorer's Open in Tributary). */
+export function useOpenFolder(onOpen: (path: string) => void) {
+  const handler = useRef(onOpen);
+  handler.current = onOpen;
+  useSubscription(() => onOpenFolder((path) => handler.current(path)));
 }
 
 /** `onFocus` when you come back to the window (to pick up changes made elsewhere). */

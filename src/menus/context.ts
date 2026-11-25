@@ -28,6 +28,8 @@ export type OpenDialog =
   /** `restoreId`: what the tag points at (its tag object, when annotated), to undo. */
   | { kind: "deleteTag"; name: string; restoreId: string }
   | { kind: "deleteRemoteTag"; name: string; remote: string }
+  /** The tags the remote doesn't have yet, to choose which to push. */
+  | { kind: "pushTags" }
   | { kind: "clone" }
   /** Clean up local branches that are gone from the remote or merged. */
   | { kind: "prune" }

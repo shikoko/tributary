@@ -5,6 +5,7 @@ export * from "./actions";
 export * from "./avatars";
 export * from "./branches";
 export * from "./diagnostics";
+export * from "./folders";
 export * from "./diff";
 export * from "./diffTools";
 export * from "./github";

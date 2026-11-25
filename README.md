@@ -208,6 +208,8 @@ The installers aren't code-signed yet, so the first launch needs one extra step:
 
 It's only needed once: the updates Tributary installs itself open straight away.
 
+How the Windows downloads will be signed, and who approves it, is in the [code signing policy](https://shikoko.github.io/tributary/code-signing.html).
+
 To check that a file you downloaded is the one GitHub built from this repository (from 0.17.1 on), with the [GitHub CLI](https://cli.github.com):
 
 ```
@@ -246,4 +248,4 @@ Tributary is made by one person in their spare time, and stays free, with no ads
 
 The interface uses [Google Sans](https://fonts.google.com/specimen/Google+Sans) and [JetBrains Mono](https://www.jetbrains.com/lp/mono/), both under the [SIL Open Font License 1.1](https://openfontlicense.org). 3D models are shown with [three.js](https://threejs.org) (MIT), and code is coloured with [highlight.js](https://highlightjs.org) (BSD-3-Clause). [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt) has the licences of everything Tributary is made with.
 
-[Contributing](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Privacy](PRIVACY.md)
+[Contributing](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Privacy](PRIVACY.md) · [Code signing policy](https://shikoko.github.io/tributary/code-signing.html)

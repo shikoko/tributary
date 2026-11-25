@@ -98,3 +98,15 @@
   font-size: var(--type-xs);
   font-weight: 600;
 }
+
+/* On the same line as the check's name: its words are smaller than the name's (8 pixels
+   tall to its 9), so they can't both sit in the middle. Centred on the name, or at the top of
+   the row, Why? was half a pixel to a pixel above it, and a pixel up or down depending on
+   where the row fell on the screen. On the name's baseline, both are on the same line. */
+.request-check-open:has(> .check-why-chip) {
+  align-items: baseline;
+}
+
+.commit-check-row > :is(.commit-check-text, .check-why-chip) {
+  align-self: baseline;
+}

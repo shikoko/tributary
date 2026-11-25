@@ -145,6 +145,7 @@ commands! {
         branch_backups(path: String) -> Vec<actions::Backup>;
         lost_commits(path: String, reference: String) -> actions::LostCommits;
         upstream_choices(path: String, branch: String) -> actions::UpstreamChoices;
+        tags_to_push(path: String, remote: Option<String>) -> actions::TagsToPush;
         unseen_commits(path: String, reference: String, since: Option<String>) -> actions::UnseenCommits;
         lfs_locks(path: String) -> locks::Locks;
         file_history(path: String, file: String) -> actions::FileHistory;
@@ -249,6 +250,7 @@ commands! {
         stop_update_restart() -> ();
         report_problem(what: String) -> Option<String>;
         take_recovery_note() -> Option<String>;
+        startup_folders() -> Vec<String>;
         action_info(action: Action) -> actions::ActionInfo;
         cancel_action(path: Option<String>) -> bool;
         activity_log() -> Vec<git::LogEntry>;

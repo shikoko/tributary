@@ -29,7 +29,7 @@ pub use snapshot::{
     CommitRow, Identity, LoadOptions, MAX_LIMIT, RepoSnapshot, RowKind, WORKTREE_ID, load,
     load_with,
 };
-pub use status::{FileChange, FileStatus, WorktreeStatus};
+pub use status::{FileChange, FileStatus, NEW_FOLDER_FILES_LISTED, WorktreeStatus};
 pub use summary::{RepoSummary, summary};
 pub use worktrees::{Worktree, worktrees};
 

@@ -9,11 +9,13 @@ import type {
   PruneCandidate,
   PruneInfo,
   RemoteBranchChoice,
+  TagToPush,
+  TagsToPush,
   UnseenCommit,
   UnseenCommits,
   UpstreamChoices,
 } from "./generated";
-export type { Backup, BackupEvent, BranchTip, CommitBrief, LostCommits, PruneCandidate, PruneInfo, RemoteBranchChoice, UnseenCommit, UnseenCommits, UpstreamChoices };
+export type { Backup, BackupEvent, BranchTip, CommitBrief, LostCommits, PruneCandidate, PruneInfo, RemoteBranchChoice, TagToPush, TagsToPush, UnseenCommit, UnseenCommits, UpstreamChoices };
 
 /** Backups from the last 30 days, newest first. */
 export function branchBackups(path: string): Promise<Backup[]> {
@@ -44,4 +46,9 @@ export function pruneCandidates(path: string, idleDays: number | null = null): P
 /** What `branch`, whose remote branch is gone (renamed or deleted on the remote), could go with instead. */
 export function upstreamChoices(path: string, branch: string): Promise<UpstreamChoices> {
   return invoke("upstream_choices", { path, branch });
+}
+
+/** The tags here that `remote` (the default remote when `null`) doesn't have yet: asked over the network. */
+export function tagsToPush(path: string, remote: string | null = null): Promise<TagsToPush> {
+  return invoke("tags_to_push", { path, remote });
 }

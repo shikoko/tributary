@@ -95,6 +95,7 @@ export type Action =
   | { kind: "deleteTag"; name: string }
   | { kind: "restoreTag"; name: string; id: string }
   | { kind: "pushTag"; name: string; remote?: string | null }
+  | { kind: "pushTags"; names: Array<string>; remote: string }
   | { kind: "deleteRemoteTag"; name: string; remote: string }
   | { kind: "resolveConflicts"; paths: Array<string>; keep: Side }
   | { kind: "recreateConflicts"; paths: Array<string> }
@@ -488,6 +489,7 @@ export type Commands = {
   branch_backups: { args: { path: string }; returns: Array<Backup> };
   lost_commits: { args: { path: string; reference: string }; returns: LostCommits };
   upstream_choices: { args: { path: string; branch: string }; returns: UpstreamChoices };
+  tags_to_push: { args: { path: string; remote?: string | null }; returns: TagsToPush };
   unseen_commits: {
     args: { path: string; reference: string; since?: string | null };
     returns: UnseenCommits;
@@ -657,6 +659,7 @@ export type Commands = {
   stop_update_restart: { args: Record<string, never>; returns: void };
   report_problem: { args: { what: string }; returns: string | null };
   take_recovery_note: { args: Record<string, never>; returns: string | null };
+  startup_folders: { args: Record<string, never>; returns: Array<string> };
   action_info: { args: { action: Action }; returns: ActionInfo };
   cancel_action: { args: { path?: string | null }; returns: boolean };
   activity_log: { args: Record<string, never>; returns: Array<LogEntry> };
@@ -954,6 +957,7 @@ export type Engine = "unreal" | "unity";
  */
 export type ErrorKind =
   | { kind: "cancelled" }
+  | { kind: "notARepository"; path: string }
   | { kind: "rewritten" }
   | { kind: "notEnoughSpace" }
   | { kind: "hookFailed"; hook: string; stopped: Stopped; output: string }
@@ -3260,6 +3264,47 @@ export type SyncOutcome =
   | "upToDate"
   | "conflict"
   | "refused";
+
+/**
+ * A tag the remote doesn't have yet (see [`tags_to_push`]).
+ */
+export type TagToPush = {
+  name: string;
+  /**
+   * The commit it's on.
+   */
+  id: string;
+  /**
+   * That commit's summary.
+   */
+  summary: string;
+  /**
+   * When the tag was made (for a tag without a message, its commit's date), in seconds.
+   */
+  time: number;
+  /**
+   * One of the remote's branches with the tag's commit, like `origin/main` (its main branch
+   * when that has it), when the remote has the commit: usually a release. `None` when the
+   * commit is only here, like an experiment's.
+   */
+  onRemote: string | null;
+};
+
+/**
+ * The tags here that a remote doesn't have (see [`tags_to_push`]).
+ */
+export type TagsToPush = {
+  remote: string;
+  /**
+   * Newest first.
+   */
+  tags: Array<TagToPush>;
+  /**
+   * Tags the remote has under the same name on another commit: pushing them would be
+   * refused, so they aren't offered.
+   */
+  different: Array<string>;
+};
 
 /**
  * Who committed where lately: people, the branches they work on, and how far those are from the main branch.

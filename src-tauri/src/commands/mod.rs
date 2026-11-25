@@ -190,6 +190,12 @@ pub async fn upstream_choices(path: String, branch: String) -> Result<actions::U
     blocking(move || actions::upstream_choices(&PathBuf::from(path), &branch)).await
 }
 
+/// The tags here that a remote (the default remote when none is given) doesn't have yet.
+#[tauri::command]
+pub async fn tags_to_push(path: String, remote: Option<String>) -> Result<actions::TagsToPush> {
+    blocking(move || actions::tags_to_push(&PathBuf::from(path), remote)).await
+}
+
 /// What someone else pushed to a remote branch since it was at `since`, that HEAD doesn't have.
 #[tauri::command]
 pub async fn unseen_commits(
@@ -1054,6 +1060,13 @@ pub fn report_problem(what: String) -> Option<String> {
     let what: String = what.chars().take(4000).collect();
     crate::problems::note(&format!("interface: {what}"));
     crate::problems::log_file().map(|file| file.display().to_string())
+}
+
+/// The folders Tributary was started with (Explorer's Open in Tributary), once: the window
+/// opens them as it starts. Those of a later start come as `open_folder::EVENT`.
+#[tauri::command]
+pub fn startup_folders() -> Vec<String> {
+    crate::open_folder::take()
 }
 
 /// Why the window was loaded again (its web content process stopped), once, if it was.

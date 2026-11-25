@@ -53,6 +53,9 @@ ruzstd = "0.9"
 fs4 = "1"
 # Reads a workflow file, to know which of a run's jobs waits for which (github/runs.rs).
 yaml-rust2 = "0.13"
+# One Tributary at a time: started again (from Explorer's Open in Tributary, say), it hands its
+# folders to the one running (open_folder.rs).
+tauri-plugin-single-instance = "2.5.5"
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

@@ -69,6 +69,50 @@ export default async function ({ page, demos, folder, step, accessible, expect, 
     expect(staged() === before, `staged ${staged()}, not ${before}`);
   });
 
+  await step("lists each file in a new folder, to stage one of them", async () => {
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" });
+    const staged = () => git("diff", "--cached", "--name-only").trim().split("\n").filter(Boolean).sort().join(", ");
+    const before = staged();
+    const panel = page.locator("aside.details[aria-label='Uncommitted changes']");
+    const unstaged = panel.locator("section.files").nth(1);
+    const cover = unstaged.locator(".file", { hasText: "cover.txt" });
+    // A folder git tracks nothing in yet, with a folder of its own: each file is listed.
+    const sketches = join(demos.notebook, "sketches");
+    mkdirSync(join(sketches, "old"), { recursive: true });
+    writeFileSync(join(sketches, "cover.txt"), "The cover, roughly.\n");
+    writeFileSync(join(sketches, "old", "draft.txt"), "An older draft.\n");
+    try {
+      await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
+      // The files are read again when the window gets the focus, at most every 2 seconds.
+      for (let tries = 0; tries < 20 && !(await cover.isVisible()); tries++) {
+        await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+        await page.waitForTimeout(500);
+      }
+      await cover.waitFor({ timeout: 5000 });
+      await unstaged.locator(".file", { hasText: "draft.txt" }).waitFor({ timeout: 5000 });
+      expect((await unstaged.locator(".file", { hasText: /^sketches\/$/ }).count()) === 0, "the new folder is still one row");
+      // Its changes show, like any new file's.
+      await cover.click();
+      await page.locator(".diff-view .diff-row.added", { hasText: "The cover, roughly." }).first().waitFor({ timeout: 10_000 });
+      await page.keyboard.press("Escape");
+      await cover.hover();
+      await panel.getByRole("button", { name: "Stage sketches/cover.txt", exact: true }).click();
+      await cover.waitFor({ state: "detached", timeout: 10_000 });
+      expect(staged() === [before, "sketches/cover.txt"].filter(Boolean).join(", ").split(", ").sort().join(", "), `staged ${staged()}`);
+      expect((await unstaged.locator(".file", { hasText: "draft.txt" }).count()) === 1, "the other file isn't left in Unstaged");
+    } finally {
+      // As it was, for the steps after.
+      git("reset", "--quiet", "--", "sketches");
+      rmSync(sketches, { recursive: true, force: true });
+    }
+    const draft = panel.locator(".file", { hasText: "draft.txt" });
+    for (let tries = 0; tries < 20 && (await draft.count()) > 0; tries++) {
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      await page.waitForTimeout(500);
+    }
+    await draft.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("stages two chosen lines, then discards a hunk and puts it back", async () => {
     const store = join(demos.notebook, "src", "store.ts");
     const before = readFileSync(store, "utf8");
@@ -111,9 +155,9 @@ export default async function ({ page, demos, folder, step, accessible, expect, 
     writeFileSync(join(sketches, "idea.md"), "A note that isn't committed yet.\n");
     const before = status();
     await page.locator(".commit-row", { has: page.locator(".summary.wip") }).click();
-    // A new folder is listed as itself. The files are read again when the window gets the
+    // The new folder's file is listed. The files are read again when the window gets the
     // focus, at most every 2 seconds.
-    const listed = page.locator(".details .file", { hasText: "sketches" }).first();
+    const listed = page.locator(".details .file", { hasText: "idea.md" }).first();
     for (let tries = 0; tries < 20 && !(await listed.isVisible()); tries++) {
       await page.evaluate(() => window.dispatchEvent(new Event("focus")));
       await page.waitForTimeout(500);
@@ -121,8 +165,9 @@ export default async function ({ page, demos, folder, step, accessible, expect, 
     await listed.waitFor({ timeout: 5000 });
     await page.getByRole("button", { name: "Discard all changes" }).click();
     const dialog = page.locator(".dialog", { hasText: "Discard all uncommitted changes?" });
-    // The new folder, with everything in it: not "1 new file".
-    await dialog.locator("li", { hasText: "1 new folder will be deleted, with everything in it" }).waitFor({ timeout: 5000 });
+    // The new folder's file, counted as a file (a folder of more than 1,000 would be counted
+    // as a folder, "with everything in it"), and the demo's own new file.
+    await dialog.locator("li", { hasText: "2 new files will be deleted" }).waitFor({ timeout: 5000 });
     // git says nothing while it puts thousands of files away. Held back here for a moment, as
     // a big discard is, it shows it's working, with how many files go, and no Cancel: stopped
     // halfway, some of the files would be gone and some not.
@@ -137,7 +182,7 @@ export default async function ({ page, demos, folder, step, accessible, expect, 
       const strip = page.locator(".progress-strip");
       await strip.waitFor({ timeout: 5000 });
       const said = (await strip.innerText()).replace(/\s+/g, " ");
-      expect(/Discarding \d+ files? and 1 new folder…/.test(said), `the progress said "${said}"`);
+      expect(/Discarding \d+ files…/.test(said), `the progress said "${said}"`);
       expect((await strip.getByRole("button", { name: "Cancel" }).count()) === 0, "a discard can be cancelled halfway");
       await page.locator(".toast", { hasText: "Discarded all uncommitted changes" }).waitFor({ timeout: 10_000 });
     } finally {

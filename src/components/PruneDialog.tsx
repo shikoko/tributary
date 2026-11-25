@@ -4,6 +4,7 @@ import { compactTime, idleFor } from "../lib/format";
 import { useStoredState } from "../lib/settings";
 import { Dialog } from "./Dialog";
 import { Button } from "./ui/Button";
+import { Chip } from "./ui/Chip";
 
 interface Props {
   repoPath: string;
@@ -175,14 +176,12 @@ export function PruneDialog({ repoPath, fetchFirst, pinned, protectedNames, onCa
                   <span className="prune-main">
                     <span className="prune-top">
                       <span className="prune-name">{candidate.name}</span>
-                      {candidate.gone && <span className="prune-tag gone">gone from {remoteOf(candidate)}</span>}
-                      {candidate.idle && <span className="prune-tag idle">no commits for {idleFor(candidate.time)}</span>}
+                      {candidate.gone && <Chip className="prune-tag gone">{`gone from ${remoteOf(candidate)}`}</Chip>}
+                      {candidate.idle && <Chip className="prune-tag idle">{`no commits for ${idleFor(candidate.time)}`}</Chip>}
                       {candidate.merged ? (
-                        <span className="prune-tag merged">merged</span>
+                        <Chip className="prune-tag merged">merged</Chip>
                       ) : (
-                        <span className="prune-tag unmerged">
-                          {candidate.unmerged} {candidate.unmerged === 1 ? "commit" : "commits"} not in {base}
-                        </span>
+                        <Chip className="prune-tag unmerged">{`${candidate.unmerged} ${candidate.unmerged === 1 ? "commit" : "commits"} not in ${base}`}</Chip>
                       )}
                     </span>
                     <span className="prune-summary">{candidate.summary}</span>

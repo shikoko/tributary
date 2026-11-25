@@ -113,6 +113,7 @@ pub use speed::{SpeedSettings, SpeedUp, speed_settings};
 pub use ssh::{SshCheck, SshKey, check_ssh_key, generate_ssh_key, ssh_keys};
 pub use stacks::{Stacked, branch_stacks};
 pub use submodules::{Submodule, SubmoduleState, submodules};
+pub use tags::{TagToPush, TagsToPush, tags_to_push};
 pub use team::{
     BranchActivity, BranchPerson, TeamActivity, TeamPerson, TeamPulse, team_activity, team_pulse,
 };
@@ -351,6 +352,8 @@ pub enum Action {
         #[ts(optional = nullable)]
         remote: Option<String>,
     },
+    /// Push several tags to a remote, in one push.
+    PushTags { names: Vec<String>, remote: String },
     /// Delete a tag from a remote.
     DeleteRemoteTag { name: String, remote: String },
     /// Resolve conflicted files by taking one side's version of each whole file: yours
@@ -821,6 +824,9 @@ fn perform(
         Action::DeleteTag { name } => tags::delete_tag(&repo, &git, name),
         Action::RestoreTag { name, id } => tags::restore_tag(&repo, &git, name, id),
         Action::PushTag { name, remote } => tags::push_tag(&repo, &git, name, remote, on_progress),
+        Action::PushTags { names, remote } => {
+            tags::push_tags(&repo, &git, names, remote, on_progress)
+        }
         Action::DeleteRemoteTag { name, remote } => {
             tags::delete_remote_tag(&repo, &git, name, remote)
         }

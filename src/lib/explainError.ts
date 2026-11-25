@@ -29,7 +29,9 @@ export type ErrorFix =
   /** The branch's remote branch is gone: choose which of the remote's it goes with. */
   | "chooseUpstream"
   /** The branch's remote branch is gone: push it, which puts it back. */
-  | "pushBack";
+  | "pushBack"
+  /** The folder isn't a repository: make it one, and open it. */
+  | "createRepository";
 
 export interface Explained {
   /** What happened, in one line: "Push stopped: origin/main has commits you don't have yet". */
@@ -65,6 +67,14 @@ export function explainError(kind: ErrorKind | null, context: ErrorContext = {})
   const where = "host" in kind ? kind.host : null;
 
   switch (kind.kind) {
+    case "notARepository": {
+      const name = kind.path.split(/[\\/]/).filter(Boolean).pop() ?? kind.path;
+      return {
+        headline: `${name} isn't a git repository yet`,
+        detail: "Make it one to keep its history: git keeps that in a .git folder inside it.",
+        fixes: ["createRepository"],
+      };
+    }
     case "pushRejected":
       return {
         headline: `Push stopped: ${remoteBranch} has commits you don't have yet`,

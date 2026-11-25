@@ -39,7 +39,7 @@ export function ResetDialog({ snapshot, target, protectedName, onCancel, onDone,
     const leaving = countMissing(ancestors(snapshot.headCommit, byId), ancestors(target.id, byId));
     const changes = [...(snapshot.worktree?.staged ?? []), ...(snapshot.worktree?.unstaged ?? [])];
     const lost = new Set(changes.filter((f) => f.status !== "untracked").map((f) => f.path));
-    // A new folder is listed as itself ("exports/"), however many files are in it.
+    // A new folder of more than 1,000 files is listed as itself ("exports/"); smaller ones list their files.
     const untracked = changes.filter((f) => f.status === "untracked");
     const newFolders = untracked.filter((f) => f.path.endsWith("/")).length;
     const head = snapshot.headCommit ? byId.get(snapshot.headCommit) : undefined;
