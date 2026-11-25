@@ -20,6 +20,8 @@ Open an issue with the idea template, and say what you were trying to do, not on
 
 For anything big, please open an issue before writing the code, so we can agree on the approach first.
 
+Tributary is in English only, and translations aren't being taken for now: the interface changes too often for them to keep up, and each language is more to maintain. Please don't start one without asking in an issue first.
+
 ## Making a change
 
 1. Fork the repository and make a branch from **`develop`**. `main` only holds what's been released.
@@ -28,7 +30,7 @@ For anything big, please open an issue before writing the code, so we can agree 
 4. Run the [checks](#checks-to-run).
 5. Open a pull request into **`develop`**, saying what it changes and why, with a screenshot for anything you can see.
 
-The project has no tests or builds that run automatically on pull requests, so please run the checks yourself before you open one.
+The checks run on every pull request (for a first pull request, once a maintainer lets them), but please run them yourself before you open one.
 
 ## Checks to run
 
