@@ -32,6 +32,7 @@ mod merge_check;
 mod partial;
 mod patches;
 mod prune;
+mod push_branches;
 mod releases;
 mod remote;
 mod remote_settings;
@@ -95,6 +96,7 @@ pub use patches::{PatchCommit, PatchFile, PatchInfo, patch_info, patch_text};
 pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
 };
+pub use push_branches::{BranchToPush, BranchesToPush, branches_to_push};
 pub use releases::{ReleaseItem, ReleaseNotes, release_notes};
 use remote::Force;
 pub use remote::{UnseenCommit, UnseenCommits, unseen_commits};
@@ -354,6 +356,9 @@ pub enum Action {
     },
     /// Push several tags to a remote, in one push.
     PushTags { names: Vec<String>, remote: String },
+    /// Push several branches to a remote, in one push: each to its branch there, or one of
+    /// its name, which it then tracks.
+    PushBranches { names: Vec<String>, remote: String },
     /// Delete a tag from a remote.
     DeleteRemoteTag { name: String, remote: String },
     /// Resolve conflicted files by taking one side's version of each whole file: yours
@@ -826,6 +831,9 @@ fn perform(
         Action::PushTag { name, remote } => tags::push_tag(&repo, &git, name, remote, on_progress),
         Action::PushTags { names, remote } => {
             tags::push_tags(&repo, &git, names, remote, on_progress)
+        }
+        Action::PushBranches { names, remote } => {
+            push_branches::push_branches(&repo, &git, names, remote, on_progress)
         }
         Action::DeleteRemoteTag { name, remote } => {
             tags::delete_remote_tag(&repo, &git, name, remote)

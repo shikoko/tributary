@@ -1,4 +1,4 @@
-// The smoke test: Pushing tags, syncing and force pushing, a remote branch renamed, and settings in a repository.
+// The smoke test: Pushing tags and branches, syncing and force pushing, a remote branch renamed, and settings in a repository.
 import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -49,6 +49,47 @@ export default async function ({ page, demos, folder, step, expect, accessible, 
       // As it was, for the steps after.
       for (const tag of remoteTags()) git("push", "-q", "origin", `:refs/tags/${tag}`);
       git("tag", "-d", "v0.3.0", "try-webdav");
+    }
+  });
+
+  await step("pushes the branches chosen from those with commits origin doesn't have", async () => {
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" }).trim();
+    // ready: on origin, then a commit ahead of it (made without checking it out); try-sharing:
+    // never pushed.
+    git("branch", "ready", "origin/main");
+    git("push", "-q", "-u", "origin", "ready");
+    const lea = { GIT_AUTHOR_NAME: "Lea Fischer", GIT_AUTHOR_EMAIL: "lea@example.com", GIT_COMMITTER_NAME: "Lea Fischer", GIT_COMMITTER_EMAIL: "lea@example.com" };
+    const ahead = execFileSync("git", ["-C", demos.notebook, "commit-tree", git("rev-parse", "ready^{tree}"), "-p", "ready", "-m", "Get the export ready"], {
+      encoding: "utf8",
+      env: { ...process.env, ...lea },
+    }).trim();
+    git("update-ref", "refs/heads/ready", ahead);
+    git("branch", "try-sharing", "main");
+    const dialog = page.locator(".dialog", { hasText: "Push branches to origin" });
+    const branchRow = (name) => dialog.locator(".prune-row", { has: page.locator(".ref-name", { hasText: new RegExp(`^${name}$`) }) });
+    try {
+      await page.getByRole("button", { name: "More push options" }).click();
+      await page.locator(".menu-item", { hasText: "Push branches…" }).click();
+      await branchRow("ready").waitFor({ timeout: 10_000 });
+      expect(await branchRow("ready").locator("input").isChecked(), "a branch on origin with a commit to push isn't ticked");
+      await branchRow("ready").locator(".prune-tag", { hasText: "↑1 to push" }).waitFor({ timeout: 2000 });
+      expect(!(await branchRow("try-sharing").locator("input").isChecked()), "a branch never pushed is ticked");
+      await branchRow("try-sharing").locator(".prune-tag", { hasText: "never pushed" }).waitFor({ timeout: 2000 });
+      await accessible("Push branches");
+      // Only ready, whatever else the demo has to push.
+      const none = dialog.getByRole("button", { name: "Select none" });
+      if (await none.count()) await none.click();
+      else await dialog.getByRole("button", { name: "Select all" }).click().then(() => none.click());
+      await branchRow("ready").locator("input").check();
+      await dialog.getByRole("button", { name: "Push 1 branch", exact: true }).click();
+      await page.locator(".toast", { hasText: "Pushed branch ready to origin" }).waitFor({ timeout: 15_000 });
+      const remote = git("remote", "get-url", "origin");
+      expect(execFileSync("git", ["-C", remote, "rev-parse", "ready"], { encoding: "utf8" }).trim() === ahead, "origin's ready isn't the commit pushed");
+      await dismissToast();
+    } finally {
+      // As it was, for the steps after.
+      git("push", "-q", "origin", ":refs/heads/ready");
+      git("branch", "-q", "-D", "ready", "try-sharing");
     }
   });
 

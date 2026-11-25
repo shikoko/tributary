@@ -115,9 +115,10 @@ impl Action {
                 Some(Running::Fetch)
             }
             Action::Pull => Some(Running::Pull),
-            Action::Push { .. } | Action::Shelve { .. } | Action::PushTags { .. } => {
-                Some(Running::Push)
-            }
+            Action::Push { .. }
+            | Action::Shelve { .. }
+            | Action::PushTags { .. }
+            | Action::PushBranches { .. } => Some(Running::Push),
             Action::Sync => Some(Running::Sync),
             Action::OpenShelf { .. }
             | Action::DownloadLfsFiles

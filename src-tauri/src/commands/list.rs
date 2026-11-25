@@ -146,6 +146,7 @@ commands! {
         lost_commits(path: String, reference: String) -> actions::LostCommits;
         upstream_choices(path: String, branch: String) -> actions::UpstreamChoices;
         tags_to_push(path: String, remote: Option<String>) -> actions::TagsToPush;
+        branches_to_push(path: String, remote: Option<String>) -> actions::BranchesToPush;
         unseen_commits(path: String, reference: String, since: Option<String>) -> actions::UnseenCommits;
         lfs_locks(path: String) -> locks::Locks;
         file_history(path: String, file: String) -> actions::FileHistory;

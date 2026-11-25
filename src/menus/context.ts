@@ -30,6 +30,7 @@ export type OpenDialog =
   | { kind: "deleteRemoteTag"; name: string; remote: string }
   /** The tags the remote doesn't have yet, to choose which to push. */
   | { kind: "pushTags" }
+  | { kind: "pushBranches" }
   | { kind: "clone" }
   /** Clean up local branches that are gone from the remote or merged. */
   | { kind: "prune" }
