@@ -205,6 +205,20 @@ pub async fn branches_to_push(
     blocking(move || actions::branches_to_push(&PathBuf::from(path), remote)).await
 }
 
+/// The branches a fetch set aside, which the remote no longer has and whose work is nowhere
+/// else here: to keep them as branches, or forget them.
+#[tauri::command]
+pub async fn set_aside_branches(path: String) -> Result<Vec<actions::RememberedBranch>> {
+    blocking(move || actions::set_aside_branches(&PathBuf::from(path))).await
+}
+
+/// Before a remote moves to `url`: what the new address has, and which remembered branches
+/// it doesn't, whose work would be lost.
+#[tauri::command]
+pub async fn move_check(path: String, remote: String, url: String) -> Result<actions::MoveCheck> {
+    blocking(move || actions::move_check(&PathBuf::from(path), remote, url)).await
+}
+
 /// What someone else pushed to a remote branch since it was at `since`, that HEAD doesn't have.
 #[tauri::command]
 pub async fn unseen_commits(

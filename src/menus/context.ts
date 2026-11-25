@@ -31,6 +31,8 @@ export type OpenDialog =
   /** The tags the remote doesn't have yet, to choose which to push. */
   | { kind: "pushTags" }
   | { kind: "pushBranches" }
+  /** After a fetch: branches the remote no longer has, with work found nowhere else here. */
+  | { kind: "keepRemembered" }
   | { kind: "clone" }
   /** Clean up local branches that are gone from the remote or merged. */
   | { kind: "prune" }

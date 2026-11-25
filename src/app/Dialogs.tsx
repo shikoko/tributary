@@ -8,6 +8,7 @@ import { DeleteBranchDialog, DeleteRemoteBranchDialog } from "../components/Dele
 import { ForcePushDialog } from "../components/ForcePushDialog";
 import { ChooseUpstreamDialog } from "../components/ChooseUpstreamDialog";
 import { PushBranchesDialog } from "../components/PushBranchesDialog";
+import { KeepRememberedDialog } from "../components/KeepRememberedDialog";
 import { PushTagsDialog } from "../components/PushTagsDialog";
 import { InteractiveRebaseDialog } from "../components/InteractiveRebaseDialog";
 import { PruneLfsDialog } from "../components/LfsCleanup";
@@ -288,9 +289,27 @@ function PushBranches(_: Shown<"pushBranches">) {
     <PushBranchesDialog
       repoPath={snapshot.path}
       onCancel={() => closeDialog()}
-      onPush={(names, remote) => {
+      onPush={(names, remote, remembered) => {
         closeDialog();
-        act({ kind: "pushBranches", names, remote });
+        act({ kind: "pushBranches", names, remote, remembered });
+      }}
+    />
+  );
+}
+
+function KeepRemembered(_: Shown<"keepRemembered">) {
+  const { act, closeDialog, snapshot } = useOpenRepository();
+  return (
+    <KeepRememberedDialog
+      repoPath={snapshot.path}
+      onCancel={() => closeDialog()}
+      onKeep={(references) => {
+        closeDialog();
+        act({ kind: "keepRemembered", references });
+      }}
+      onForget={(references) => {
+        closeDialog();
+        act({ kind: "forgetRemembered", references });
       }}
     />
   );
@@ -624,6 +643,7 @@ const DIALOGS: { [K in Kind]: (props: Shown<K>) => React.ReactNode } = {
   deleteRemoteTag: DeleteRemoteTag,
   pushTags: PushTags,
   pushBranches: PushBranches,
+  keepRemembered: KeepRemembered,
   forceUnlock: ForceUnlock,
   applyPatch: ApplyPatch,
   recover: Recover,
