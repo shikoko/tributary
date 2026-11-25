@@ -1,39 +1,39 @@
 {
-  "version": "0.20.0-beta.10",
-  "notes": "A beta of what's coming, built from develop. Tributary offers it to people who get beta versions (About Tributary → Get beta versions). It may have rough edges: [tell us](https://github.com/shikoko/tributary/issues/new/choose) if something's wrong.\n## What's Changed\n* Write commit messages with AI, with your own key by @shikoko in https://github.com/shikoko/tributary/pull/335\n\n\n**Full Changelog**: https://github.com/shikoko/tributary/compare/v0.20.0-beta.9...v0.20.0-beta.10",
-  "pub_date": "2026-11-25T14:31:53.946Z",
+  "version": "0.20.0-beta.12",
+  "notes": "A beta of what's coming, built from develop. Tributary offers it to people who get beta versions (About Tributary → Get beta versions). It may have rough edges: [tell us](https://github.com/shikoko/tributary/issues/new/choose) if something's wrong.\n## What's Changed\n* Copy every branch when a remote moves, not only those with work by @shikoko in https://github.com/shikoko/tributary/pull/336\n* Centre the words in Settings' dropdowns on Windows by @shikoko in https://github.com/shikoko/tributary/pull/337\n\n\n**Full Changelog**: https://github.com/shikoko/tributary/compare/v0.20.0-beta.10...v0.20.0-beta.12",
+  "pub_date": "2026-11-25T15:37:53.630Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.10/Tributary_0.20.0-beta.10_x64-setup.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SGE5UG1BWHR2ZG1sYk9wN3ludTNjU3pJQTlBSTZpKzBjRUw2ZzlpSm83elUvWk1QS1VXcUdBZHZkV0JyMW1LQi9iVm1kTlFqcWs2R1FVcFZuemM1elFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjE2OTgwCWZpbGU6VHJpYnV0YXJ5XzAuMjAuMC1iZXRhLjEwX3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIwLjAtYmV0YS4xMApHRmp1SDNuTW12N3FoNXBOdjF5YVk3aGFOSUxrRE8wQmJrSzlvUTY0ekY1b0M5SlowS0NzN1FpZm1sSDV2eDNxS2RrYW90QXJlc09zWWkvNTQ3N3NBdz09Cg=="
+      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.12/Tributary_0.20.0-beta.12_x64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFFCYTNUclRPZjRPL25scFc5SUF4ckRDR1prQ0R6NmxhaWxadmI4OCtCYU84OXdxVVFYZldONjRJaVR1R0NRdEpxQ29mSHJJTFVNbjVWVStoTWswaXdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjIwNDg4CWZpbGU6VHJpYnV0YXJ5XzAuMjAuMC1iZXRhLjEyX3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIwLjAtYmV0YS4xMgpkQ3F2ZDBRK1A2NC9hZ09LRVI1Y3BYd01OTGF6UnJBMVphMzJ3VnRJdWdCeVgrbzIzTUFCZldTZ0Y1UmZWZklpT1lJRThBUFZJNVQ2SVk2bFN1Mi9DUT09Cg=="
     },
     "windows-x86_64-nsis": {
-      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.10/Tributary_0.20.0-beta.10_x64-setup.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SGE5UG1BWHR2ZG1sYk9wN3ludTNjU3pJQTlBSTZpKzBjRUw2ZzlpSm83elUvWk1QS1VXcUdBZHZkV0JyMW1LQi9iVm1kTlFqcWs2R1FVcFZuemM1elFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjE2OTgwCWZpbGU6VHJpYnV0YXJ5XzAuMjAuMC1iZXRhLjEwX3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIwLjAtYmV0YS4xMApHRmp1SDNuTW12N3FoNXBOdjF5YVk3aGFOSUxrRE8wQmJrSzlvUTY0ekY1b0M5SlowS0NzN1FpZm1sSDV2eDNxS2RrYW90QXJlc09zWWkvNTQ3N3NBdz09Cg=="
+      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.12/Tributary_0.20.0-beta.12_x64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFFCYTNUclRPZjRPL25scFc5SUF4ckRDR1prQ0R6NmxhaWxadmI4OCtCYU84OXdxVVFYZldONjRJaVR1R0NRdEpxQ29mSHJJTFVNbjVWVStoTWswaXdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjIwNDg4CWZpbGU6VHJpYnV0YXJ5XzAuMjAuMC1iZXRhLjEyX3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIwLjAtYmV0YS4xMgpkQ3F2ZDBRK1A2NC9hZ09LRVI1Y3BYd01OTGF6UnJBMVphMzJ3VnRJdWdCeVgrbzIzTUFCZldTZ0Y1UmZWZklpT1lJRThBUFZJNVQ2SVk2bFN1Mi9DUT09Cg=="
     },
     "windows-aarch64": {
-      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.10/Tributary_0.20.0-beta.10_arm64-setup.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFM3eDBLdkpGeFVmdmwwYnJFUWNqSk1rQVNKUVpXQ3ZBM1cwc1NXWmMyRUExNUhmSG1pMUJjOTl5MGNqL3haWjE0Y01qNGRucWNDSitjUG5JdGp2ckFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjE3MDgzCWZpbGU6VHJpYnV0YXJ5XzAuMjAuMC1iZXRhLjEwX2FybTY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMjAuMC1iZXRhLjEwClhzRnpLcTJPZmJEMFlZbnJ1UlRXTWsyL3RyZXlsSnE0K0JTVzZmenlqQnZZK0ZpaytDalh6MlJMODFnR0t6c0dKMGNWTXF0cUt1NlFpbC83anJSdkFRPT0K"
+      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.12/Tributary_0.20.0-beta.12_arm64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFZ4Ti9NY3hvVmRlaW40NFM2TytUQ2VqRnRpS2dRb3dobFJDVTJ3RWhrRnZiV1Nhd2tzREM1NWl2Y25IWXlhTHhudCtRZE16S1ZJVE1FMzN1dTMxNGdjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjIwNjUwCWZpbGU6VHJpYnV0YXJ5XzAuMjAuMC1iZXRhLjEyX2FybTY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMjAuMC1iZXRhLjEyClgwQXBLVFZDQ0RGUzZudlE2K0xCbnFSK3d5QzdraFNDY0V4ZzBSUzlkeDZHVmZWWVhRODcxZVBFeGJ2TURPaVY1Z05yc2JaNm5KOHlmaFZTem8zWkFnPT0K"
     },
     "windows-aarch64-nsis": {
-      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.10/Tributary_0.20.0-beta.10_arm64-setup.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFM3eDBLdkpGeFVmdmwwYnJFUWNqSk1rQVNKUVpXQ3ZBM1cwc1NXWmMyRUExNUhmSG1pMUJjOTl5MGNqL3haWjE0Y01qNGRucWNDSitjUG5JdGp2ckFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjE3MDgzCWZpbGU6VHJpYnV0YXJ5XzAuMjAuMC1iZXRhLjEwX2FybTY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMjAuMC1iZXRhLjEwClhzRnpLcTJPZmJEMFlZbnJ1UlRXTWsyL3RyZXlsSnE0K0JTVzZmenlqQnZZK0ZpaytDalh6MlJMODFnR0t6c0dKMGNWTXF0cUt1NlFpbC83anJSdkFRPT0K"
+      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.12/Tributary_0.20.0-beta.12_arm64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFZ4Ti9NY3hvVmRlaW40NFM2TytUQ2VqRnRpS2dRb3dobFJDVTJ3RWhrRnZiV1Nhd2tzREM1NWl2Y25IWXlhTHhudCtRZE16S1ZJVE1FMzN1dTMxNGdjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjIwNjUwCWZpbGU6VHJpYnV0YXJ5XzAuMjAuMC1iZXRhLjEyX2FybTY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMjAuMC1iZXRhLjEyClgwQXBLVFZDQ0RGUzZudlE2K0xCbnFSK3d5QzdraFNDY0V4ZzBSUzlkeDZHVmZWWVhRODcxZVBFeGJ2TURPaVY1Z05yc2JaNm5KOHlmaFZTem8zWkFnPT0K"
     },
     "darwin-aarch64": {
-      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.10/Tributary.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFpUend4ZHRUN1Fpb2tJZ2Y0Y0RZa2E5OUNVc3BKdktmRlFsQ29iYm9QZE1wZzJxbXJ0QVBQc05qYXBWZmpYdFhhcjlSbUh5d1o5WnQ4Y3FvNEdmVVFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjE3MDExCWZpbGU6VHJpYnV0YXJ5LmFwcC50YXIuZ3oJdmVyc2lvbjowLjIwLjAtYmV0YS4xMApBZVhWdzFmNU1PTHpJT0w4Mm5kL25jbjVvZldpQjBZMjhpZ3NrdkQ4NDVGK0pkc090Um11VXJLNk1qS1dEVmVDUnV6MjRDSGpmZ3kya1dqdDhQaVhDQT09Cg=="
+      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.12/Tributary.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFRBNEw4VEFvbWhXaEUzbTNvQkxDWTM5SHVYdjFaakY0bnpjdldWeEExVU9QckMyM1hKMWZUYkx5U09LcjNCc2Q3YVIrTlV6ZEZyNUREMHVxTEZ3R2d3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjIxMDI2CWZpbGU6VHJpYnV0YXJ5LmFwcC50YXIuZ3oJdmVyc2lvbjowLjIwLjAtYmV0YS4xMgorMUlKYWM1bDFSTnE3YkZBUTFlM3FjaDRPN1ZOaFMyYm5OTm1nRk0rSU9JZFRRZ0RKdzlXbXFJb3o2eEh5RWpIZm1xeEZwSlRqZ2NaTUxRRmxZalhCUT09Cg=="
     },
     "darwin-x86_64": {
-      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.10/Tributary.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFpUend4ZHRUN1Fpb2tJZ2Y0Y0RZa2E5OUNVc3BKdktmRlFsQ29iYm9QZE1wZzJxbXJ0QVBQc05qYXBWZmpYdFhhcjlSbUh5d1o5WnQ4Y3FvNEdmVVFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjE3MDExCWZpbGU6VHJpYnV0YXJ5LmFwcC50YXIuZ3oJdmVyc2lvbjowLjIwLjAtYmV0YS4xMApBZVhWdzFmNU1PTHpJT0w4Mm5kL25jbjVvZldpQjBZMjhpZ3NrdkQ4NDVGK0pkc090Um11VXJLNk1qS1dEVmVDUnV6MjRDSGpmZ3kya1dqdDhQaVhDQT09Cg=="
+      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.12/Tributary.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFRBNEw4VEFvbWhXaEUzbTNvQkxDWTM5SHVYdjFaakY0bnpjdldWeEExVU9QckMyM1hKMWZUYkx5U09LcjNCc2Q3YVIrTlV6ZEZyNUREMHVxTEZ3R2d3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjIxMDI2CWZpbGU6VHJpYnV0YXJ5LmFwcC50YXIuZ3oJdmVyc2lvbjowLjIwLjAtYmV0YS4xMgorMUlKYWM1bDFSTnE3YkZBUTFlM3FjaDRPN1ZOaFMyYm5OTm1nRk0rSU9JZFRRZ0RKdzlXbXFJb3o2eEh5RWpIZm1xeEZwSlRqZ2NaTUxRRmxZalhCUT09Cg=="
     },
     "linux-x86_64": {
-      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.10/Tributary_0.20.0-beta.10_amd64.AppImage",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFZ5cFJqbG8vdWVrcytNNXZZUGt0VWwycG5FY2lyVVZvOTN3Y2l5MVF2SENLOU1jbVhZZEhQYVRidUZzemhxQk9YajUzR1NJUjNWUGJuSEhqMFpKc0FRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjE2NDgwCWZpbGU6VHJpYnV0YXJ5XzAuMjAuMC1iZXRhLjEwX2FtZDY0LkFwcEltYWdlCXZlcnNpb246MC4yMC4wLWJldGEuMTAKdTgvU3RpTXpEUkswam1NRjBtWUtMeUFkWGxLR0k5UEhvOEFSTHJucXJaQ0d0T1VIb3VwRThScGxhS3JQTlF5L0ZaeVpNSzFtSU4zaHlVMkxTSTY3QWc9PQo="
+      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.12/Tributary_0.20.0-beta.12_amd64.AppImage",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFF0ZEhOait1NllsZ0lCYVVJVW1LaFFZM2xvc3VXdXdxcmFLcXNTZWZWRThLRWJXR0NNbVRtaERYc0pUS1dRTXMrYnpURUdNTnpUT1VqWGptL1JhS3dZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjIwMDcyCWZpbGU6VHJpYnV0YXJ5XzAuMjAuMC1iZXRhLjEyX2FtZDY0LkFwcEltYWdlCXZlcnNpb246MC4yMC4wLWJldGEuMTIKUUxHQTdza0N0cTZ4TlVPR3dkSEJTYWhMSWlKRVBQRVFqQmZ5TVhrS2U3Vll3azVUU0UrMFZ4V1hpOHFBM2VrZTZvcUZMZGd6R0gzQ0U1QVlyUkQ4Q2c9PQo="
     },
     "linux-aarch64": {
-      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.10/Tributary_0.20.0-beta.10_aarch64.AppImage",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SFE2L3VGUnlQb3BvMTZQU3dRMms0SHJKZTBEWmJIR201VVYwM3h3Wkt3MG1tb3dzc0tPK0xCUjZLcUNkbjdKN0V6MXBsTkt3TGdVWG5TY1Q5S09EV3dzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjE2NjI2CWZpbGU6VHJpYnV0YXJ5XzAuMjAuMC1iZXRhLjEwX2FhcmNoNjQuQXBwSW1hZ2UJdmVyc2lvbjowLjIwLjAtYmV0YS4xMApDekpmbEp5TlIzcy9wZ2JGMGx5MTgya3YrVlVKM3JqNjRJaWFoQnBOTTF6NzExRzlJcERWN2RmM1ZLNGVYdE5QR2h2UmtNUFdwTjRhMHRrNno0THlBQT09Cg=="
+      "url": "https://github.com/shikoko/tributary/releases/download/v0.20.0-beta.12/Tributary_0.20.0-beta.12_aarch64.AppImage",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUelVzcUp1cE40SGFtd0VrUWJJekQ1VURMaXdnWW1DTjZXaG9mV2t3akh4VGRRYThtbEZJUElkZnlzeFZoclg3Q1MrNmE1VHp3cytPaFE5c25aRjZiRHl6MWxNOFRmUmdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjIwMTg5CWZpbGU6VHJpYnV0YXJ5XzAuMjAuMC1iZXRhLjEyX2FhcmNoNjQuQXBwSW1hZ2UJdmVyc2lvbjowLjIwLjAtYmV0YS4xMgpNMVJQeFozRTN6MUFxUHZxNEtCaE1EZVh3ZFNiLzcwbW4vbmdXTkJhcDhMYzB2SnpPeFJuOHg1MHdMV1JhNWRBRm1HUkF6M0U5Y3V6bzdta25qWTBEQT09Cg=="
     }
   }
 }
