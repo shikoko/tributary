@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import type { MenuItem } from "../components/ContextMenu";
+import type { MenuAnchor, MenuItem } from "../components/ContextMenu";
 import { MenuBar, type AppMenu } from "../components/MenuBar";
 import { isMac } from "../lib/platform";
 import { menuItems } from "./appCommand";
@@ -10,6 +10,8 @@ export interface OpenMenu {
   x: number;
   y: number;
   items: MenuItem[];
+  /** The button it opened from, which it hangs under, joined to it. */
+  anchor?: MenuAnchor;
   /** For the menu bar's menus: ← and → open the menu beside it. */
   onSideways?: (step: 1 | -1) => void;
 }
@@ -19,10 +21,11 @@ export function useContextMenu() {
   const [menu, setMenu] = useState<OpenMenu | null>(null);
   /** A menu at (x, y), like where the pointer was. */
   const show = useCallback((x: number, y: number, items: MenuItem[]) => setMenu({ x, y, items }), []);
-  /** A menu below `anchor`, like a button's, lined up with its right edge when that fits better. */
-  const under = useCallback((anchor: HTMLElement, items: MenuItem[], width = 240) => {
+  /** A menu below `anchor`, like a button's, joined to it: lined up with its right edge, or
+   *  its left (`align`), whichever fits. */
+  const under = useCallback((anchor: HTMLElement, items: MenuItem[], width = 240, align: MenuAnchor["align"] = "right") => {
     const rect = anchor.getBoundingClientRect();
-    setMenu({ x: Math.max(4, Math.min(rect.left, rect.right - width)), y: rect.bottom + 4, items });
+    setMenu({ x: Math.max(4, Math.min(rect.left, rect.right - width)), y: rect.bottom + 4, items, anchor: { element: anchor, align } });
   }, []);
   const close = useCallback(() => setMenu(null), []);
   return { menu, setMenu, show, under, close };
@@ -44,6 +47,7 @@ export function useMenuBar(menus: AppMenuDefinition[], setMenu: (menu: OpenMenu)
       x: rect.left,
       y: rect.bottom + 4,
       items: barMenus[index].items,
+      anchor: { element: anchor, align: "left" },
       onSideways: (step) => openBarMenu((index + step + barMenus.length) % barMenus.length),
     });
   };

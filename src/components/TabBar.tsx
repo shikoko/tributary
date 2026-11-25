@@ -33,8 +33,8 @@ interface Props {
   extra?: ReactNode;
   /** Tabs whose background fetch found new commits: what arrived, by path. */
   news?: Record<string, string>;
-  /** Right-click on a repository's tab (or the menu key on it). */
-  onContextMenu?: (path: string, x: number, y: number) => void;
+  /** Right-click on a repository's tab (or the menu key on it): its menu opens under it. */
+  onContextMenu?: (path: string, tab: HTMLElement) => void;
   /** Pulls, fetches, pushes and checkouts running, by repository: a ring on each one's tab, when it isn't the one shown. */
   busy?: Record<string, { label: string; percent: number | null }>;
 }
@@ -190,10 +190,7 @@ export function TabBar({ tabs, activePath, startTab, onSelect, onClose, onMove, 
               onContextMenu &&
               ((event) => {
                 event.preventDefault();
-                // From the keyboard there's no pointer: open under the tab.
-                const rect = event.currentTarget.getBoundingClientRect();
-                const keyboard = event.clientX === 0 && event.clientY === 0;
-                onContextMenu(tab.path, keyboard ? rect.left : event.clientX, keyboard ? rect.bottom : event.clientY);
+                onContextMenu(tab.path, event.currentTarget);
               })
             }
           >

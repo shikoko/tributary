@@ -179,10 +179,10 @@ export default function App() {
       setDialog({ kind: "repoSettings" });
     }
   }, [settingsFor, snapshot?.path]);
-  const tabMenu = (path: string, x: number, y: number) =>
-    menu.show(
-      x,
-      y,
+  // Under the tab, joined to it, as the menus of the other things in the tab bar are.
+  const tabMenu = (path: string, element: HTMLElement) =>
+    menu.under(
+      element,
       tabMenuItems({
         path,
         count: tabs.length,
@@ -201,6 +201,8 @@ export default function App() {
           .filter((each) => each.id !== workspaces.state.current)
           .map((each) => ({ name: each.name, onSelect: () => workspaces.moveTabTo(path, each.id) })),
       }),
+      240,
+      "left",
     );
   const search = useSearch(snapshot?.commits, selection.select, selection.selectedIndex, snapshot?.path ?? null);
   const highlight = useHighlight({

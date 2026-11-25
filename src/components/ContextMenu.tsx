@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { stepFocus, usingKeyboard } from "../lib/inputMode";
 import { CheckIcon, ChevronRightIcon } from "./Icons";
+import { cornerOf, Joint, jointCorners, useJoinedButton } from "./Joint";
+import { hang, hangsFrom, JOINT_GAP, snap, type Box } from "../lib/joint";
 
 export interface MenuItem {
   label: string;
@@ -22,9 +24,18 @@ export interface MenuItem {
   submenu?: MenuItem[];
 }
 
+/** The button a menu opens from: it hangs under it, joined to it (Joint), its left or right
+ *  edge lined up with the button's. */
+export interface MenuAnchor {
+  element: HTMLElement;
+  align: "left" | "right";
+}
+
 interface Props {
   x: number;
   y: number;
+  /** Under this button, instead of at (x, y). */
+  anchor?: MenuAnchor;
   /** For a button near the window's bottom: when the menu doesn't fit below y, it opens
    *  upwards from here (its bottom edge here), instead of being pushed up over the button. */
   above?: number;
@@ -42,7 +53,7 @@ const HOVER_MS = 140;
  * system menu: ↑ ↓ Home End move, a letter jumps to the next item starting with it,
  * Enter picks, → opens a submenu and ← closes it, Esc and Tab close.
  */
-export function ContextMenu({ x, y, above, items, onClose, onSideways }: Props) {
+export function ContextMenu({ x, y, anchor, above, items, onClose, onSideways }: Props) {
   const backdrop = useRef<HTMLDivElement>(null);
   // Esc closes it wherever the focus is. A menu opened with the mouse doesn't always keep
   // the focus it takes (WebKit can give it back to what was clicked), and then its own
@@ -67,7 +78,7 @@ export function ContextMenu({ x, y, above, items, onClose, onSideways }: Props) 
         onClose();
       }}
     >
-      <MenuPanel x={x} y={y} above={above} items={items} onClose={onClose} onSideways={onSideways} focusFirst={usingKeyboard()} />
+      <MenuPanel x={x} y={y} anchor={anchor} above={above} items={items} onClose={onClose} onSideways={onSideways} focusFirst={usingKeyboard()} />
     </div>
   );
 }
@@ -75,6 +86,7 @@ export function ContextMenu({ x, y, above, items, onClose, onSideways }: Props) 
 interface PanelProps {
   x: number;
   y: number;
+  anchor?: MenuAnchor;
   /** Where it goes instead when it doesn't fit on the right (a submenu: its parent's left edge). */
   flipX?: number;
   /** Where its bottom edge goes instead when it doesn't fit below y (see ContextMenu). */
@@ -88,16 +100,21 @@ interface PanelProps {
   focusFirst: boolean;
 }
 
-function MenuPanel({ x, y, flipX, above, items, onClose, onSideways, onBack, focusFirst }: PanelProps) {
+function MenuPanel({ x, y, anchor, flipX, above, items, onClose, onSideways, onBack, focusFirst }: PanelProps) {
   const menu = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<{ left: number; top: number; listHeight?: number }>({ left: x, top: y });
+  const [position, setPosition] = useState<{ left: number; top: number; width?: number; listHeight?: number; button?: Box; radius?: number }>({ left: x, top: y });
+  const joined = position.button !== undefined && hangsFrom(position.button, position.top);
+  useJoinedButton(anchor?.element, "raised", joined);
   const [open, setOpen] = useState<{ index: number; x: number; y: number; flipX: number; keyboard: boolean } | null>(null);
   const hover = useRef(0);
 
   useLayoutEffect(() => {
     const element = menu.current!;
     const { width, height } = element.getBoundingClientRect();
+    // Under its button: hanging from it, a gap (its foot) below it.
+    const button = anchor ? snap(anchor.element.getBoundingClientRect()) : undefined;
+    const from = button ? button.bottom + JOINT_GAP : y;
     const fitsRight = x + width <= window.innerWidth - 4;
     // Its whole height, as if its list didn't scroll, and what's around the list.
     const items = list.current!;
@@ -106,24 +123,29 @@ function MenuPanel({ x, y, flipX, above, items, onClose, onSideways, onBack, foc
     // One taller than the window scrolls its list: from where it opens when that's near the top,
     // like a menu bar's, or else from the window's top, down to its bottom.
     const tall = whole > window.innerHeight - 8;
-    const upwards = !tall && above !== undefined && y + whole > window.innerHeight - 4;
+    const upwards = !tall && above !== undefined && from + whole > window.innerHeight - 4;
     const top = tall
-      ? y < window.innerHeight / 3
-        ? y
+      ? from < window.innerHeight / 3
+        ? from
         : 4
       : upwards
         ? Math.max(4, above - whole)
-        : Math.max(4, Math.min(y, window.innerHeight - whole - 4));
+        : Math.max(4, Math.min(from, window.innerHeight - whole - 4));
     setPosition({
-      left: Math.max(4, fitsRight || flipX === undefined ? Math.min(x, window.innerWidth - width - 4) : flipX - width),
+      left: button
+        ? hang(button, width, window.innerWidth, anchor!.align, 4)
+        : Math.max(4, fitsRight || flipX === undefined ? Math.min(x, window.innerWidth - width - 4) : flipX - width),
       top,
+      width,
       listHeight: tall ? window.innerHeight - top - 4 - around : undefined,
+      button,
+      radius: anchor ? cornerOf(anchor.element) : undefined,
     });
     // Opened from the keyboard: start on the first item. With the mouse: nothing highlighted.
     const first = list.current?.querySelector<HTMLButtonElement>(".menu-item:not(:disabled)");
     if (focusFirst && first) first.focus();
     else if (!onBack) element.focus();
-  }, [x, y, flipX, above, items, focusFirst, onBack]);
+  }, [x, y, anchor, flipX, above, items, focusFirst, onBack]);
 
   const buttons = () => [...(list.current?.querySelectorAll<HTMLButtonElement>(":scope > div > .menu-item:not(:disabled)") ?? [])];
   const openSubmenu = (index: number, button: HTMLElement, keyboard: boolean) => {
@@ -137,120 +159,124 @@ function MenuPanel({ x, y, flipX, above, items, onClose, onSideways, onBack, foc
     if (index !== undefined) list.current?.querySelectorAll<HTMLButtonElement>(":scope > div > .menu-item")[index]?.focus();
   };
 
+  const panel = { left: position.left, top: position.top, width: position.width ?? 0 };
   return (
-    <div
-      ref={menu}
-      className="context-menu"
-      style={{ left: position.left, top: position.top }}
-      role="menu"
-      tabIndex={-1}
-      onMouseDown={(event) => event.stopPropagation()}
-      onKeyDown={(event) => {
-        // A submenu's keys are its own: the menu it's in doesn't act on them too.
-        event.stopPropagation();
-        if (event.key === "Tab") {
-          event.preventDefault();
-          onClose();
-          return;
-        }
-        if (event.key === "Escape" || (event.key === "ArrowLeft" && onBack)) {
-          event.preventDefault();
-          if (onBack) onBack();
-          else onClose();
-          return;
-        }
-        const all = buttons();
-        const current = all.find((button) => button === document.activeElement) ?? null;
-        if (event.key === "ArrowRight" && current) {
-          const index = [...(list.current?.querySelectorAll(":scope > div > .menu-item") ?? [])].indexOf(current);
-          if (items[index]?.submenu) {
+    <>
+      <div
+        ref={menu}
+        className={`context-menu${joined ? " joined" : ""}`}
+        style={{ left: position.left, top: position.top, ...jointCorners(position.button ?? null, panel) }}
+        role="menu"
+        tabIndex={-1}
+        onMouseDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          // A submenu's keys are its own: the menu it's in doesn't act on them too.
+          event.stopPropagation();
+          if (event.key === "Tab") {
             event.preventDefault();
-            openSubmenu(index, current, true);
+            onClose();
             return;
           }
-        }
-        if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && onSideways) {
-          event.preventDefault();
-          onSideways(event.key === "ArrowRight" ? 1 : -1);
-          return;
-        }
-        const vertical = event.key === "ArrowLeft" || event.key === "ArrowRight" ? null : stepFocus(all, current, event.key);
-        if (vertical) {
-          event.preventDefault();
-          vertical.focus();
-          return;
-        }
-        // A letter: the next item starting with it.
-        if (event.key.length === 1 && /\S/.test(event.key) && !event.metaKey && !event.ctrlKey) {
-          const start = current ? all.indexOf(current) + 1 : 0;
-          const ordered = [...all.slice(start), ...all.slice(0, start)];
-          const match = ordered.find((button) => button.textContent?.trim().toLowerCase().startsWith(event.key.toLowerCase()));
-          if (match) {
+          if (event.key === "Escape" || (event.key === "ArrowLeft" && onBack)) {
             event.preventDefault();
-            match.focus();
+            if (onBack) onBack();
+            else onClose();
+            return;
           }
-        }
-      }}
-    >
-      <div ref={list} className={position.listHeight === undefined ? undefined : "menu-scroll"} style={position.listHeight === undefined ? undefined : { maxHeight: position.listHeight }}>
-        {items.map((item, index) => (
-          <div key={item.label}>
-            {item.separated && <div className="menu-separator" role="separator" />}
-            <button
-              className={`menu-item${item.danger ? " danger" : ""}${open?.index === index ? " open" : ""}`}
-              // An on/off setting says whether it's on.
-              role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
-              aria-checked={item.checked}
-              aria-haspopup={item.submenu ? "menu" : undefined}
-              aria-expanded={item.submenu ? open?.index === index : undefined}
-              disabled={item.disabled}
-              data-url={item.url}
-              onMouseEnter={(event) => {
-                window.clearTimeout(hover.current);
-                const button = event.currentTarget;
-                if (item.submenu) hover.current = window.setTimeout(() => openSubmenu(index, button, false), HOVER_MS);
-                else if (open) hover.current = window.setTimeout(() => setOpen(null), HOVER_MS);
-              }}
-              onMouseLeave={() => window.clearTimeout(hover.current)}
-              onClick={(event) => {
-                if (item.submenu) {
-                  openSubmenu(index, event.currentTarget, usingKeyboard());
-                  return;
-                }
-                onClose();
-                item.onSelect();
-              }}
-            >
-              <span className="menu-icon">{item.checked ? <CheckIcon /> : item.icon}</span>
-              {item.detail ? (
-                <span className="menu-text">
+          const all = buttons();
+          const current = all.find((button) => button === document.activeElement) ?? null;
+          if (event.key === "ArrowRight" && current) {
+            const index = [...(list.current?.querySelectorAll(":scope > div > .menu-item") ?? [])].indexOf(current);
+            if (items[index]?.submenu) {
+              event.preventDefault();
+              openSubmenu(index, current, true);
+              return;
+            }
+          }
+          if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && onSideways) {
+            event.preventDefault();
+            onSideways(event.key === "ArrowRight" ? 1 : -1);
+            return;
+          }
+          const vertical = event.key === "ArrowLeft" || event.key === "ArrowRight" ? null : stepFocus(all, current, event.key);
+          if (vertical) {
+            event.preventDefault();
+            vertical.focus();
+            return;
+          }
+          // A letter: the next item starting with it.
+          if (event.key.length === 1 && /\S/.test(event.key) && !event.metaKey && !event.ctrlKey) {
+            const start = current ? all.indexOf(current) + 1 : 0;
+            const ordered = [...all.slice(start), ...all.slice(0, start)];
+            const match = ordered.find((button) => button.textContent?.trim().toLowerCase().startsWith(event.key.toLowerCase()));
+            if (match) {
+              event.preventDefault();
+              match.focus();
+            }
+          }
+        }}
+      >
+        <div ref={list} className={position.listHeight === undefined ? undefined : "menu-scroll"} style={position.listHeight === undefined ? undefined : { maxHeight: position.listHeight }}>
+          {items.map((item, index) => (
+            <div key={item.label}>
+              {item.separated && <div className="menu-separator" role="separator" />}
+              <button
+                className={`menu-item${item.danger ? " danger" : ""}${open?.index === index ? " open" : ""}`}
+                // An on/off setting says whether it's on.
+                role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
+                aria-checked={item.checked}
+                aria-haspopup={item.submenu ? "menu" : undefined}
+                aria-expanded={item.submenu ? open?.index === index : undefined}
+                disabled={item.disabled}
+                data-url={item.url}
+                onMouseEnter={(event) => {
+                  window.clearTimeout(hover.current);
+                  const button = event.currentTarget;
+                  if (item.submenu) hover.current = window.setTimeout(() => openSubmenu(index, button, false), HOVER_MS);
+                  else if (open) hover.current = window.setTimeout(() => setOpen(null), HOVER_MS);
+                }}
+                onMouseLeave={() => window.clearTimeout(hover.current)}
+                onClick={(event) => {
+                  if (item.submenu) {
+                    openSubmenu(index, event.currentTarget, usingKeyboard());
+                    return;
+                  }
+                  onClose();
+                  item.onSelect();
+                }}
+              >
+                <span className="menu-icon">{item.checked ? <CheckIcon /> : item.icon}</span>
+                {item.detail ? (
+                  <span className="menu-text">
+                    <span className="menu-label">{item.label}</span>
+                    <span className="menu-detail">{item.detail}</span>
+                  </span>
+                ) : (
                   <span className="menu-label">{item.label}</span>
-                  <span className="menu-detail">{item.detail}</span>
-                </span>
-              ) : (
-                <span className="menu-label">{item.label}</span>
-              )}
-              {item.shortcut && <span className="menu-shortcut">{item.shortcut}</span>}
-              {item.submenu && (
-                <span className="menu-chevron">
-                  <ChevronRightIcon size={12} />
-                </span>
-              )}
-            </button>
-          </div>
-        ))}
+                )}
+                {item.shortcut && <span className="menu-shortcut">{item.shortcut}</span>}
+                {item.submenu && (
+                  <span className="menu-chevron">
+                    <ChevronRightIcon size={12} />
+                  </span>
+                )}
+              </button>
+            </div>
+          ))}
+        </div>
+        {open && items[open.index]?.submenu && (
+          <MenuPanel
+            x={open.x}
+            y={open.y}
+            flipX={open.flipX}
+            items={items[open.index].submenu!}
+            onClose={onClose}
+            onBack={closeSubmenu}
+            focusFirst={open.keyboard}
+          />
+        )}
       </div>
-      {open && items[open.index]?.submenu && (
-        <MenuPanel
-          x={open.x}
-          y={open.y}
-          flipX={open.flipX}
-          items={items[open.index].submenu!}
-          onClose={onClose}
-          onBack={closeSubmenu}
-          focusFirst={open.keyboard}
-        />
-      )}
-    </div>
+      {joined && <Joint button={position.button!} radius={position.radius ?? 0} panel={panel} fill="raised" />}
+    </>
   );
 }

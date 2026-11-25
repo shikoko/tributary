@@ -213,7 +213,7 @@ export function AppOverlays(props: Props) {
       {open.licences && <LicencesDialog onClose={() => hide("licences")} />}
       {open.update && updates.available && <UpdateDialog updates={updates} onClose={() => hide("update")} />}
       {menu.menu && (
-        <ContextMenu x={menu.menu.x} y={menu.menu.y} items={menu.menu.items} onSideways={menu.menu.onSideways} onClose={menu.close} />
+        <ContextMenu x={menu.menu.x} y={menu.menu.y} anchor={menu.menu.anchor} items={menu.menu.items} onSideways={menu.menu.onSideways} onClose={menu.close} />
       )}
       {props.dropping && (
         <div className="drop-overlay">
