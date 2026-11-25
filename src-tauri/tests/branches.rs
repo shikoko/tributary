@@ -867,6 +867,7 @@ fn lists_the_branches_a_remote_lacks_and_pushes_the_chosen_ones() {
             Action::PushBranches {
                 names: vec!["feature".into(), "idea".into()],
                 remote: "origin".into(),
+                remembered: vec![],
             },
         )
         .unwrap(),
@@ -894,6 +895,7 @@ fn lists_the_branches_a_remote_lacks_and_pushes_the_chosen_ones() {
             Action::PushBranches {
                 names: vec!["nope".into()],
                 remote: "origin".into(),
+                remembered: vec![],
             },
         )
         .is_err()

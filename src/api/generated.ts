@@ -96,7 +96,7 @@ export type Action =
   | { kind: "restoreTag"; name: string; id: string }
   | { kind: "pushTag"; name: string; remote?: string | null }
   | { kind: "pushTags"; names: Array<string>; remote: string }
-  | { kind: "pushBranches"; names: Array<string>; remote: string }
+  | { kind: "pushBranches"; names: Array<string>; remote: string; remembered: Array<string> }
   | { kind: "deleteRemoteTag"; name: string; remote: string }
   | { kind: "resolveConflicts"; paths: Array<string>; keep: Side }
   | { kind: "recreateConflicts"; paths: Array<string> }
@@ -135,6 +135,16 @@ export type Action =
   | { kind: "renameRemote"; from: string; to: string }
   | { kind: "removeRemote"; name: string }
   | { kind: "setRemoteUrl"; name: string; url: string; push: boolean }
+  | {
+    kind: "moveRemote";
+    name: string;
+    url: string;
+    then: RememberedChoice;
+    branches: Array<string>;
+    local: Array<string>;
+  }
+  | { kind: "keepRemembered"; references: Array<string> }
+  | { kind: "forgetRemembered"; references: Array<string> }
   | { kind: "setSparseFolders"; folders: Array<string> }
   | { kind: "savePatch"; ids: Array<string>; file: string }
   | { kind: "applyPatch"; file: string; asCommits: boolean }
@@ -379,14 +389,15 @@ export type BranchTip = { name: string; id: string; remote?: string | null; merg
  */
 export type BranchToPush = {
   name: string;
+  reason: PushReason;
   /**
-   * Its branch on the remote, like `origin/feature/export`, when it has one there: the
-   * commits are added to it. `None` when it was never pushed: pushing makes it.
+   * Its branch on the remote, like `origin/feature/export`, when it's there: the commits
+   * are added to it.
    */
   onRemote: string | null;
   /**
-   * Commits it has that the remote doesn't (as of the last fetch): ahead of its branch
-   * there, or, never pushed, on none of the remote's branches.
+   * Commits it has that the remote doesn't: ahead of its branch there, or, not there,
+   * on none of the remote's branches.
    */
   ahead: number;
   /**
@@ -421,6 +432,21 @@ export type BranchVersion = {
  */
 export type BranchesToPush = {
   remote: string;
+  /**
+   * Its address, without a password or token in it.
+   */
+  address: string;
+  /**
+   * The remote was asked just now what it has. When it couldn't be (`problem` says why),
+   * what it had at the last fetch stands in.
+   */
+  checked: boolean;
+  problem?: string | null;
+  /**
+   * It has none of the branches remembered from its last fetch: it's new, or emptied, as
+   * when a repository is moved to a new one. Those remembered branches are all offered.
+   */
+  fresh: boolean;
   /**
    * Newest last commit first.
    */
@@ -530,6 +556,8 @@ export type Commands = {
   upstream_choices: { args: { path: string; branch: string }; returns: UpstreamChoices };
   tags_to_push: { args: { path: string; remote?: string | null }; returns: TagsToPush };
   branches_to_push: { args: { path: string; remote?: string | null }; returns: BranchesToPush };
+  set_aside_branches: { args: { path: string }; returns: Array<RememberedBranch> };
+  move_check: { args: { path: string; remote: string; url: string }; returns: MoveCheck };
   unseen_commits: {
     args: { path: string; reference: string; since?: string | null };
     returns: UnseenCommits;
@@ -1877,6 +1905,36 @@ export type MetaProblem = {
 };
 
 /**
+ * What moving a remote to a new address would do to its remembered branches (see
+ * [`move_check`]).
+ */
+export type MoveCheck = {
+  /**
+   * The new address, without a password or token in it.
+   */
+  address: string;
+  /**
+   * Whether the new address answered: what it has is known. When it didn't, it's taken
+   * to have none of the remembered branches.
+   */
+  reached: boolean;
+  /**
+   * Why it didn't answer.
+   */
+  problem?: string | null;
+  /**
+   * Remembered branches the new address doesn't have, with work found nowhere else here:
+   * the next fetch would lose them. Newest first.
+   */
+  atRisk: Array<RememberedBranch>;
+  /**
+   * Branches here that push to this remote, which the new address doesn't have: copying
+   * the remembered ones copies these too.
+   */
+  local: Array<string>;
+};
+
+/**
  * A new file whose name will cause trouble elsewhere.
  */
 export type NameProblem = {
@@ -2214,6 +2272,15 @@ export type PullRequest = {
   forge: Forge;
 };
 
+/**
+ * Why a branch is offered (see [`branches_to_push`]).
+ */
+export type PushReason =
+  | "ahead"
+  | "missing"
+  | "new"
+  | "remembered";
+
 export type RangeDiff = {
   /**
    * The branch both versions are compared against, if one was found.
@@ -2353,6 +2420,38 @@ export type ReleaseNotes = {
    */
   commits: number;
 };
+
+/**
+ * A remembered branch whose work isn't anywhere else here.
+ */
+export type RememberedBranch = {
+  /**
+   * Its remote's, and its name there: `origin`, `feature/export`.
+   */
+  remote: string;
+  name: string;
+  /**
+   * Where it's kept: `refs/remotes/origin/feature/export`, or set aside.
+   */
+  reference: string;
+  /**
+   * Its commits found nowhere else here.
+   */
+  commits: number;
+  /**
+   * Its last commit's summary, and when that was committed (seconds).
+   */
+  summary: string;
+  time: number;
+};
+
+/**
+ * What to do with a remote's remembered branches its new address doesn't have.
+ */
+export type RememberedChoice =
+  | "copy"
+  | "keep"
+  | "forget";
 
 export type RemoteBranchChoice = {
   /**

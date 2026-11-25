@@ -34,6 +34,7 @@ mod patches;
 mod prune;
 mod push_branches;
 mod releases;
+mod remembered;
 mod remote;
 mod remote_settings;
 mod rewrites;
@@ -96,8 +97,11 @@ pub use patches::{PatchCommit, PatchFile, PatchInfo, patch_info, patch_text};
 pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
 };
-pub use push_branches::{BranchToPush, BranchesToPush, branches_to_push};
+pub use push_branches::{BranchToPush, BranchesToPush, PushReason, branches_to_push};
 pub use releases::{ReleaseItem, ReleaseNotes, release_notes};
+pub use remembered::{
+    MoveCheck, RememberedBranch, RememberedChoice, move_check, set_aside_branches,
+};
 use remote::Force;
 pub use remote::{UnseenCommit, UnseenCommits, unseen_commits};
 pub use remote_settings::{RemoteInfo, remotes};
@@ -357,8 +361,14 @@ pub enum Action {
     /// Push several tags to a remote, in one push.
     PushTags { names: Vec<String>, remote: String },
     /// Push several branches to a remote, in one push: each to its branch there, or one of
-    /// its name, which it then tracks.
-    PushBranches { names: Vec<String>, remote: String },
+    /// its name, which it then tracks. And `remembered`: the remote's branches remembered
+    /// from its last fetch that it no longer has, back to it as they were.
+    PushBranches {
+        names: Vec<String>,
+        remote: String,
+        #[serde(default)]
+        remembered: Vec<String>,
+    },
     /// Delete a tag from a remote.
     DeleteRemoteTag { name: String, remote: String },
     /// Resolve conflicted files by taking one side's version of each whole file: yours
@@ -479,6 +489,21 @@ pub enum Action {
         url: String,
         push: bool,
     },
+    /// Point a remote at a new address that doesn't have some of its remembered branches
+    /// (`branches`), and copy them there (with `local`, the branches here that push to it,
+    /// and the tags), keep them here as branches, or forget them.
+    MoveRemote {
+        name: String,
+        url: String,
+        then: RememberedChoice,
+        branches: Vec<String>,
+        local: Vec<String>,
+    },
+    /// Keep remembered branches a remote no longer has (set aside by a fetch, or still a
+    /// remote's) as branches here.
+    KeepRemembered { references: Vec<String> },
+    /// Forget them, with a backup of each in Restore.
+    ForgetRemembered { references: Vec<String> },
     /// Check out only these folders (and the files at the top), or every folder when it's
     /// empty.
     SetSparseFolders { folders: Vec<String> },
@@ -832,9 +857,11 @@ fn perform(
         Action::PushTags { names, remote } => {
             tags::push_tags(&repo, &git, names, remote, on_progress)
         }
-        Action::PushBranches { names, remote } => {
-            push_branches::push_branches(&repo, &git, names, remote, on_progress)
-        }
+        Action::PushBranches {
+            names,
+            remote,
+            remembered,
+        } => push_branches::push_branches(&repo, &git, names, remote, remembered, on_progress),
         Action::DeleteRemoteTag { name, remote } => {
             tags::delete_remote_tag(&repo, &git, name, remote)
         }
@@ -907,6 +934,28 @@ fn perform(
         Action::RemoveRemote { name } => remote_settings::remove_remote(&git, name),
         Action::SetRemoteUrl { name, url, push } => {
             remote_settings::set_remote_url(&git, name, url, push)
+        }
+        Action::MoveRemote {
+            name,
+            url,
+            then,
+            branches,
+            local,
+        } => remembered::move_remote(
+            &repo,
+            &git,
+            remembered::Move {
+                remote: name,
+                url,
+                then,
+                branches,
+                local,
+            },
+            on_progress,
+        ),
+        Action::KeepRemembered { references } => remembered::keep_remembered(&git, references),
+        Action::ForgetRemembered { references } => {
+            remembered::forget_remembered(&repo, &git, references)
         }
         Action::UntrackWithLfs { patterns } => lfs_settings::untrack_with_lfs(&git, patterns),
         Action::UpdateSubmodules { paths } => {

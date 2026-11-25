@@ -26,6 +26,45 @@
   background: var(--bg-hover);
 }
 
+/* A row to read, not to tick (KeepRememberedDialog): laid out as a ticked one is. */
+.prune-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-10);
+  padding: var(--space-10) var(--space-12);
+}
+
+.keep-remembered-list .prune-row:hover {
+  background: none;
+}
+
+/* A remote's move (MoveRemoteDialog): its old address and the new one, one above the other. */
+.move-from {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-4) var(--space-12);
+  margin: var(--space-4) 0 var(--space-14);
+  padding: var(--space-10) var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  font-size: var(--type-sm);
+}
+
+.move-from > span:nth-child(odd) {
+  color: var(--text-muted);
+}
+
+.move-from > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.move-old {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
 .prune-row input {
   margin-top: var(--space-4);
   accent-color: var(--danger-solid);
@@ -36,6 +75,38 @@
    adds, so in the accent. */
 :is(.push-tags-list, .push-branches-list) .prune-row input {
   accent-color: var(--accent);
+}
+
+/* Push branches: where it checked what the remote has, and the branches only remembered
+   from the remote under a heading of their own, with room above it to start a new part. */
+.push-checked {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: var(--space-4) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+}
+
+.push-checked-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--success-text);
+  flex: none;
+}
+
+.push-section {
+  margin: var(--space-28) 0 0;
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.push-section + .hint {
+  margin-top: var(--space-6);
 }
 
 .prune-main {

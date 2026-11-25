@@ -147,6 +147,8 @@ commands! {
         upstream_choices(path: String, branch: String) -> actions::UpstreamChoices;
         tags_to_push(path: String, remote: Option<String>) -> actions::TagsToPush;
         branches_to_push(path: String, remote: Option<String>) -> actions::BranchesToPush;
+        set_aside_branches(path: String) -> Vec<actions::RememberedBranch>;
+        move_check(path: String, remote: String, url: String) -> actions::MoveCheck;
         unseen_commits(path: String, reference: String, since: Option<String>) -> actions::UnseenCommits;
         lfs_locks(path: String) -> locks::Locks;
         file_history(path: String, file: String) -> actions::FileHistory;

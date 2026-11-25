@@ -93,6 +93,80 @@ export default async function ({ page, demos, folder, step, expect, accessible, 
     }
   });
 
+  await step("moves origin to an empty repository, copying the branches it only remembers, and keeps work a fetch would lose", async () => {
+    const git = (...args) => execFileSync("git", ["-C", demos.notebook, ...args], { encoding: "utf8" }).trim();
+    const at = (repo, ...args) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" }).trim();
+    const was = git("remote", "get-url", "origin");
+    // origin's branches as remembered here, put back afterwards for the steps after (a fetch
+    // would bring in the teammate's commits they expect not to have yet).
+    const remembered = git("for-each-ref", "--format=%(refname) %(objectname) %(symref)", "refs/remotes/origin/")
+      .split("\n")
+      .filter((line) => line && !line.split(" ")[2]);
+    // share/ideas: pushed to origin and deleted here, so it's only remembered, with work
+    // found nowhere else.
+    const idea = git("commit-tree", git("rev-parse", "main^{tree}"), "-p", "main", "-m", "Sketch the sharing screen");
+    git("push", "-q", "origin", `${idea}:refs/heads/share/ideas`);
+    git("update-ref", "refs/remotes/origin/share/ideas", idea);
+    // The new, empty repository the notebook moves to.
+    const moved = join(folder, "notebook-moved.git");
+    execFileSync("git", ["init", "-q", "--bare", "--initial-branch=main", moved]);
+    const settings = page.locator(".dialog", { hasText: "Settings for notebook" });
+    const move = page.locator(".dialog", { hasText: "Move origin to a new address?" });
+    try {
+      await page.getByRole("button", { name: "Manage remotes" }).click();
+      await settings.getByRole("tab", { name: "Remotes", selected: true }).waitFor({ timeout: 10_000 });
+      await settings.getByRole("button", { name: "Edit origin" }).click();
+      await settings.getByLabel("Address", { exact: true }).fill(moved);
+      await settings.getByRole("button", { name: "Save" }).click();
+      // The new address hasn't got share/ideas: asked about before anything changes.
+      await move.waitFor({ timeout: 15_000 });
+      expect((await move.innerText()).includes("share/ideas"), `the move doesn't name share/ideas: ${(await move.innerText()).replace(/\s+/g, " ")}`);
+      expect(git("remote", "get-url", "origin") === was, "origin moved before the question was answered");
+      await accessible("Move a remote");
+      expect(await move.getByRole("radio", { name: /Copy it to the new address/ }).isChecked(), "copying isn't what's offered first");
+      await move.getByRole("button", { name: /^Move and copy/ }).click();
+      await page.locator(".toast", { hasText: /Moved origin to .*, and copied \d+ branches there/ }).waitFor({ timeout: 20_000 });
+      await move.waitFor({ state: "detached", timeout: 5000 });
+      expect(git("remote", "get-url", "origin") === moved, `origin is at ${git("remote", "get-url", "origin")}`);
+      const copied = at(moved, "for-each-ref", "--format=%(refname:strip=2)", "refs/heads").split("\n");
+      expect(copied.includes("share/ideas") && copied.includes("main"), `the new repository has ${copied.join(", ")}`);
+      await dismissToast();
+      await page.keyboard.press("Escape");
+      await settings.waitFor({ state: "detached", timeout: 5000 });
+
+      // share/ideas goes from the new repository: a fetch keeps its work aside and asks.
+      at(moved, "update-ref", "-d", "refs/heads/share/ideas");
+      const keep = page.locator(".dialog", { hasText: "Keep 1 branch origin no longer has?" });
+      await page.getByRole("button", { name: "Fetch", exact: true }).click();
+      await keep.waitFor({ timeout: 20_000 });
+      await keep.locator(".prune-row", { hasText: "origin/share/ideas" }).locator(".prune-tag", { hasText: "1 commit only there" }).waitFor({ timeout: 5000 });
+      await accessible("Keep branches");
+      await keep.getByRole("button", { name: "Keep it as a branch" }).click();
+      await page.locator(".toast", { hasText: "Kept a branch here, as share/ideas" }).waitFor({ timeout: 15_000 });
+      expect(git("rev-parse", "share/ideas") === idea, "share/ideas isn't kept at its commit");
+      await dismissToast();
+    } finally {
+      // As it was, for the steps after.
+      for (let tries = 0; tries < 3 && (await page.locator(".dialog").count()) > 0; tries++) await page.keyboard.press("Escape");
+      git("remote", "set-url", "origin", was);
+      for (const line of git("for-each-ref", "--format=%(refname)", "refs/remotes/origin/", "refs/tributary/gone/").split("\n").filter(Boolean)) {
+        if (line !== "refs/remotes/origin/HEAD") git("update-ref", "-d", line);
+      }
+      for (const line of remembered) {
+        const [reference, id] = line.split(" ");
+        git("update-ref", reference, id);
+      }
+      execFileSync("git", ["-C", was, "update-ref", "-d", "refs/heads/share/ideas"]);
+      try {
+        git("branch", "-q", "-D", "share/ideas");
+      } catch {
+        // Not kept, if the step stopped before.
+      }
+      rmSync(moved, { recursive: true, force: true });
+      await page.keyboard.press("F5");
+    }
+  });
+
   await step("syncs a branch with commits on both sides, force pushes it when it was rewritten, and pushes past a hook that fails", async () => {
     const was = (await page.locator('.tabs > .tab[aria-selected="true"]').textContent()).trim();
     await page.locator(".tab", { hasText: /^notebook$/ }).dispatchEvent("mousedown", { button: 0 });

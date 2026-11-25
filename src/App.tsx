@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { forgetAvatars, openInApp, takeRecoveryNote, WORKTREE_ID, type Action, type PullRequest } from "./api";
+import { forgetAvatars, openInApp, setAsideBranches, takeRecoveryNote, WORKTREE_ID, type Action, type PullRequest } from "./api";
 import { useOpenApps } from "./lib/apps";
 import { useLfsLocks } from "./lib/locks";
 import { isPatchFile } from "./lib/patches";
@@ -276,6 +276,16 @@ export default function App() {
       if (remote) prs.refresh(true);
       if (action.kind === "push" && outcome?.pushedFiles) lockRelease.pushedFiles(outcome.pushedFiles);
       submodules.ran(action);
+      // A fetch you asked for set aside branches the remote no longer has, with work found
+      // nowhere else here: asked about now (a background fetch's wait for one you ask for).
+      if (outcome && snapshot && ((action.kind === "fetch" && !action.background) || action.kind === "fetchLatest")) {
+        const path = snapshot.path;
+        setAsideBranches(path)
+          .then((found) => {
+            if (found.length > 0) setDialog((open) => open ?? { kind: "keepRemembered" });
+          })
+          .catch(() => {});
+      }
     },
   });
   const { act, running } = actions;

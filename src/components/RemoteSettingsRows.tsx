@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { remotes as listRemotes, type Action, type RemoteInfo } from "../api";
+import { createPortal } from "react-dom";
+import { moveCheck, remotes as listRemotes, type Action, type MoveCheck, type RememberedChoice, type RemoteInfo } from "../api";
+import { MoveRemoteDialog } from "./MoveRemoteDialog";
 import type { SettingRow } from "./SettingsDialog";
 import { Button } from "./ui/Button";
 
@@ -19,6 +21,8 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
   const [removing, setRemoving] = useState<string | null>(null);
   const [adding, setAdding] = useState({ name: "", url: "" });
   const [busy, setBusy] = useState(false);
+  /** A new address that lacks branches remembered from the old one: asked about first. */
+  const [moving, setMoving] = useState<{ remote: RemoteInfo; url: string; check: MoveCheck; rest: Action[] } | null>(null);
   const load = useCallback(() => {
     listRemotes(path)
       .then(setRemotes)
@@ -45,12 +49,35 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
 
   const saveEdit = async (remote: RemoteInfo, draft: Editing["draft"]) => {
     const name = draft.name.trim();
-    const actions: Action[] = [];
+    const url = draft.url.trim();
+    // The rename last: what comes before it uses the remote's name as it is.
+    const rest: Action[] = [];
+    if (draft.pushUrl.trim() !== (remote.pushUrl ?? "")) rest.push({ kind: "setRemoteUrl", name: remote.name, url: draft.pushUrl, push: true });
+    if (name !== remote.name) rest.push({ kind: "renameRemote", from: remote.name, to: name });
     // Addresses with a password or token in them show without it: unchanged, they're left alone.
-    if (draft.url.trim() !== remote.url) actions.push({ kind: "setRemoteUrl", name: remote.name, url: draft.url, push: false });
-    if (draft.pushUrl.trim() !== (remote.pushUrl ?? "")) actions.push({ kind: "setRemoteUrl", name: remote.name, url: draft.pushUrl, push: true });
-    if (name !== remote.name) actions.push({ kind: "renameRemote", from: remote.name, to: name });
-    if (actions.length === 0 || (await apply(actions))) setEditing(null);
+    if (url !== remote.url) {
+      // A new address without branches only remembered from the old one would lose their
+      // work at the next fetch: asked about first. (When it can't be checked at all, the
+      // address change itself says what's wrong.)
+      setBusy(true);
+      const check = await moveCheck(path, remote.name, url).catch(() => null);
+      setBusy(false);
+      if (check && check.atRisk.length > 0) {
+        setMoving({ remote, url, check, rest });
+        return;
+      }
+      rest.unshift({ kind: "setRemoteUrl", name: remote.name, url, push: false });
+    }
+    if (rest.length === 0 || (await apply(rest))) setEditing(null);
+  };
+
+  const move = async (then: RememberedChoice) => {
+    if (!moving) return;
+    const { remote, url, check, rest } = moving;
+    const moved: Action = { kind: "moveRemote", name: remote.name, url, then, branches: check.atRisk.map((branch) => branch.name), local: check.local };
+    const ok = await apply([moved, ...rest]);
+    setMoving(null);
+    if (ok) setEditing(null);
   };
 
   const rows: SettingRow[] = [];
@@ -90,9 +117,14 @@ export function useRemoteRows(path: string, run: (action: Action) => Promise<boo
                 <span className="button-label">Cancel</span>
               </Button>
               <Button type="submit" kind="primary" disabled={busy || !draft.name.trim() || !draft.url.trim()}>
-                Save
+                {busy && draft.url.trim() !== remote.url && !moving ? "Checking the address…" : "Save"}
               </Button>
             </div>
+            {moving &&
+              createPortal(
+                <MoveRemoteDialog remote={remote.name} from={remote.url} check={moving.check} busy={busy} onCancel={() => setMoving(null)} onMove={(then) => void move(then)} />,
+                document.body,
+              )}
           </form>
         ),
       });
