@@ -157,6 +157,15 @@
   font-size: var(--type-sm);
 }
 
+/* A dropdown draws its own words, centred by the font's line box, and they can't be trimmed to
+   their capitals like a button's. Elsewhere that leaves them within half a screen pixel of the
+   middle, but Windows draws them a pixel higher: at 100%, 8 pixels above the capitals and 11
+   below. A pixel more room above them puts them in the middle there too. */
+:root.windows .settings-select {
+  padding-top: var(--space-2);
+  padding-bottom: 0;
+}
+
 .settings-select:focus {
   border-color: var(--accent);
   outline: none;
