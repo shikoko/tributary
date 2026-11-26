@@ -193,6 +193,22 @@ gh secret set TAURI_SIGNING_PRIVATE_KEY --env release < ~/.tauri/tributary.key
 
 and put the public key in `tauri.conf.json`. Apps signed with the old key can't install updates signed with a new one, so they need to be reinstalled by hand once.
 
+### Code signing on Windows
+
+The Windows files are code-signed by [SignPath](https://signpath.io), with SignPath Foundation's certificate for open-source projects (the policy is on the website, `site/code-signing.html`). The Build workflow sends them to SignPath from each Windows job, a layer at a time, as each is put inside the next:
+
+1. the program (`tributary.exe`) and the uninstall window (`tributary-uninstall.exe`);
+2. the two installers made around them (just for you, and for everyone on the PC);
+3. the setup that carries the installers, which is what people download. It's signed for updates after this, so the update signature covers SignPath's.
+
+What SignPath may sign is the project's artifact configuration, kept in `.github/signpath/artifact-configuration.xml`: only those files, named so, with Tributary's name and the build's version in them. It's pasted into the SignPath project (Artifact Configurations → the default one → Edit). Change both together: SignPath refuses a request that doesn't match.
+
+The token SignPath's CI user signs in with is the `SIGNPATH_API_TOKEN` repository secret.
+
+For now it signs only with SignPath's test certificate, which Windows doesn't trust, when a build is started by hand: **Actions → Build → Run workflow**, with **Sign the Windows files with SignPath's test certificate** ticked. Releases will be signed with the real certificate, once SignPath has issued it, and each signing request will need the maintainer's approval in SignPath.
+
+The NSIS installers' own `uninstall.exe`, which the uninstall window runs, isn't signed: the installer writes it out as it installs.
+
 ### Third-party notices
 
 `THIRD_PARTY_NOTICES.txt` lists the licence of every Rust crate and npm package that goes into the app, and is installed with it (Help → Third-Party Licences opens it). The Build workflow makes it afresh before building; to update the copy in the repository after changing dependencies:

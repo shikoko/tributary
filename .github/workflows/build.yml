@@ -11,10 +11,20 @@ name: Build
 #   (the run's Artifacts, unsigned).
 # The next version comes from the labels of the pull requests merged since the last
 # release (.github/scripts/next-version.mjs).
+#
+# The Windows files can be code-signed by SignPath (SignPath Foundation's certificate, see
+# site/code-signing.html), with what SignPath may sign set in the project's artifact
+# configuration (.github/signpath/artifact-configuration.xml). For now only by hand, with
+# its test certificate, until SignPath has the real one.
 on:
   push:
     branches: [develop, main]
   workflow_dispatch:
+    inputs:
+      sign:
+        description: Sign the Windows files with SignPath's test certificate
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -102,12 +112,16 @@ jobs:
     # as updates).
     environment: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && 'release' || 'test-build' }}
     # To attest where the installers came from (below): a token to sign with, and where the
-    # attestations are kept.
+    # attestations are kept. SignPath reads the job and the files it signs from the run.
     permissions:
       contents: read
+      actions: read
       id-token: write
       attestations: write
       artifact-metadata: write
+    env:
+      # The SignPath signing policy the Windows files are signed with, or none.
+      SIGNPATH_POLICY: ${{ inputs.sign && 'test-signing' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -125,6 +139,7 @@ jobs:
             os: windows-latest
             target: x86_64-pc-windows-msvc
             rust-targets: x86_64-pc-windows-msvc
+            arch: x64
             bundles: |
               src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
               src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe.sig
@@ -134,6 +149,7 @@ jobs:
             os: windows-11-arm
             target: aarch64-pc-windows-msvc
             rust-targets: aarch64-pc-windows-msvc
+            arch: arm64
             bundles: |
               src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
               src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*-setup.exe.sig
@@ -198,12 +214,16 @@ jobs:
 
       # Tributary's uninstall window: the setup, without installers in it, installed with the
       # app (as a resource), which the uninstall entry points to (src-tauri/windows/hooks.nsh).
+      # It carries the release's version, like the rest (SignPath checks it).
       - name: Uninstall window
         if: runner.os == 'Windows'
         shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           npm run setup:build
-          cargo build --release --manifest-path src-tauri/Cargo.toml -p tributary-setup --features custom-protocol --target ${{ matrix.target }}
+          TRIBUTARY_VERSION="$VERSION" TAURI_CONFIG="{\"version\":\"$VERSION\"}" \
+            cargo build --release --manifest-path src-tauri/Cargo.toml -p tributary-setup --features custom-protocol --target ${{ matrix.target }}
           mkdir -p src-tauri/target/uninstall
           cp "src-tauri/target/${{ matrix.target }}/release/tributary-setup.exe" src-tauri/target/uninstall/tributary-uninstall.exe
           echo "UNINSTALLER=target/uninstall/tributary-uninstall.exe" >> "$GITHUB_ENV"
@@ -230,10 +250,10 @@ jobs:
             console.log(JSON.stringify(config));
           ')
           echo "$config" > "$RUNNER_TEMP/tauri-config.json"
-          # On Linux, only the AppImage (not the .deb and .rpm "all" would add); on Windows, only
-          # the NSIS installer the setup carries (not the .msi).
-          # The x64 Linux job makes a .deb too, for the Flatpak (see below).
-          npm run tauri build -- --target ${{ matrix.target }} --config "$config" ${{ matrix.target == 'x86_64-unknown-linux-gnu' && '--bundles appimage,deb' || runner.os == 'Linux' && '--bundles appimage' || runner.os == 'Windows' && '--bundles nsis' || '' }}
+          # On Linux, only the AppImage (not the .deb and .rpm "all" would add). The x64 Linux job
+          # makes a .deb too, for the Flatpak (see below). On Windows, only the program: it's
+          # signed before the installers are made around it (below).
+          npm run tauri build -- --target ${{ matrix.target }} --config "$config" ${{ matrix.target == 'x86_64-unknown-linux-gnu' && '--bundles appimage,deb' || runner.os == 'Linux' && '--bundles appimage' || runner.os == 'Windows' && '--no-bundle' || '' }}
 
       # The disk image opens on a window showing Tributary and Applications over the
       # background, telling people to drag one onto the other: Finder keeps that window's
@@ -254,35 +274,112 @@ jobs:
 
       # On Windows, what people download is Tributary's own setup: a window in the app's
       # style that carries two installers for the app (just for you, and for everyone on the
-      # PC) and runs one silently. It's also what the automatic updates download, so it's
-      # signed like the installers, and it's the only Windows file in the release.
+      # PC) and runs one silently. It's also what the automatic updates download, and it's the
+      # only Windows file in the release. With SignPath, each layer is signed before it's put
+      # in the next: the program and the uninstall window, then the installers, then the setup.
+      #
+      # Making an installer marks the program inside as installed by one (for the updater),
+      # which changes the file: that's done here instead, before the program is signed, and the
+      # installers are made without it (--no-binary-patching).
+      - name: Mark the program as installed by an installer
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          node -e '
+            const fs = require("fs");
+            const file = process.argv[1];
+            const data = fs.readFileSync(file);
+            const at = data.indexOf("__TAURI_BUNDLE_TYPE_VAR_UNK");
+            if (at < 0) {
+              console.error(`::error::${file} has no bundle type to mark (has Tauri changed how it does this?).`);
+              process.exit(1);
+            }
+            data.write("__TAURI_BUNDLE_TYPE_VAR_NSS", at);
+            fs.writeFileSync(file, data);
+          ' "src-tauri/target/${{ matrix.target }}/release/tributary.exe"
+
+      - name: Sign the program
+        if: runner.os == 'Windows' && env.SIGNPATH_POLICY != ''
+        uses: ./.github/actions/signpath
+        with:
+          name: program-${{ matrix.arch }}
+          arch: ${{ matrix.arch }}
+          files: |
+            src-tauri/target/${{ matrix.target }}/release/tributary.exe
+            src-tauri/target/uninstall/tributary-uninstall.exe
+          policy: ${{ env.SIGNPATH_POLICY }}
+          version: ${{ needs.version.outputs.version }}
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+
+      - name: Build the installers
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          bundle=src-tauri/target/${{ matrix.target }}/release/bundle/nsis
+          work=src-tauri/target/setup-installers
+          rm -rf "$bundle" "$work"
+          mkdir -p "$work"
+          # Just for you (in your own folder).
+          npm run tauri bundle -- --target ${{ matrix.target }} --bundles nsis --no-binary-patching --config "$RUNNER_TEMP/tauri-config.json" \
+            --config '{"bundle":{"createUpdaterArtifacts":false}}'
+          mv "$(ls "$bundle"/*-setup.exe)" "$work/just-me.exe"
+          # The same app, for everyone on the PC (in Program Files).
+          npm run tauri bundle -- --target ${{ matrix.target }} --bundles nsis --no-binary-patching --config "$RUNNER_TEMP/tauri-config.json" \
+            --config '{"bundle":{"createUpdaterArtifacts":false,"windows":{"nsis":{"installMode":"perMachine"}}}}'
+          mv "$(ls "$bundle"/*-setup.exe)" "$work/everyone.exe"
+
+      - name: Sign the installers
+        if: runner.os == 'Windows' && env.SIGNPATH_POLICY != ''
+        uses: ./.github/actions/signpath
+        with:
+          name: installers-${{ matrix.arch }}
+          arch: ${{ matrix.arch }}
+          files: |
+            src-tauri/target/setup-installers/just-me.exe
+            src-tauri/target/setup-installers/everyone.exe
+          policy: ${{ env.SIGNPATH_POLICY }}
+          version: ${{ needs.version.outputs.version }}
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+
       - name: Build the setup
         if: runner.os == 'Windows'
         shell: bash
         env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          bundle=src-tauri/target/${{ matrix.target }}/release/bundle/nsis
+          work=src-tauri/target/setup-installers
+          npm run setup:build
+          TRIBUTARY_INSTALLER="$(cygpath -w "$PWD/$work/just-me.exe")" \
+          TRIBUTARY_INSTALLER_ALL="$(cygpath -w "$PWD/$work/everyone.exe")" \
+          TRIBUTARY_VERSION="$VERSION" TAURI_CONFIG="{\"version\":\"$VERSION\"}" \
+            cargo build --release --manifest-path src-tauri/Cargo.toml -p tributary-setup --features custom-protocol --target ${{ matrix.target }}
+          cp "src-tauri/target/${{ matrix.target }}/release/tributary-setup.exe" "$bundle/Tributary_${VERSION}_${{ matrix.arch }}-setup.exe"
+
+      - name: Sign the setup
+        if: runner.os == 'Windows' && env.SIGNPATH_POLICY != ''
+        uses: ./.github/actions/signpath
+        with:
+          name: setup-${{ matrix.arch }}
+          arch: ${{ matrix.arch }}
+          files: src-tauri/target/${{ matrix.target }}/release/bundle/nsis/Tributary_${{ needs.version.outputs.version }}_${{ matrix.arch }}-setup.exe
+          policy: ${{ env.SIGNPATH_POLICY }}
+          version: ${{ needs.version.outputs.version }}
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+
+      # Signed for updates last: the signature installed copies check is of the file as it's
+      # published, so after SignPath's.
+      - name: Sign the setup for updates
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           bundle=src-tauri/target/${{ matrix.target }}/release/bundle/nsis
-          work=src-tauri/target/setup-installers
-          mkdir -p "$work"
-          installer=$(ls "$bundle"/*-setup.exe)
-          name=$(basename "$installer")
-          version=$(sed -E 's/^Tributary_([^_]+)_.*$/\1/' <<<"$name")
-          mv "$installer" "$work/just-me.exe"
-          rm -f "$bundle"/*.sig
-          # The same app, as an installer for everyone on the PC (in Program Files).
-          npm run tauri bundle -- --target ${{ matrix.target }} --bundles nsis --config "$RUNNER_TEMP/tauri-config.json" \
-            --config '{"bundle":{"createUpdaterArtifacts":false,"windows":{"nsis":{"installMode":"perMachine"}}}}'
-          mv "$(ls "$bundle"/*-setup.exe)" "$work/everyone.exe"
-          npm run setup:build
-          TRIBUTARY_INSTALLER="$(cygpath -w "$PWD/$work/just-me.exe")" \
-          TRIBUTARY_INSTALLER_ALL="$(cygpath -w "$PWD/$work/everyone.exe")" \
-          TRIBUTARY_VERSION="$version" TAURI_CONFIG="{\"version\":\"$version\"}" \
-            cargo build --release --manifest-path src-tauri/Cargo.toml -p tributary-setup --features custom-protocol --target ${{ matrix.target }}
-          cp "src-tauri/target/${{ matrix.target }}/release/tributary-setup.exe" "$bundle/$name"
           if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            npm run tauri signer sign -- --app-version "$version" "$bundle/$name"
+            npm run tauri signer sign -- --app-version "$VERSION" "$bundle/Tributary_${VERSION}_${{ matrix.arch }}-setup.exe"
           fi
           ls -l "$bundle"
 
