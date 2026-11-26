@@ -33,6 +33,15 @@ export type Action =
   | { kind: "resetHard"; id: string }
   | { kind: "checkoutBranch"; name: string }
   | { kind: "checkoutRemoteBranch"; name: string }
+  | {
+    kind: "takeUpstream";
+    branch: string;
+    from: string;
+    to: string;
+    keep: Array<string>;
+    checkout: boolean;
+  }
+  | { kind: "moveBranch"; branch: string; from: string; to: string }
   | { kind: "checkoutCommit"; id: string }
   | { kind: "createBranch"; name: string; id: string; checkout: boolean }
   | { kind: "fetch"; background?: boolean }
@@ -617,6 +626,7 @@ export type Commands = {
   tags_to_push: { args: { path: string; remote?: string | null }; returns: TagsToPush };
   branches_to_push: { args: { path: string; remote?: string | null }; returns: BranchesToPush };
   set_aside_branches: { args: { path: string }; returns: Array<RememberedBranch> };
+  rebased_upstream: { args: { path: string; branch: string }; returns: RebasedUpstream | null };
   move_check: { args: { path: string; remote: string; url: string }; returns: MoveCheck };
   unseen_commits: {
     args: { path: string; reference: string; since?: string | null };
@@ -2381,6 +2391,53 @@ export type RebaseStep = {
 };
 
 /**
+ * A local branch whose remote branch was rebased elsewhere with its commits: how many of
+ * its own commits the remote branch has as the same changes, and how many it hasn't.
+ */
+export type Rebased = { inUpstream: number; onlyHere: number };
+
+/**
+ * One of the branch's own commits, and its version in the remote branch, if it has one.
+ */
+export type RebasedCommit = {
+  id: string;
+  /**
+   * Its id in the remote branch (short), or `None` when that hasn't got it.
+   */
+  now: string | null;
+  summary: string;
+  /**
+   * Its changes differ a little there: changed while it was rebased, to fit what's under it.
+   */
+  changed: boolean;
+};
+
+/**
+ * A branch and its remote branch, rebased elsewhere: each has commits the other hasn't, and
+ * some of the branch's are in the remote branch as new versions.
+ */
+export type RebasedUpstream = {
+  branch: string;
+  /**
+   * Like `origin/fix/door`.
+   */
+  upstream: string;
+  /**
+   * Where the branch and its remote branch are (full ids).
+   */
+  from: string;
+  to: string;
+  /**
+   * The branch's own commits (those not in the remote branch as they are), oldest first.
+   */
+  commits: Array<RebasedCommit>;
+  /**
+   * Whether the branch is checked out.
+   */
+  current: boolean;
+};
+
+/**
  * A pull or merge request, for Team activity's figures.
  */
 export type RecentRequest = {
@@ -2427,6 +2484,11 @@ export type RefLabel = {
    */
   aheadCommits?: number;
   behindCommits?: number;
+  /**
+   * For a local branch that has diverged from its remote branch, which was rebased with
+   * some of its commits.
+   */
+  rebased?: Rebased;
 };
 
 /**

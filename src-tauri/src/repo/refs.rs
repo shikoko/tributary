@@ -34,6 +34,15 @@ pub struct Upstream {
     pub commit: Option<String>,
 }
 
+/// A local branch whose remote branch was rebased elsewhere with its commits: how many of
+/// its own commits the remote branch has as the same changes, and how many it hasn't.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct Rebased {
+    pub in_upstream: u32,
+    pub only_here: u32,
+}
+
 #[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RefLabel {
@@ -64,6 +73,11 @@ pub struct RefLabel {
     #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub behind_commits: Option<u32>,
+    /// For a local branch that has diverged from its remote branch, which was rebased with
+    /// some of its commits.
+    #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rebased: Option<Rebased>,
 }
 
 impl RefLabel {
@@ -147,6 +161,7 @@ pub(super) fn collect_refs(
             behind: None,
             ahead_commits: None,
             behind_commits: None,
+            rebased: None,
         });
     }
     out
@@ -162,6 +177,8 @@ pub(crate) struct Distance {
     /// Every commit, as git counts them.
     pub ahead_commits: u32,
     pub behind_commits: u32,
+    /// Diverged, with the upstream rebased elsewhere with some of its commits.
+    pub rebased: Option<Rebased>,
 }
 
 /// Two branches' tips, and how many commits each has that the other doesn't.
@@ -170,6 +187,11 @@ type Tips = (String, String);
 /// First-parent distances already worked out, by the two tips' ids: they only change when
 /// one of the branches moves.
 static FIRST_PARENT: LazyLock<Mutex<HashMap<Tips, (u32, u32)>>> = LazyLock::new(Default::default);
+
+/// Which of a branch's own commits its upstream has as the same changes, by the two tips' ids.
+static REBASED: LazyLock<Mutex<HashMap<Tips, Option<Rebased>>>> = LazyLock::new(Default::default);
+/// Branches further apart than this aren't compared, which reads every commit's changes.
+const MOST_REBASED: (u32, u32) = (100, 500);
 
 /// Each local branch's distance from the branch it tracks. Branches without an upstream (or
 /// whose upstream is gone) aren't listed.
@@ -217,11 +239,19 @@ pub(crate) fn upstream_counts(workdir: &Path) -> HashMap<String, Distance> {
                     .and_then(|tip| first_parent_distance(&git, &branch.id, tip))
                     .unwrap_or((branch.ahead, branch.behind))
             };
+            let rebased = (branch.ahead > 0
+                && branch.behind > 0
+                && branch.ahead <= MOST_REBASED.0
+                && branch.behind <= MOST_REBASED.1)
+                .then(|| tips.get(&branch.upstream))
+                .flatten()
+                .and_then(|tip| rebased(&git, &branch.id, tip));
             let distance = Distance {
                 ahead,
                 behind,
                 ahead_commits: branch.ahead,
                 behind_commits: branch.behind,
+                rebased,
             };
             (branch.name, distance)
         })
@@ -252,6 +282,37 @@ fn first_parent_distance(git: &Git, local: &str, upstream: &str) -> Option<(u32,
     }
     known.insert(key, found);
     Some(found)
+}
+
+/// How many of `local`'s own commits `upstream` has as the same changes (by patch id), and
+/// how many it hasn't; `None` when it has none of them (from the cache when it's known).
+fn rebased(git: &Git, local: &str, upstream: &str) -> Option<Rebased> {
+    let key = (local.to_owned(), upstream.to_owned());
+    if let Some(&known) = REBASED.lock().ok()?.get(&key) {
+        return known;
+    }
+    // "=" before a commit the other side has as the same changes, "+" before one it hasn't.
+    let output = git
+        .run(&[
+            "rev-list",
+            "--left-only",
+            "--cherry-mark",
+            "--no-merges",
+            &format!("{local}...{upstream}"),
+        ])
+        .ok()?;
+    let marked = |mark: char| output.lines().filter(|line| line.starts_with(mark)).count() as u32;
+    let found = Some(Rebased {
+        in_upstream: marked('='),
+        only_here: marked('+'),
+    })
+    .filter(|rebased| rebased.in_upstream > 0);
+    let mut known = REBASED.lock().ok()?;
+    if known.len() > 2000 {
+        known.clear();
+    }
+    known.insert(key, found);
+    found
 }
 
 /// A line of `for-each-ref`: a branch, where it is, what it tracks and git's counts.

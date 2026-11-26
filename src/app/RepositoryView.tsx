@@ -3,7 +3,7 @@ import { useContext, useEffect, useRef, useState, useMemo, type ComponentProps, 
 import { onCommitDrop } from "../lib/drag";
 import { usePresence } from "../lib/usePresence";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { fullRefName, PAGE_SIZE, teamPulse, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type PullRequest, type RepoSnapshot, type RequestConversation, type RequestDetails, type Worktree } from "../api";
+import { fullRefName, PAGE_SIZE, rebasedUpstream, teamPulse, type Action, type CommitRow, type DiffSource, type FileChange, type FileChecks, type Lock, type Overlap, type PullRequest, type RepoSnapshot, type RequestConversation, type RequestDetails, type Worktree } from "../api";
 import { isShown } from "../lib/diffTargets";
 import { withCoAuthor } from "../lib/commitMessage";
 import type { LfsLocks } from "../lib/locks";
@@ -293,7 +293,24 @@ export function RepositoryView(props: Props) {
   const lockMenu = (lock: Lock, x: number, y: number) => menu.show(x, y, lockMenuItems(fileMenuContext, lock));
   const checkout = (entry: { pill: Parameters<typeof checkoutFor>[1]; commit: CommitRow | undefined }) => {
     const action = entry.commit && checkoutFor(ctx, entry.pill, entry.commit);
-    if (action && canChange) act(action);
+    if (!action || !canChange) return;
+    // A remote branch whose local branch has diverged from it: when it was rebased elsewhere
+    // with the local branch's commits, its version is offered in their place first.
+    const diverged =
+      action.kind === "checkoutRemoteBranch"
+        ? [...counts.aheadBehind].find(([, sync]) => sync.upstream === action.name && sync.ahead > 0 && sync.behind > 0)?.[0]
+        : undefined;
+    if (!diverged) {
+      act(action);
+      return;
+    }
+    rebasedUpstream(snapshot.path, diverged).then(
+      (found) => {
+        if (found) openDialog({ kind: "takeUpstream", found, checkout: true });
+        else act(action);
+      },
+      () => act(action),
+    );
   };
   const sidebarMenu = (entry: RefEntry, x: number, y: number) => {
     const name = fullRefName(entry);
@@ -533,6 +550,7 @@ export function RepositoryView(props: Props) {
       props.openSettings("Accounts");
     },
     openSettings: (section) => props.openSettings(section),
+    showRewrite: (branch) => setRewrite({ branch, base: null }),
   };
 
   return (

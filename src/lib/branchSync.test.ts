@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeCount, describeSync } from "./branchSync";
+import { describeCount, describeRebased, describeSync } from "./branchSync";
 
 describe("describeSync", () => {
   it("says how far a branch is from the one it tracks", () => {
@@ -22,6 +22,22 @@ describe("describeCount", () => {
     );
     expect(describeSync({ ahead: 2, behind: 1, behindCommits: 4, upstream: "origin/develop" })).toBe(
       "2 commits ahead of and 1 change (4 commits) behind origin/develop",
+    );
+  });
+});
+
+describe("describeRebased", () => {
+  it("says the upstream was rebased with the branch's commits, and how to take it", () => {
+    const sync = { ahead: 4, behind: 7, upstream: "origin/upstairs-rooms" };
+    expect(describeRebased(sync)).toBeNull();
+    expect(describeRebased({ ...sync, rebased: { inUpstream: 4, onlyHere: 0 } })).toBe(
+      "Rebased on origin/upstairs-rooms: all 4 of your commits are in its version. Double-click origin/upstairs-rooms to take it.",
+    );
+    expect(describeRebased({ ...sync, rebased: { inUpstream: 1, onlyHere: 0 } })).toBe(
+      "Rebased on origin/upstairs-rooms: your commit is in its version. Double-click origin/upstairs-rooms to take it.",
+    );
+    expect(describeRebased({ ...sync, rebased: { inUpstream: 4, onlyHere: 1 } })).toBe(
+      "Rebased on origin/upstairs-rooms: 4 of your commits are in its version, and 1 isn't. Double-click origin/upstairs-rooms to take it.",
     );
   });
 });

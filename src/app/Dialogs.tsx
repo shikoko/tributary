@@ -9,6 +9,7 @@ import { ForcePushDialog } from "../components/ForcePushDialog";
 import { ChooseUpstreamDialog } from "../components/ChooseUpstreamDialog";
 import { PushBranchesDialog } from "../components/PushBranchesDialog";
 import { KeepRememberedDialog } from "../components/KeepRememberedDialog";
+import { TakeUpstreamDialog } from "../components/TakeUpstreamDialog";
 import { PushTagsDialog } from "../components/PushTagsDialog";
 import { InteractiveRebaseDialog } from "../components/InteractiveRebaseDialog";
 import { PruneLfsDialog } from "../components/LfsCleanup";
@@ -310,6 +311,30 @@ function KeepRemembered(_: Shown<"keepRemembered">) {
       onForget={(references) => {
         closeDialog();
         act({ kind: "forgetRemembered", references });
+      }}
+    />
+  );
+}
+
+function TakeUpstream({ dialog }: Shown<"takeUpstream">) {
+  const { act, closeDialog, showRewrite } = useOpenRepository();
+  const { found, checkout } = dialog;
+  return (
+    <TakeUpstreamDialog
+      found={found}
+      onCancel={closeDialog}
+      onKeepMine={() => {
+        closeDialog();
+        // Opened by a double-click on the remote branch: check the branch out, as it is.
+        if (checkout && !found.current) act({ kind: "checkoutBranch", name: found.branch });
+      }}
+      onTake={(keep) => {
+        closeDialog();
+        act({ kind: "takeUpstream", branch: found.branch, from: found.from, to: found.to, keep, checkout: checkout && !found.current });
+      }}
+      onShowChanges={() => {
+        closeDialog();
+        showRewrite(found.upstream);
       }}
     />
   );
@@ -644,6 +669,7 @@ const DIALOGS: { [K in Kind]: (props: Shown<K>) => React.ReactNode } = {
   pushTags: PushTags,
   pushBranches: PushBranches,
   keepRemembered: KeepRemembered,
+  takeUpstream: TakeUpstream,
   forceUnlock: ForceUnlock,
   applyPatch: ApplyPatch,
   recover: Recover,

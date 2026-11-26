@@ -1,11 +1,11 @@
 import { useContext, type MouseEvent, type ReactNode } from "react";
 import { fullRefName, type Stacked, type Visibility } from "../../api";
-import { describeSync, type BranchSync } from "../../lib/branchSync";
+import { describeRebased, describeSync, type BranchSync } from "../../lib/branchSync";
 import { pressLabel } from "../../lib/drag";
 import { entryLane, type LaneLabel } from "../../lib/lanes";
 import { PullRequestsContext } from "../../lib/pullRequests";
 import type { RefEntry } from "../../lib/refs";
-import { CheckIcon, EyeIcon, EyeOffIcon, LaptopIcon, LockIcon } from "../Icons";
+import { CheckIcon, EyeIcon, EyeOffIcon, LaptopIcon, LockIcon, RebaseIcon } from "../Icons";
 import { PullRequestBadge } from "../RefPills";
 
 /**
@@ -117,11 +117,20 @@ export function RefItem({ entry, label, icon, depth = 0, selected, visibility, c
           </span>
         )}
         {pr && <PullRequestBadge pr={pr} onOpen={pullRequests!.open} />}
-        {counts && (counts.ahead > 0 || counts.behind > 0) && (
-          <span className="sidebar-counts" title={describeSync({ ...counts, upstream: entry.upstream ?? counts.upstream }) ?? undefined}>
-            {counts.ahead > 0 && <span>↑{counts.ahead}</span>}
-            {counts.behind > 0 && <span>↓{counts.behind}</span>}
+        {counts?.rebased ? (
+          // Its upstream was rebased elsewhere with its commits: said in place of how far apart they are.
+          <span className="sidebar-counts rebased" title={describeRebased({ ...counts, upstream: entry.upstream ?? counts.upstream }) ?? undefined}>
+            <RebaseIcon size={11} />
+            <span>rebased</span>
           </span>
+        ) : (
+          counts &&
+          (counts.ahead > 0 || counts.behind > 0) && (
+            <span className="sidebar-counts" title={describeSync({ ...counts, upstream: entry.upstream ?? counts.upstream }) ?? undefined}>
+              {counts.ahead > 0 && <span>↑{counts.ahead}</span>}
+              {counts.behind > 0 && <span>↓{counts.behind}</span>}
+            </span>
+          )
         )}
         {canHide && (
           <button

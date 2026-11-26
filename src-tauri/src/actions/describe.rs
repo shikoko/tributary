@@ -132,11 +132,14 @@ impl Action {
             Action::CheckoutBranch { .. }
             | Action::CheckoutRemoteBranch { .. }
             | Action::CheckoutCommit { .. } => Some(Running::Checkout),
-            Action::CreateBranch { checkout, .. } => checkout.then_some(Running::Checkout),
+            Action::CreateBranch { checkout, .. } | Action::TakeUpstream { checkout, .. } => {
+                checkout.then_some(Running::Checkout)
+            }
             Action::DiscardFiles { .. } | Action::DiscardAll => Some(Running::Discard),
             // As the action it runs again.
             Action::StashAndRetry { action, .. } => action.running(),
             Action::ResetHard { .. }
+            | Action::MoveBranch { .. }
             | Action::RestoreFromHistory { .. }
             | Action::DeleteShelf { .. }
             | Action::StashPush { .. }
@@ -330,6 +333,17 @@ pub fn undo(action: &Action, before: &Before, backup: Option<&str>) -> Option<Ac
         Action::SplitCommit { .. } | Action::Commit { .. } | Action::FixupInto { .. } => {
             reset_soft()
         }
+        // Moved back where it was, from where it went (in the backup).
+        Action::TakeUpstream { branch, from, .. } => backup.map(|tip| Action::MoveBranch {
+            branch: branch.clone(),
+            from: tip.into(),
+            to: from.clone(),
+        }),
+        Action::MoveBranch { branch, from, to } => Some(Action::MoveBranch {
+            branch: branch.clone(),
+            from: to.clone(),
+            to: from.clone(),
+        }),
         // Branches that weren't deleted are skipped when restoring.
         Action::DeleteBranches { branches } => Some(Action::RestoreBranches {
             branches: branches.clone(),

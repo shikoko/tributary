@@ -37,6 +37,7 @@ export function useBranchCounts(snapshot: RepoSnapshot | null, byId: Map<string,
               aheadCommits: ref.aheadCommits,
               behindCommits: ref.behindCommits,
               upstream: ref.upstream,
+              rebased: ref.rebased,
             });
           else branches.push({ name: ref.name, id: commit.id, upstream: ref.upstream });
         }

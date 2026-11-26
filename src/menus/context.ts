@@ -1,5 +1,5 @@
 // What the menus need from the app, and helpers they share with the dialogs.
-import type { Action, CommitRow, Lock, PullRequest, RepoSnapshot, Rewrite, Stacked, Visibility, Worktree } from "../api";
+import type { Action, CommitRow, Lock, PullRequest, RebasedUpstream, RepoSnapshot, Rewrite, Stacked, Visibility, Worktree } from "../api";
 import type { PullRequestLookup } from "../lib/pullRequests";
 import { type RefPill } from "../lib/refs";
 import { shortId } from "../lib/format";
@@ -33,6 +33,11 @@ export type OpenDialog =
   | { kind: "pushBranches" }
   /** After a fetch: branches the remote no longer has, with work found nowhere else here. */
   | { kind: "keepRemembered" }
+  /**
+   * A branch whose remote branch was rebased elsewhere with its commits: take that version
+   * (with those it hasn't got on top), and check the branch out after when `checkout`.
+   */
+  | { kind: "takeUpstream"; found: RebasedUpstream; checkout: boolean }
   | { kind: "clone" }
   /** Clean up local branches that are gone from the remote or merged. */
   | { kind: "prune" }

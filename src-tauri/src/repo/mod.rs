@@ -23,7 +23,7 @@ pub use details::{CommitDetails, CommitSignature, Person, SignatureStatus, detai
 pub use operation::{Operation, OperationKind};
 pub use reflog::{ReflogEntry, reflog};
 pub(crate) use refs::web_remotes;
-pub use refs::{HiddenRef, RefKind, RefLabel, Upstream, is_long_lived_branch};
+pub use refs::{HiddenRef, Rebased, RefKind, RefLabel, Upstream, is_long_lived_branch};
 pub use remotes::{NewCommits, RemoteState, commits_between, remote_state};
 pub use snapshot::{
     CommitRow, Identity, LoadOptions, MAX_LIMIT, RepoSnapshot, RowKind, WORKTREE_ID, load,

@@ -43,6 +43,8 @@ export interface OpenRepository {
   signIn: () => void;
   /** Open Settings, at a section. */
   openSettings: (section: string) => void;
+  /** Show what changed when a branch was rebased or force-pushed (like "origin/fix/door"). */
+  showRewrite: (branch: string) => void;
 }
 
 export const OpenRepositoryContext = createContext<OpenRepository | null>(null);

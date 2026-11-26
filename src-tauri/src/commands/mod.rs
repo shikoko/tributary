@@ -212,6 +212,16 @@ pub async fn set_aside_branches(path: String) -> Result<Vec<actions::RememberedB
     blocking(move || actions::set_aside_branches(&PathBuf::from(path))).await
 }
 
+/// Whether `branch`'s remote branch was rebased elsewhere with its commits: each of its own
+/// commits, and its version there (None when it hasn't diverged, or none of them are there).
+#[tauri::command]
+pub async fn rebased_upstream(
+    path: String,
+    branch: String,
+) -> Result<Option<actions::RebasedUpstream>> {
+    blocking(move || actions::rebased_upstream(&PathBuf::from(path), &branch)).await
+}
+
 /// Before a remote moves to `url`: what the new address has, and which remembered branches
 /// it doesn't, whose work would be lost.
 #[tauri::command]
