@@ -46,6 +46,21 @@ export default async function ({ page, folder, locks, preview, step, accessible,
     const barber = view.locator(".team-branch-card", { has: page.locator(".team-branch-card-name", { hasText: "art/barber-v2" }) });
     await barber.locator(".team-overlap", { hasText: "1 of your files" }).waitFor({ timeout: 5000 });
     await view.locator(".team-lock-card", { hasText: "Tavern.umap" }).waitFor({ timeout: 10_000 });
+    // What kind of work comes after the rest (it takes longer to read), as a row of panels
+    // that pushes what's under it down: checked while it arrives, the words under it were
+    // measured in one place and drawn in another. So: once it's there, and nothing's moved
+    // for a moment.
+    await view.locator(".team-panel", { hasText: "What kind of work" }).waitFor({ timeout: 15_000 });
+    await page.waitForFunction(
+      () => {
+        const height = document.querySelector(".team-view")?.scrollHeight ?? 0;
+        const settled = window.__teamHeight === height && performance.now() - window.__teamSince > 400;
+        if (window.__teamHeight !== height) Object.assign(window, { __teamHeight: height, __teamSince: performance.now() });
+        return settled;
+      },
+      null,
+      { timeout: 10_000, polling: 100 },
+    );
     await accessible("the team's activity");
     await barber.click();
     await view.waitFor({ state: "detached", timeout: 5000 });
