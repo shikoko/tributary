@@ -168,6 +168,92 @@ fn downloads_a_branchs_git_lfs_files_before_checking_it_out() {
     );
 }
 
+/// Taking the rebased version of the branch that's checked out (it was rebased on its remote,
+/// onto commits with Git LFS files) downloads those files first, all together, and says how
+/// far it's got, as a checkout does. The branch still tracks its remote branch, and undoing
+/// it puts the files back as they were.
+#[test]
+fn taking_a_rebased_branchs_version_downloads_its_git_lfs_files_with_progress() {
+    if !lfs_installed() {
+        eprintln!("Git LFS isn't installed: skipped");
+        return;
+    }
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("rebased-lfs-remote.git");
+    let mut alice = TempRepo::new("rebased-lfs-alice");
+    with_identity(&alice);
+    alice.git(&["lfs", "install", "--local"]);
+    alice.git(&["lfs", "track", "*.bin"]);
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    alice.git(&["add", ".gitattributes"]);
+    alice.git(&["commit", "--quiet", "-m", "Track bins"]);
+    alice.git(&["push", "--quiet", "-u", "origin", "main"]);
+    alice.git(&["switch", "--quiet", "-c", "art"]);
+    alice.commit("notes.txt", "Sketch the art");
+    alice.git(&["push", "--quiet", "-u", "origin", "art"]);
+
+    let bob = TempRepo::clone_of("rebased-lfs-bob", &remote);
+    with_identity(&bob);
+    bob.git(&["lfs", "install", "--local"]);
+    bob.git(&["switch", "--quiet", "art"]);
+
+    // Two textures on main, and art rebased onto it, elsewhere.
+    alice.git(&["switch", "--quiet", "main"]);
+    for (name, byte) in [("one.bin", 5u8), ("two.bin", 6)] {
+        std::fs::write(alice.path().join(name), vec![byte; 20_000]).unwrap();
+    }
+    alice.git(&["add", "one.bin", "two.bin"]);
+    alice.git(&["commit", "--quiet", "-m", "Textures"]);
+    alice.git(&["push", "--quiet", "origin", "main"]);
+    alice.git(&["switch", "--quiet", "art"]);
+    alice.git(&["rebase", "--quiet", "main"]);
+    alice.git(&["push", "--quiet", "--force", "origin", "art"]);
+    bob.git(&["fetch", "--quiet", "origin"]);
+
+    let found = actions::rebased_upstream(bob.path(), "art")
+        .unwrap()
+        .unwrap();
+    assert!(found.current);
+    let reports = std::cell::RefCell::new(Vec::new());
+    let done = actions::run_with_progress(
+        bob.path(),
+        Action::TakeUpstream {
+            branch: "art".into(),
+            from: found.from.clone(),
+            to: found.to.clone(),
+            keep: vec![],
+            checkout: false,
+        },
+        &|progress| reports.borrow_mut().push(progress),
+    )
+    .unwrap();
+    assert_eq!(done.message, "art now matches origin/art");
+    let reports = reports.into_inner();
+    let counted: Vec<_> = reports
+        .iter()
+        .filter_map(|progress| progress.files)
+        .collect();
+    assert_eq!(
+        counted.last().map(|count| (count.done, count.total)),
+        Some((2, 2)),
+        "{counted:?}\n{}",
+        what_happened(&bob, &reports)
+    );
+    assert_eq!(
+        std::fs::read(bob.path().join("two.bin")).unwrap(),
+        vec![6u8; 20_000]
+    );
+    assert_eq!(bob.git(&["rev-parse", "HEAD"]), found.to);
+    assert_eq!(
+        bob.git(&["rev-parse", "--abbrev-ref", "art@{upstream}"]),
+        "origin/art"
+    );
+
+    run(&bob, done.undo.unwrap()).unwrap();
+    assert_eq!(bob.git(&["rev-parse", "HEAD"]), found.from);
+    assert!(!bob.path().join("two.bin").exists());
+}
+
 /// For a failed count, what went on: every progress report, and each git command the app ran
 /// in `repo` (in order, with whether it worked and what it said). The counts come from
 /// commands whose failures are otherwise passed over quietly, so this says which one it was.

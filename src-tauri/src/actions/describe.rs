@@ -74,8 +74,14 @@ impl Action {
         let running = self.running();
         ActionInfo {
             running,
-            label: running.map(|running| match self.checkout_target() {
-                Some(target) if running == Running::Checkout => format!("Checking out {target}"),
+            label: running.map(|running| match (self, self.checkout_target()) {
+                (Action::TakeUpstream { branch, .. }, _) => {
+                    format!("Updating {branch} to its rebased version")
+                }
+                (Action::MoveBranch { branch, .. }, _) => format!("Moving {branch} back"),
+                (_, Some(target)) if running == Running::Checkout => {
+                    format!("Checking out {target}")
+                }
                 _ if matches!(self, Action::Push { force: true, .. }) => "Force pushing".into(),
                 _ => running.label().into(),
             }),
@@ -92,6 +98,8 @@ impl Action {
                     | Action::CheckoutRemoteBranch { .. }
                     | Action::CheckoutCommit { .. }
                     | Action::CreateBranch { .. }
+                    | Action::TakeUpstream { .. }
+                    | Action::MoveBranch { .. }
                     | Action::Merge { .. }
                     | Action::Rebase { .. }
                     | Action::CherryPick { .. }
@@ -132,14 +140,14 @@ impl Action {
             Action::CheckoutBranch { .. }
             | Action::CheckoutRemoteBranch { .. }
             | Action::CheckoutCommit { .. } => Some(Running::Checkout),
-            Action::CreateBranch { checkout, .. } | Action::TakeUpstream { checkout, .. } => {
-                checkout.then_some(Running::Checkout)
-            }
+            Action::CreateBranch { checkout, .. } => checkout.then_some(Running::Checkout),
+            // Checked out, the files are updated, with their Git LFS files downloaded first;
+            // otherwise it's over at once.
+            Action::TakeUpstream { .. } | Action::MoveBranch { .. } => Some(Running::Checkout),
             Action::DiscardFiles { .. } | Action::DiscardAll => Some(Running::Discard),
             // As the action it runs again.
             Action::StashAndRetry { action, .. } => action.running(),
             Action::ResetHard { .. }
-            | Action::MoveBranch { .. }
             | Action::RestoreFromHistory { .. }
             | Action::DeleteShelf { .. }
             | Action::StashPush { .. }
@@ -415,6 +423,28 @@ mod tests {
         let info = checkout.info();
         assert_eq!(info.label.as_deref(), Some("Checking out art/barber"));
         assert!(!info.cancellable && !info.remote && info.retryable);
+        // Taking a rebased branch's version, and moving it back, update the files as a
+        // checkout does, with their own words.
+        let take = Action::TakeUpstream {
+            branch: "rooms".into(),
+            from: "a".into(),
+            to: "b".into(),
+            keep: vec![],
+            checkout: false,
+        };
+        let info = take.info();
+        assert_eq!(info.running, Some(Running::Checkout));
+        assert_eq!(
+            info.label.as_deref(),
+            Some("Updating rooms to its rebased version")
+        );
+        assert!(info.retryable);
+        let back = Action::MoveBranch {
+            branch: "rooms".into(),
+            from: "b".into(),
+            to: "a".into(),
+        };
+        assert_eq!(back.info().label.as_deref(), Some("Moving rooms back"));
         assert_eq!(Action::StageAll.info().running, None);
     }
 
