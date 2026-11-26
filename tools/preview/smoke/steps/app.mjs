@@ -1,10 +1,10 @@
 // The smoke test: Worktrees, shortcuts, menus, the smallest window, signing in, who you commit as, signing, remotes, diagnostics and updates.
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { chmodSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { crowded } from "../../fits.mjs";
 import { demoEnv } from "../../demo.mjs";
+import { removeFolder, tempFolder } from "../folders.mjs";
 
 export default async function ({ page, demos, folder, preview, step, restoreSize, accessible, expect, toast, dismissToast, row, openNotebook }) {
   await openNotebook();
@@ -311,7 +311,7 @@ export default async function ({ page, demos, folder, preview, step, restoreSize
       return;
     }
     // A throwaway key, in a short folder (GPG's agent puts its socket there), used through gpg.program.
-    const home = mkdtempSync(join(tmpdir(), "trg"));
+    const home = tempFolder("trg");
     chmodSync(home, 0o700);
     const made = spawnSync("gpg", ["--batch", "--pinentry-mode", "loopback", "--passphrase", "", "--quick-gen-key", "Maya Chen <maya@example.com>", "ed25519", "sign", "never"], {
       env: { ...process.env, GNUPGHOME: home },
@@ -349,7 +349,7 @@ export default async function ({ page, demos, folder, preview, step, restoreSize
       git("reset", "-q", "--soft", "HEAD~1");
       for (const key of ["commit.gpgsign", "gpg.format", "user.signingkey", "gpg.program"]) spawnSync("git", ["-C", demos.notebook, "config", "--local", "--unset", key]);
       spawnSync("gpgconf", ["--kill", "gpg-agent"], { env: { ...process.env, GNUPGHOME: home } });
-      rmSync(home, { recursive: true, force: true });
+      removeFolder(home);
       await page.keyboard.press("F5");
     }
   });
