@@ -29,3 +29,6 @@ tools/e2e/output/
 # The Flatpak's input and flatpak-builder's work (flatpak/README.md).
 flatpak/input/
 .flatpak-builder/
+
+# The README badges' numbers, made when the website is published (.github/scripts/badges.mjs).
+site/badges/
