@@ -10,6 +10,7 @@ import { readdirSync } from "node:fs";
 import { cpus } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { removeLeftovers } from "./folders.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -26,15 +27,23 @@ const files = readdirSync(join(here, "steps"))
   .filter((name) => !only || only.includes(name))
   .sort();
 
+/** The workers running now: stopped with the runner, so each removes its demos as it ends. */
+const workersRunning = new Set();
+process.on("exit", () => {
+  for (const child of workersRunning) child.kill("SIGTERM");
+});
+
 /** One run of the file `name`: what it printed, what failed, and what ALIGNED=report found. */
 function runFile(name) {
   return new Promise((done) => {
     const flags = [join(here, "steps", `${name}.mjs`), "--browser", browserName, ...(screenshots ? ["--screenshots", screenshots] : [])];
     const child = spawn(process.execPath, [join(here, "worker.mjs"), ...flags], { stdio: ["ignore", "pipe", "pipe"] });
+    workersRunning.add(child);
     let out = "";
     child.stdout.on("data", (chunk) => (out += chunk));
     child.stderr.on("data", (chunk) => (out += chunk));
     child.on("close", (code) => {
+      workersRunning.delete(child);
       const lines = out.split("\n");
       const marked = (mark) => JSON.parse(lines.find((line) => line.startsWith(`${mark} `))?.slice(mark.length + 1) ?? "null");
       const failed = marked("FAILED") ?? [`(it stopped: exit ${code})`];
@@ -45,6 +54,8 @@ function runFile(name) {
 }
 
 console.log(`Tributary smoke test: ${files.length} files, ${workers} at a time, in ${browserName}`);
+const leftovers = removeLeftovers();
+if (leftovers > 0) console.log(`(Removed ${leftovers} demo folder${leftovers === 1 ? "" : "s"} that earlier runs left behind when they were stopped.)`);
 const started = Date.now();
 const results = new Map();
 const queue = [...files];

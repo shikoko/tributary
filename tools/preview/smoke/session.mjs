@@ -2,14 +2,14 @@
 // helpers its steps use. Each file starts from fresh demos, so what one file's steps do can't
 // change what another's find.
 
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { CONTROLS, describe as describeAligned, EXCEPT, misaligned } from "../aligned.mjs";
 import { describeOffCentre, moving, offCentre as offInPixels, probe, restore } from "../../e2e/centred.mjs";
 import { buildDemos, demoEnv, STUDIO_PULL_REQUEST_CONVERSATIONS, STUDIO_PULL_REQUESTS } from "../demo.mjs";
 import { startLockServer } from "../lfs-locks.mjs";
 import { startPreview } from "../server.mjs";
+import { removeFolder, tempFolder } from "./folders.mjs";
 
 /**
  * What the preview fakes for the studio demo: its pull requests and their comments from the
@@ -35,7 +35,7 @@ export function studioFakes(demos) {
 export async function startSession({ browser, browserName, userAgent, axeSource, screenshots, name }) {
   const lines = [];
   const log = (line) => lines.push(line);
-  const folder = mkdtempSync(join(tmpdir(), "tributary-smoke-"));
+  const folder = tempFolder();
   const locks = await startLockServer({ port: 0 });
   const demos = buildDemos(folder, { lockServer: locks.url });
   const preview = await startPreview({ port: 0, quiet: true, env: demoEnv(demos) });
@@ -191,11 +191,15 @@ export async function startSession({ browser, browserName, userAgent, axeSource,
     await session.row("Add a tavern chair").waitFor({ timeout: 15_000 });
   };
 
+  // Each part closes even if one before it couldn't, and the demos go whatever happened.
   session.close = async () => {
-    await context.close().catch(() => {});
-    await preview.close();
-    await locks.close();
-    rmSync(folder, { recursive: true, force: true });
+    try {
+      await context.close().catch(() => {});
+      await preview.close().catch(() => {});
+      await locks.close().catch(() => {});
+    } finally {
+      removeFolder(folder);
+    }
   };
 
   await page.goto(preview.url);
