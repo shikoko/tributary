@@ -33,6 +33,7 @@ mod partial;
 mod patches;
 mod prune;
 mod push_branches;
+mod rebased;
 mod releases;
 mod remembered;
 mod remote;
@@ -98,6 +99,7 @@ pub use prune::{
     CommitBrief, LostCommits, PruneCandidate, PruneInfo, lost_commits, prune_candidates,
 };
 pub use push_branches::{BranchToPush, BranchesToPush, PushReason, branches_to_push};
+pub use rebased::{RebasedCommit, RebasedUpstream, rebased_upstream};
 pub use releases::{ReleaseItem, ReleaseNotes, release_notes};
 pub use remembered::{
     MoveCheck, RememberedBranch, RememberedChoice, move_check, set_aside_branches,
@@ -140,6 +142,22 @@ pub enum Action {
     CheckoutBranch { name: String },
     /// Create a local branch tracking a remote branch like `origin/feature`, and switch to it.
     CheckoutRemoteBranch { name: String },
+    /// Take the version of `branch` its remote branch has, rebased elsewhere: move it from
+    /// `from` to `to`, with `keep` (its commits that version hasn't got, oldest first) on top,
+    /// and check it out when `checkout`. Its own version is kept in Restore.
+    TakeUpstream {
+        branch: String,
+        from: String,
+        to: String,
+        keep: Vec<String>,
+        checkout: bool,
+    },
+    /// Move `branch` from `from` back to `to`, which undoes [`Action::TakeUpstream`].
+    MoveBranch {
+        branch: String,
+        from: String,
+        to: String,
+    },
     /// Check out a commit without a branch (detached HEAD).
     CheckoutCommit { id: String },
     /// Create a branch at a commit, and optionally switch to it.
@@ -705,6 +723,26 @@ fn perform(
         }
         Action::CheckoutRemoteBranch { name } => {
             branches::checkout_remote_branch(&repo, &git, name, on_progress)
+        }
+        Action::TakeUpstream {
+            branch,
+            from,
+            to,
+            keep,
+            checkout,
+        } => rebased::take_upstream(
+            &repo,
+            &git,
+            branch,
+            from,
+            to,
+            keep,
+            checkout,
+            on_progress,
+            extra,
+        ),
+        Action::MoveBranch { branch, from, to } => {
+            rebased::move_branch(&repo, &git, branch, from, to)
         }
         Action::CheckoutCommit { id } => branches::checkout_commit(&repo, &git, id, on_progress),
         Action::CreateBranch { name, id, checkout } => {

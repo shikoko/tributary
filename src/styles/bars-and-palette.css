@@ -325,6 +325,12 @@ body.dragging-commit * {
   flex: none;
 }
 
+/* Its upstream was rebased elsewhere with its commits. */
+.sidebar-counts.rebased {
+  align-items: center;
+  color: var(--accent-text);
+}
+
 /* Hover preview */
 
 .commit-preview {

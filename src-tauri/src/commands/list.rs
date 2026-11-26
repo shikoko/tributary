@@ -148,6 +148,7 @@ commands! {
         tags_to_push(path: String, remote: Option<String>) -> actions::TagsToPush;
         branches_to_push(path: String, remote: Option<String>) -> actions::BranchesToPush;
         set_aside_branches(path: String) -> Vec<actions::RememberedBranch>;
+        rebased_upstream(path: String, branch: String) -> Option<actions::RebasedUpstream>;
         move_check(path: String, remote: String, url: String) -> actions::MoveCheck;
         unseen_commits(path: String, reference: String, since: Option<String>) -> actions::UnseenCommits;
         lfs_locks(path: String) -> locks::Locks;

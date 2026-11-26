@@ -12,6 +12,9 @@ import type {
   PruneCandidate,
   PruneInfo,
   PushReason,
+  Rebased,
+  RebasedCommit,
+  RebasedUpstream,
   RememberedBranch,
   RememberedChoice,
   RemoteBranchChoice,
@@ -33,6 +36,9 @@ export type {
   PruneCandidate,
   PruneInfo,
   PushReason,
+  Rebased,
+  RebasedCommit,
+  RebasedUpstream,
   RememberedBranch,
   RememberedChoice,
   RemoteBranchChoice,
@@ -87,6 +93,11 @@ export function branchesToPush(path: string, remote: string | null = null): Prom
 /** Branches a fetch set aside: the remote no longer has them, and their work is nowhere else here. */
 export function setAsideBranches(path: string): Promise<RememberedBranch[]> {
   return invoke("set_aside_branches", { path });
+}
+
+/** Whether `branch`'s remote branch was rebased elsewhere with its commits: each of them, and its version there (null when it hasn't diverged, or none are there). */
+export function rebasedUpstream(path: string, branch: string): Promise<RebasedUpstream | null> {
+  return invoke("rebased_upstream", { path, branch });
 }
 
 /** Before a remote moves to `url`: which of its remembered branches the new address doesn't have, with work found nowhere else. */

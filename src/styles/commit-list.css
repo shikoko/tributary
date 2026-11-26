@@ -428,6 +428,11 @@ body:not(.resizing):not(.list-resizing) .commit-list:not(.graph-growing) .graph-
   font-variant-numeric: tabular-nums;
 }
 
+/* In place of ↑ ↓: its upstream was rebased elsewhere with its commits. */
+.ref-sync.rebased {
+  align-items: center;
+}
+
 .ref-pill svg {
   flex: none;
 }

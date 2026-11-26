@@ -139,7 +139,7 @@ pub fn branch_versions(path: &Path, name: &str) -> Result<Vec<BranchVersion>> {
 }
 
 /// `git range-diff --no-color` output as pairs of commits.
-fn pairs_from(output: &str) -> Vec<CommitPair> {
+pub(super) fn pairs_from(output: &str) -> Vec<CommitPair> {
     let mut pairs: Vec<CommitPair> = Vec::new();
     for line in output.lines() {
         if let Some(body) = line.strip_prefix("    ") {

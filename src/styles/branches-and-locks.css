@@ -38,6 +38,56 @@
   background: none;
 }
 
+/* A branch rebased on its remote (TakeUpstreamDialog): each of its commits, and its new
+   version there, if it has one. */
+.rebased-row {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+}
+
+.rebased-row + .rebased-row {
+  border-top: 1px solid var(--border);
+}
+
+/* Without its new version: the summary takes the arrow's and the new id's columns. */
+.rebased-row.only-here .rebased-summary {
+  grid-column: 2 / 5;
+}
+
+.rebased-row.only-here {
+  background: rgb(var(--warning-rgb) / 0.06);
+}
+
+.rebased-id {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--type-xs);
+}
+
+.rebased-arrow {
+  color: var(--text-faint);
+}
+
+.rebased-summary {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rebased-row.rebased-more {
+  display: flex;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+}
+
+.rebased-list + p {
+  margin-top: var(--space-12);
+}
+
 /* A remote's move (MoveRemoteDialog): its old address and the new one, one above the other. */
 .move-from {
   display: grid;

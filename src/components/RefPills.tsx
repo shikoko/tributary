@@ -1,13 +1,13 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { PullRequest } from "../api";
-import { BranchSyncContext, describeSync } from "../lib/branchSync";
+import { BranchSyncContext, describeRebased, describeSync } from "../lib/branchSync";
 import { describeChecks, PullRequestsContext, requestNumber } from "../lib/pullRequests";
 import type { RefLabel } from "../api";
 import { textOn } from "../lib/appearance";
 import { withAlpha } from "../lib/colors";
 import { pressLabel } from "../lib/drag";
 import { describePill, refPills, type RefPill } from "../lib/refs";
-import { CheckIcon, CloseIcon, CloudIcon, CommitIcon, LaptopIcon, SpinnerIcon, StashIcon, TagIcon } from "./Icons";
+import { CheckIcon, CloseIcon, CloudIcon, CommitIcon, LaptopIcon, RebaseIcon, SpinnerIcon, StashIcon, TagIcon } from "./Icons";
 import { useHint } from "./hints";
 
 interface Props {
@@ -102,6 +102,8 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, onHoverPill
   // A local branch that isn't where the branch it tracks is: how far ahead and behind.
   const sync = useContext(BranchSyncContext).get(pill.kind === "branch" && pill.local ? pill.name : "");
   const syncText = sync ? describeSync(sync) : null;
+  // Its upstream was rebased elsewhere with its commits: said in place of how far apart they are.
+  const rebasedText = sync ? describeRebased(sync) : null;
   const hint = useHint();
   const style: React.CSSProperties = pill.current
     ? // --pill-glow: the glow it gets in the commit list.
@@ -128,7 +130,7 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, onHoverPill
       style={style}
       {...hint(
         describePill(pill) +
-          (syncText ? `\n${syncText}` : "") +
+          (rebasedText ? `\n${rebasedText}` : syncText ? `\n${syncText}` : "") +
           (onActivate && pill.kind === "branch" && !pill.current ? "\nDouble-click to check out" : ""),
       )}
       onMouseEnter={() => onHoverPill?.(pill)}
@@ -164,11 +166,18 @@ function Pill({ pill, color, onActivate, onContextMenu, onFocusPill, onHoverPill
           {pill.remotes.length > 0 && <CloudIcon size={12} />}
         </span>
       )}
-      {sync && syncText && (
-        <span className="ref-sync" aria-label={syncText}>
-          {sync.ahead > 0 && <span>↑{sync.ahead}</span>}
-          {sync.behind > 0 && <span>↓{sync.behind}</span>}
+      {rebasedText ? (
+        <span className="ref-sync rebased" aria-label={rebasedText}>
+          <RebaseIcon size={12} />
         </span>
+      ) : (
+        sync &&
+        syncText && (
+          <span className="ref-sync" aria-label={syncText}>
+            {sync.ahead > 0 && <span>↑{sync.ahead}</span>}
+            {sync.behind > 0 && <span>↓{sync.behind}</span>}
+          </span>
+        )
       )}
       {pr && <PullRequestBadge pr={pr} onOpen={pullRequests!.open} />}
     </span>
