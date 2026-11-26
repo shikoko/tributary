@@ -155,6 +155,9 @@ fn a_commit_made_since_goes_on_top_of_the_rebased_version_checked_out_or_not() {
     let (_remote, _elsewhere, mut mine) = rebased_elsewhere("rebased-keep");
     mine.git(&["checkout", "--quiet", "rooms"]);
     let bath = mine.commit("bath.txt", "Add the bath");
+    // A change staged and not committed yet, which taking it leaves staged.
+    std::fs::write(mine.path().join("cellar.txt"), "Barrels").unwrap();
+    mine.git(&["add", "cellar.txt"]);
     let old = mine.git(&["rev-parse", "rooms"]);
     let new = mine.git(&["rev-parse", "origin/rooms"]);
     assert_eq!(
@@ -195,6 +198,11 @@ fn a_commit_made_since_goes_on_top_of_the_rebased_version_checked_out_or_not() {
         "Add the bath"
     );
     assert!(mine.path().join("bath.txt").exists());
+    assert_eq!(
+        mine.git(&["diff", "--cached", "--name-only"]),
+        "cellar.txt",
+        "the staged change isn't staged any more"
+    );
     run(&mine, done.undo.unwrap()).unwrap();
     assert_eq!(mine.git(&["rev-parse", "rooms"]), old);
 

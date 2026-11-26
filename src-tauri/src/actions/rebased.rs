@@ -170,52 +170,53 @@ pub(super) fn take_upstream(
         .unwrap_or_else(|_| "its remote branch".to_owned());
     let current = current_branch(repo).ok().as_deref() == Some(branch.as_str());
     let to_hex = to.to_string();
-    if current || checkout {
-        if current {
-            // Uncommitted changes stay, unless they're to files that differ.
-            git.run(&["reset", "--keep", "--quiet", &to_hex])?;
-        } else {
-            git.run(&["branch", "--force", &branch, &to_hex])?;
-            checkout_counting(
-                repo,
-                git,
-                &["switch", "--progress", &branch],
-                &full,
-                on_progress,
-            )?;
+    // The new tip: the remote branch's version with `keep` picked on top, made without the
+    // working tree (so staged changes stay as they are). A commit that conflicts stops it.
+    let mut tip = to_hex.clone();
+    let mut stopped = None;
+    for id in &keep {
+        match pick_onto(git, &tip, &id.to_string())? {
+            Picked::New(new) => tip = new,
+            Picked::Nothing => {}
+            unpicked @ (Picked::Conflicts | Picked::OldGit) => {
+                stopped = Some((id.to_hex_with_len(7).to_string(), unpicked));
+                break;
+            }
         }
-        back_up(repo, git, &full, BackupEvent::Reset, from);
-        if !keep.is_empty() {
-            // Stops at a conflict, to resolve here.
+    }
+    match (current || checkout, stopped) {
+        // Checked out once, at the new tip, with its Git LFS files downloaded first.
+        (true, None) => {
+            switch_to(repo, git, &branch, &tip, on_progress)?;
+            back_up(repo, git, &full, BackupEvent::Reset, from);
+        }
+        // To resolve here: checked out at the remote branch's version, and the commits
+        // cherry-picked onto it, stopping at the conflict.
+        (true, Some(_)) => {
+            switch_to(repo, git, &branch, &to_hex, on_progress)?;
+            back_up(repo, git, &full, BackupEvent::Reset, from);
             let mut args = vec!["cherry-pick".to_owned()];
             args.extend(keep.iter().map(ToString::to_string));
             git.run(&args.iter().map(String::as_str).collect::<Vec<_>>())?;
         }
-    } else {
-        let mut tip = to_hex;
-        for id in &keep {
-            let short_id = id.to_hex_with_len(7);
-            tip = match pick_onto(git, &tip, &id.to_string())? {
-                Picked::New(new) => new,
-                Picked::Nothing => tip,
-                Picked::Conflicts => {
-                    return Err(format!(
-                        "{short_id} conflicts with {upstream}: check out {branch} to put it on top \
-                         there, and resolve the conflicts."
-                    )
-                    .into());
-                }
-                Picked::OldGit => {
-                    return Err(format!(
-                        "This needs git 2.40 or later: check out {branch} to put {short_id} on top there."
-                    )
-                    .into());
-                }
-            };
+        (false, None) => {
+            // Refused if it's checked out in another worktree.
+            git.run(&["branch", "--force", &branch, &tip])?;
+            back_up(repo, git, &full, BackupEvent::Reset, from);
         }
-        // Refused if it's checked out in another worktree.
-        git.run(&["branch", "--force", &branch, &tip])?;
-        back_up(repo, git, &full, BackupEvent::Reset, from);
+        (false, Some((short_id, Picked::OldGit))) => {
+            return Err(format!(
+                "This needs git 2.40 or later: check out {branch} to put {short_id} on top there."
+            )
+            .into());
+        }
+        (false, Some((short_id, _))) => {
+            return Err(format!(
+                "{short_id} conflicts with {upstream}: check out {branch} to put it on top \
+                 there, and resolve the conflicts."
+            )
+            .into());
+        }
     }
     extra.backup = ref_id(repo, &full).map(|id| id.to_string());
     Ok(if keep.is_empty() {
@@ -228,14 +229,35 @@ pub(super) fn take_upstream(
     })
 }
 
+/// Check `branch` out at `to`, moving it there (`git switch --force-create`): its Git LFS
+/// files are downloaded first, all together, and the progress says how far it's got, as a
+/// checkout's does. Uncommitted changes stay, unless they're to files that differ; so does
+/// the branch it tracks.
+fn switch_to(
+    repo: &gix::Repository,
+    git: &Git,
+    branch: &str,
+    to: &str,
+    on_progress: &dyn Fn(Progress),
+) -> Result<()> {
+    checkout_counting(
+        repo,
+        git,
+        &["switch", "--progress", "--force-create", branch, to],
+        to,
+        on_progress,
+    )
+}
+
 /// Move `branch` from `from` back to `to` (undoing [`take_upstream`]), if it's still at `from`.
-/// Checked out, its uncommitted changes stay, unless they're to files that differ.
+/// Checked out, its files are updated as [`take_upstream`]'s are.
 pub(super) fn move_branch(
     repo: &gix::Repository,
     git: &Git,
     branch: String,
     from: String,
     to: String,
+    on_progress: &dyn Fn(Progress),
 ) -> Result<String> {
     let full = format!("refs/heads/{branch}");
     let from = commit_id(repo, &from)?;
@@ -244,7 +266,7 @@ pub(super) fn move_branch(
         return Err(format!("{branch} has changed since, so it's left as it is.").into());
     }
     if current_branch(repo).ok().as_deref() == Some(branch.as_str()) {
-        git.run(&["reset", "--keep", "--quiet", &to.to_string()])?;
+        switch_to(repo, git, &branch, &to.to_string(), on_progress)?;
     } else {
         git.run(&["branch", "--force", &branch, &to.to_string()])?;
     }

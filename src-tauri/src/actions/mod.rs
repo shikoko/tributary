@@ -742,7 +742,7 @@ fn perform(
             extra,
         ),
         Action::MoveBranch { branch, from, to } => {
-            rebased::move_branch(&repo, &git, branch, from, to)
+            rebased::move_branch(&repo, &git, branch, from, to, on_progress)
         }
         Action::CheckoutCommit { id } => branches::checkout_commit(&repo, &git, id, on_progress),
         Action::CreateBranch { name, id, checkout } => {
