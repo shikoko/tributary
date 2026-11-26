@@ -1,0 +1,97 @@
+name: Sign with SignPath
+description: >-
+  Signs Windows files with SignPath (Authenticode), in place: they're sent as one of the run's
+  artifacts, in a folder named for their architecture, as the project's artifact configuration
+  expects (.github/signpath/artifact-configuration.xml), and replaced with the signed ones.
+inputs:
+  name:
+    description: The artifact's name, unique in the run (like program-x64)
+    required: true
+  arch:
+    description: The folder the files go in (x64 or arm64)
+    required: true
+  files:
+    description: The files to sign, one per line
+    required: true
+  policy:
+    description: The SignPath signing policy (test-signing or release-signing)
+    required: true
+  version:
+    description: The version the files carry, which SignPath checks
+    required: true
+  api-token:
+    description: The SignPath CI user's API token
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Gather the files
+      shell: bash
+      env:
+        NAME: ${{ inputs.name }}
+        ARCH: ${{ inputs.arch }}
+        FILES: ${{ inputs.files }}
+      run: |
+        rm -rf "signpath/$NAME"
+        mkdir -p "signpath/$NAME/unsigned/$ARCH"
+        while IFS= read -r file; do
+          [ -n "$file" ] || continue
+          cp "$file" "signpath/$NAME/unsigned/$ARCH/"
+        done <<<"$FILES"
+        ls -lR "signpath/$NAME/unsigned"
+
+    - name: Upload them for SignPath
+      id: upload
+      uses: actions/upload-artifact@v7
+      with:
+        name: signpath-${{ inputs.name }}
+        path: signpath/${{ inputs.name }}/unsigned
+        if-no-files-found: error
+        retention-days: 1
+
+    - name: Sign them
+      uses: signpath/github-action-submit-signing-request@v3
+      with:
+        api-token: ${{ inputs.api-token }}
+        organization-id: 0316071a-6ea3-4212-a48f-7b0ecf2c9a62
+        project-slug: tributary
+        signing-policy-slug: ${{ inputs.policy }}
+        github-artifact-id: ${{ steps.upload.outputs.artifact-id }}
+        wait-for-completion: true
+        output-artifact-directory: signpath/${{ inputs.name }}/signed
+        parameters: |
+          version: ${{ toJSON(inputs.version) }}
+
+    - name: Put the signed files back
+      shell: bash
+      env:
+        NAME: ${{ inputs.name }}
+        ARCH: ${{ inputs.arch }}
+        FILES: ${{ inputs.files }}
+      run: |
+        while IFS= read -r file; do
+          [ -n "$file" ] || continue
+          signed="signpath/$NAME/signed/$ARCH/$(basename "$file")"
+          if [ ! -f "$signed" ]; then
+            echo "::error::SignPath sent back no $(basename "$file")."
+            ls -lR "signpath/$NAME/signed" || true
+            exit 1
+          fi
+          cp "$signed" "$file"
+        done <<<"$FILES"
+
+    # Each file has a signature now. With the test certificate, Windows doesn't trust it
+    # (it isn't from a certificate authority), so only that it's there is checked.
+    - name: Check they're signed
+      shell: pwsh
+      env:
+        FILES: ${{ inputs.files }}
+      run: |
+        foreach ($file in ($env:FILES -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
+          $signature = Get-AuthenticodeSignature -FilePath $file
+          if (-not $signature.SignerCertificate) {
+            Write-Output "::error::$file isn't signed: $($signature.StatusMessage)"
+            exit 1
+          }
+          Write-Output "$file is signed by $($signature.SignerCertificate.Subject) ($($signature.Status))"
+        }
