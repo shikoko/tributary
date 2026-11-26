@@ -1,13 +1,23 @@
 name: Website
 
-# The website in site/, on GitHub Pages: published when it changes on develop, or from the
-# Actions tab (Run workflow). It's plain files, so nothing is built. Pages needs switching
-# on once, in the repository's Settings, Pages, Source: GitHub Actions; until then this
-# says so and publishes nothing.
+# The website in site/, on GitHub Pages, with the numbers on the README's badges
+# (.github/scripts/badges.mjs). Published:
+# - on every merge into develop: the site, and how long ago develop last changed;
+# - every day: the downloads and stars;
+# - after a release is built (on main): the latest release;
+# - or from the Actions tab (Run workflow).
+# The site is plain files, so nothing is built. Pages needs switching on once, in the
+# repository's Settings, Pages, Source: GitHub Actions; until then this says so and publishes
+# nothing.
 on:
   push:
     branches: [develop]
-    paths: [site/**, .github/workflows/website.yml]
+  schedule:
+    - cron: "41 4 * * *"
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -43,6 +53,14 @@ jobs:
 
       - uses: actions/checkout@v7
         if: steps.pages.outputs.on == 'true'
+
+      # If GitHub's API doesn't answer, nothing is published: the site and the badges stay as
+      # they were.
+      - name: Badge numbers
+        if: steps.pages.outputs.on == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/badges.mjs site/badges
 
       - uses: actions/configure-pages@v6
         if: steps.pages.outputs.on == 'true'
