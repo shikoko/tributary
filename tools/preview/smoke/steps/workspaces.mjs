@@ -50,9 +50,17 @@ export default async function ({ page, step, accessible, expect, row, toast, dis
     await page.getByText("Open repository").first().waitFor({ timeout: 10_000 });
     await page.locator(".workspace-switch", { hasText: "Art" }).waitFor({ timeout: 5000 });
     expect((await openTabs()).length === 0, `the new workspace has tabs: ${await openTabs()}`);
-    // The other workspace's repositories are chips: one opens it there.
+    // The workspaces on the left, the open one (Art, empty) ticked and shown; the other one
+    // picked shows its repositories, and the way to switch to it. One of them opens it there.
     await openOverview();
-    await panel.locator(".workspace-chip", { hasText: "studio" }).click();
+    const art = panel.getByRole("tab", { name: /Art/ });
+    const mine = panel.getByRole("tab", { name: /My repositories/ });
+    expect((await art.getAttribute("aria-selected")) === "true", "the open workspace isn't the one shown");
+    expect((await art.locator(".workspace-nav-here").count()) === 1 && (await mine.locator(".workspace-nav-here").count()) === 0, "the tick isn't on the open workspace alone");
+    await mine.click();
+    await panel.getByRole("button", { name: "Switch to My repositories" }).waitFor({ timeout: 5000 });
+    await accessible("another workspace, picked");
+    await panel.locator(".workspace-row", { hasText: "studio" }).click();
     await row("Add a tavern chair").waitFor({ timeout: 15_000 });
     expect((await openTabs()).join(",") === "notebook,studio", `the tabs are ${await openTabs()}`);
     // Its tab moved into Art: the next one opens.
@@ -73,7 +81,7 @@ export default async function ({ page, step, accessible, expect, row, toast, dis
 
   await step("fetches every repository in a workspace together", async () => {
     await openOverview();
-    await panel.locator(".workspace-section.here").getByRole("button", { name: "Fetch all" }).click();
+    await panel.locator(".workspace-details").getByRole("button", { name: "Fetch all" }).click();
     const said = await toast();
     expect(/^My repositories: fetched notebook$/.test(said), `the toast says ${said}`);
     await dismissToast();

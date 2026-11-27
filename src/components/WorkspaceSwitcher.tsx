@@ -106,9 +106,10 @@ const Swatch = ({ color }: { color: string }) => <span className="workspace-swat
 
 /**
  * Workspaces, at the start of the tab bar: the open one's name (an icon while there's only
- * one), which opens every workspace at a glance. The open one lists its repositories, each
- * with its branch, how it stands and when it was last fetched; the others show theirs as
- * chips. Each can be fetched or pulled all at once, and switched to (Ctrl+Alt+1…).
+ * one), which opens every workspace at a glance. The workspaces are listed on the left, the
+ * open one ticked; the one picked shows on the right: its repositories, each with its branch,
+ * how it stands and when it was last fetched, fetched or pulled all at once, and, for another
+ * workspace, the way to switch to it (Ctrl+Alt+1… too).
  */
 export function WorkspaceSwitcher({ workspaces, tabs, openPath, news, open, setOpen }: SwitcherProps) {
   const { state, current } = workspaces;
@@ -154,6 +155,8 @@ function Overview({ workspaces, tabs, openPath, news, anchor, colorOf, lanes, on
   /** Its button, which it hangs from, joined to it. */
   const [button, setButton] = useState<{ box: Box; radius: number } | null>(null);
   const [query, setQuery] = useState("");
+  /** The workspace shown on the right: the open one, until another is picked. */
+  const [picked, setPicked] = useState(state.current);
   /** Making a workspace, or changing them, in the panel itself. */
   const [mode, setMode] = useState<"list" | "new" | "edit">("list");
   const [name, setName] = useState("");
@@ -228,13 +231,18 @@ function Overview({ workspaces, tabs, openPath, news, anchor, colorOf, lanes, on
     </Button>
   );
 
-  const repoRow = (tab: Tab, workspace: Workspace) => {
+  /** A repository: opened (in its workspace, switching to it) when clicked. Search results say which workspace with its colour. */
+  const repoRow = (tab: Tab, workspace: Workspace, found = false) => {
     const summary = summaries.get(tab.path);
     const here = workspace.id === state.current;
     return (
       <li key={`${workspace.id}:${tab.path}`}>
-        <button className={`workspace-row${tab.path === openPath ? " open" : ""}`} onClick={() => go(() => workspaces.openRepository(tab.path))} title={tab.path}>
-          {!here && <Swatch color={colorOf(workspace)} />}
+        <button
+          className={`workspace-row${here && tab.path === openPath ? " open" : ""}`}
+          onClick={() => go(() => workspaces.openRepository(tab.path))}
+          title={here ? tab.path : `${tab.path}: switch to ${workspace.name} and open it`}
+        >
+          {found && <Swatch color={colorOf(workspace)} />}
           <span className="workspace-row-name">
             {tab.name}
             {news[tab.path] && <span className="tab-news" aria-label="New commits" />}
@@ -256,17 +264,40 @@ function Overview({ workspaces, tabs, openPath, news, anchor, colorOf, lanes, on
     );
   };
 
-  const section = ({ workspace, tabs: list }: (typeof everyone)[number], index: number) => {
+  /** Making a workspace, and renaming or recolouring them. */
+  const newAndEdit = (
+    <>
+      <Button
+        kind="link"
+        onClick={() => {
+          setName("");
+          setColor(workspaces.freeColor());
+          setMode("new");
+        }}
+      >
+        <PlusIcon size={13} />
+        <span className="button-label">New workspace…</span>
+      </Button>
+      <Button kind="link" onClick={() => setMode("edit")}>
+        <PencilIcon size={13} />
+        <span className="button-label">{state.list.length === 1 ? "Rename…" : "Edit workspaces…"}</span>
+      </Button>
+    </>
+  );
+
+  /** One workspace: its name, its repositories, fetching or pulling them all, and switching to it. */
+  const details = ({ workspace, tabs: list }: (typeof everyone)[number], index: number) => {
     const here = workspace.id === state.current;
     const keys = workspaceKeys(index);
     return (
-      <section key={workspace.id} className={`workspace-section${here ? " here" : ""}`} aria-label={workspace.name}>
+      <section className="workspace-details" aria-label={workspace.name}>
         <header>
           <Swatch color={colorOf(workspace)} />
           <h3>{workspace.name}</h3>
-          <span className="workspace-count">{plural(list.length, "repository", "repositories")}</span>
-          {here && !state.list.every((each) => each.id === workspace.id) && <Chip className="workspace-here">Open</Chip>}
-          {keys && state.list.length > 1 && <kbd className="workspace-keys">{shortcutLabel(keys)}</kbd>}
+          <span className="workspace-count">
+            {plural(list.length, "repository", "repositories")}
+            {here && state.list.length > 1 ? " · new tabs open here" : ""}
+          </span>
           <span className="workspace-actions">
             {running.has(workspace.id) && <SpinnerIcon size={14} />}
             {runButton(workspace, "fetch", "Fetch all", list.length)}
@@ -274,35 +305,70 @@ function Overview({ workspaces, tabs, openPath, news, anchor, colorOf, lanes, on
               runButton(workspace, "pull", "Pull all", list.length)
             ) : (
               <Button kind="primary" onClick={() => go(() => workspaces.switchWorkspace(workspace.id))}>
-                Switch
+                Switch to {workspace.name}
               </Button>
             )}
           </span>
         </header>
-        {here ? (
-          list.length > 0 ? (
-            <ul className="workspace-rows">{list.map((tab) => repoRow(tab, workspace))}</ul>
-          ) : (
-            <p className="workspace-empty">No repositories here yet: open one with + in the tab bar.</p>
-          )
-        ) : list.length > 0 ? (
-          <ul className="workspace-chips">
-            {list.map((tab) => (
-              <li key={tab.path}>
-                <button className="workspace-chip" onClick={() => go(() => workspaces.openRepository(tab.path))} title={`${tab.path}: switch to ${workspace.name} and open it`}>
-                  <span className="button-label">{tab.name}</span>
-                  <StateChips summary={summaries.get(tab.path)} short />
-                  {news[tab.path] && <span className="tab-news" aria-label="New commits" />}
-                </button>
-              </li>
-            ))}
-          </ul>
+        {list.length > 0 ? (
+          <ul className="workspace-rows">{list.map((tab) => repoRow(tab, workspace))}</ul>
         ) : (
-          <p className="workspace-empty">Empty</p>
+          <p className="workspace-empty">{here ? "No repositories here yet: open one with + in the tab bar." : "No repositories yet: switch to it, and open them there."}</p>
+        )}
+        {keys && state.list.length > 1 && (
+          <p className="workspace-keys-hint">
+            <kbd className="workspace-keys">{shortcutLabel(keys)}</kbd> {here ? "comes back here" : `switches to ${workspace.name}`} from anywhere
+          </p>
         )}
       </section>
     );
   };
+
+  /** The workspaces, on the left: the one shown on the right picked, the open one ticked. Up and down pick another. */
+  const nav = (
+    <nav className="workspace-nav" aria-label="Workspaces">
+      <h2>Workspaces</h2>
+      <div
+        className="workspace-tabs"
+        role="tablist"
+        aria-orientation="vertical"
+        aria-label="Workspaces"
+        onKeyDown={(event) => {
+        const step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+        if (!step) return;
+        event.preventDefault();
+        const at = state.list.findIndex((workspace) => workspace.id === picked);
+        const next = state.list[(at + step + state.list.length) % state.list.length];
+        setPicked(next.id);
+        panel.current?.querySelector<HTMLElement>(`[data-workspace="${next.id}"]`)?.focus();
+      }}
+      >
+      {everyone.map(({ workspace, tabs: list }) => {
+        const here = workspace.id === state.current;
+        const shown = workspace.id === picked;
+        return (
+          <button
+            key={workspace.id}
+            role="tab"
+            aria-selected={shown}
+            tabIndex={shown ? 0 : -1}
+            data-workspace={workspace.id}
+            className={`workspace-nav-item${shown ? " picked" : ""}`}
+            onClick={() => setPicked(workspace.id)}
+            onDoubleClick={() => !here && go(() => workspaces.switchWorkspace(workspace.id))}
+            title={here ? `${workspace.name}: the workspace you're in` : `${workspace.name}: its repositories (double-click to switch to it)`}
+          >
+            <Swatch color={colorOf(workspace)} />
+            <span className="button-label workspace-nav-name">{workspace.name}</span>
+            {list.some((tab) => news[tab.path]) && <span className="tab-news" aria-label="New commits" />}
+            {here ? <CheckIcon size={13} className="workspace-nav-here" aria-label="The workspace you're in" /> : <span className="button-label workspace-nav-count">{list.length}</span>}
+          </button>
+        );
+      })}
+      </div>
+      <div className="workspace-nav-foot">{newAndEdit}</div>
+    </nav>
+  );
 
   const swatches = (value: number, onPick: (color: number) => void, label: string) => (
     <div className="workspace-swatches" role="radiogroup" aria-label={label}>
@@ -319,6 +385,11 @@ function Overview({ workspaces, tabs, openPath, news, anchor, colorOf, lanes, on
     ? everyone.flatMap(({ workspace, tabs: list }) => list.filter((tab) => tab.name.toLowerCase().includes(needle) || tab.path.toLowerCase().includes(needle)).map((tab) => ({ tab, workspace })))
     : [];
   const offer = workspaces.groupOffer;
+  const single = state.list.length === 1;
+  // The workspace picked, or the open one if the one picked was removed.
+  const pickedAt = everyone.findIndex(({ workspace }) => workspace.id === picked);
+  const shownIndex = pickedAt >= 0 ? pickedAt : Math.max(0, everyone.findIndex(({ workspace }) => workspace.id === state.current));
+  const shown = everyone[shownIndex];
 
   const at = { left: Number(place.left ?? 0), top: Number(place.top ?? 0), width: Number(place.width ?? 0) };
   useJoinedButton(anchor, "panel", button !== null && hangsFrom(button.box, at.top));
@@ -326,54 +397,37 @@ function Overview({ workspaces, tabs, openPath, news, anchor, colorOf, lanes, on
     <>
       <div ref={panel} className="workspace-panel" style={{ ...place, ...jointCorners(button?.box ?? null, at) }} role="dialog" aria-label={state.list.length === 1 ? "Your repositories" : "Workspaces"}>
         {mode === "list" && (
-          <>
-            <div className="workspace-head">
-              <h2>{state.list.length === 1 ? "Your repositories" : "Workspaces"}</h2>
+          <div className={`workspace-panes${single ? " single" : ""}`}>
+            {!single && nav}
+            <div className="workspace-main" role={single ? undefined : "tabpanel"} aria-label={single ? undefined : shown.workspace.name}>
               <label className="workspace-search">
                 <SearchIcon size={13} />
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a repository…" aria-label="Find a repository" />
               </label>
-            </div>
-            {needle ? (
-              found.length > 0 ? (
-                <ul className="workspace-rows">{found.map(({ tab, workspace }) => repoRow(tab, workspace))}</ul>
+              {needle ? (
+                found.length > 0 ? (
+                  <ul className="workspace-rows">{found.map(({ tab, workspace }) => repoRow(tab, workspace, true))}</ul>
+                ) : (
+                  <p className="workspace-empty">No open repository is called that.</p>
+                )
               ) : (
-                <p className="workspace-empty">No open repository is called that.</p>
-              )
-            ) : (
-              everyone.map(section)
-            )}
-            {!needle && offer && (
-              <div className="workspace-offer">
-                <span>
-                  Make a workspace for each folder:{" "}
-                  {offer.groups.map((group) => `${group.name} (${group.tabs.length})`).join(", ")}
-                  {offer.rest.length > 0 && `, and keep ${plural(offer.rest.length, "other")} here`}.
-                </span>
-                <Button kind="secondary" size="small" onClick={workspaces.group}>
-                  Make them
-                </Button>
-              </div>
-            )}
-            <footer className="workspace-foot">
-              <Button
-                kind="link"
-                onClick={() => {
-                  setName("");
-                  setColor(workspaces.freeColor());
-                  setMode("new");
-                }}
-              >
-                <PlusIcon size={13} />
-                <span className="button-label">New workspace…</span>
-              </Button>
-              <Button kind="link" onClick={() => setMode("edit")}>
-                <PencilIcon size={13} />
-                <span className="button-label">{state.list.length === 1 ? "Rename…" : "Edit workspaces…"}</span>
-              </Button>
-              {state.list.length > 1 && <span className="workspace-hint">Repositories you open join {workspaces.current.name}</span>}
-            </footer>
-          </>
+                details(shown, shownIndex)
+              )}
+              {!needle && offer && (
+                <div className="workspace-offer">
+                  <span>
+                    Make a workspace for each folder:{" "}
+                    {offer.groups.map((group) => `${group.name} (${group.tabs.length})`).join(", ")}
+                    {offer.rest.length > 0 && `, and keep ${plural(offer.rest.length, "other")} here`}.
+                  </span>
+                  <Button kind="secondary" size="small" onClick={workspaces.group}>
+                    Make them
+                  </Button>
+                </div>
+              )}
+              {single && <footer className="workspace-foot">{newAndEdit}</footer>}
+            </div>
+          </div>
         )}
         {mode === "new" && (
           <form
