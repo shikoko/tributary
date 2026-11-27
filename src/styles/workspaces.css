@@ -83,26 +83,11 @@
   color: var(--text);
 }
 
-.workspace-panel h2 {
-  margin: 0;
-  font-size: var(--type-md);
-  font-weight: 650;
-}
-
-.workspace-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-12);
-  margin: 0 var(--space-8) var(--space-8);
-}
-
 .workspace-search {
   display: flex;
   align-items: center;
   gap: var(--space-6);
-  flex: 1;
-  max-width: 340px;
-  margin-left: auto;
+  margin: 0 var(--space-4) var(--space-6);
   padding: 0 var(--space-10);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -127,47 +112,142 @@
   font-size: var(--type-sm);
 }
 
-.workspace-section {
-  padding: var(--space-2) 0 var(--space-6);
-  border-radius: var(--radius-xl);
-}
-
 /* The open workspace: lifted a little from the rest. */
-.workspace-section.here {
-  margin-bottom: var(--space-4);
-  background: rgb(var(--overlay-rgb) / 0.03);
-  box-shadow: inset 0 0 0 1px var(--border);
+/* The workspaces on the left, the one picked on the right (with one workspace, just that).
+   The panes fill the panel to its edges, its corners rounding them. */
+.workspace-panel:has(> .workspace-panes) {
+  padding: 0;
 }
 
-.workspace-section header {
+.workspace-panes {
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr);
+  min-height: 248px;
+}
+
+.workspace-panes.single {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.workspace-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-12) var(--space-8) var(--space-10);
+  border-right: 1px solid var(--border);
+  background: rgb(var(--overlay-rgb) / 0.03);
+}
+
+.workspace-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.workspace-nav h2 {
+  margin: 0 var(--space-8) var(--space-8);
+  color: var(--text-faint);
+  font-size: var(--type-xs);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* A workspace: picked by its background alone; the open one ticked. */
+.workspace-nav-item {
   display: flex;
   align-items: center;
   gap: var(--space-8);
-  min-height: 36px;
+  height: 31px; /* odd, so its 9px capitals have as many pixels above them as below */
+  padding: 0 var(--space-8);
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workspace-nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.workspace-nav-item.picked {
+  background: var(--bg-selected);
+  color: var(--text);
+}
+
+.workspace-nav-name {
+  flex: 1;
+}
+
+.workspace-nav-count {
+  color: var(--text-faint);
+  font-size: var(--type-sm);
+  font-weight: 400;
+}
+
+.workspace-nav-here {
+  flex: none;
+  color: var(--accent-text);
+}
+
+.workspace-nav-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+  margin-top: auto;
+  padding: var(--space-12) var(--space-8) 0;
+}
+
+.workspace-nav-foot .link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.workspace-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-12) var(--space-6) var(--space-8);
+}
+
+/* The picked workspace: its name over its repositories, with what can be done with them. */
+.workspace-details header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 44px;
   padding: 0 var(--space-10);
 }
 
-.workspace-section h3 {
+.workspace-details header .workspace-swatch {
+  width: 12px;
+  height: 12px;
+}
+
+.workspace-details h3 {
   margin: 0;
-  font-size: var(--type-sm);
+  font-size: var(--type-lg);
   font-weight: 650;
+}
+
+.workspace-keys-hint {
+  margin: var(--space-8) var(--space-10) 0;
+  color: var(--text-faint);
+  font-size: var(--type-xs);
 }
 
 .workspace-count {
   color: var(--text-faint);
   font-size: var(--type-sm);
-}
-
-.workspace-here {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 var(--space-8);
-  border-radius: var(--radius-pill);
-  background: rgb(var(--accent-rgb) / 0.16);
-  color: var(--accent-text);
-  font-size: var(--type-xs);
-  font-weight: 650;
 }
 
 .workspace-keys {
@@ -185,7 +265,6 @@
 }
 
 .workspace-rows,
-.workspace-chips,
 .workspace-edit {
   margin: 0;
   padding: 0;
@@ -269,37 +348,9 @@
   color: var(--purple);
 }
 
-.workspace-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-6);
-  padding: 0 var(--space-10) var(--space-4) var(--space-28);
-}
-
-.workspace-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-6);
-  height: 27px;
-  padding: 0 var(--space-8);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: none;
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: var(--type-sm);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.workspace-chip:hover {
-  border-color: var(--border-hover);
-  color: var(--text);
-}
-
 .workspace-empty {
   margin: 0;
-  padding: var(--space-4) var(--space-10) var(--space-8) var(--space-28);
+  padding: var(--space-4) var(--space-10) var(--space-8);
   color: var(--text-faint);
   font-size: var(--type-sm);
 }
@@ -333,12 +384,6 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-6);
-}
-
-.workspace-hint {
-  margin-left: auto;
-  color: var(--text-faint);
-  font-size: var(--type-xs);
 }
 
 .workspace-form {
