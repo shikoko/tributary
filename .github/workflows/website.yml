@@ -31,13 +31,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Publish
+  # The site, with its badges drawn afresh, packed for Pages. Publishing it is a job of its
+  # own, so a publish that fails can be run again alone (Re-run failed jobs), with what was
+  # packed here: packing it again in the same run gives Pages two copies, and it takes neither.
+  pack:
+    name: Pack
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+    outputs:
+      pages-on: ${{ steps.pages.outputs.on }}
     steps:
       - name: Is Pages switched on?
         id: pages
@@ -81,6 +83,15 @@ jobs:
         with:
           path: site
 
+  publish:
+    name: Publish
+    needs: pack
+    if: needs.pack.outputs.pages-on == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
         uses: actions/deploy-pages@v5
-        if: steps.pages.outputs.on == 'true'
