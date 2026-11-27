@@ -17,18 +17,18 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/shikoko/tributary/releases/latest"><img src="https://img.shields.io/endpoint?style=flat-square&url=https%3A%2F%2Fshikoko.github.io%2Ftributary%2Fbadges%2Frelease.json" alt="The latest release"></a>
-  <a href="#download"><img src="https://img.shields.io/endpoint?style=flat-square&url=https%3A%2F%2Fshikoko.github.io%2Ftributary%2Fbadges%2Fdownloads.json" alt="How many times Tributary was downloaded"></a>
-  <a href="https://github.com/shikoko/tributary/stargazers"><img src="https://img.shields.io/endpoint?style=flat-square&url=https%3A%2F%2Fshikoko.github.io%2Ftributary%2Fbadges%2Fstars.json" alt="Stars on GitHub"></a>
-  <a href="https://github.com/shikoko/tributary/commits/develop"><img src="https://img.shields.io/endpoint?style=flat-square&url=https%3A%2F%2Fshikoko.github.io%2Ftributary%2Fbadges%2Flast-commit.json" alt="When Tributary last changed"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6d4fe0?style=flat-square&labelColor=14161b" alt="Licence: MIT"></a>
+  <a href="https://github.com/shikoko/tributary/releases/latest"><img src="https://shikoko.github.io/tributary/badges/release.svg" alt="The latest release"></a>
+  <a href="#download"><img src="https://shikoko.github.io/tributary/badges/downloads.svg" alt="How many times Tributary was downloaded"></a>
+  <a href="https://github.com/shikoko/tributary/stargazers"><img src="https://shikoko.github.io/tributary/badges/stars.svg" alt="Stars on GitHub"></a>
+  <a href="https://github.com/shikoko/tributary/commits/develop"><img src="https://shikoko.github.io/tributary/badges/last-commit.svg" alt="When Tributary last changed"></a>
+  <a href="LICENSE"><img src="https://shikoko.github.io/tributary/badges/license.svg" alt="Licence: MIT"></a>
 </p>
 
 <p align="center">
-  <a href="#download"><img src="https://img.shields.io/badge/Windows-x64%20%7C%20ARM64-0b7fc4?style=flat-square&labelColor=14161b" alt="For Windows, x64 and ARM64"></a>
-  <a href="#download"><img src="https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-d4357c?style=flat-square&labelColor=14161b&logo=apple" alt="For macOS, on Apple Silicon and Intel"></a>
-  <a href="#download"><img src="https://img.shields.io/badge/Linux-x64%20%7C%20ARM64-b87600?style=flat-square&labelColor=14161b&logo=linux&logoColor=white" alt="For Linux, x64 and ARM64"></a>
-  <a href="docs/development.md"><img src="https://img.shields.io/badge/built%20with-Rust%20%C2%B7%20Tauri%20%C2%B7%20React-6d4fe0?style=flat-square&labelColor=14161b" alt="Built with Rust, Tauri and React"></a>
+  <a href="#download"><img src="https://shikoko.github.io/tributary/badges/windows.svg" alt="For Windows, x64 and ARM64"></a>
+  <a href="#download"><img src="https://shikoko.github.io/tributary/badges/macos.svg" alt="For macOS, on Apple Silicon and Intel"></a>
+  <a href="#download"><img src="https://shikoko.github.io/tributary/badges/linux.svg" alt="For Linux, x64 and ARM64"></a>
+  <a href="docs/development.md"><img src="https://shikoko.github.io/tributary/badges/built-with.svg" alt="Built with Rust, Tauri and React"></a>
 </p>
 
 <p align="center">
