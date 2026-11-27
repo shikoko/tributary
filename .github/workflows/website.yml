@@ -1,7 +1,7 @@
 name: Website
 
-# The website in site/, on GitHub Pages, with the numbers on the README's badges
-# (.github/scripts/badges.mjs). Published:
+# The website in site/, on GitHub Pages, with the README's badges (.github/scripts/badges.mjs).
+# Published:
 # - on every merge into develop: the site, and how long ago develop last changed;
 # - every day: the downloads and stars;
 # - after a release is built (on main): the latest release;
@@ -54,9 +54,20 @@ jobs:
       - uses: actions/checkout@v7
         if: steps.pages.outputs.on == 'true'
 
+      # The badges are drawn with shields.io's library (badge-maker), from package.json.
+      - uses: actions/setup-node@v7
+        if: steps.pages.outputs.on == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.pages.outputs.on == 'true'
+        run: npm ci --ignore-scripts
+
       # If GitHub's API doesn't answer, nothing is published: the site and the badges stay as
       # they were.
-      - name: Badge numbers
+      - name: Badges
         if: steps.pages.outputs.on == 'true'
         env:
           GH_TOKEN: ${{ github.token }}

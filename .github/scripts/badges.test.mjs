@@ -1,4 +1,5 @@
-// badges.mjs: its counts and dates, and the files it writes from a stand-in for GitHub's API.
+// badges.mjs: its counts, dates and drawings, and the files it writes from a stand-in for GitHub's
+// API.
 import { execFile } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
@@ -7,7 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { ago, installerDownloads, short } from "./badges.mjs";
+import { ago, badges, draw, installerDownloads, short } from "./badges.mjs";
 
 const script = join(dirname(fileURLToPath(import.meta.url)), "badges.mjs");
 const DAY = 86_400_000;
@@ -60,6 +61,21 @@ describe("installerDownloads", () => {
   });
 });
 
+describe("draw", () => {
+  it("draws flat and square, with Tributary's dark label and the badge's colour", () => {
+    const svg = draw({ label: "release", message: "v0.20.0", color: "#0b7fc4" });
+    expect(svg).toMatch(/^<svg [^>]*aria-label="release: v0.20.0"/);
+    expect(svg).toContain('fill="#14161b"');
+    expect(svg).toContain('fill="#0b7fc4"');
+    expect(svg).not.toContain("<image");
+  });
+
+  it("puts in the logo each badge names", () => {
+    for (const badge of Object.values(badges({ release: "v1.0.0", downloads: 1, stars: 1, lastCommit: "today" })))
+      if (badge.logo) expect(draw(badge)).toContain('<image x="5" y="3" width="14" height="14" href="data:image/svg+xml;base64,');
+  });
+});
+
 describe("the files it writes", () => {
   let server;
   let api;
@@ -104,16 +120,20 @@ describe("the files it writes", () => {
     rmSync(folder, { recursive: true, force: true });
   });
 
-  it("writes each badge for shields.io's endpoint badge", async () => {
+  it("draws each badge as an SVG file, with GitHub's numbers", async () => {
     await promisify(execFile)(process.execPath, [script, folder], {
       env: { ...process.env, GITHUB_REPOSITORY: "o/r", GH_TOKEN: "token", GITHUB_API_URL: api },
     });
-    const read = (name) => JSON.parse(readFileSync(join(folder, name), "utf8"));
-    const common = { schemaVersion: 1, labelColor: "14161b", cacheSeconds: 3600 };
-    expect(read("release.json")).toEqual({ ...common, label: "release", message: "v0.20.0", color: "0b7fc4" });
-    expect(read("downloads.json")).toEqual({ ...common, label: "downloads", message: "1.5k", color: "16935b" });
-    expect(read("stars.json")).toEqual({ ...common, label: "stars", message: "1.2k", color: "b87600", namedLogo: "github" });
-    expect(read("last-commit.json")).toEqual({ ...common, label: "last commit", message: "2 days ago", color: "d4357c" });
+    const says = (name) => readFileSync(join(folder, name), "utf8").match(/aria-label="([^"]*)"/)[1];
+    expect(says("release.svg")).toBe("release: v0.20.0");
+    expect(says("downloads.svg")).toBe("downloads: 1.5k");
+    expect(says("stars.svg")).toBe("stars: 1.2k");
+    expect(says("last-commit.svg")).toBe("last commit: 2 days ago");
+    expect(says("license.svg")).toBe("license: MIT");
+    expect(says("windows.svg")).toBe("Windows: x64 | ARM64");
+    expect(says("macos.svg")).toBe("macOS: Apple Silicon | Intel");
+    expect(says("linux.svg")).toBe("Linux: x64 | ARM64");
+    expect(says("built-with.svg")).toBe("built with: Rust · Tauri · React");
     expect(requests.every((request) => request.auth === "Bearer token")).toBe(true);
   });
 
@@ -124,7 +144,7 @@ describe("the files it writes", () => {
         env: { ...process.env, GITHUB_REPOSITORY: "o/missing", GH_TOKEN: "token", GITHUB_API_URL: api },
       });
       await expect(run).rejects.toMatchObject({ stderr: expect.stringContaining("GitHub answered 404") });
-      expect(() => readFileSync(join(empty, "release.json"))).toThrow();
+      expect(() => readFileSync(join(empty, "release.svg"))).toThrow();
     } finally {
       rmSync(empty, { recursive: true, force: true });
     }

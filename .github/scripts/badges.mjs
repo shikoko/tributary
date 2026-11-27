@@ -1,26 +1,36 @@
-// The numbers on the README's badges, published with the website (in site/badges/, by the
-// Website workflow) for shields.io's endpoint badges to draw. shields.io then reads a small
-// file from the website rather than asking GitHub's API itself, which at times takes too
-// long, leaving a broken badge.
+// The README's badges, drawn here and published with the website (in site/badges/, by the
+// Website workflow), so the README shows files from the website. Badges drawn by shields.io
+// when the README is viewed often fail to load on GitHub: its image proxy gives up waiting
+// for shields.io, and shows the badge's alt text instead. They're drawn with shields.io's own
+// library (badge-maker), so they look the same.
 //
 //   node .github/scripts/badges.mjs <folder>
 //
 // Needs GITHUB_REPOSITORY and GH_TOKEN (and GITHUB_API_URL for another API, as the tests do).
-// Writes, as shields.io's endpoint format:
-// - release.json: the latest release's version;
-// - downloads.json: how many times the installers were downloaded, from every release, by
+// Writes, as SVG:
+// - release.svg: the latest release's version;
+// - downloads.svg: how many times the installers were downloaded, from every release, by
 //   hand or by automatic updates. Not latest.json, which every check for updates downloads,
 //   nor the update signatures;
-// - stars.json: the stars on GitHub;
-// - last-commit.json: how long ago the default branch (develop) last changed.
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+// - stars.svg: the stars on GitHub;
+// - last-commit.svg: how long ago the default branch (develop) last changed;
+// - license.svg, windows.svg, macos.svg, linux.svg and built-with.svg, which don't change.
+// The logos are Simple Icons' (CC0), in badge-logos/.
+import { makeBadge } from "badge-maker";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 // Tributary's colours, deep enough for white text: its dark background behind the labels,
 // and the graph's lanes behind the values.
-const LABEL = "14161b";
-const COLOURS = { release: "0b7fc4", downloads: "16935b", stars: "b87600", lastCommit: "d4357c" };
+const LABEL = "#14161b";
+const BLUE = "#0b7fc4";
+const GREEN = "#16935b";
+const AMBER = "#b87600";
+const PINK = "#d4357c";
+const VIOLET = "#6d4fe0";
 
 // The installers: Windows setups, macOS disk images and update archives, Linux AppImages.
 const INSTALLER = /(-setup\.exe|\.dmg|\.app\.tar\.gz|\.AppImage)$/;
@@ -61,8 +71,35 @@ export function installerDownloads(releases) {
   return total;
 }
 
-function badge(label, message, color, extra = {}) {
-  return { schemaVersion: 1, label, message, color, labelColor: LABEL, cacheSeconds: 3600, ...extra };
+function logo(name) {
+  return `data:image/svg+xml;base64,${readFileSync(join(here, "badge-logos", `${name}.svg`)).toString("base64")}`;
+}
+
+/** Each badge's file name, and what it says, from the numbers GitHub gave. */
+export function badges({ release, downloads, stars, lastCommit }) {
+  return {
+    "release.svg": { label: "release", message: release, color: BLUE },
+    "downloads.svg": { label: "downloads", message: short(downloads), color: GREEN },
+    "stars.svg": { label: "stars", message: short(stars), color: AMBER, logo: "github" },
+    "last-commit.svg": { label: "last commit", message: lastCommit, color: PINK },
+    "license.svg": { label: "license", message: "MIT", color: VIOLET },
+    "windows.svg": { label: "Windows", message: "x64 | ARM64", color: BLUE },
+    "macos.svg": { label: "macOS", message: "Apple Silicon | Intel", color: PINK, logo: "apple" },
+    "linux.svg": { label: "Linux", message: "x64 | ARM64", color: AMBER, logo: "linux" },
+    "built-with.svg": { label: "built with", message: "Rust · Tauri · React", color: VIOLET },
+  };
+}
+
+/** A badge as an SVG file, in the README's style: flat, square, with Tributary's dark label. */
+export function draw({ label, message, color, logo: name }) {
+  return `${makeBadge({
+    label,
+    message,
+    color,
+    labelColor: LABEL,
+    style: "flat-square",
+    ...(name ? { logoBase64: logo(name) } : {}),
+  })}\n`;
 }
 
 async function main(folder) {
@@ -88,16 +125,16 @@ async function main(folder) {
   }
   const [commit] = await get(`/commits?sha=${encodeURIComponent(repo.default_branch)}&per_page=1`);
 
-  const badges = {
-    "release.json": badge("release", latest.tag_name, COLOURS.release),
-    "downloads.json": badge("downloads", short(installerDownloads(releases)), COLOURS.downloads),
-    "stars.json": badge("stars", short(repo.stargazers_count), COLOURS.stars, { namedLogo: "github" }),
-    "last-commit.json": badge("last commit", ago(new Date(commit.commit.committer.date), Date.now()), COLOURS.lastCommit),
-  };
+  const all = badges({
+    release: latest.tag_name,
+    downloads: installerDownloads(releases),
+    stars: repo.stargazers_count,
+    lastCommit: ago(new Date(commit.commit.committer.date), Date.now()),
+  });
   mkdirSync(folder, { recursive: true });
-  for (const [name, content] of Object.entries(badges)) {
-    writeFileSync(join(folder, name), `${JSON.stringify(content)}\n`);
-    console.log(`${name}: ${content.label} ${content.message}`);
+  for (const [name, badge] of Object.entries(all)) {
+    writeFileSync(join(folder, name), draw(badge));
+    console.log(`${name}: ${badge.label} ${badge.message}`);
   }
 }
 
