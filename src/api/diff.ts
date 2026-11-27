@@ -15,3 +15,18 @@ export function conflictText(path: string, file: string): Promise<ConflictText> 
 export function blameFile(path: string, file: string, at?: string | null): Promise<Blame> {
   return invoke("blame_file", { path, file, at: at ?? null });
 }
+
+// The commits whose Git LFS files were asked for already: each is asked for once.
+const lfsAsked = new Set<string>();
+
+/**
+ * Download a commit's Git LFS files that aren't here yet (as they are in it, and before it), all
+ * at once, in the background: looking through its files then doesn't wait for each to download.
+ */
+export function prefetchLfs(path: string, commit: string): void {
+  const key = `${path}\0${commit}`;
+  if (lfsAsked.has(key)) return;
+  lfsAsked.add(key);
+  // A failure is left to opening the file, which downloads it then; it's asked for again next time.
+  invoke("prefetch_lfs", { path, commit }).catch(() => lfsAsked.delete(key));
+}

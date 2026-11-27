@@ -56,6 +56,8 @@ Everything Tributary does, in detail. For a quick look, see the [README](../READ
   - The side-by-side button shows before and after in two columns, removed lines next to the lines that replaced them.
   - The wrap button, beside it, wraps long lines to the width of the window instead of scrolling sideways to them, and stays on for the next file until you turn it off. Side by side, long lines always wrap.
   - <kbd>[</kbd> and <kbd>]</kbd> go to the previous and next file, <kbd>Esc</kbd> closes. Your own changes update as you edit.
+  - A commit's file has a bar under its name saying which commit it's from, with arrows to the same file in the newer and older commit (<kbd>Alt</kbd> + <kbd>↑</kbd> <kbd>↓</kbd>, <kbd>⌥</kbd> on a Mac). The changes stay open, and the commit is selected in the list and the details. A commit that didn't change the file shows its first file.
+  - Files you've looked at lately show again at once, and the next ones are got ready while you look: the next and previous file, and the same file in the next commit. A commit's files stored with Git LFS are downloaded all together, in the background, as soon as you open one of them, rather than one at a time as each is opened.
   - Text stored with Git LFS is compared by its real contents; pictures, sounds, videos and 3D models show as what they are ([see below](#game-projects-big-files-and-git-lfs)). Other binary files show their sizes, with a button to open them in your diff tool.
 - **Diff and merge tools:** choose them in Settings, under **Diff and merge**: the tools git finds on your computer (Meld, Beyond Compare, WinMerge, P4Merge, KDiff3, …), Visual Studio Code, or a command of your own. They're git's own settings (`diff.tool`, `merge.tool`), so `git difftool` and `git mergetool` use them too. Until one is chosen, the diff view's button offers to choose one.
 - **Per file:** right-click a changed file to discard its changes (with **Undo**; Tributary keeps them for 30 days), stash just that file, or for a new file, ignore it, every file like it, or its folder (added to `.gitignore`, with **Undo**).
@@ -366,7 +368,7 @@ The branch can be switched from the top, next to **Shelves** and **Local history
 | <kbd>Shift</kbd> + click, <kbd>Shift</kbd> + <kbd>↑</kbd> <kbd>↓</kbd> | Select a range of commits |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + click | Add a commit to the selection, or take it out |
 | <kbd>Alt</kbd> + click a branch label | Highlight the branch's history |
-| Click a changed file, or <kbd>Enter</kbd> on it | Show its changes; <kbd>[</kbd> <kbd>]</kbd> for the previous and next file, <kbd>Esc</kbd> to close |
+| Click a changed file, or <kbd>Enter</kbd> on it | Show its changes; <kbd>[</kbd> <kbd>]</kbd> for the previous and next file, <kbd>Alt</kbd> + <kbd>↑</kbd> <kbd>↓</kbd> for the same file in the newer and older commit, <kbd>Esc</kbd> to close |
 | <kbd>Esc</kbd> | Stop highlighting, then clear the selection, then close the details panel |
 | <kbd>?</kbd> | Show the keyboard shortcuts |
 | <kbd>F10</kbd> (Windows and Linux) | Open the menu bar; <kbd>←</kbd> <kbd>→</kbd> move between its menus |

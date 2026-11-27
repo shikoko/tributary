@@ -1019,3 +1019,82 @@ fn checks_and_fixes_a_game_projects_setup() {
             .exists()
     );
 }
+
+/// Looking at a commit's files downloads its Git LFS files all at once beforehand: what it
+/// changed, as it is in it and as it was before it, and nothing else. Without them here,
+/// each would download as it's opened, one at a time.
+#[test]
+fn downloads_a_commits_git_lfs_files_all_at_once() {
+    if !lfs_installed() {
+        eprintln!("Git LFS isn't installed: skipped");
+        return;
+    }
+    let _turn = remote_turn();
+    let remote = TempRepo::bare("prefetch-remote.git");
+    let alice = TempRepo::new("prefetch-alice");
+    alice.git(&["lfs", "install", "--local"]);
+    alice.git(&["lfs", "track", "*.bin"]);
+    alice.git(&["remote", "add", "origin", remote.url()]);
+    for (name, byte) in [("door.bin", 1u8), ("chair.bin", 2)] {
+        std::fs::write(alice.path().join(name), vec![byte; 20_000]).unwrap();
+    }
+    alice.git(&["add", "."]);
+    alice.git(&["commit", "--quiet", "-m", "Door and chair"]);
+    // The door painted again, and a sign: the chair is left as it was.
+    std::fs::write(alice.path().join("door.bin"), vec![3u8; 20_000]).unwrap();
+    std::fs::write(alice.path().join("sign.bin"), vec![4u8; 20_000]).unwrap();
+    alice.git(&["add", "."]);
+    alice.git(&["commit", "--quiet", "-m", "Paint the door, hang a sign"]);
+    alice.git(&["push", "--quiet", "-u", "origin", "main"]);
+    // Each version's Git LFS object id, as Alice has them.
+    let oids = |at: &str| -> Vec<(String, String)> {
+        alice
+            .git(&["lfs", "ls-files", "--long", at])
+            .lines()
+            .filter_map(|line| {
+                let (oid, rest) = line.split_once(' ')?;
+                Some((rest.rsplit(' ').next()?.to_owned(), oid.to_owned()))
+            })
+            .collect()
+    };
+    let before = oids("HEAD~1");
+    let after = oids("HEAD");
+    let oid = |list: &[(String, String)], name: &str| {
+        list.iter()
+            .find(|(file, _)| file == name)
+            .map(|(_, oid)| oid.clone())
+            .unwrap()
+    };
+
+    // A copy without its Git LFS files.
+    let parent = TempRepo::empty("prefetch-parent");
+    let options = CloneOptions {
+        skip_lfs: true,
+        ..CloneOptions::default()
+    };
+    let clone =
+        actions::clone_repository(remote.url(), parent.path(), "copy", &options, &|_| {}).unwrap();
+    let here = |oid: &str| {
+        clone
+            .join(".git/lfs/objects")
+            .join(&oid[..2])
+            .join(&oid[2..4])
+            .join(oid)
+            .exists()
+    };
+    for (_, oid) in before.iter().chain(&after) {
+        assert!(!here(oid), "{oid} shouldn't be here before");
+    }
+
+    let commit = alice.git(&["rev-parse", "HEAD"]);
+    actions::prefetch_lfs(&clone, commit.trim()).unwrap();
+    assert!(here(&oid(&after, "door.bin")), "the door as it is");
+    assert!(here(&oid(&before, "door.bin")), "the door as it was");
+    assert!(here(&oid(&after, "sign.bin")), "the sign");
+    assert!(
+        !here(&oid(&after, "chair.bin")),
+        "the chair, which the commit didn't change"
+    );
+    // Asked again, it isn't fetched again (and doesn't fail).
+    actions::prefetch_lfs(&clone, commit.trim()).unwrap();
+}

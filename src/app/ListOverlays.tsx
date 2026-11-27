@@ -127,6 +127,8 @@ export function ListOverlays({
       onBlame={(target) => showBlame(target.file.path, target.source)}
       back={request && overRequest ? { label: `${requestNumber(request)} ${request.title}`, onBack: closeDiff } : undefined}
       review={review}
+      commits={views.commitSteps}
+      nearby={views.nearby}
     />
   );
   return (

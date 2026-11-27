@@ -726,6 +726,7 @@ export type Commands = {
     };
     returns: FileDiff;
   };
+  prefetch_lfs: { args: { path: string; commit: string }; returns: void };
   search_commits: {
     args: { path: string; mode: CommitSearchMode; query: string };
     returns: SearchResult;

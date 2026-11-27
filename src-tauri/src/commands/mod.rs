@@ -697,6 +697,13 @@ pub async fn file_diff(
     .await
 }
 
+/// Download a commit's Git LFS files that aren't here yet, all at once, in the background:
+/// looking through its files doesn't wait for each to download as it's opened.
+#[tauri::command]
+pub async fn prefetch_lfs(path: String, commit: String) -> Result<()> {
+    blocking(move || actions::prefetch_lfs(&PathBuf::from(path), &commit)).await
+}
+
 /// The commits in every branch that changed a file whose path matches `query`, or that
 /// added or removed `query` in their code.
 #[tauri::command]

@@ -256,6 +256,44 @@ export default async function ({ page, demos, step, accessible, expect, toast, d
     await page.locator(".details", { hasText: "Priya Nair" }).waitFor({ timeout: 5000 });
   });
 
+  await step("steps to the same file in the newer and older commits, without closing it", async () => {
+    await row("Speed up opening large notebooks").click();
+    await page.locator(".details .file", { hasText: "store.ts" }).first().click();
+    const view = page.locator(".diff-view");
+    const bar = view.locator(".diff-commit-bar");
+    await bar.locator(".diff-commit-summary", { hasText: "Speed up opening large notebooks" }).waitFor({ timeout: 10_000 });
+    await accessible("a commit's file, with the way to the commits next to it");
+    const place = async () => Number((await bar.locator(".diff-count").innerText()).match(/^Commit (\d+) of/)[1]);
+    const at = await place();
+    // Waits for what `read` reads to be `want`, for up to 5 seconds.
+    const until = async (read, want, what) => {
+      for (let tries = 0; tries < 50 && (await read()) !== want; tries++) await page.waitForTimeout(100);
+      const got = await read();
+      expect(got === want, `${what}: ${got}, not ${want}`);
+    };
+    const shown = async () => ({
+      commit: (await bar.locator(".diff-commit-summary").innerText()).trim(),
+      selected: (await page.locator(".commit-row.selected .summary").innerText()).trim(),
+      details: (await page.locator(".details .details-summary").innerText()).trim(),
+    });
+    // Alt+↓: the commit before it (older), still with a file's changes open; it's selected,
+    // and the details show it.
+    await page.keyboard.press("Alt+ArrowDown");
+    await until(place, at + 1, "the commit's place");
+    let now = await shown();
+    expect(now.commit !== "Speed up opening large notebooks", `still on the same commit: ${now.commit}`);
+    await until(async () => (await shown()).selected, now.commit, "the commit selected");
+    await until(async () => (await shown()).details, now.commit, "the commit in the details");
+    // The button the other way, back to where it started, and the same file in it.
+    await bar.getByRole("button", { name: "Newer commit" }).click();
+    await until(place, at, "the commit's place");
+    await view.locator(".diff-name", { hasText: "store.ts" }).waitFor({ timeout: 5000 });
+    now = await shown();
+    expect(now.commit === "Speed up opening large notebooks" && now.selected === now.commit, JSON.stringify(now));
+    await page.keyboard.press("Escape");
+    await view.waitFor({ state: "detached", timeout: 5000 });
+  });
+
   await step("shows an SVG as a picture, and pictures written into a stylesheet under their lines", async () => {
     await row("High-contrast theme").click();
     const view = page.locator(".diff-view");

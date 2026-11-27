@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { linesLabel, linesOf } from "../../lib/lineSelection";
 import { languageFor } from "../../lib/syntax";
 import { fileDiff, type Action, type FileDiff, type LineMode } from "../../api";
-import type { DiffTarget } from "../../lib/diffTargets";
+import type { CommitSteps, DiffTarget } from "../../lib/diffTargets";
+import { diffs } from "../../lib/diffCache";
 import { toolLabel, useDiffTools } from "../../lib/diffTools";
 import { isTopView } from "../../lib/overlays";
 import { useStoredState } from "../../lib/settings";
@@ -20,6 +21,7 @@ import { placeThreads, threadsOn, type ReviewThread } from "../../lib/reviewThre
 import { DiffSubmodule } from "./DiffSubmodule";
 import { Loader } from "../Loader";
 import { Button } from "../ui/Button";
+import { CommitBar } from "./CommitBar";
 
 interface Props {
   repoPath: string;
@@ -42,6 +44,45 @@ interface Props {
   back?: { label: string; onBack: () => void };
   /** A pull request's review comments, when these are its changes: shown at their lines. */
   review?: ReviewNotes;
+  /** A commit's files: which commit, and the way to the newer and older ones. */
+  commits?: CommitSteps | null;
+  /** Other files to get ready, besides the previous and next ones: the same file in the next commit. */
+  nearby?: DiffTarget[];
+}
+
+/** Your own changes, which change as you work: read each time, never kept. */
+const isLive = (target: DiffTarget) => target.source.kind === "staged" || target.source.kind === "unstaged";
+
+/**
+ * A file's changes, kept for going back to them, or got ready before they're shown (in
+ * lib/diffCache.ts). A picture stored with Git LFS that couldn't be read (not downloaded, and
+ * no way to download it now) is read again next time.
+ */
+function loadDiff(repoPath: string, target: DiffTarget, ignoreWhitespace: boolean): Promise<FileDiff> {
+  const load = () => fileDiff(repoPath, target.source, target.file.path, target.file.oldPath ?? undefined, ignoreWhitespace);
+  if (isLive(target)) return load();
+  const key = JSON.stringify([repoPath, target.source, target.file.path, target.file.oldPath, ignoreWhitespace]);
+  const status = target.file.status;
+  const whole = (diff: FileDiff) =>
+    !diff.lfs || !diff.media || ((status === "added" || diff.media.before !== null) && (status === "deleted" || diff.media.after !== null));
+  return diffs.get(key, load, whole);
+}
+
+/** Get a file's changes ready, and its pictures decoded, so showing them is quick. */
+function getReady(repoPath: string, target: DiffTarget, ignoreWhitespace: boolean) {
+  if (isLive(target)) return;
+  loadDiff(repoPath, target, ignoreWhitespace).then(
+    (diff) => {
+      if (diff.media?.kind !== "image") return;
+      for (const url of [diff.media.before, diff.media.after]) {
+        if (!url) continue;
+        const picture = new Image();
+        picture.src = url;
+        picture.decode().catch(() => {});
+      }
+    },
+    () => {},
+  );
 }
 
 /** The narrowest the changes can be to show side by side. */
@@ -49,9 +90,10 @@ const SPLIT_MIN_WIDTH = 640;
 
 /**
  * A file's changes over the commit list: text line by line, images side by side, other
- * files by their size. Esc closes, [ and ] go to the previous and next file.
+ * files by their size. Esc closes, [ and ] go to the previous and next file, and for a
+ * commit's file, Alt+↑ and Alt+↓ to the same file in the newer and older commit.
  */
-export function DiffView({ repoPath, targets, index, onIndex, onClose, run, version, onChooseTool, sides, onBlame, back, review }: Props) {
+export function DiffView({ repoPath, targets, index, onIndex, onClose, run, version, onChooseTool, sides, onBlame, back, review, commits, nearby }: Props) {
   const view = useRef<HTMLElement>(null);
   const target = targets[index];
   const [ignoreWhitespace, setIgnoreWhitespace] = useStoredState("diff.ignoreWhitespace", false);
@@ -84,7 +126,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
 
   useEffect(() => {
     let current = true;
-    fileDiff(repoPath, target.source, target.file.path, target.file.oldPath ?? undefined, ignoreWhitespace)
+    loadDiff(repoPath, target, ignoreWhitespace)
       .then((diff) => current && setLoaded({ key, diff, error: null }))
       .catch((e) => current && setLoaded({ key, diff: null, error: String(e) }));
     return () => {
@@ -101,7 +143,16 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
       // Menus and dialogs over this one close first.
       const above = document.querySelector('[role="menu"], [role="dialog"], [aria-modal="true"]');
       // A view opened over these changes (a pull request) has the keys.
-      if (typing || above || event.metaKey || event.ctrlKey || event.altKey || !isTopView(view.current)) return;
+      if (typing || above || event.metaKey || event.ctrlKey || !isTopView(view.current)) return;
+      // Alt+↑ and Alt+↓: the same file in the newer or older commit.
+      const commitStep = event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
+      if (event.altKey) {
+        if (!commits || !commitStep || event.shiftKey) return;
+        commits.onStep(commitStep);
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       const step = event.key === "[" ? -1 : event.key === "]" ? 1 : 0;
       // Esc lets go of chosen lines first.
       if (event.key === "Escape" && selectedCount.current > 0) setSelected(new Set());
@@ -114,10 +165,18 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
     // Before the app's own shortcuts, so Esc closes this first.
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [index, targets, onIndex, onClose]);
+  }, [index, targets, onIndex, onClose, commits]);
 
   const diff = loaded?.key === key ? loaded.diff : null;
   const error = loaded?.key === key ? loaded.error : null;
+
+  // Once these are shown, the files likely next are got ready: the next and previous ones,
+  // and the same file in the next commit.
+  const shown = loaded?.key === key;
+  useEffect(() => {
+    if (!shown) return;
+    for (const next of [targets[index + 1], targets[index - 1], ...(nearby ?? [])]) if (next) getReady(repoPath, next, ignoreWhitespace);
+  }, [shown, targets, index, nearby, repoPath, ignoreWhitespace]);
 
   // A new diff (after staging, say) starts with no lines chosen.
   const [applying, setApplying] = useState(false);
@@ -300,6 +359,7 @@ export function DiffView({ repoPath, targets, index, onIndex, onClose, run, vers
           <CloseIcon />
         </Button>
       </header>
+      {commits && <CommitBar steps={commits} />}
       {/* It scrolls: from the keyboard too, once it has focus. */}
       <div className="diff-body" ref={body} tabIndex={0}>
         {review && elsewhere.length > 0 && <ReviewElsewhere threads={elsewhere} review={review} />}

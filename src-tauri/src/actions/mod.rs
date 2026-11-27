@@ -26,6 +26,7 @@ mod ignored;
 mod lfs;
 mod lfs_count;
 mod lfs_health;
+mod lfs_prefetch;
 mod lfs_settings;
 mod local_history;
 mod merge_check;
@@ -90,6 +91,7 @@ pub use identity::{CommitTemplate, RepoIdentity, commit_template, repo_identity}
 pub use ignored::{IgnoreReason, IgnoreRule, ignore_reason};
 pub use lfs::{FileChecks, LargeFile, LfsStorage, file_checks, lfs_storage_of};
 pub use lfs_health::{LfsHealth, lfs_health};
+pub use lfs_prefetch::prefetch_lfs;
 pub use lfs_settings::{LfsFolder, LfsSettings, LfsSuggestion, lfs_settings};
 pub use local_history::{Snapshot, SnapshotFile, local_history, take_snapshot};
 pub use merge_check::{MergeCheck, MergeOutcome, merge_check};
