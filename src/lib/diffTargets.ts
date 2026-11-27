@@ -1,4 +1,4 @@
-import type { DiffSource, FileChange, WorktreeStatus } from "../api";
+import type { CommitRow, DiffSource, FileChange, WorktreeStatus } from "../api";
 import { shortId } from "./format";
 
 /** A file's change to show: which file, and against what. */
@@ -7,6 +7,18 @@ export interface DiffTarget {
   source: DiffSource;
   /** Like "In 1a2b3c4" or "Staged". */
   label: string;
+}
+
+/** The commit a file's changes are from, among the list's commits, and the way to the one before or after it. */
+export interface CommitSteps {
+  commit: CommitRow;
+  /** Its place in the list, from 0 (the newest). */
+  position: number;
+  /** How many commits the list has, and whether there are more not loaded yet. */
+  total: number;
+  more: boolean;
+  /** The same file in the newer (-1) or older (1) commit, or else that commit's first file. */
+  onStep: (delta: 1 | -1) => void;
 }
 
 /** Untracked folders ("dir/") are listed whole: there's no one file to show. */

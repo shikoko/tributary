@@ -186,6 +186,63 @@
   }
 }
 
+/* Under a commit's file's changes: which commit they're from, and the way to the same file in
+   the newer or older commit. */
+.diff-commit-bar {
+  container: diff-commit-bar / inline-size;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  height: 36px;
+  padding: 0 var(--space-10) 0 var(--space-8);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  flex: none;
+}
+
+.diff-commit-summary {
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-commit-who {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--type-sm);
+  white-space: nowrap;
+}
+
+/* The keys, as a reminder, at the far end. */
+.diff-commit-keys {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--space-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--type-xs);
+  white-space: nowrap;
+}
+
+/* Narrower: the commit's message before who made it and when, and before the reminder. */
+@container diff-commit-bar (max-width: 900px) {
+  .diff-commit-keys {
+    display: none;
+  }
+}
+
+@container diff-commit-bar (max-width: 600px) {
+  .diff-commit-who {
+    display: none;
+  }
+}
+
 .diff-body {
   flex: 1;
   min-height: 0;

@@ -70,6 +70,7 @@ const GROUPS: Group[] = [
       { keys: [[MOD, "Enter"]], what: "Commit, in the commit message box" },
       { keys: [["Enter"]], what: "Show a changed file's changes" },
       { keys: [["["], ["]"]], what: "The previous or next file's changes" },
+      { keys: [[ALT, "↑"], [ALT, "↓"]], what: "In a file's changes: the same file in the newer or older commit" },
     ],
   },
   {
